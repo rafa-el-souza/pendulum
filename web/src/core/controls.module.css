@@ -70,6 +70,16 @@
   text-align: center;
 }
 
+/* Words for a screen reader, where the value is shown in another way. */
+.spoken {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 /* A value held below the one asked for, as time is when the machine cannot
    keep up. */
 .held {

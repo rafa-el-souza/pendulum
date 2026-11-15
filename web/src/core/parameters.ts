@@ -20,6 +20,8 @@ export interface Parameter {
   };
   /** How the control shows a value. */
   readonly show: (value: number) => string;
+  /** What a screen reader says for a value, when what is shown does not read aloud. */
+  readonly speak?: (value: number) => string;
 }
 
 /** A value for every parameter, by id. */
