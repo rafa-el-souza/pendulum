@@ -30,11 +30,13 @@ checked. This directory holds the result and the means to repeat it.
   | `registry/` | Tests that hold `equations.yaml` to its own rules. |
   | `paper.py` | Builds the local reference copy of the paper (below). |
 
-- **`fixtures/`**, the oracle's answers on chosen states of the chain, written
-  by `oracle/chain/write_states.py`: the accelerations, the rod tensions and
-  the energy. The browser's physics (`web/src/physics/`) is tested against
-  them, and an oracle test fails while the file differs from what the script
-  writes.
+- **`fixtures/`**, the oracle's answers for the browser's physics
+  (`web/src/physics/`), which is tested against them. `chain-states.json`,
+  written by `oracle/chain/write_states.py`, holds the accelerations, the rod
+  tensions and the energy on chosen states of the chain; `chain-modes.json`,
+  written by `oracle/limits/write_modes.py`, the lowest normal modes of the
+  equal chain from one mass to 512. An oracle test fails while a file differs
+  from what its script writes.
 
 ## What was found
 
