@@ -653,3 +653,88 @@ test("Escape shuts the row of controls", async ({ page }) => {
   await expect(page.getByRole("toolbar", { name: "Controls" })).toBeHidden();
   expect(errors).toEqual([]);
 });
+
+test("a value opens right above its icon, centred on it", async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto("./");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await openControls(page);
+  for (const label of ["Number of masses", "Strength of gravity"]) {
+    const tool = icon(page, label);
+    await tool.click();
+    const value = page.getByRole("group", { name: label });
+    await expect(value).toBeVisible();
+    const t = await tool.boundingBox();
+    const v = await value.boundingBox();
+    if (t === null || v === null) {
+      throw new Error(`${label} or its value is not on the page`);
+    }
+    expect(Math.abs(v.x + v.width / 2 - (t.x + t.width / 2))).toBeLessThan(1);
+    expect(v.y + v.height).toBeLessThanOrEqual(t.y + 1);
+    expect(t.y - (v.y + v.height)).toBeLessThan(12);
+  }
+  expect(errors).toEqual([]);
+});
+
+test.describe("on a touch screen", () => {
+  test.use({ hasTouch: true });
+
+  test("a touch where the controls are brings them back without grabbing the chain, and keeps them in sight longer", async ({
+    page,
+  }) => {
+    const errors = collectErrors(page);
+    await page.goto("./");
+    await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+    // paused, so that a grab would show: it sets the chain going again
+    await page.keyboard.press(" ");
+    const resume = page.locator('#controls [aria-label="Resume"]');
+    await expect(resume).toHaveCount(1);
+    const dock = page.locator("#controls");
+    await expect(dock).not.toHaveClass(/awake/, { timeout: 6000 });
+
+    // a touch on the button, out of sight, only brings the controls back
+    const box = await launcher(page).boundingBox();
+    if (box === null)
+      throw new Error("the controls' button is not on the page");
+    const x = box.x + box.width / 2;
+    const y = box.y + box.height / 2;
+    await page.touchscreen.tap(x, y);
+    await expect(dock).toHaveClass(/awake/);
+    await expect(resume).toHaveCount(1);
+    await frames(page, 5);
+    await expect(launcher(page)).toHaveAttribute("aria-expanded", "false");
+    // the button, now in sight, takes a touch, and a touch keeps the
+    // controls in sight longer than a sign on the stage does
+    await page.touchscreen.tap(x, y);
+    await expect(launcher(page)).toHaveAttribute("aria-expanded", "true");
+    await page.waitForTimeout(4000);
+    await expect(dock).toHaveClass(/awake/);
+    await expect(resume).toHaveCount(1);
+    expect(errors).toEqual([]);
+  });
+});
+
+test.describe("on a narrow screen", () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  test("where the row does not fit, a chevron shows there is more, and scrolls the row there", async ({
+    page,
+  }) => {
+    const errors = collectErrors(page);
+    await page.goto("./");
+    await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+    await openControls(page);
+    const right = page.locator('#controls [data-scroll="right"]');
+    const left = page.locator('#controls [data-scroll="left"]');
+    await expect(right).toBeVisible();
+    await expect(left).toBeHidden();
+    await right.click();
+    await expect
+      .poll(() =>
+        page.evaluate("document.getElementById('controls-row').scrollLeft"),
+      )
+      .toBeGreaterThan(0);
+    await expect(left).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+});
