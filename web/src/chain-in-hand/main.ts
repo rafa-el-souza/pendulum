@@ -25,8 +25,16 @@ const notice = document.getElementById("notice");
 if (!(canvas instanceof HTMLCanvasElement) || notice === null) {
   throw new Error("the page lacks its #stage canvas or its #notice");
 }
-const stage = mountStage(canvas, notice);
-if (stage !== null) play(stage);
+// The light's colors come from the stylesheet, which the browser may still be
+// applying when this module runs (WebKit did so in CI, and a token read as
+// empty). So the piece starts once the page has loaded.
+function begin(): void {
+  if (!(canvas instanceof HTMLCanvasElement) || notice === null) return;
+  const stage = mountStage(canvas, notice);
+  if (stage !== null) play(stage);
+}
+if (document.readyState === "complete") begin();
+else addEventListener("load", begin, { once: true });
 
 function play({ canvas, gl }: Stage): void {
   const chain = Chain.uniform(MASSES);
