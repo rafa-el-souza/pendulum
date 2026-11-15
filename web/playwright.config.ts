@@ -21,8 +21,12 @@ export default defineConfig({
       name: "firefox",
       use: {
         ...devices["Desktop Firefox"],
-        // CI machines have no GPU, and Firefox turns WebGL off on a software
-        // renderer unless told otherwise. A visitor's Firefox draws on a GPU.
+        // CI machines have no GPU. Headless Firefox there gave no WebGL2 even
+        // with it forced, so in CI Firefox runs headed on a virtual display
+        // (xvfb-run, in ci.yml), and WebGL is allowed on the software
+        // renderer, which Firefox refuses by default. A visitor's Firefox
+        // draws on a GPU and needs neither.
+        headless: !process.env.CI,
         launchOptions: { firefoxUserPrefs: { "webgl.force-enabled": true } },
       },
     },

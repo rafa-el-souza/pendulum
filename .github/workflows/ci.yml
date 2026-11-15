@@ -92,11 +92,14 @@ jobs:
       - name: Build
         run: npm run build
 
+      # Their system packages include Xvfb, the virtual display below.
       - name: Install Chromium, Firefox and WebKit
         run: npm run e2e:browsers
 
+      # Firefox runs headed here, on the virtual display, to get WebGL2
+      # (web/playwright.config.ts); Chromium and WebKit stay headless.
       - name: Every page in the three engines
-        run: npm run e2e
+        run: xvfb-run --auto-servernum npm run e2e
 
   secret_scan:
     name: "Secrets: gitleaks"
