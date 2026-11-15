@@ -21,7 +21,9 @@ export type Icon =
   | "time"
   | "hand"
   | "gravity"
-  | "palette";
+  | "palette"
+  | "left"
+  | "right";
 
 const SVG = "http://www.w3.org/2000/svg";
 
@@ -104,6 +106,9 @@ const ICONS: Record<Icon, { fill: string; stroke: string }> = {
     stroke:
       "M12 3a9 9 0 1 0 0 18c1.2 0 1.8-1 1.3-2-.6-1.1 0-2.5 1.3-2.5H17a4 4 0 0 0 4-4C21 7 17 3 12 3z",
   },
+  // chevrons: there is more of the row this way
+  left: { fill: "", stroke: "M15 5l-7 7 7 7" },
+  right: { fill: "", stroke: "M9 5l7 7-7 7" },
 };
 
 /** An icon, sized for a control, hidden from screen readers: the control names itself. */

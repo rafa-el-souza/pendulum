@@ -1,13 +1,16 @@
 // A piece's controls, made from its registry of parameters (decision 10) and a
-// few actions, and kept out of the piece's way (decisions 16 and 31). When the
-// pointer moves, a finger lifts or a key is pressed, a small button comes into
-// sight in a corner, and it fades again after a moment of stillness. The
+// few actions, and kept out of the piece's way (decisions 16, 31 and 32). When
+// the pointer moves, a finger lifts or a key is pressed, a small button comes
+// into sight in a corner, and it fades again after a moment of stillness. The
 // button opens a thin row of small icons, one per control, which scrolls
-// sideways where it does not fit. An action's icon acts; a parameter's icon
-// shows that one value, with its − and +, above the row. A key steps its
-// parameter whether the row is open or not, and shows the value it changed.
-// The row stays open or closed as the visitor leaves it, and keyboard focus
-// keeps the controls in sight.
+// sideways where it does not fit, with a chevron at a side where there is
+// more. An action's icon acts; a parameter's icon opens that one value, with
+// its − and +, right above itself. A key steps its parameter whether the row
+// is open or not, and shows the value it changed. The row stays open or shut
+// as the visitor leaves it. On a touch screen, a touch on the controls keeps
+// them in sight for longer, a touch where they are brings them back without
+// grabbing the chain, and a touch on the stage puts them away. Keyboard focus
+// and a mouse resting on them keep them in sight.
 
 import { cssColor } from "./color.ts";
 import { cls } from "./css.ts";
@@ -49,8 +52,16 @@ export interface Controls {
   showAction(id: string, icon: Icon, label: string, pressed?: boolean): void;
 }
 
-/** How long the controls stay in sight after the last sign of a visitor, in ms. */
+/** How long the controls stay in sight after a sign of a visitor on the stage, in ms. */
 const STAY_MS = 2500;
+/** How long they stay after a touch on them: a finger needs longer than a mouse to read them and reach the next (decision 32), in ms. */
+const STAY_TOUCHED_MS = 8000;
+/** How long they take to fade, as the stylesheet says, and go on taking a touch while they do, in ms. */
+const FADE_MS = 600;
+/** How far round the controls a touch still counts as theirs, where a finger's miss lands, in CSS px. */
+const TOUCH_MARGIN = 12;
+/** How far the value chosen keeps from the screen's sides, in CSS px. */
+const EDGE = 8;
 
 /** The button's little chain swinging open and shut, in degrees, settling as a pendulum does. */
 const SWING_OPEN = [0, 104, 82, 94, 88, 90];
@@ -69,6 +80,40 @@ export function moreToScroll(
   if (left && right) return "both";
   if (left) return "left";
   return right ? "right" : "";
+}
+
+/** Where a box `width` wide starts so as to be centred on `centre`, kept between `min` and `max`, or at `min` when it is wider than that. */
+export function centredOver(
+  centre: number,
+  width: number,
+  min: number,
+  max: number,
+): number {
+  return Math.max(min, Math.min(centre - width / 2, max - width));
+}
+
+/** A box on the screen, as getBoundingClientRect gives it, in CSS px. */
+export interface Box {
+  readonly left: number;
+  readonly top: number;
+  readonly right: number;
+  readonly bottom: number;
+}
+
+/** Whether a point is on one of the boxes, or within `margin` of one. */
+export function onControls(
+  boxes: readonly Box[],
+  margin: number,
+  x: number,
+  y: number,
+): boolean {
+  return boxes.some(
+    (box) =>
+      x >= box.left - margin &&
+      x <= box.right + margin &&
+      y >= box.top - margin &&
+      y <= box.bottom + margin,
+  );
 }
 
 /** The keys shown beside a control: arrows as arrows, and letters as capitals, as on the keys. */
@@ -104,6 +149,8 @@ interface Entry {
   readonly shown: HTMLElement;
   readonly spoken: HTMLElement | null;
   readonly readingIcon: SVGSVGElement;
+  /** Its keys, beside the value where a pointer hovers. */
+  readonly keys: HTMLElement;
   /** The colours painted, when the value is shown in colours. */
   painted: string;
 }
@@ -133,12 +180,36 @@ export function mountControls(
   launcher.setAttribute("aria-controls", row.id);
   launcher.title = "Controls";
 
+  // The row, and at each side a chevron that shows there is more of it that
+  // way, and scrolls it there; for a pointer only, since focus moving along
+  // the row scrolls it too.
+  const still = matchMedia("(prefers-reduced-motion: reduce)");
+  const track = document.createElement("div");
+  track.className = cls(styles, "track");
+  const chevron = (side: "left" | "right"): HTMLButtonElement => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = cls(styles, "more");
+    b.dataset.scroll = side;
+    b.tabIndex = -1;
+    b.setAttribute("aria-hidden", "true");
+    b.append(drawIcon(side));
+    b.addEventListener("click", () => {
+      row.scrollBy({
+        left: (side === "left" ? -0.7 : 0.7) * row.clientWidth,
+        behavior: still.matches ? "auto" : "smooth",
+      });
+    });
+    return b;
+  };
+  track.append(row, chevron("left"), chevron("right"));
+
   // The button first, so that it takes focus first; the row shows to its left.
   const tray = document.createElement("div");
   tray.className = cls(styles, "tray");
-  tray.append(launcher, row);
+  tray.append(launcher, track);
 
-  // The value chosen, shown above the row.
+  // The value chosen, which opens right above its icon.
   const readout = document.createElement("div");
   readout.className = cls(styles, "readout");
   dock.append(tray, readout);
@@ -173,8 +244,9 @@ export function mountControls(
     { button: HTMLButtonElement; keysShown: string }
   >();
   let chosen: string | null = null;
+  let open = false;
 
-  /** Shows the value of the parameter `id` above the row, or none. */
+  /** Shows the value of the parameter `id` above its icon, or none. */
   function setChosen(id: string | null): void {
     if (chosen === id) return;
     chosen = id;
@@ -182,6 +254,27 @@ export function mountControls(
       entry.reading.hidden = key !== id;
       entry.tool.setAttribute("aria-expanded", String(key === id));
     }
+    place();
+  }
+
+  /**
+   * The value chosen opens right above its icon, centred on it, and stays on
+   * the screen; with the row shut, above the button (decision 32).
+   */
+  function place(): void {
+    if (chosen === null) return;
+    const entry = entries.get(chosen);
+    if (entry === undefined) return;
+    const anchor = (open ? entry.tool : launcher).getBoundingClientRect();
+    // its keys, beside it where a pointer hovers, stay on the screen too
+    const keys = entry.keys.offsetWidth;
+    const left = centredOver(
+      anchor.left + anchor.width / 2,
+      entry.reading.offsetWidth,
+      EDGE,
+      innerWidth - EDGE - (keys === 0 ? 0 : keys + 2),
+    );
+    readout.style.left = `${String(left - dock.getBoundingClientRect().left)}px`;
   }
 
   for (const set of sets) {
@@ -293,6 +386,7 @@ export function mountControls(
         shown,
         spoken,
         readingIcon,
+        keys: keysHint,
         painted: "",
       });
     }
@@ -300,32 +394,61 @@ export function mountControls(
   }
   document.body.append(dock);
 
-  // In sight, and fading after a moment of stillness, unless a mouse rests
-  // on them.
+  // In sight until a moment after the last sign of a visitor, unless a mouse
+  // rests on them; then they fade, and go on taking a touch while they do.
   const awake = cls(styles, "awake");
-  let open = false;
+  const fading = cls(styles, "fading");
   let timer = 0;
+  let fadeTimer = 0;
+  // when they may fade, in performance.now() time
+  let until = 0;
   let mouseOver = false;
   function sleep(): void {
-    if (mouseOver) {
-      timer = window.setTimeout(sleep, STAY_MS);
+    dock.classList.remove(awake);
+    clearTimeout(fadeTimer);
+    const faded = (): void => {
+      dock.classList.remove(fading);
+      // with the row shut, the value a key showed goes with the controls
+      if (!open && !dock.contains(document.activeElement)) setChosen(null);
+    };
+    if (still.matches) {
+      faded();
       return;
     }
-    dock.classList.remove(awake);
-    // with the row shut, the value a key showed goes with the controls
-    if (!open && !dock.contains(document.activeElement)) setChosen(null);
+    dock.classList.add(fading);
+    fadeTimer = window.setTimeout(faded, FADE_MS);
   }
-  function wake(): void {
+  function due(): void {
+    const left = until - performance.now();
+    if (left > 1) timer = window.setTimeout(due, left);
+    else if (mouseOver) timer = window.setTimeout(due, STAY_MS);
+    else sleep();
+  }
+  /** In sight for at least `stay` ms more. */
+  function wake(stay = STAY_MS): void {
+    clearTimeout(fadeTimer);
+    dock.classList.remove(fading);
     dock.classList.add(awake);
+    until = Math.max(until, performance.now() + stay);
     clearTimeout(timer);
-    timer = window.setTimeout(sleep, STAY_MS);
+    timer = window.setTimeout(due, until - performance.now());
   }
-  // Whatever the visitor does on the controls keeps them in sight. A click
-  // leaves the focus where it was, so that a button clicked does not keep
-  // them in sight, nor take a ring at the next key; a key that reaches them
-  // by Tab still does.
-  dock.addEventListener("pointermove", wake);
-  dock.addEventListener("pointerdown", wake);
+  /** Put away at once, as when a finger goes back to the stage. */
+  function rest(): void {
+    until = 0;
+    clearTimeout(timer);
+    if (dock.classList.contains(awake)) sleep();
+  }
+  // Whatever the visitor does on the controls keeps them in sight, and a
+  // touch for longer. A click leaves the focus where it was, so that a button
+  // clicked does not keep them in sight, nor take a ring at the next key; a
+  // key that reaches them by Tab still does.
+  dock.addEventListener("pointermove", () => {
+    wake();
+  });
+  dock.addEventListener("pointerdown", (event) => {
+    wake(event.pointerType === "mouse" ? STAY_MS : STAY_TOUCHED_MS);
+  });
   dock.addEventListener("pointerenter", (event) => {
     if (event.pointerType === "mouse") mouseOver = true;
   });
@@ -338,17 +461,72 @@ export function mountControls(
     event.preventDefault();
   });
 
+  /** Where the controls are on the screen: the button with the row, and the value chosen. */
+  function boxes(): Box[] {
+    const all: Box[] = [tray.getBoundingClientRect()];
+    if (chosen !== null) all.push(readout.getBoundingClientRect());
+    return all;
+  }
+  // A touch where the controls are, seen or not, is for them: it brings them
+  // back, and never reaches the stage to grab the chain. It only brings them
+  // back: the click it ends in does nothing, so that a control out of sight
+  // is never worked by a touch that could not see it. A touch anywhere else
+  // on the stage puts them away (decision 32).
+  // whether the next click ends a touch that only brought the controls back;
+  // any later click starts with a pointer down or a key of its own
+  let swallowClick = false;
+  addEventListener(
+    "pointerdown",
+    (event) => {
+      swallowClick = false;
+      if (event.pointerType === "mouse") return;
+      if (event.target instanceof Node && dock.contains(event.target)) return;
+      if (onControls(boxes(), TOUCH_MARGIN, event.clientX, event.clientY)) {
+        event.stopPropagation();
+        event.preventDefault();
+        wake(STAY_TOUCHED_MS);
+        swallowClick = true;
+      } else {
+        rest();
+      }
+    },
+    { capture: true },
+  );
+  addEventListener(
+    "keydown",
+    () => {
+      swallowClick = false;
+    },
+    { capture: true },
+  );
+  addEventListener(
+    "click",
+    (event) => {
+      if (!swallowClick) return;
+      swallowClick = false;
+      event.stopPropagation();
+      event.preventDefault();
+    },
+    { capture: true },
+  );
+
   // The row fades at a side with more of it out of sight, and a wheel turned
   // up and down scrolls it sideways.
   function edges(): void {
-    row.dataset.more = moreToScroll(
+    track.dataset.more = moreToScroll(
       row.scrollLeft,
       row.scrollWidth,
       row.clientWidth,
     );
   }
-  row.addEventListener("scroll", edges, { passive: true });
-  new ResizeObserver(edges).observe(row);
+  // the value chosen follows its icon as the row scrolls
+  const settle = (): void => {
+    edges();
+    place();
+  };
+  row.addEventListener("scroll", settle, { passive: true });
+  new ResizeObserver(settle).observe(row);
+  addEventListener("resize", settle);
   row.addEventListener(
     "wheel",
     (event) => {
@@ -361,7 +539,6 @@ export function mountControls(
     { passive: false },
   );
 
-  const still = matchMedia("(prefers-reduced-motion: reduce)");
   /** The button's chain swings to lie along the row when it opens, and back to hang when it shuts. */
   function swing(opening: boolean): void {
     const turns = opening ? SWING_OPEN : SWING_SHUT;
@@ -383,7 +560,7 @@ export function mountControls(
     launcher.setAttribute("aria-expanded", String(on));
     if (!on) setChosen(null);
     swing(on);
-    if (on) edges();
+    settle();
     wake();
   }
   launcher.addEventListener("click", () => {
@@ -417,6 +594,7 @@ export function mountControls(
       const at = reached ?? value;
       const text = entry.parameter.show(at);
       const swatches = entry.parameter.swatches?.(at).map((c) => cssColor(c));
+      const before = entry.shown.textContent;
       if (swatches === undefined) {
         if (entry.shown.textContent !== text) entry.shown.textContent = text;
       } else if (entry.painted !== swatches.join()) {
@@ -447,6 +625,8 @@ export function mountControls(
       }
       entry.output.classList.toggle(held, reached !== undefined);
       entry.tool.classList.toggle(held, reached !== undefined);
+      // a value that grew or shrank stays centred on its icon
+      if (id === chosen && entry.shown.textContent !== before) place();
     },
     showAction(id, icon, label, pressed) {
       const action = actionButtons.get(id);

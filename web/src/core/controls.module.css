@@ -1,16 +1,13 @@
 /* The controls of a piece: a small button in a corner and the thin row of
-   icons it opens, out of sight until wanted (docs/decisions.md, decisions 16
-   and 31). How discreet they are, where they sit and how the button looks
+   icons it opens, out of sight until wanted (docs/decisions.md, decisions 16,
+   31 and 32). How discreet they are, where they sit and how the button looks
    are placeholders, which the author settles by trying. */
 
-/* The button, the row to its left, and the value chosen above them. */
+/* The button and the row to its left; the value chosen opens above them. */
 .dock {
   position: fixed;
   right: max(var(--space-1), env(safe-area-inset-right));
   bottom: max(var(--space-1), env(safe-area-inset-bottom));
-  display: flex;
-  flex-direction: column-reverse;
-  align-items: flex-end;
   max-width: calc(100vw - 2 * var(--space-1));
   color: var(--color-ink-muted);
   font-family: var(--font-text);
@@ -26,11 +23,24 @@
   pointer-events: auto;
 }
 
+/* Fading, they still take a touch: what is seen can be touched. */
+.fading {
+  pointer-events: auto;
+}
+
 .tray {
   display: flex;
   flex-direction: row-reverse;
+  gap: 0.25rem;
   align-items: center;
   max-width: 100%;
+}
+
+/* The row, with a chevron at each side where there is more of it. */
+.track {
+  position: relative;
+  display: flex;
+  min-width: 0;
 }
 
 /* One line of icons, in sets with a gap between them, scrolled sideways where
@@ -55,22 +65,60 @@
   display: none;
 }
 
-.row[data-more="right"] {
-  mask-image: linear-gradient(to left, transparent, #000 2.5rem);
+/* Under a chevron the row is out of sight, and it comes back beside it. */
+.track[data-more="right"] .row {
+  mask-image: linear-gradient(to left, transparent 1.5rem, #000 3.5rem);
 }
 
-.row[data-more="left"] {
-  mask-image: linear-gradient(to right, transparent, #000 2.5rem);
+.track[data-more="left"] .row {
+  mask-image: linear-gradient(to right, transparent 1.5rem, #000 3.5rem);
 }
 
-.row[data-more="both"] {
+.track[data-more="both"] .row {
   mask-image: linear-gradient(
     to right,
-    transparent,
-    #000 2.5rem,
-    #000 calc(100% - 2.5rem),
-    transparent
+    transparent 1.5rem,
+    #000 3.5rem,
+    #000 calc(100% - 3.5rem),
+    transparent calc(100% - 1.5rem)
   );
+}
+
+/* A chevron over the faded side: there is more that way, and a touch on it
+   scrolls there. */
+.more {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-ink);
+  cursor: pointer;
+}
+
+.more[data-scroll="left"] {
+  left: 0;
+}
+
+.more[data-scroll="right"] {
+  right: 0;
+}
+
+.track[data-more="left"] .more[data-scroll="left"],
+.track[data-more="both"] .more[data-scroll="left"],
+.track[data-more="right"] .more[data-scroll="right"],
+.track[data-more="both"] .more[data-scroll="right"] {
+  display: flex;
+}
+
+.more svg {
+  width: 0.875rem;
+  height: 0.875rem;
 }
 
 .set {
@@ -78,7 +126,8 @@
   flex: none;
 }
 
-/* The icons and the button: small glyphs on round targets a finger can hit. */
+/* The icons and the button: small glyphs on round targets a finger can hit,
+   the button's a little larger. */
 .tool,
 .launcher {
   position: relative;
@@ -94,13 +143,18 @@
   scroll-snap-align: start;
 }
 
+.launcher {
+  width: 3rem;
+  height: 3rem;
+}
+
 .tool:hover,
 .launcher:hover,
 .tool[aria-expanded="true"] {
   color: var(--color-ink);
 }
 
-/* The icon whose value shows above the row, marked by a dot beneath. */
+/* The icon whose value is open above it, marked by a dot beneath. */
 .tool[aria-expanded="true"]::after {
   position: absolute;
   bottom: 0.2rem;
@@ -128,12 +182,18 @@
   outline-offset: 2px;
 }
 
-/* A parameter's value, with its − and +, and its keys where a pointer hovers. */
+/* A parameter's value, with its − and +, right above its icon and centred on
+   it; its keys beside it where a pointer hovers, outside what is centred. */
 .readout {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
   display: flex;
+  white-space: nowrap;
 }
 
 .reading {
+  position: relative;
   display: flex;
   align-items: center;
 }
@@ -194,9 +254,13 @@
 }
 
 .keys {
-  margin-left: 0.25rem;
+  position: absolute;
+  top: 50%;
+  left: 100%;
+  margin-left: 0.125rem;
   font-size: 0.75rem;
   opacity: 0.7;
+  transform: translateY(-50%);
   white-space: nowrap;
 }
 
