@@ -19,6 +19,8 @@ export interface Action {
   readonly keys: readonly string[];
   /** How the keys are shown beside the button. */
   readonly keysShown: string;
+  /** For a switch, whether it starts on; the button then says so to a screen reader. */
+  readonly pressed?: boolean;
 }
 
 export interface ControlHandlers {
@@ -31,8 +33,8 @@ export interface Controls {
   wake(): void;
   /** Shows a parameter's value; `reached`, when given, is the value actually reached. */
   showValue(id: string, value: number, reached?: number): void;
-  /** Changes what an action's button shows, as pause becomes resume. */
-  showAction(id: string, icon: Icon, label: string): void;
+  /** Changes what an action's button shows, as pause becomes resume, and whether a switch is on. */
+  showAction(id: string, icon: Icon, label: string, pressed?: boolean): void;
 }
 
 /** How long the controls stay in sight after the last sign of a visitor, in ms. */
@@ -156,6 +158,9 @@ export function mountControls(
     const b = button(drawIcon(action.icon), action.label, action.keys, () => {
       handlers.act(action.id);
     });
+    if (action.pressed !== undefined) {
+      b.setAttribute("aria-pressed", String(action.pressed));
+    }
     group.append(b, hint(action.keysShown));
     bar.append(group);
     actionButtons.set(action.id, b);
@@ -202,11 +207,13 @@ export function mountControls(
       }
       entry.output.classList.toggle(held, reached !== undefined);
     },
-    showAction(id, icon, label) {
+    showAction(id, icon, label, pressed) {
       const b = actionButtons.get(id);
       if (b === undefined) throw new Error(`no action ${id}`);
       b.replaceChildren(drawIcon(icon));
       b.setAttribute("aria-label", label);
+      if (pressed !== undefined)
+        b.setAttribute("aria-pressed", String(pressed));
       b.title = `${label} (${b.getAttribute("aria-keyshortcuts") ?? ""})`;
     },
   };
