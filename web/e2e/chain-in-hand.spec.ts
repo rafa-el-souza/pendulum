@@ -18,7 +18,7 @@ test("the chain can be grabbed, swung, let go, paused and raised again", async (
   page,
 }) => {
   const errors = collectErrors(page);
-  await page.goto("chain-in-hand/");
+  await page.goto("./");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   const box = await page.locator("#stage").boundingBox();
   if (box === null) throw new Error("the stage is not on the page");
@@ -47,7 +47,7 @@ test("paused, the chain holds still; grabbing it sets it going again", async ({
   page,
 }) => {
   const errors = collectErrors(page);
-  await page.goto("chain-in-hand/");
+  await page.goto("./");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   const stage = page.locator("#stage");
   const box = await stage.boundingBox();
@@ -80,7 +80,7 @@ test("the keys and the controls change the masses and the time, and the address 
   page,
 }) => {
   const errors = collectErrors(page);
-  await page.goto("chain-in-hand/");
+  await page.goto("./");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   const masses = page.getByRole("group", { name: "Number of masses" });
   const time = page.getByRole("group", { name: "Speed of time" });
@@ -105,7 +105,7 @@ test("the keys and the controls change the masses and the time, and the address 
 
 test("an address carries the masses and the time", async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto("chain-in-hand/?n=64&time=0.5");
+  await page.goto("./?n=64&time=0.5");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   await expect(
     page.getByRole("group", { name: "Number of masses" }).locator("output"),
@@ -121,7 +121,7 @@ test("the hand's keys run it from firm to elastic and back, and the address foll
   page,
 }) => {
   const errors = collectErrors(page);
-  await page.goto("chain-in-hand/");
+  await page.goto("./");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   const grip = page
     .getByRole("group", { name: "Firmness of the hand" })
@@ -144,7 +144,7 @@ test("an elastic hand from the address swings and throws the chain, and the grip
   page,
 }) => {
   const errors = collectErrors(page);
-  await page.goto("chain-in-hand/?hand=4");
+  await page.goto("./?hand=4");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   await expect(
     page.getByRole("group", { name: "Firmness of the hand" }).locator("output"),
@@ -173,7 +173,7 @@ test("the twins are born, die when the chain is grabbed, and are born again when
 }) => {
   const errors = collectErrors(page);
   // time runs four times faster, so that the fan has opened by the grab
-  await page.goto("chain-in-hand/?time=4");
+  await page.goto("./?time=4");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   const box = await page.locator("#stage").boundingBox();
   if (box === null) throw new Error("the stage is not on the page");
@@ -207,7 +207,7 @@ test("the tips leave trails, kept in half floats or eight bits as the engine all
   browserName,
 }) => {
   const errors = collectErrors(page);
-  await page.goto("chain-in-hand/?time=4");
+  await page.goto("./?time=4");
   const html = page.locator("html");
   await expect(html).toHaveAttribute("data-webgl", "webgl2");
   await expect(html).toHaveAttribute("data-trails", /^(half-float|8-bit)$/);
@@ -228,7 +228,7 @@ test("the twins' and the trails' keys change their number and length, and the ad
   page,
 }) => {
   const errors = collectErrors(page);
-  await page.goto("chain-in-hand/");
+  await page.goto("./");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   const twins = page
     .getByRole("group", { name: "Number of twins" })
@@ -268,7 +268,7 @@ test("an address asks for 4 096 twins and trails that stay, and the budget carri
   page,
 }) => {
   const errors = collectErrors(page);
-  await page.goto("chain-in-hand/?twins=4096&trail=600");
+  await page.goto("./?twins=4096&trail=600");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   await expect(
     page.getByRole("group", { name: "Length of the trails" }).locator("output"),
@@ -281,7 +281,7 @@ test("the palette's keys change the twins' colours, the control paints them, and
   page,
 }) => {
   const errors = collectErrors(page);
-  await page.goto("chain-in-hand/");
+  await page.goto("./");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   const palette = page
     .getByRole("group", { name: "Colours of the twins" })
@@ -313,7 +313,7 @@ test("the palette's keys change the twins' colours, the control paints them, and
 
 test("an address carries the palette", async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto("chain-in-hand/?palette=4");
+  await page.goto("./?palette=4");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   await expect(
     page.getByRole("group", { name: "Colours of the twins" }).locator("output"),
@@ -326,7 +326,7 @@ test("the G key passes the whole frame through the sketch's light, and back", as
   page,
 }) => {
   const errors = collectErrors(page);
-  await page.goto("chain-in-hand/");
+  await page.goto("./");
   const html = page.locator("html");
   await expect(html).toHaveAttribute("data-webgl", "webgl2");
   await expect(html).toHaveAttribute("data-light", "trails");
@@ -356,7 +356,7 @@ test("the spread's keys bring the twins closer or farther at birth, and the addr
   page,
 }) => {
   const errors = collectErrors(page);
-  await page.goto("chain-in-hand/");
+  await page.goto("./");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   const spread = page
     .getByRole("group", { name: "Spread of the twins at birth" })
@@ -381,7 +381,7 @@ test("the keys 1 and 2 let the trails come from the tip or from every mass, and 
 }) => {
   const errors = collectErrors(page);
   // 64 masses, time four times faster, so that every mass draws a lot
-  await page.goto("chain-in-hand/?n=64&time=4");
+  await page.goto("./?n=64&time=4");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   const ribbon = page
     .getByRole("group", { name: "Trails from every mass" })
@@ -404,7 +404,7 @@ test("the light switch puts out the twins and the trails and lights them again, 
   page,
 }) => {
   const errors = collectErrors(page);
-  await page.goto("chain-in-hand/?time=4");
+  await page.goto("./?time=4");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   const light = page.getByRole("button", { name: "Light" });
   const twins = page
@@ -445,7 +445,7 @@ test("the B key runs time backwards and forwards again, and grabbing the chain r
   page,
 }) => {
   const errors = collectErrors(page);
-  await page.goto("chain-in-hand/?time=4");
+  await page.goto("./?time=4");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   const backwards = page.getByRole("button", { name: "Run time backwards" });
   const forwards = page.getByRole("button", { name: "Run time forwards" });
@@ -479,7 +479,7 @@ test("gravity's keys weaken it to none and strengthen it, and turn it, and the a
   page,
 }) => {
   const errors = collectErrors(page);
-  await page.goto("chain-in-hand/");
+  await page.goto("./");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   const strength = page
     .getByRole("group", { name: "Strength of gravity" })
@@ -517,7 +517,7 @@ test("gravity's direction comes round past straight up, either way", async ({
   page,
 }) => {
   const errors = collectErrors(page);
-  await page.goto("chain-in-hand/?tilt=-165");
+  await page.goto("./?tilt=-165");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   const direction = page
     .getByRole("group", { name: "Direction of gravity" })
@@ -537,7 +537,7 @@ test("an address carries gravity's strength and direction, and the chain is rais
   page,
 }) => {
   const errors = collectErrors(page);
-  await page.goto("chain-in-hand/?g=1.62&tilt=90");
+  await page.goto("./?g=1.62&tilt=90");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   await expect(
     page.getByRole("group", { name: "Strength of gravity" }).locator("output"),

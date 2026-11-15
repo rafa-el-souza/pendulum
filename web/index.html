@@ -2,16 +2,20 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
     <meta
       name="description"
-      content="Interactive pieces built on one physics paper, checked equation by equation."
+      content="One chain to grab and throw, from one mass to a rope, with twins that show chaos."
     />
-    <title>Pendulum</title>
+    <title>The chain in the hand · Pendulum</title>
   </head>
   <body>
-    <main id="home"></main>
-    <noscript>Pendulum needs JavaScript.</noscript>
-    <script type="module" src="/src/home/main.ts"></script>
+    <canvas id="stage" role="img" aria-label="A chain pendulum"></canvas>
+    <p id="notice" role="status" hidden></p>
+    <noscript>This piece needs JavaScript.</noscript>
+    <script type="module" src="/src/chain-in-hand/main.ts"></script>
   </body>
 </html>

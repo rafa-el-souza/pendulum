@@ -1,13 +1,14 @@
-// Every piece of Pendulum, in the order the home page lists them. Each one is a
-// page of its own at <id>/index.html (docs/decisions.md, decision 7); the build
-// takes its entries from here (vite.config.ts).
+// Every piece of Pendulum. Each one is a page of its own at <id>/index.html
+// (docs/decisions.md, decision 7), and the build takes its entries from here
+// (vite.config.ts). While there is only one, it opens at the site's root, and
+// its own page forwards there (decision 30).
 
 export interface Piece {
   /** Folder of the piece's page and segment of its route: lowercase words joined by hyphens. */
   readonly id: string;
-  /** Working name, shown on the home page and in the tab. */
+  /** Working name, shown in the tab. */
   readonly title: string;
-  /** One sentence for the home page. */
+  /** One sentence, the description of the piece's page. */
   readonly summary: string;
 }
 
@@ -22,7 +23,7 @@ export const PIECES: readonly Piece[] = [
 
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
-/** The link to a piece from the home page. Relative, so the site works under any base path. */
+/** A piece's own address, relative to the site's root, so that the site works under any base path. */
 export function pieceHref(piece: Piece): string {
   return `${piece.id}/`;
 }
@@ -41,4 +42,19 @@ export function checkPieces(pieces: readonly Piece[]): void {
     }
     seen.add(id);
   }
+}
+
+/**
+ * The piece the site's root opens, which it does only while that piece is
+ * the only one (decision 30). Throws for any other number of pieces, since
+ * the root then has to list them.
+ */
+export function onlyPiece(pieces: readonly Piece[]): Piece {
+  const [first, ...rest] = pieces;
+  if (first === undefined || rest.length > 0) {
+    throw new Error(
+      `the site's root opens the only piece (docs/decisions.md, decision 30), and there are ${String(pieces.length)}: give the root a list of the pieces instead`,
+    );
+  }
+  return first;
 }
