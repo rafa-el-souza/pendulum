@@ -3,6 +3,12 @@ import "../styles/base.css";
 import { tokenColor, type Rgb } from "../core/color.ts";
 import { mountControls } from "../core/controls.ts";
 import { Lines, SegmentBatch } from "../core/lines.ts";
+import {
+  hashWith,
+  momentInHash,
+  readMoment,
+  writeMoment,
+} from "../core/moment.ts";
 import { fanPalette } from "../core/palettes.ts";
 import {
   keyAction,
@@ -58,7 +64,7 @@ import {
 // whole frame through the sketch's light, to compare (decision 24). The
 // controls wait behind one small button (decision 31). The chain starts, and
 // starts again, raised to one side or at rest in one of the paper's normal
-// modes (decision 33).
+// modes (decision 33), or from a moment saved in the address (decision 34).
 
 // Earth's gravity, in m/s²: the weight in which the hand's pull is shown,
 // whatever gravity the chain is under.
@@ -166,10 +172,13 @@ function play({ canvas, gl }: Stage): void {
   let twinTips = new Float64Array(0);
 
   let hand: Hand | null = null;
-  // whether the chain still moves as it started, the hand not having held it
-  // since: a mode it started in is then started again on another number of
-  // masses (decision 33)
-  let fromStart = true;
+  // whether the chain still swings in the mode it started in, the hand not
+  // having held it since: it then starts again in that mode on another
+  // number of masses (decision 33)
+  let inMode = false;
+  // the moment saved in the address, where the chain starts while there is
+  // one (decision 34)
+  let saved = momentInHash(location.hash, chain.n);
   let paused = false;
   // whether time runs backwards: every motion reversed since it last ran
   // forwards (decision 28)
@@ -243,16 +252,22 @@ function play({ canvas, gl }: Stage): void {
   }
 
   /**
-   * The chain starts again where its controls say (decision 33), let go from
-   * rest about gravity as it points now: raised to one side, a chaotic start
-   * with two masses or more; or in a normal mode of the paper, its largest
-   * angle the amplitude asked for, in the highest mode the chain has if it
-   * has fewer masses than the mode asked for.
+   * The chain starts again where its controls say: from the moment saved in
+   * the address, as it was (decision 34); or let go from rest about gravity
+   * as it points now (decision 33), raised to one side, a chaotic start with
+   * two masses or more, or in a normal mode of the paper, its largest angle
+   * the amplitude asked for, in the highest mode the chain has if it has
+   * fewer masses than the mode asked for.
    */
   function start(): void {
     const down = radians(value(TILT));
     const mode = Math.min(value(MODE), chain.n);
-    if (mode > 0) {
+    if (saved !== null) {
+      state = {
+        theta: Float64Array.from(saved.theta),
+        omega: Float64Array.from(saved.omega),
+      };
+    } else if (mode > 0) {
       state = startInMode(chain.n, mode, radians(value(AMPLITUDE)), down);
     } else {
       for (let i = 0; i < chain.n; i++) {
@@ -261,7 +276,7 @@ function play({ canvas, gl }: Stage): void {
       }
     }
     hand = null;
-    fromStart = true;
+    inMode = saved === null && mode > 0;
     setBackwards(false);
     trails.clear();
     spawnTwins();
@@ -271,10 +286,16 @@ function play({ canvas, gl }: Stage): void {
   /**
    * The start's controls: a mode the chain lacks shows the highest it has,
    * held back, and the amplitude, which only a mode has, shows held back
-   * while the chain starts raised.
+   * while the chain starts raised; with a moment saved, where the chain
+   * starts, both show held back.
    */
   function showStart(): void {
     const mode = value(MODE);
+    if (saved !== null) {
+      controls.showValue(MODE.id, mode, Math.min(mode, chain.n));
+      controls.showValue(AMPLITUDE.id, value(AMPLITUDE), value(AMPLITUDE));
+      return;
+    }
     if (mode > chain.n) controls.showValue(MODE.id, mode, chain.n);
     else controls.showValue(MODE.id, mode);
     const amplitude = value(AMPLITUDE);
@@ -325,7 +346,7 @@ function play({ canvas, gl }: Stage): void {
     resetTrailEnds();
     // a chain still swinging in the mode it started in starts again in that
     // mode of the new chain (decision 33)
-    if (fromStart && value(MODE) > 0) start();
+    if (inMode) start();
   }
 
   /** The sketch's light on the whole frame, or on the trails alone; the page says which. */
@@ -379,9 +400,53 @@ function play({ canvas, gl }: Stage): void {
     );
   }
 
+  /**
+   * The moment as it is now goes into the address, and the chain starts
+   * there from now on (decision 34): exactly as the address holds it, seven
+   * digits to a number, so that the address opened again starts the same.
+   */
+  function save(): void {
+    const text = writeMoment(state);
+    saved = readMoment(text, chain.n);
+    keepInAddress(text);
+    showStart();
+  }
+
+  /** The moment saved is forgotten, and leaves the address. */
+  function forget(): void {
+    if (saved === null) return;
+    saved = null;
+    keepInAddress(null);
+  }
+
+  /** The address after the "#" holds this moment, or none, and the button says whether one is kept. */
+  function keepInAddress(text: string | null): void {
+    history.replaceState(
+      null,
+      "",
+      `${location.pathname}${location.search}${hashWith(location.hash, text)}`,
+    );
+    showSave();
+  }
+
+  function showSave(): void {
+    controls.showAction(
+      "save",
+      saved === null ? "save" : "saved",
+      saved === null
+        ? "Save this moment"
+        : "Save this moment over the one saved",
+    );
+  }
+
   function step(parameter: Parameter, direction: 1 | -1): void {
     const next = stepValue(parameter, value(parameter), direction);
     values.set(parameter.id, next);
+    // a moment saved belongs to a chain of so many masses, and choosing a
+    // start, a mode or the amplitude of one, starts there instead
+    const chooses =
+      parameter === MODE || (parameter === AMPLITUDE && value(MODE) > 0);
+    if (parameter === MASSES || chooses) forget();
     if (parameter === MASSES) setMasses(next);
     // the chain and its twins fall another way, or harder, from where they are
     if (parameter === GRAVITY || parameter === TILT) {
@@ -396,9 +461,7 @@ function play({ canvas, gl }: Stage): void {
     if (twinsAgain && hand === null) spawnTwins();
     if (parameter === TRAIL && next === 0) trails.clear();
     // another mode, or another amplitude of one, starts the chain again in it
-    if (parameter === MODE || (parameter === AMPLITUDE && value(MODE) > 0)) {
-      start();
-    }
+    if (chooses) start();
     // another palette colours the twins at once; the trails they left keep
     // their colours and fade
     if (parameter === PALETTE) paint();
@@ -440,6 +503,13 @@ function play({ canvas, gl }: Stage): void {
           keysShown: "R",
         },
         {
+          id: "save",
+          label: "Save this moment",
+          icon: "save",
+          keys: ["s", "S"],
+          keysShown: "S",
+        },
+        {
           id: "light",
           label: "Light",
           icon: "light",
@@ -457,6 +527,7 @@ function play({ canvas, gl }: Stage): void {
         if (id === "pause") setPaused(!paused);
         else if (id === "reverse") reverseTime();
         else if (id === "light") setLit(!lit);
+        else if (id === "save") save();
         else start();
       },
     },
@@ -464,6 +535,7 @@ function play({ canvas, gl }: Stage): void {
   for (const parameter of PARAMETERS) {
     controls.showValue(parameter.id, value(parameter));
   }
+  showSave();
   // the button shows for a moment as the piece opens, so that it is found
   controls.wake();
 
@@ -487,7 +559,7 @@ function play({ canvas, gl }: Stage): void {
     // ends its twins; letting it go gives it new ones.
     if (paused) setPaused(false);
     if (backwards) setBackwards(false);
-    fromStart = false;
+    inMode = false;
     twins = [];
     // the nearest mass, wherever the press lands
     hand = holding(chain.nearestMass(state.theta, px, py), {
@@ -552,6 +624,8 @@ function play({ canvas, gl }: Stage): void {
       setPaused(!paused);
     } else if (event.key === "r" || event.key === "R") {
       start();
+    } else if (event.key === "s" || event.key === "S") {
+      save();
     } else if (event.key === "b" || event.key === "B") {
       reverseTime();
     } else if (event.key === "l" || event.key === "L") {

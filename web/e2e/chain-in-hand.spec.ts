@@ -653,6 +653,82 @@ test("an address starts the chain in a mode; with fewer masses it starts in its 
   expect(errors).toEqual([]);
 });
 
+/** The button that saves the moment, whose name says whether one is kept (decision 34). */
+function saveButton(page: Page): Locator {
+  return page
+    .getByRole("toolbar", { name: "Controls" })
+    .getByRole("button", { name: /^Save this moment/ });
+}
+
+test("the S key saves the moment into the address, R starts the chain there, and choosing a mode forgets it", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("./");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await openControls(page);
+  const mode = icon(page, "Normal mode");
+  await expect(saveButton(page)).toHaveAccessibleName("Save this moment");
+  await frames(page, 10);
+
+  // two masses: two angles and two rates, in 22 letters
+  await page.keyboard.press("s");
+  await expect(page).toHaveURL(/#moment=[A-Za-z0-9_-]{22}$/);
+  await expect(saveButton(page)).toHaveAccessibleName(
+    "Save this moment over the one saved",
+  );
+  await expect(mode).toHaveClass(/_held_/);
+  await frames(page, 10);
+  await page.keyboard.press("r");
+  await frames(page, 5);
+  // another value goes into the address beside the moment
+  await page.keyboard.press("e");
+  await expect(page).toHaveURL(/\?g=24\.79#moment=[A-Za-z0-9_-]{22}$/);
+
+  // a mode chosen is where the chain starts now, and the moment leaves
+  await page.keyboard.press("m");
+  await expect(mode).toHaveAccessibleDescription("normal mode 1");
+  await expect(page).not.toHaveURL(/#moment=/);
+  await expect(saveButton(page)).toHaveAccessibleName("Save this moment");
+  await expect(mode).not.toHaveClass(/_held_/);
+  await frames(page, 5);
+  expect(errors).toEqual([]);
+});
+
+test("an address with a moment starts the chain there, and another number of masses forgets it", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  // one mass, half a radian out, at rest
+  await page.goto("./?n=1#moment=AAAAPwAAAAA");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await openControls(page);
+  await expect(saveButton(page)).toHaveAccessibleName(
+    "Save this moment over the one saved",
+  );
+  await expect(icon(page, "Amplitude of the mode")).toHaveClass(/_held_/);
+  await frames(page, 10);
+  await page.keyboard.press("r");
+  await frames(page, 5);
+  // two masses, where the piece opens, leave nothing in the address
+  await page.keyboard.press("ArrowUp");
+  await expect(page).not.toHaveURL(/#moment=/);
+  await expect(page).not.toHaveURL(/[?&]n=/);
+  await expect(saveButton(page)).toHaveAccessibleName("Save this moment");
+  await frames(page, 5);
+  expect(errors).toEqual([]);
+});
+
+test("a moment for another number of masses is not taken", async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto("./?n=2#moment=AAAAPwAAAAA");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await openControls(page);
+  await expect(saveButton(page)).toHaveAccessibleName("Save this moment");
+  await frames(page, 5);
+  expect(errors).toEqual([]);
+});
+
 test("the controls wait behind one button, whose row shows one value at a time and shuts again", async ({
   page,
 }) => {
