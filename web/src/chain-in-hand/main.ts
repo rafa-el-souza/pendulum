@@ -12,7 +12,7 @@ import {
   type Parameter,
 } from "../core/parameters.ts";
 import { mountStage, type Stage } from "../core/stage.ts";
-import { Trails, fadeAfter } from "../core/trails.ts";
+import { LightTarget, Trails, fadeAfter } from "../core/trails.ts";
 import { TwinBudget, bornTwins, fanPlace } from "../core/twins.ts";
 import { fitScale, toWorld } from "../core/view.ts";
 import { Chain, createHand, type Hand } from "../physics/chain.ts";
@@ -35,7 +35,8 @@ import {
 // by a hand from elastic to firm (decision 18), with twins born a hair apart
 // that fan out to show chaos (decision 20) in a palette of the visitor's
 // choice (decision 23), and trails of light behind the tips of the chain and
-// of its twins (decision 21).
+// of its twins (decision 21). A key passes the whole frame through the
+// sketch's light, to compare (decision 24).
 
 const G = 9.81;
 // A frame longer than this (a hidden tab, a stall) moves the chain by this
@@ -124,6 +125,10 @@ function play({ canvas, gl }: Stage): void {
   let twinY = new Float64Array(chain.n);
   // the trails, the pieces drawn into them this frame, and where each ends
   const trails = new Trails(gl);
+  // With the sketch's light on the whole frame, the frame's lines are drawn
+  // here first, and go through the trails' curve with them (decision 24).
+  const scene = new LightTarget(gl);
+  let wholeFrame = false;
   const trail = new SegmentBatch(4096);
   const tipAt = new Float64Array(2);
   let tipX = 0;
@@ -245,6 +250,13 @@ function play({ canvas, gl }: Stage): void {
     if (hand === null && twins.length < 0.5 * carried) spawnTwins();
     resetTrailEnds();
   }
+
+  /** The sketch's light on the whole frame, or on the trails alone; the page says which. */
+  function setWholeFrame(on: boolean): void {
+    wholeFrame = on;
+    document.documentElement.dataset.light = on ? "frame" : "trails";
+  }
+  setWholeFrame(false);
 
   function setPaused(value: boolean): void {
     paused = value;
@@ -386,6 +398,8 @@ function play({ canvas, gl }: Stage): void {
       setPaused(!paused);
     } else if (event.key === "r" || event.key === "R") {
       raise();
+    } else if (event.key === "g" || event.key === "G") {
+      setWholeFrame(!wholeFrame);
     } else {
       return;
     }
@@ -460,16 +474,30 @@ function play({ canvas, gl }: Stage): void {
     }
     dots.push(0, 0, 0, 0, colors.pivot, 0.8);
 
-    // The trails fade by the time that went by, take this frame's pieces, and
-    // are shown first, under the chains.
+    // The trails fade by the time that went by and take this frame's pieces.
     const halfLife = value(TRAIL);
     if (simulated > 0 && halfLife > 0) {
       trails.begin(fadeAfter(simulated, halfLife));
       lines.draw(trail, scale, { radius: 0.9 * ratio, roundEnds: false });
       trails.end();
     }
-    lines.clear(colors.ground);
-    if (halfLife > 0) trails.show();
+    if (wholeFrame) {
+      // the frame's lines, then all of it through the curve
+      scene.bind(true);
+      drawLines(scale, ratio, rodPixels);
+      scene.unbind();
+      lines.clear(colors.ground);
+      trails.show(scene);
+    } else {
+      // the trails through the curve, under the chains
+      lines.clear(colors.ground);
+      if (halfLife > 0) trails.show();
+      drawLines(scale, ratio, rodPixels);
+    }
+  }
+
+  /** The frame's lines: the twins, the chain, the hand's spring and the dots. */
+  function drawLines(scale: number, ratio: number, rodPixels: number): void {
     lines.draw(fan, scale, {
       radius: 0.7 * ratio,
       roundEnds: chain.n <= 64,
