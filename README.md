@@ -29,12 +29,13 @@ hanging rope it becomes as n grows.
   formula, and by the energy along chaotic motion.
 - **The first piece, begun:**
   [the chain in the hand](https://rafa-el-souza.github.io/pendulum/chain-in-hand/).
-  A chain of two masses, drawn as light, to grab anywhere and throw; space
-  pauses it and R raises it again.
+  A chain drawn as light, to grab anywhere and throw. Its number of masses
+  runs from 1 to 512 while it moves, and its time from a tenth of real time to
+  four times it. Discreet controls appear when wanted, each with a key, and
+  the address carries both values, so a view can be shared.
 
-Next, the first piece grows: its number of masses running from one to a rope
-while it moves, and twins that fan out to show chaos. Every piece is meant to
-run fullscreen in the major browsers.
+Next, the first piece gets its twins, which fan out to show chaos, and the
+trail of its tip. Every piece is meant to run fullscreen in the major browsers.
 
 ## How it is built
 

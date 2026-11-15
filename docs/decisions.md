@@ -190,6 +190,38 @@ opened in the three engines, and only after every CI job has passed.
 **Why.** So that each slice can be tried on a laptop and on a phone as soon as
 it is merged, before the subdomain's DNS records exist.
 
+## 15. Time is a parameter, and the frame budget slows it
+
+*2026-11-15.* The speed of time is one of a piece's parameters (decision
+10), from slow motion to faster than real time. The author chooses its
+starting value by trying. When the physics of a frame does not fit its budget
+of 6 ms, time runs slower than asked, and the time control shows the speed
+actually reached. This settles the open question of what happens when the
+frame budget runs out.
+
+**Why.** It was the author's idea: slow motion as one more control, not as a
+limit. The chain is simulated 1 m long and drawn a few centimetres tall, so at
+real time it swings like a miniature filmed in slow motion. A real chain of
+that size would swing three to six times faster. A speed control fixes that
+look and makes slow motion something to play with, and the budget's slowing
+needs no message of its own, because the control it lowers shows it.
+
+**Evidence.** Two masses cost microseconds of physics per frame, while 512
+masses thrown hard need about 50 ms per frame on the machine of decision 5. So
+only long chains thrown hard reach the budget.
+
+## 16. Controls are discreet, fade away, and each has a key
+
+*2026-11-15.* A piece's controls stay out of sight until the pointer moves,
+a finger lifts or a key is pressed, and fade after a moment of stillness.
+Keyboard focus keeps them in sight, and reduced motion makes them appear
+without fading. Every control has its key, shown beside it where a pointer
+hovers. How discreet they are, and when they fade, the author decides by
+trying.
+
+**Why.** The author asked for discreet controls that disappear, for a more
+immersive piece, and for keys for them.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
@@ -202,5 +234,4 @@ it is merged, before the subdomain's DNS records exist.
 - **Visual identity.**
 - **Friction.** It is not in the paper. Whether the first piece has it, and of
   which kind, is open.
-- **When the frame budget runs out.** The sketch slows time down and says so.
 - **The order in which parameters arrive.**
