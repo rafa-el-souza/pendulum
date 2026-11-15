@@ -392,6 +392,27 @@ button may come with the layout of the controls.
 a switch to turn on and off. Whether it stays, and as what, the author
 decides by comparing.
 
+## 25. How far apart the twins are born
+
+*2026-11-15.* How far apart the first piece's twins are born is one of its
+parameters: from a billionth of a radian across the fan to a tenth, by
+powers of ten, with the keys 3 and 4 and a place in the address. It opens at
+a thousandth, where the twins have been born until now. The control shows
+the spread as a power of ten, beside an icon of two chains a narrow angle
+apart, and a screen reader hears it in words. Another spread gives new twins
+from the chain as it is, as another number of them does (decision 22).
+
+**Why.** The author chose this one of the controls proposed for the twins in
+decision 22. It shows the butterfly effect: however close the twins are
+born, the fan opens, and being closer only delays it.
+
+**Evidence.** From the piece's raised start, the time until the tips of the
+fan's two edges are 10 cm apart, in simulated seconds: with two masses,
+0.2 s at a tenth of a radian, 2.5 s at a thousandth and 10.6 s at a
+billionth; with three, 0.14, 2.2 and 5.3 s; with eight, 0.12, 1.8 and 2.9 s.
+Each power of ten closer delays the opening by 0.7 to 2.4 s with two masses,
+and by 0.1 to 0.3 s with eight.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.

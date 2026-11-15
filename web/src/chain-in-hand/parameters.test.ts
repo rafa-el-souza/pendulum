@@ -7,6 +7,7 @@ import {
   MASSES,
   PALETTE,
   PARAMETERS,
+  SPREAD,
   TIME,
   TRAIL,
   TWIN_COUNT,
@@ -101,5 +102,21 @@ describe("the first piece's parameters", () => {
         [0, 0.25, 0.5, 0.75, 1].map((place) => palette.color(place)),
       );
     });
+  });
+
+  it("let the twins be born from a billionth of a radian apart to a tenth, by powers of ten, opening at the thousandth they had (decision 25)", () => {
+    expect(SPREAD.values).toEqual([
+      1e-9, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1,
+    ]);
+    expect(SPREAD.initial).toBe(1e-3);
+    expect(SPREAD.keys).toEqual({ down: ["3"], up: ["4"] });
+    expect(SPREAD.icon).toBe("spread");
+  });
+
+  it("show the spread as a power of ten, and say it in words", () => {
+    expect(SPREAD.show(1e-9)).toBe("10⁻⁹");
+    expect(SPREAD.show(1e-3)).toBe("10⁻³");
+    expect(SPREAD.show(1e-1)).toBe("10⁻¹");
+    expect(SPREAD.speak?.(1e-3)).toBe("10 to the minus 3 radians");
   });
 });

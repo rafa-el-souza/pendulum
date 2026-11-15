@@ -3,7 +3,7 @@
 // need.
 
 /** The icons a control can show. */
-export type Icon = "pause" | "play" | "raise" | "fan" | "comet";
+export type Icon = "pause" | "play" | "raise" | "fan" | "comet" | "spread";
 
 const SVG = "http://www.w3.org/2000/svg";
 
@@ -25,6 +25,11 @@ const ICONS: Record<Icon, { fill: string; stroke: string }> = {
   comet: {
     fill: "M14 8a3 3 0 1 0 6 0a3 3 0 1 0 -6 0",
     stroke: "M14.5 10.5L4 21M12.5 8.5L6 13.5M16.5 12L12 19",
+  },
+  // two chains from one pivot, a narrow angle apart, each with its mass
+  spread: {
+    fill: "M10.5 4a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0 -3 0M7.2 20a1.8 1.8 0 1 0 3.6 0a1.8 1.8 0 1 0 -3.6 0M13.2 20a1.8 1.8 0 1 0 3.6 0a1.8 1.8 0 1 0 -3.6 0",
+    stroke: "M12 4L9 20M12 4L15 20",
   },
 };
 
