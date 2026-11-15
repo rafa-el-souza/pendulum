@@ -15,7 +15,13 @@ export type Icon =
   | "dark"
   | "rewind"
   | "forward"
-  | "arrow";
+  | "arrow"
+  | "controls"
+  | "masses"
+  | "time"
+  | "hand"
+  | "gravity"
+  | "palette";
 
 const SVG = "http://www.w3.org/2000/svg";
 
@@ -65,6 +71,39 @@ const ICONS: Record<Icon, { fill: string; stroke: string }> = {
   forward: { fill: "M3.5 6v12l8.5-6zM12 6v12l8.5-6z", stroke: "" },
   // an arrow pointing straight down, which a direction turns
   arrow: { fill: "", stroke: "M12 3.5v16M6 13.5l6 6 6-6" },
+  // the button that opens the controls: a little chain of three masses
+  // hanging, which reads as the three dots of "more" too
+  controls: {
+    fill: "M10 5a2 2 0 1 0 4 0a2 2 0 1 0 -4 0M10 12a2 2 0 1 0 4 0a2 2 0 1 0 -4 0M10 19a2 2 0 1 0 4 0a2 2 0 1 0 -4 0M11.4 7h1.2v3h-1.2zM11.4 14h1.2v3h-1.2z",
+    stroke: "",
+  },
+  // a chain of beads hanging in a curve, as it does on its way to a rope
+  masses: {
+    fill: "M5.05 8.67a1.8 1.8 0 1 0 3.6 0a1.8 1.8 0 1 0 -3.6 0M9.35 13.67a1.8 1.8 0 1 0 3.6 0a1.8 1.8 0 1 0 -3.6 0M17.2 18a1.8 1.8 0 1 0 3.6 0a1.8 1.8 0 1 0 -3.6 0",
+    stroke: "M5 3c1 6 4 11 14 15",
+  },
+  // a stopwatch
+  time: {
+    fill: "",
+    stroke:
+      "M12 21a7.5 7.5 0 1 0 0-15a7.5 7.5 0 1 0 0 15M12 13.5l3-3M12 6V3.5M9.5 3h5",
+  },
+  // the hand's spring, and the mass it holds
+  hand: {
+    fill: "M18.5 12a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0 -5 0",
+    stroke: "M1.5 12h3l1.75-4 3 8 3-8 3 8 1.75-4",
+  },
+  // a weight, as gravity pulls it
+  gravity: {
+    fill: "M6.5 10h11l2.5 10.5h-16z",
+    stroke: "M9 10a3 3 0 1 1 6 0",
+  },
+  // a painter's palette
+  palette: {
+    fill: "M6.5 12a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0 -3 0M9 7.5a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0 -3 0M13.5 7.5a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0 -3 0",
+    stroke:
+      "M12 3a9 9 0 1 0 0 18c1.2 0 1.8-1 1.3-2-.6-1.1 0-2.5 1.3-2.5H17a4 4 0 0 0 4-4C21 7 17 3 12 3z",
+  },
 };
 
 /** An icon, sized for a control, hidden from screen readers: the control names itself. */

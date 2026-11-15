@@ -3,8 +3,10 @@ import { describe, expect, it } from "vitest";
 import { FAN_PALETTES } from "../core/palettes.ts";
 import { checkParameters, stepValue } from "../core/parameters.ts";
 import {
+  CHAIN,
   GRAVITY,
   HAND,
+  LIGHT,
   MASSES,
   PALETTE,
   PARAMETERS,
@@ -175,6 +177,18 @@ describe("the first piece's parameters", () => {
     // screen is turning it anticlockwise
     expect(TILT.icon).toBe("arrow");
     expect(TILT.iconTurn?.(90)).toBe(-90);
+  });
+
+  it("give every parameter an icon of its own, since the row of controls names them without words (decision 31)", () => {
+    const icons = PARAMETERS.map((p) => p.icon);
+    expect(icons).not.toContain(undefined);
+    expect(new Set(icons).size).toBe(PARAMETERS.length);
+  });
+
+  it("set what moves the chain apart from the light, each parameter in one of the two, in the registry's order (decision 31)", () => {
+    expect(CHAIN).toEqual([MASSES, TIME, HAND, GRAVITY, TILT]);
+    expect(LIGHT).toEqual([TWIN_COUNT, SPREAD, TRAIL, RIBBON, PALETTE]);
+    expect(PARAMETERS).toEqual([...CHAIN, ...LIGHT]);
   });
 
   it("make the gravity the controls ask for: Earth's straight down at first, and a quarter turn points it to the right", () => {
