@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { Chain, createHand } from "../physics/chain.ts";
+import { Chain, createHand, gravity } from "../physics/chain.ts";
 import { Stepper, restingState } from "../physics/step.ts";
 import { HAND, handDamping } from "./parameters.ts";
 
@@ -22,7 +22,7 @@ function settle(rate: number): { theta: number; omega: number; off: number } {
   hand.y = 0;
   const stepper = new Stepper(chain);
   for (let frame = 0; frame < 60 * 40; frame++) {
-    stepper.advance(state, 1 / 60, G, hand);
+    stepper.advance(state, 1 / 60, gravity(G), hand);
   }
   const x = new Float64Array(1);
   const y = new Float64Array(1);

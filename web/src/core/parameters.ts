@@ -2,7 +2,8 @@
 // parameter is declared once, and that declaration feeds the control on
 // screen, its keys and the shareable address. A parameter steps through a
 // list of values, so that every value a visitor can reach is one that was
-// chosen and can be written in an address.
+// chosen and can be written in an address. A cyclic one, such as a direction,
+// comes round from either end to the other.
 
 import type { Rgb } from "./color.ts";
 import type { Icon } from "./icons.ts";
@@ -27,6 +28,13 @@ export interface Parameter {
   readonly speak?: (value: number) => string;
   /** An icon shown beside the value, so that the control reads without words. */
   readonly icon?: Icon;
+  /**
+   * For a parameter that is a direction: the degrees its icon is turned at a
+   * value, clockwise on screen.
+   */
+  readonly iconTurn?: (value: number) => number;
+  /** Whether stepping past either end comes round to the other, as a direction does. */
+  readonly cyclic?: boolean;
   /**
    * Colours shown as dots in place of the text of `show`, for a parameter
    * whose values are colours; a screen reader still hears the text.
@@ -74,15 +82,20 @@ export function initialValues(
   return new Map(parameters.map((p) => [p.id, p.initial]));
 }
 
-/** The next value up (direction 1) or down (-1), staying at either end. */
+/** The next value up (direction 1) or down (-1): at either end, it stays, or comes round if the parameter is cyclic. */
 export function stepValue(
   parameter: Parameter,
   value: number,
   direction: 1 | -1,
 ): number {
   const { values } = parameter;
-  if (direction > 0) return values.find((v) => v > value) ?? value;
-  return values.findLast((v) => v < value) ?? value;
+  const next =
+    direction > 0
+      ? values.find((v) => v > value)
+      : values.findLast((v) => v < value);
+  if (next !== undefined) return next;
+  if (parameter.cyclic !== true) return value;
+  return (direction > 0 ? values[0] : values.at(-1)) ?? value;
 }
 
 /** The parameter a key steps, and which way, or null. */

@@ -1,5 +1,6 @@
 import { FAN_PALETTES, fanPalette } from "../core/palettes.ts";
 import type { Parameter } from "../core/parameters.ts";
+import { gravity, type Gravity } from "../physics/chain.ts";
 
 // The first piece's parameters (docs/decisions.md, decision 10). Each feeds
 // its control on screen, its keys and the shareable address.
@@ -73,6 +74,75 @@ export const HAND: Parameter = {
   speak: (value) =>
     `${String(RATES.indexOf(value) + 1)} of ${String(RATES.length)}`,
 };
+
+/**
+ * How strong gravity is, in m/s² (decision 29): from none to Jupiter's,
+ * through the surface gravity of Pluto, the Moon, Mars and the Earth, where
+ * the piece opens. Each step is two to three times the one before. A chain
+ * let go from rest goes through the same motion under any of them, slower
+ * by the square root of the ratio; what changes beyond the pace is how far a
+ * throw carries it, and with none it keeps whatever spin it is given.
+ */
+const BODIES: ReadonlyMap<number, string> = new Map([
+  [0.62, "Pluto"],
+  [1.62, "the Moon"],
+  [3.71, "Mars"],
+  [9.81, "Earth"],
+  [24.79, "Jupiter"],
+]);
+
+export const GRAVITY: Parameter = {
+  id: "g",
+  label: "Strength of gravity",
+  values: [0, ...BODIES.keys()],
+  initial: 9.81,
+  keys: { down: ["q", "Q"], up: ["e", "E"] },
+  show: (value) => `g = ${String(value)}`,
+  speak: (value) => {
+    const body = BODIES.get(value);
+    if (body === undefined) return "none";
+    return `${String(value)} metres per second squared, as on ${body}`;
+  },
+};
+
+/**
+ * Which way gravity points, in degrees from straight down, to the right
+ * positive, as a rod's angle turns (decision 29): all the way round in steps
+ * of 15°, coming round past straight up. The chain hangs the way it points,
+ * and raised again it is raised against it. The control shows the degrees
+ * beside an arrow turned the way gravity points, and a screen reader hears
+ * the direction in words.
+ */
+const TURNS = Array.from({ length: 24 }, (_, i) => 15 * (i - 11));
+
+export const TILT: Parameter = {
+  id: "tilt",
+  label: "Direction of gravity",
+  values: TURNS,
+  initial: 0,
+  keys: { down: ["a", "A"], up: ["d", "D"] },
+  show: (value) => `${value < 0 ? "−" : ""}${String(Math.abs(value))}°`,
+  speak: (value) => {
+    if (value === 0) return "straight down";
+    if (value === 180) return "straight up";
+    const side = value > 0 ? "right" : "left";
+    return `${String(Math.abs(value))} degrees ${side} of straight down`;
+  },
+  icon: "arrow",
+  // drawn pointing down, the arrow turns anticlockwise on screen to point right
+  iconTurn: (value) => -value,
+  cyclic: true,
+};
+
+/** A direction of the control, in degrees, as an angle that turns the way a rod's does, in radians. */
+export function radians(degrees: number): number {
+  return (degrees * Math.PI) / 180;
+}
+
+/** The gravity that the strength and the direction of the controls ask for. */
+export function gravityOf(strength: number, degrees: number): Gravity {
+  return gravity(strength, radians(degrees));
+}
 
 /**
  * How many twins are born when the chain is let go (decisions 20 and 22): the
@@ -195,6 +265,8 @@ export const PARAMETERS: readonly Parameter[] = [
   MASSES,
   TIME,
   HAND,
+  GRAVITY,
+  TILT,
   TWIN_COUNT,
   SPREAD,
   TRAIL,

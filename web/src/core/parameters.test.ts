@@ -50,6 +50,22 @@ describe("the registry of parameters (decision 10)", () => {
     expect(stepValue(count, 3, -1)).toBe(2);
   });
 
+  it("comes round from either end to the other when the parameter is cyclic, as a direction is", () => {
+    const direction: Parameter = {
+      id: "tilt",
+      label: "Direction",
+      values: [-90, 0, 90, 180],
+      initial: 0,
+      keys: { down: ["a"], up: ["d"] },
+      show: (v) => `${String(v)}°`,
+      cyclic: true,
+    };
+    expect(stepValue(direction, 0, 1)).toBe(90);
+    expect(stepValue(direction, 180, 1)).toBe(-90);
+    expect(stepValue(direction, -90, -1)).toBe(180);
+    expect(stepValue(direction, 0, -1)).toBe(-90);
+  });
+
   it("finds what a key does, and nothing for other keys", () => {
     expect(keyAction(both, "ArrowUp")).toEqual({
       parameter: count,

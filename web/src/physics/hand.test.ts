@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { Chain, createHand } from "./chain.ts";
+import { Chain, createHand, gravity } from "./chain.ts";
 import { Stepper, restingState } from "./step.ts";
 
 // The hand is not in the paper: a spring and a damper between the pointer and
 // one mass, an external force that the tension route (PH-4) takes in the same
-// single pass.
+// single pass. Nor is gravity in any direction but straight down; it enters
+// the same way, on every mass at once.
 
 /** A small deterministic generator, so that every run draws the same states. */
 function random(seed: number): () => number {
@@ -23,12 +24,13 @@ const at = (a: Float64Array, i: number): number => a[i] ?? Number.NaN;
 
 describe("a hand that holds one mass", () => {
   it.each([1, 2, 5, 16, 64])(
-    "PH-4 with the hand's force: Newton's law holds for every one of %i masses",
+    "PH-4 with the hand's force and gravity in any direction: Newton's law holds for every one of %i masses",
     (n) => {
       // The accelerations that alpha implies through the kinematics, and the
       // tensions, must satisfy m a = m g + F - T_i e_i + T_{i+1} e_{i+1} for
-      // every mass, F being the hand's force on the held one. These 2n
-      // equations have one solution, so this pins both alpha and T.
+      // every mass, g being gravity, of any strength and direction, and F the
+      // hand's force on the held one. These 2n equations have one solution,
+      // so this pins both alpha and T.
       const draw = random(7 + n);
       for (let trial = 0; trial < 20; trial++) {
         const m = Float64Array.from(
@@ -37,6 +39,7 @@ describe("a hand that holds one mass", () => {
         );
         const l = Float64Array.from({ length: n }, () => 0.2 + 4.8 * draw());
         const g = 1 + 19 * draw();
+        const down = gravity(g, (2 * draw() - 1) * Math.PI);
         const chain = new Chain(m, l);
         const theta = Float64Array.from(
           { length: n },
@@ -59,7 +62,7 @@ describe("a hand that holds one mass", () => {
         hand.vy = 2 * draw() - 1;
         const alpha = new Float64Array(n);
         const tension = new Float64Array(n);
-        chain.solve(theta, omega, g, alpha, tension, hand);
+        chain.solve(theta, omega, down, alpha, tension, hand);
 
         // Positions, velocities and accelerations of the masses, down the chain.
         let px = 0;
@@ -109,8 +112,10 @@ describe("a hand that holds one mass", () => {
           const below = i + 1 < n ? at(tension, i + 1) : 0;
           const [fx = 0, fy = 0] = i === hand.index ? force : [0, 0];
           const mi = at(m, i);
-          const rx = mi * mx - fx + at(tension, i) * ex - below * bx;
-          const ry = mi * my + mi * g - fy + at(tension, i) * ey - below * by;
+          const rx =
+            mi * mx - mi * down.x - fx + at(tension, i) * ex - below * bx;
+          const ry =
+            mi * my - mi * down.y - fy + at(tension, i) * ey - below * by;
           const size =
             mi * terms +
             mi * g +
@@ -136,7 +141,7 @@ describe("a hand that holds one mass", () => {
       hand.y = n === 1 ? -0.8 : -0.4;
       const stepper = new Stepper(chain);
       for (let frame = 0; frame < 120; frame++) {
-        stepper.advance(state, 1 / 60, 9.81, hand);
+        stepper.advance(state, 1 / 60, gravity(9.81), hand);
       }
       const x = new Float64Array(n);
       const y = new Float64Array(n);

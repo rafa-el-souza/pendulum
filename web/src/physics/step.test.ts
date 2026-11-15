@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { Chain } from "./chain.ts";
+import { Chain, gravity, type Gravity } from "./chain.ts";
 import {
   Stepper,
   restingState,
@@ -9,6 +9,7 @@ import {
 } from "./step.ts";
 
 const G = 9.81;
+const DOWN = gravity(G);
 
 /** The energy that lifts the hanging chain to the horizontal: a scale for energy errors. */
 function lift(chain: Chain, g: number): number {
@@ -19,22 +20,57 @@ function lift(chain: Chain, g: number): number {
   }, 0);
 }
 
-/** Runs a chain released at rest from the given angles, frame by frame at 60 per second. */
-function run(chain: Chain, angles: (i: number) => number, seconds: number) {
+/** Runs a chain released at rest from the given angles, frame by frame at 60 per second, under gravity g. */
+function run(
+  chain: Chain,
+  angles: (i: number) => number,
+  seconds: number,
+  g: Gravity = DOWN,
+) {
   const state = restingState(chain.n);
   state.theta.forEach((_, i) => {
     state.theta[i] = angles(i);
   });
   const stepper = new Stepper(chain);
-  const start = chain.energy(state.theta, state.omega, G);
-  const scale = lift(chain, G);
+  const start = chain.energy(state.theta, state.omega, g);
+  const scale = lift(chain, Math.hypot(g.x, g.y));
   let worst = 0;
   for (let frame = 0; frame < 60 * seconds; frame++) {
-    stepper.advance(state, 1 / 60, G);
-    const drift = Math.abs(chain.energy(state.theta, state.omega, G) - start);
+    stepper.advance(state, 1 / 60, g);
+    const drift = Math.abs(chain.energy(state.theta, state.omega, g) - start);
     worst = Math.max(worst, drift / scale);
   }
   return { worst, state };
+}
+
+/** The piece's raised start for n masses: to one side, at rest. */
+function raised(n: number): ChainState {
+  const state = restingState(n);
+  state.theta.forEach((_, i) => {
+    state.theta[i] = 2.2 + (0.7 * i) / Math.max(1, n - 1);
+  });
+  return state;
+}
+
+/** The angular momentum about the pivot, the sum of m (x v_y - y v_x). */
+function angularMomentum(chain: Chain, state: ChainState): number {
+  let x = 0;
+  let y = 0;
+  let vx = 0;
+  let vy = 0;
+  let total = 0;
+  for (let i = 0; i < chain.n; i++) {
+    const l = chain.lengths[i] ?? Number.NaN;
+    const s = Math.sin(state.theta[i] ?? Number.NaN);
+    const c = Math.cos(state.theta[i] ?? Number.NaN);
+    const w = state.omega[i] ?? Number.NaN;
+    x += l * s;
+    y -= l * c;
+    vx += l * w * c;
+    vy += l * w * s;
+    total += (chain.masses[i] ?? Number.NaN) * (x * vy - y * vx);
+  }
+  return total;
 }
 
 /** K(k), the complete elliptic integral of the first kind, by the arithmetic-geometric mean. */
@@ -55,7 +91,7 @@ function periodError(theta0: number, maxStep: number): number {
     omega: Float64Array.of(0),
   };
   const period = 4 * Math.sqrt(1 / G) * ellipticK(Math.sin(theta0 / 2));
-  new Stepper(chain, { maxStep }).advance(state, period, G);
+  new Stepper(chain, { maxStep }).advance(state, period, DOWN);
   const [theta = Number.NaN] = state.theta;
   const [omega = Number.NaN] = state.omega;
   return Math.hypot(theta - theta0, omega / Math.sqrt(G));
@@ -69,7 +105,7 @@ describe("the substep, taken from the rod tensions (decision 5)", () => {
     // 1/60 s takes 44 of them and a shorter one to land on the frame.
     const chain = Chain.uniform(128);
     expect(
-      new Stepper(chain).advance(restingState(128), 1 / 60, G).substeps,
+      new Stepper(chain).advance(restingState(128), 1 / 60, DOWN).substeps,
     ).toBe(45);
   });
 
@@ -78,7 +114,7 @@ describe("the substep, taken from the rod tensions (decision 5)", () => {
     // 0.3 / 6.3 = 0.048 s would be too coarse for RK4 to keep the energy.
     const chain = Chain.uniform(1);
     expect(
-      new Stepper(chain).advance(restingState(1), 1 / 60, G).substeps,
+      new Stepper(chain).advance(restingState(1), 1 / 60, DOWN).substeps,
     ).toBe(8);
   });
 
@@ -88,7 +124,7 @@ describe("the substep, taken from the rod tensions (decision 5)", () => {
     const chain = Chain.uniform(1);
     const state = restingState(1);
     state.omega[0] = 400;
-    expect(new Stepper(chain).advance(state, 1 / 60, G).substeps).toBe(45);
+    expect(new Stepper(chain).advance(state, 1 / 60, DOWN).substeps).toBe(45);
   });
 });
 
@@ -141,7 +177,7 @@ describe("the time budget of a frame (decision 15)", () => {
     const chain = Chain.uniform(8);
     const state = restingState(8);
     state.theta.fill(1);
-    const result = new Stepper(chain).advance(state, 1 / 60, G);
+    const result = new Stepper(chain).advance(state, 1 / 60, DOWN);
     expect(result.simulated).toBe(1 / 60);
   });
 
@@ -154,7 +190,7 @@ describe("the time budget of a frame (decision 15)", () => {
     const result = new Stepper(chain).advance(
       state,
       1 / 60,
-      G,
+      DOWN,
       null,
       Number.NEGATIVE_INFINITY,
     );
@@ -168,26 +204,20 @@ describe("the time budget of a frame (decision 15)", () => {
 // motion the rates appear only squared (PH-3): both are the same with every
 // rate reversed, so the motion is the same with time reversed.
 describe("time run backwards (docs/decisions.md, decision 28; PH-2, PH-3)", () => {
-  /** The piece's raised start for n masses: to one side, at rest. */
-  function raised(n: number): ChainState {
-    const state = restingState(n);
-    state.theta.forEach((_, i) => {
-      state.theta[i] = 2.2 + (0.7 * i) / Math.max(1, n - 1);
-    });
-    return state;
-  }
-
   it("keeps every mass where it is, moving the opposite way, with the same energy", () => {
     const chain = Chain.uniform(3);
     const state = raised(3);
-    new Stepper(chain).advance(state, 0.7, G);
+    new Stepper(chain).advance(state, 0.7, DOWN);
     const theta = Float64Array.from(state.theta);
     const omega = Float64Array.from(state.omega);
-    const energy = chain.energy(state.theta, state.omega, G);
+    const energy = chain.energy(state.theta, state.omega, DOWN);
     reverseMotion(state);
     expect(Array.from(state.theta)).toEqual(Array.from(theta));
     expect(Array.from(state.omega)).toEqual(Array.from(omega).map((w) => -w));
-    expect(chain.energy(state.theta, state.omega, G)).toBeCloseTo(energy, 12);
+    expect(chain.energy(state.theta, state.omega, DOWN)).toBeCloseTo(
+      energy,
+      12,
+    );
   });
 
   // Chaos grows the integration's tiny errors, so how close the chain comes
@@ -205,11 +235,11 @@ describe("time run backwards (docs/decisions.md, decision 28; PH-2, PH-3)", () =
       const start = raised(n);
       const stepper = new Stepper(chain);
       for (let frame = 0; frame < 60; frame++) {
-        stepper.advance(state, 1 / 60, G);
+        stepper.advance(state, 1 / 60, DOWN);
       }
       reverseMotion(state);
       for (let frame = 0; frame < 60; frame++) {
-        stepper.advance(state, 1 / 60, G);
+        stepper.advance(state, 1 / 60, DOWN);
       }
       reverseMotion(state);
       state.theta.forEach((angle, i) => {
@@ -220,4 +250,91 @@ describe("time run backwards (docs/decisions.md, decision 28; PH-2, PH-3)", () =
       });
     },
   );
+});
+
+// Gravity turned by an angle turns the whole motion by it (PH-4; the oracle's
+// states are checked turned in chain.test.ts). Its strength g and the rods'
+// lengths are the only scales of time, so a chain let go from rest under a
+// weaker gravity goes through the same motion, slower by the square root of
+// the ratio; what it changes beyond the pace is how far a throw carries.
+describe("gravity of any strength, turned to any direction (docs/decisions.md, decision 29; PH-2, PH-4)", () => {
+  it.each([0.4, Math.PI / 2, Math.PI, -2.5])(
+    "leaves a chain hanging along gravity at rest, gravity turned by %s rad",
+    (turn) => {
+      const chain = Chain.uniform(8);
+      const state = restingState(8);
+      state.theta.fill(turn);
+      const stepper = new Stepper(chain);
+      for (let frame = 0; frame < 600; frame++) {
+        stepper.advance(state, 1 / 60, gravity(G, turn));
+      }
+      state.theta.forEach((angle) => {
+        expect(Math.abs(angle - turn)).toBeLessThan(1e-12);
+      });
+    },
+  );
+
+  it("keeps the energy along chaotic motion with gravity turned, as it does straight down", () => {
+    // The first check of the energy above, turned a quarter turn.
+    const turn = Math.PI / 2;
+    const { worst } = run(
+      Chain.uniform(2),
+      (i) => turn + ([2.2, 2.9][i] ?? 0),
+      10,
+      gravity(G, turn),
+    );
+    expect(worst).toBeLessThan(2e-6);
+  });
+
+  it("with no gravity, keeps a thrown chain's energy and its angular momentum about the pivot", () => {
+    // Nothing outside pulls or turns it: only the pivot holds it, and the
+    // pivot's force has no moment about itself. Measured: 2.3e-8 and 3.8e-9
+    // of their starting values.
+    const chain = Chain.uniform(3);
+    const state: ChainState = {
+      theta: Float64Array.of(0.3, 1.2, -0.5),
+      omega: Float64Array.of(3, 4, 5),
+    };
+    const none = gravity(0);
+    const energy = chain.energy(state.theta, state.omega, none);
+    const momentum = angularMomentum(chain, state);
+    const stepper = new Stepper(chain);
+    for (let frame = 0; frame < 600; frame++) {
+      stepper.advance(state, 1 / 60, none);
+    }
+    expect(
+      Math.abs(chain.energy(state.theta, state.omega, none) / energy - 1),
+    ).toBeLessThan(1e-7);
+    expect(Math.abs(angularMomentum(chain, state) / momentum - 1)).toBeLessThan(
+      2e-8,
+    );
+  });
+
+  it("weaker, takes a chain let go from rest through the same motion, slower by the square root of the ratio", () => {
+    // A second under Earth's gravity against sqrt(9.81 / 1.62) s under the
+    // Moon's: the same angles, and rates slower by sqrt(1.62 / 9.81). With
+    // the piece's substeps the two differ by the integration's error, 2.7e-8
+    // rad; with substeps of 1/7680 s, measured, by 7.6e-13.
+    const chain = Chain.uniform(2);
+    const fine = { maxStep: 1 / 7680 };
+    const earth = raised(2);
+    const moon = raised(2);
+    new Stepper(chain, fine).advance(earth, 1, gravity(9.81));
+    new Stepper(chain, fine).advance(
+      moon,
+      Math.sqrt(9.81 / 1.62),
+      gravity(1.62),
+    );
+    earth.theta.forEach((angle, i) => {
+      expect(Math.abs((moon.theta[i] ?? Number.NaN) - angle)).toBeLessThan(
+        1e-11,
+      );
+    });
+    earth.omega.forEach((rate, i) => {
+      const slower = rate * Math.sqrt(1.62 / 9.81);
+      expect(Math.abs((moon.omega[i] ?? Number.NaN) - slower)).toBeLessThan(
+        1e-11,
+      );
+    });
+  });
 });

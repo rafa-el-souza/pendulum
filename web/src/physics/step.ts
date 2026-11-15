@@ -12,7 +12,7 @@
    Every index here runs over 0..n-1 of arrays of length n, which the compiler's
    unchecked-index rule cannot see. */
 
-import type { Chain, Hand } from "./chain.ts";
+import type { Chain, Gravity, Hand } from "./chain.ts";
 
 /** Where a chain is and how it moves: absolute angles from the downward vertical, and their rates. */
 export interface ChainState {
@@ -106,7 +106,7 @@ export class Stepper {
   advance(
     state: ChainState,
     dt: number,
-    g: number,
+    g: Gravity,
     hand: Hand | null = null,
     deadline = Number.POSITIVE_INFINITY,
   ): Advance {

@@ -40,7 +40,7 @@ export interface Controls {
 /** How long the controls stay in sight after the last sign of a visitor, in ms. */
 const STAY_MS = 2500;
 
-/** The keys shown beside a control: arrows as arrows. */
+/** The keys shown beside a control: arrows as arrows, and letters as capitals, as on the keys. */
 function showKeys(keys: readonly (string | undefined)[]): string {
   const arrows: Record<string, string> = {
     ArrowDown: "↓",
@@ -50,7 +50,7 @@ function showKeys(keys: readonly (string | undefined)[]): string {
   };
   return keys
     .filter((key): key is string => key !== undefined)
-    .map((key) => arrows[key] ?? key)
+    .map((key) => arrows[key] ?? key.toUpperCase())
     .join(" ");
 }
 
@@ -97,6 +97,8 @@ export function mountControls(
       /** Where the value is shown, and where it is said, when the two differ. */
       shown: HTMLElement;
       spoken: HTMLElement | null;
+      /** The icon, which a direction turns. */
+      icon: SVGSVGElement | null;
       /** The colours painted, when the value is shown in colours. */
       painted: string;
     }
@@ -111,16 +113,18 @@ export function mountControls(
     output.setAttribute("aria-live", "polite");
     let shown: HTMLElement = output;
     let spoken: HTMLElement | null = null;
+    let icon: SVGSVGElement | null = null;
     // shown as something other than its text: in words of its own, or in colours
     const unspoken =
       parameter.speak !== undefined || parameter.swatches !== undefined;
     if (parameter.icon !== undefined || unspoken) {
       shown = document.createElement("span");
       if (parameter.icon !== undefined) {
-        const icon = document.createElement("span");
-        icon.className = cls(styles, "icon");
-        icon.append(drawIcon(parameter.icon));
-        output.append(icon);
+        const holder = document.createElement("span");
+        holder.className = cls(styles, "icon");
+        icon = drawIcon(parameter.icon);
+        holder.append(icon);
+        output.append(holder);
       }
       output.append(shown);
       if (unspoken) {
@@ -147,6 +151,7 @@ export function mountControls(
       output,
       shown,
       spoken,
+      icon,
       painted: "",
     });
   }
@@ -198,6 +203,10 @@ export function mountControls(
             return dot;
           }),
         );
+      }
+      const turn = entry.parameter.iconTurn?.(at);
+      if (turn !== undefined && entry.icon !== null) {
+        entry.icon.style.transform = `rotate(${String(turn)}deg)`;
       }
       if (entry.spoken !== null) {
         const words = entry.parameter.speak?.(at) ?? text;
