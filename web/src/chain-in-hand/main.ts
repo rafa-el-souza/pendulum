@@ -17,7 +17,12 @@ import { TwinBudget, bornTwins, fanPlace } from "../core/twins.ts";
 import { fitScale, toWorld } from "../core/view.ts";
 import { Chain, createHand, type Hand } from "../physics/chain.ts";
 import { resample } from "../physics/resample.ts";
-import { Stepper, restingState, type ChainState } from "../physics/step.ts";
+import {
+  Stepper,
+  restingState,
+  reverseMotion,
+  type ChainState,
+} from "../physics/step.ts";
 import {
   HAND,
   MASSES,
@@ -39,8 +44,8 @@ import {
 // choice (decision 23), and trails of light behind the tips of the chain and
 // of its twins (decision 21), or of every mass of the chain (decision 26).
 // One switch puts out the twins and the trails and lights them again
-// (decision 27). A key passes the whole frame through the sketch's light, to
-// compare (decision 24).
+// (decision 27), and time can run backwards (decision 28). A key passes the
+// whole frame through the sketch's light, to compare (decision 24).
 
 const G = 9.81;
 // A frame longer than this (a hidden tab, a stall) moves the chain by this
@@ -151,6 +156,9 @@ function play({ canvas, gl }: Stage): void {
 
   let hand: Hand | null = null;
   let paused = false;
+  // whether time runs backwards: every motion reversed since it last ran
+  // forwards (decision 28)
+  let backwards = false;
   // the speed time actually ran at lately, as a share of the speed asked for
   let reached = 1;
   const pointer = { id: -1, x: 0, y: 0, vx: 0, vy: 0, at: 0 };
@@ -226,6 +234,7 @@ function play({ canvas, gl }: Stage): void {
       state.omega[i] = 0;
     }
     hand = null;
+    setBackwards(false);
     trails.clear();
     spawnTwins();
   }
@@ -293,6 +302,28 @@ function play({ canvas, gl }: Stage): void {
     showTwins();
   }
 
+  /** The time button says which way a press would take time. */
+  function setBackwards(on: boolean): void {
+    backwards = on;
+    controls.showAction(
+      "reverse",
+      on ? "forward" : "rewind",
+      on ? "Run time forwards" : "Run time backwards",
+    );
+  }
+
+  /**
+   * Time the other way: the chain and its twins keep their places and move
+   * the opposite way, and so retrace their motion (decision 28). Not while
+   * the hand holds the chain, whose damper would give energy backwards.
+   */
+  function reverseTime(): void {
+    if (hand !== null) return;
+    reverseMotion(state);
+    for (const twin of twins) reverseMotion(twin);
+    setBackwards(!backwards);
+  }
+
   function setPaused(value: boolean): void {
     paused = value;
     controls.showAction(
@@ -338,6 +369,13 @@ function play({ canvas, gl }: Stage): void {
         keysShown: "␣",
       },
       {
+        id: "reverse",
+        label: "Run time backwards",
+        icon: "rewind",
+        keys: ["b", "B"],
+        keysShown: "B",
+      },
+      {
         id: "raise",
         label: "Raise the chain again",
         icon: "raise",
@@ -357,6 +395,7 @@ function play({ canvas, gl }: Stage): void {
       step,
       act(id) {
         if (id === "pause") setPaused(!paused);
+        else if (id === "reverse") reverseTime();
         else if (id === "light") setLit(!lit);
         else raise();
       },
@@ -382,9 +421,10 @@ function play({ canvas, gl }: Stage): void {
     event.preventDefault();
     canvas.setPointerCapture(event.pointerId);
     const [px, py] = world(event);
-    // Grabbing the chain sets it going again, if it was paused, and ends its
-    // twins; letting it go gives it new ones.
+    // Grabbing the chain sets it going again, if it was paused, forwards, and
+    // ends its twins; letting it go gives it new ones.
     if (paused) setPaused(false);
+    if (backwards) setBackwards(false);
     twins = [];
     // the nearest mass, wherever the press lands
     hand = holding(chain.nearestMass(state.theta, px, py), {
@@ -445,6 +485,8 @@ function play({ canvas, gl }: Stage): void {
       setPaused(!paused);
     } else if (event.key === "r" || event.key === "R") {
       raise();
+    } else if (event.key === "b" || event.key === "B") {
+      reverseTime();
     } else if (event.key === "l" || event.key === "L") {
       setLit(!lit);
     } else if (event.key === "g" || event.key === "G") {
