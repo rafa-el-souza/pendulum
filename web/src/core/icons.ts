@@ -14,7 +14,8 @@ export type Icon =
   | "light"
   | "dark"
   | "rewind"
-  | "forward";
+  | "forward"
+  | "arrow";
 
 const SVG = "http://www.w3.org/2000/svg";
 
@@ -62,6 +63,8 @@ const ICONS: Record<Icon, { fill: string; stroke: string }> = {
   rewind: { fill: "M11.5 6v12L3 12zM20.5 6v12L12 12z", stroke: "" },
   // two arrowheads pointing on
   forward: { fill: "M3.5 6v12l8.5-6zM12 6v12l8.5-6z", stroke: "" },
+  // an arrow pointing straight down, which a direction turns
+  arrow: { fill: "", stroke: "M12 3.5v16M6 13.5l6 6 6-6" },
 };
 
 /** An icon, sized for a control, hidden from screen readers: the control names itself. */
