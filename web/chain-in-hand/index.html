@@ -2,20 +2,17 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1, viewport-fit=cover"
-    />
-    <meta
-      name="description"
-      content="One chain to grab and throw, from one mass to a rope, with twins that show chaos."
-    />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>The chain in the hand · Pendulum</title>
+    <!-- While it is the only piece, the chain in the hand opens at the site's
+    root (docs/decisions.md, decision 30). An address of this page goes there
+    with the settings it carries, so links shared before keep working. -->
+    <script>
+      location.replace(`../${location.search}${location.hash}`);
+    </script>
+    <noscript><meta http-equiv="refresh" content="0; url=../" /></noscript>
   </head>
   <body>
-    <canvas id="stage" role="img" aria-label="A chain pendulum"></canvas>
-    <p id="notice" role="status" hidden></p>
-    <noscript>This piece needs JavaScript.</noscript>
-    <script type="module" src="/src/chain-in-hand/main.ts"></script>
+    <p><a href="../">The chain in the hand</a> opens at the site's root.</p>
   </body>
 </html>

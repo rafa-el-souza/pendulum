@@ -28,11 +28,12 @@ hanging rope it becomes as n grows.
   answers the oracle writes, within 1e-12, against the paper's general
   formula, and by the energy along chaotic motion.
 - **The first piece, begun:**
-  [the chain in the hand](https://rafa-el-souza.github.io/pendulum/chain-in-hand/).
-  A chain drawn as light, to grab anywhere and throw. Its number of masses
-  runs from 1 to 512 while it moves, its time from a tenth of real time to
-  four times it, its gravity from none to Jupiter's, pointing any way round,
-  and the hand that holds it from a rubber band to a firm grip.
+  [the chain in the hand](https://rafa-el-souza.github.io/pendulum/), which
+  opens at the site's root while it is the only piece. A chain drawn as
+  light, to grab anywhere and throw. Its number of masses runs from 1 to 512
+  while it moves, its time from a tenth of real time to four times it, its
+  gravity from none to Jupiter's, pointing any way round, and the hand that
+  holds it from a rubber band to a firm grip.
   Let go, it leaves 512 twins born a hair apart, which fan out in colour to
   show chaos, and its tip and theirs leave trails of light that fade. How
   many twins there are, how far apart they are born, how long the trails

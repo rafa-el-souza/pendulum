@@ -553,6 +553,21 @@ angular momentum about the pivot to 3.8e-9 over 10 s; and a chain let go
 under the Moon's gravity goes through the Earth's motion, slower by the
 square root of 9.81/1.62, to within 7.6e-13 rad with fine substeps.
 
+## 30. While there is one piece, it opens at the site's root
+
+*2026-11-15.* The chain in the hand opens at the site's root,
+<https://rafa-el-souza.github.io/pendulum/>, and its own address,
+`chain-in-hand/`, forwards there with the settings it carries, so that links
+shared before keep working. This holds only while it is the only piece: the
+build stops at a second one until the root lists the pieces again. The page
+that listed the pieces is removed until then. For as long as there is one
+piece, this changes decision 7, under which every piece opens on a route of
+its own beneath a page that lists them.
+
+**Why.** The author asked for it, for as long as there is only one piece. A
+list of one piece is a click between the visitor and the piece, with nothing
+to choose.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
