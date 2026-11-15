@@ -24,6 +24,8 @@ export type Icon =
   | "palette"
   | "mode"
   | "amplitude"
+  | "save"
+  | "saved"
   | "left"
   | "right";
 
@@ -122,6 +124,12 @@ const ICONS: Record<Icon, { fill: string; stroke: string; faint?: string }> = {
   amplitude: {
     fill: "M10.5 3a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0 -3 0M9.4 15a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0 -5.2 0",
     stroke: "M12 3V12.5M6.5 11.5Q4.5 15 6.5 18.5M17.5 11.5Q19.5 15 17.5 18.5",
+  },
+  // a bookmark, empty while no moment is kept, and full when one is
+  save: { fill: "", stroke: "M7 3.5h10v17l-5-4.5-5 4.5z" },
+  saved: {
+    fill: "M7 3.5h10v17l-5-4.5-5 4.5z",
+    stroke: "M7 3.5h10v17l-5-4.5-5 4.5z",
   },
   // chevrons: there is more of the row this way
   left: { fill: "", stroke: "M15 5l-7 7 7 7" },
