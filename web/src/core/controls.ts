@@ -58,8 +58,6 @@ const STAY_MS = 2500;
 const STAY_TOUCHED_MS = 8000;
 /** How long they take to fade, as the stylesheet says, and go on taking a touch while they do, in ms. */
 const FADE_MS = 600;
-/** How long after a touch that only brings the controls back its click is ignored, in ms: a tap's click follows it at once. */
-const SWALLOW_CLICK_MS = 700;
 /** How far round the controls a touch still counts as theirs, where a finger's miss lands, in CSS px. */
 const TOUCH_MARGIN = 12;
 /** How far the value chosen keeps from the screen's sides, in CSS px. */
@@ -474,17 +472,20 @@ export function mountControls(
   // back: the click it ends in does nothing, so that a control out of sight
   // is never worked by a touch that could not see it. A touch anywhere else
   // on the stage puts them away (decision 32).
-  let swallowClickUntil = 0;
+  // whether the next click ends a touch that only brought the controls back;
+  // any later click starts with a pointer down or a key of its own
+  let swallowClick = false;
   addEventListener(
     "pointerdown",
     (event) => {
+      swallowClick = false;
       if (event.pointerType === "mouse") return;
       if (event.target instanceof Node && dock.contains(event.target)) return;
       if (onControls(boxes(), TOUCH_MARGIN, event.clientX, event.clientY)) {
         event.stopPropagation();
         event.preventDefault();
         wake(STAY_TOUCHED_MS);
-        swallowClickUntil = performance.now() + SWALLOW_CLICK_MS;
+        swallowClick = true;
       } else {
         rest();
       }
@@ -492,10 +493,17 @@ export function mountControls(
     { capture: true },
   );
   addEventListener(
+    "keydown",
+    () => {
+      swallowClick = false;
+    },
+    { capture: true },
+  );
+  addEventListener(
     "click",
     (event) => {
-      if (performance.now() > swallowClickUntil) return;
-      swallowClickUntil = 0;
+      if (!swallowClick) return;
+      swallowClick = false;
       event.stopPropagation();
       event.preventDefault();
     },
