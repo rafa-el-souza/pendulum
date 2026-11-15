@@ -18,7 +18,7 @@ export const MASSES: Parameter = {
 /**
  * How fast time runs, as a multiple of real time for a chain 1 m long
  * (decision 15). It starts a little slower than real time, at 0.8, which the
- * author chose by trying, with 0.9 one step up (decision 17).
+ * author chose by trying, with 0.9 one step up (decisions 17 and 19).
  */
 export const TIME: Parameter = {
   id: "time",
@@ -36,8 +36,8 @@ export const TIME: Parameter = {
  * hangs below the finger and bounces as on a rubber band, and a pull let go
  * at the right moment flings it; at the firm end, the hand before this
  * control, the held mass stays on the finger and a throw leaves at the
- * gesture's speed. The numbers are placeholders until the author tunes them
- * by trying.
+ * gesture's speed. The author tried these steps and kept them (decision
+ * 19).
  */
 const GRIPS: ReadonlyMap<number, number> = new Map([
   [4, 0.3],

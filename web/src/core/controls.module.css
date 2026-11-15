@@ -1,6 +1,7 @@
 /* The controls of a piece: small, quiet, and out of sight until wanted
-   (docs/decisions.md, decision 16). How discreet, and when they fade, the
-   author decides by trying; these values are a first proposal. */
+   (docs/decisions.md, decision 16). The author tried how discreet they are
+   and when they fade, and kept both (decision 19); their layout is still to
+   be decided. */
 
 .bar {
   position: fixed;

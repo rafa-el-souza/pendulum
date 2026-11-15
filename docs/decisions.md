@@ -266,6 +266,18 @@ sideways at 3 m/s and stopped, the tip flies 18 cm past the finger at the
 elastic end and 2 cm at the firm end. Damped critically, the elastic end's
 spring let the tip go only 3 cm past.
 
+## 19. The hand, the time and the controls stay as tried
+
+*2026-11-15.* The author tried the published piece and kept three things as
+they are. The hand's five steps, the line that shows its pull and the pips on
+its control stay, and are no longer placeholders (decision 18). Time keeps
+starting at 0.8 of real time, now chosen over 0.9 (decision 17). The controls
+stay as discreet as they are and fade when they do (decision 16); how they
+are laid out is left for later.
+
+**Why.** Each of the three was left to be settled by trying, and the author
+has tried them.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
