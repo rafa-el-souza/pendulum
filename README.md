@@ -30,9 +30,10 @@ hanging rope it becomes as n grows.
 - **The first piece, begun:**
   [the chain in the hand](https://rafa-el-souza.github.io/pendulum/chain-in-hand/).
   A chain drawn as light, to grab anywhere and throw. Its number of masses
-  runs from 1 to 512 while it moves, and its time from a tenth of real time to
-  four times it. Discreet controls appear when wanted, each with a key, and
-  the address carries both values, so a view can be shared.
+  runs from 1 to 512 while it moves, its time from a tenth of real time to
+  four times it, and the hand that holds it from a rubber band to a firm grip.
+  Discreet controls appear when wanted, each with a key, and the address
+  carries every value, so a view can be shared.
 
 Next, the first piece gets its twins, which fan out to show chaos, and the
 trail of its tip. Every piece is meant to run fullscreen in the major browsers.

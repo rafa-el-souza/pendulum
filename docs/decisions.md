@@ -234,6 +234,38 @@ found even real time fast, and named 0.8 or 0.9. The piece opens at the lower
 of the two, and the other is one key away. The physics of scale in decision
 15 stands; what a speed looks like is settled by trying it.
 
+## 18. The hand runs from elastic to firm, on one control
+
+*2026-11-15.* How firmly the hand holds the chain is one of the first
+piece's parameters (decision 10), with its own keys, `,` and `.`. Each step is
+a spring and a damper between the finger and the mass it holds. The spring's
+rate runs from 4 to 40 rad/s for the whole chain's mass, and the damping from
+0.3 of critical to critical for the mass held. At the elastic end the chain
+hangs below the finger and bounces as on a rubber band: stopping the finger
+does not stop the chain, which flies on past it and springs back, so letting
+go as it flies past flings it. At the firm end, where the hand was before
+this control and where the piece opens, the held mass stays on the finger and
+a throw leaves at the gesture's speed. The line from the finger to the mass
+grows brighter and wider the harder the hand pulls, so the force shows
+without another control. The control shows its step as pips, and a screen
+reader hears it as a count. The steps are placeholders for the author to tune
+by trying.
+
+**Why.** The author asked for a slice on the force with which the hand grabs
+and throws the chain, fun to use and with a simple control, and chose this
+one of five suggestions. Four stay open: a hand that slips when pulled past
+its strength, a multiplier on the throw, holding the chain by its pivot, and
+grabbing it anywhere along the rope rather than by a mass. The damping falls
+with the spring because a soft hand damped critically drags the chain
+without a bounce, which reads as sluggish rather than elastic.
+
+**Evidence.** A chain of two masses held by its tip, with the finger still at
+the pivot's height 0.7 m out, settles with the tip 34 cm below the finger at
+the elastic end, then 14, 5 and 2 cm, and 5 mm at the firm end. Dragged
+sideways at 3 m/s and stopped, the tip flies 18 cm past the finger at the
+elastic end and 2 cm at the firm end. Damped critically, the elastic end's
+spring let the tip go only 3 cm past.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
