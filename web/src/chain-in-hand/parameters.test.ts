@@ -7,6 +7,7 @@ import {
   MASSES,
   PALETTE,
   PARAMETERS,
+  RIBBON,
   SPREAD,
   TIME,
   TRAIL,
@@ -118,5 +119,19 @@ describe("the first piece's parameters", () => {
     expect(SPREAD.show(1e-3)).toBe("10⁻³");
     expect(SPREAD.show(1e-1)).toBe("10⁻¹");
     expect(SPREAD.speak?.(1e-3)).toBe("10 to the minus 3 radians");
+  });
+
+  it("let the trails come from the tip alone, as they have until now, or from every mass of the chain (decision 26)", () => {
+    expect(RIBBON.values).toEqual([0, 1]);
+    expect(RIBBON.initial).toBe(0);
+    expect(RIBBON.keys).toEqual({ down: ["1"], up: ["2"] });
+    expect(RIBBON.icon).toBe("ribbon");
+  });
+
+  it("show which masses draw as masses lit, and say it in words", () => {
+    expect(RIBBON.show(0)).toBe("○○●");
+    expect(RIBBON.show(1)).toBe("●●●");
+    expect(RIBBON.speak?.(0)).toBe("the tip");
+    expect(RIBBON.speak?.(1)).toBe("every mass");
   });
 });

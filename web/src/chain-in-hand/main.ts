@@ -23,6 +23,7 @@ import {
   MASSES,
   PALETTE,
   PARAMETERS,
+  RIBBON,
   SPREAD,
   TIME,
   TRAIL,
@@ -36,8 +37,9 @@ import {
 // by a hand from elastic to firm (decision 18), with twins born a hair apart
 // that fan out to show chaos (decision 20) in a palette of the visitor's
 // choice (decision 23), and trails of light behind the tips of the chain and
-// of its twins (decision 21). A key passes the whole frame through the
-// sketch's light, to compare (decision 24).
+// of its twins (decision 21), or of every mass of the chain (decision 26). A
+// key passes the whole frame through the sketch's light, to compare (decision
+// 24).
 
 const G = 9.81;
 // A frame longer than this (a hidden tab, a stall) moves the chain by this
@@ -131,8 +133,9 @@ function play({ canvas, gl }: Stage): void {
   let wholeFrame = false;
   const trail = new SegmentBatch(4096);
   const tipAt = new Float64Array(2);
-  let tipX = 0;
-  let tipY = 0;
+  // where each mass of the chain, and each twin's tip, was at the end of the
+  // last piece of trail
+  let ends = new Float64Array(2 * chain.n);
   let twinTips = new Float64Array(0);
 
   let hand: Hand | null = null;
@@ -154,11 +157,14 @@ function play({ canvas, gl }: Stage): void {
     tipAt[1] = py;
   }
 
-  /** The trails go on from where the tips are now. */
+  /** The trails go on from where the masses and the twins' tips are now. */
   function resetTrailEnds(): void {
-    tip(state.theta);
-    tipX = tipAt[0] ?? 0;
-    tipY = tipAt[1] ?? 0;
+    chain.positions(state.theta, x, y);
+    ends = new Float64Array(2 * chain.n);
+    for (let i = 0; i < chain.n; i++) {
+      ends[2 * i] = x[i] ?? 0;
+      ends[2 * i + 1] = y[i] ?? 0;
+    }
     twinTips = new Float64Array(2 * twins.length);
     twins.forEach((twin, j) => {
       tip(twin.theta);
@@ -167,11 +173,16 @@ function play({ canvas, gl }: Stage): void {
     });
   }
 
-  /** A piece of trail from (ax, ay) to where the tip is now, unless the tip jumped. */
-  function trailTo(ax: number, ay: number, color: Rgb, light: number): void {
+  /** A piece of trail from (ax, ay) to (bx, by), unless the point jumped. */
+  function trailPiece(
+    ax: number,
+    ay: number,
+    bx: number,
+    by: number,
+    color: Rgb,
+    light: number,
+  ): void {
     if (value(TRAIL) === 0) return;
-    const bx = tipAt[0] ?? 0;
-    const by = tipAt[1] ?? 0;
     if (Math.hypot(bx - ax, by - ay) < TRAIL_JUMP) {
       trail.push(ax, ay, bx, by, color, light);
     }
@@ -548,14 +559,27 @@ function play({ canvas, gl }: Stage): void {
       const asked = dt * value(TIME);
       const deadline = performance.now() + PHYSICS_BUDGET_MS;
       const pieces = Math.min(16, Math.max(4, Math.ceil(asked * TRAIL_RATE)));
+      // The tip draws, and with the ribbon every mass does (decision 26), the
+      // others fainter the more there are, so that the ribbon stays light.
+      const firstDrawing = value(RIBBON) === 1 ? 0 : chain.n - 1;
+      const ribbonLight = 0.55 * Math.min(1, 2.2 / Math.sqrt(chain.n));
       for (let piece = 0; piece < pieces; piece++) {
         const want = asked / pieces;
         const moved = stepper.advance(state, want, G, hand, deadline);
         simulated += moved.simulated;
-        tip(state.theta);
-        trailTo(tipX, tipY, colors.chain, 0.55);
-        tipX = tipAt[0] ?? 0;
-        tipY = tipAt[1] ?? 0;
+        chain.positions(state.theta, x, y);
+        for (let i = 0; i < chain.n; i++) {
+          const bx = x[i] ?? 0;
+          const by = y[i] ?? 0;
+          if (i >= firstDrawing) {
+            const light = i === chain.n - 1 ? 0.55 : ribbonLight;
+            const ax = ends[2 * i] ?? bx;
+            const ay = ends[2 * i + 1] ?? by;
+            trailPiece(ax, ay, bx, by, colors.chain, light);
+          }
+          ends[2 * i] = bx;
+          ends[2 * i + 1] = by;
+        }
         // out of time: the rest of the frame is slow motion (decision 15)
         if (moved.simulated < want * 0.999) break;
       }
@@ -587,9 +611,11 @@ function play({ canvas, gl }: Stage): void {
           for (let piece = 0; piece < twinPieces; piece++) {
             twinStepper.advance(twin, simulated / twinPieces, G);
             tip(twin.theta);
-            trailTo(
+            trailPiece(
               twinTips[2 * done] ?? 0,
               twinTips[2 * done + 1] ?? 0,
+              tipAt[0] ?? 0,
+              tipAt[1] ?? 0,
               color,
               light,
             );
