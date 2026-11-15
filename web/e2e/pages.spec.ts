@@ -1,18 +1,10 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 import { PIECES, pieceHref } from "../src/pieces.ts";
+import { collectErrors } from "./errors.ts";
 
 // Every page opens without an error, and every piece gets the WebGL2 context
 // it draws with (docs/decisions.md, decision 9).
-
-function collectErrors(page: Page): string[] {
-  const errors: string[] = [];
-  page.on("pageerror", (error) => errors.push(error.message));
-  page.on("console", (message) => {
-    if (message.type() === "error") errors.push(message.text());
-  });
-  return errors;
-}
 
 test("the home page links every piece", async ({ page }) => {
   const errors = collectErrors(page);
