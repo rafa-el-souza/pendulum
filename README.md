@@ -21,17 +21,20 @@ hanging rope it becomes as n grows.
 - **The decisions**, each with its reason and the measurements behind it,
   and the questions still open: [`docs/decisions.md`](docs/decisions.md).
 - **The web app's skeleton** in [`web/`](web/): one page per piece over a
-  shared core, opened in Chromium, Firefox and WebKit on every change. The
-  first piece's page has its stage and nothing on it yet.
+  shared core, opened in Chromium, Firefox and WebKit on every change.
 - **The physics in the browser**, in [`web/src/physics/`](web/src/physics/):
   the chain by the rod-tension route in double precision, and its motion in
   time by RK4 in substeps taken from the rod tensions. It is tested against
   answers the oracle writes, within 1e-12, against the paper's general
-  formula, and by the energy along chaotic motion. Nothing draws it yet.
+  formula, and by the energy along chaotic motion.
+- **The first piece, begun:**
+  [the chain in the hand](https://rafa-el-souza.github.io/pendulum/chain-in-hand/).
+  A chain of two masses, drawn as light, to grab anywhere and throw; space
+  pauses it and R raises it again.
 
-Next comes that first piece: a chain to grab and throw, whose number of
-masses runs from one to a rope while it moves, with twins that fan out to show
-chaos. Every piece is meant to run fullscreen in the major browsers.
+Next, the first piece grows: its number of masses running from one to a rope
+while it moves, and twins that fan out to show chaos. Every piece is meant to
+run fullscreen in the major browsers.
 
 ## How it is built
 

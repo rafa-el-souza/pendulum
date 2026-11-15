@@ -79,7 +79,8 @@ export class Chain {
 
   /**
    * The angular accelerations and the rod tensions of one state (PH-4),
-   * written to alpha and tension. Every array has length n; g is in m/s².
+   * written to alpha and tension. Every array has length n; g is in m/s². A
+   * hand, when given, pulls on the mass it holds.
    */
   solve(
     theta: Float64Array,
@@ -87,6 +88,7 @@ export class Chain {
     g: number,
     alpha: Float64Array,
     tension: Float64Array,
+    hand: Hand | null = null,
   ): void {
     const n = this.n;
     const m = this.masses;
@@ -123,6 +125,44 @@ export class Chain {
     }
     rhs[0] = rhs[0]! + g * Math.cos(theta[0]!);
 
+    // A force F on mass k is an acceleration f = F / m_k of that mass alone.
+    // It enters rod k as +f and rod k + 1 as -f: along the rod in the tension
+    // system, across the rod in the angular acceleration.
+    const k = hand === null ? -1 : hand.index;
+    let acrossHeld = 0;
+    let acrossBelow = 0;
+    if (hand !== null) {
+      let px = 0;
+      let py = 0;
+      let vx = 0;
+      let vy = 0;
+      for (let i = 0; i <= k; i++) {
+        const l = this.lengths[i]!;
+        const s = Math.sin(theta[i]!);
+        const c = Math.cos(theta[i]!);
+        px += l * s;
+        py -= l * c;
+        vx += l * omega[i]! * c;
+        vy += l * omega[i]! * s;
+      }
+      const fx =
+        (hand.stiffness * (hand.x - px) - hand.damping * (vx - hand.vx)) *
+        inverseMass[k]!;
+      const fy =
+        (hand.stiffness * (hand.y - py) - hand.damping * (vy - hand.vy)) *
+        inverseMass[k]!;
+      const s = Math.sin(theta[k]!);
+      const c = Math.cos(theta[k]!);
+      rhs[k] = rhs[k]! + fx * s - fy * c;
+      acrossHeld = fx * c + fy * s;
+      if (k + 1 < n) {
+        const sb = Math.sin(theta[k + 1]!);
+        const cb = Math.cos(theta[k + 1]!);
+        rhs[k + 1] = rhs[k + 1]! - (fx * sb - fy * cb);
+        acrossBelow = -(fx * cb + fy * sb);
+      }
+    }
+
     // LDL^T elimination from the top rod down. Row i has the pivot
     // (1 + kappa_i) / m_i, with kappa_1 = 0 and
     //   kappa_{i+1} = (m_{i+1} / m_i) (s_i^2 + kappa_i) / (1 + kappa_i),
@@ -154,6 +194,44 @@ export class Chain {
       carry = -tension[i]! * across;
     }
     alpha[n - 1] = carry * inverseLength[n - 1]!;
+    if (k >= 0) {
+      alpha[k] = alpha[k]! + acrossHeld * inverseLength[k]!;
+      if (k + 1 < n) {
+        alpha[k + 1] = alpha[k + 1]! + acrossBelow * inverseLength[k + 1]!;
+      }
+    }
+  }
+
+  /** Where the masses are (PH-1), written to x and y, in m from the pivot, y up. */
+  positions(theta: Float64Array, x: Float64Array, y: Float64Array): void {
+    let px = 0;
+    let py = 0;
+    for (let i = 0; i < this.n; i++) {
+      const l = this.lengths[i]!;
+      px += l * Math.sin(theta[i]!);
+      py -= l * Math.cos(theta[i]!);
+      x[i] = px;
+      y[i] = py;
+    }
+  }
+
+  /** The index of the mass nearest to the point (x, y), in m from the pivot. */
+  nearestMass(theta: Float64Array, x: number, y: number): number {
+    let best = 0;
+    let bestDistance = Number.POSITIVE_INFINITY;
+    let px = 0;
+    let py = 0;
+    for (let i = 0; i < this.n; i++) {
+      const l = this.lengths[i]!;
+      px += l * Math.sin(theta[i]!);
+      py -= l * Math.cos(theta[i]!);
+      const distance = (px - x) ** 2 + (py - y) ** 2;
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        best = i;
+      }
+    }
+    return best;
   }
 
   /** Kinetic plus potential energy (PH-2), the potential zero at the height of the pivot. */
@@ -188,4 +266,52 @@ export class Chain {
     }
     return 2 * Math.sqrt(largest);
   }
+}
+
+/**
+ * A hand holding one mass on a spring and a damper, which the paper does not
+ * have: the force on that mass is stiffness * (where the hand is - where the
+ * mass is) - damping * (the mass's velocity - the hand's).
+ */
+export interface Hand {
+  /** The mass it holds, counted from the top, from 0. */
+  readonly index: number;
+  /** Where the hand is, in m from the pivot, y up. */
+  x: number;
+  y: number;
+  /** How fast the hand moves, in m/s. */
+  vx: number;
+  vy: number;
+  /** In N/m. */
+  readonly stiffness: number;
+  /** In N s/m. */
+  readonly damping: number;
+  /** The fastest rate the hand adds to the motion, in rad/s, for the substep. */
+  readonly fastest: number;
+}
+
+/**
+ * A hand on mass `index`, at rest at the pivot until it is moved. Its spring
+ * is that of the whole chain's mass oscillating at `rate` rad/s, and its
+ * damping is critical for the held mass alone, which keeps the fastest rate
+ * it adds at 2 * rate * sqrt(total mass / held mass).
+ */
+export function createHand(chain: Chain, index: number, rate = 40): Hand {
+  if (!Number.isInteger(index) || index < 0 || index >= chain.n) {
+    throw new Error(
+      `a chain of ${String(chain.n)} masses has no mass ${String(index)}`,
+    );
+  }
+  const held = chain.masses[index]!;
+  const stiffness = chain.totalMass * rate * rate;
+  return {
+    index,
+    x: 0,
+    y: 0,
+    vx: 0,
+    vy: 0,
+    stiffness,
+    damping: 2 * Math.sqrt(stiffness * held),
+    fastest: 2 * rate * Math.sqrt(chain.totalMass / held),
+  };
 }
