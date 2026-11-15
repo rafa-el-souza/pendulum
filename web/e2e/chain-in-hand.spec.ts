@@ -116,3 +116,54 @@ test("an address carries the masses and the time", async ({ page }) => {
   await frames(page, 20);
   expect(errors).toEqual([]);
 });
+
+test("the hand's keys run it from firm to elastic and back, and the address follows", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("chain-in-hand/");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  const grip = page
+    .getByRole("group", { name: "Firmness of the hand" })
+    .locator("output");
+  await expect(grip).toContainText("5 of 5");
+
+  await page.keyboard.press(",");
+  await expect(grip).toContainText("4 of 5");
+  await expect(page).toHaveURL(/[?&]hand=20(&|$)/);
+  for (let press = 0; press < 3; press++) await page.keyboard.press(",");
+  await expect(grip).toContainText("1 of 5");
+  await expect(page).toHaveURL(/[?&]hand=4(&|$)/);
+  await page.keyboard.press(".");
+  await expect(grip).toContainText("2 of 5");
+  await expect(page).toHaveURL(/[?&]hand=7(&|$)/);
+  expect(errors).toEqual([]);
+});
+
+test("an elastic hand from the address swings and throws the chain, and the grip changes while it holds", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("chain-in-hand/?hand=4");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await expect(
+    page.getByRole("group", { name: "Firmness of the hand" }).locator("output"),
+  ).toContainText("1 of 5");
+  const box = await page.locator("#stage").boundingBox();
+  if (box === null) throw new Error("the stage is not on the page");
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+
+  await frames(page, 10);
+  await page.mouse.move(cx, cy + 40);
+  await page.mouse.down();
+  for (let step = 1; step <= 12; step++) {
+    await page.mouse.move(cx + 15 * step, cy + 40 - 8 * step);
+    await frames(page, 1);
+    // firmer while it holds, halfway through the swing
+    if (step === 6) await page.keyboard.press(".");
+  }
+  await page.mouse.up();
+  await frames(page, 30);
+  expect(errors).toEqual([]);
+});

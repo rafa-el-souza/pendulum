@@ -15,12 +15,13 @@ import { fitScale, toWorld } from "../core/view.ts";
 import { Chain, createHand, type Hand } from "../physics/chain.ts";
 import { resample } from "../physics/resample.ts";
 import { Stepper, restingState } from "../physics/step.ts";
-import { MASSES, PARAMETERS, TIME } from "./parameters.ts";
+import { HAND, MASSES, PARAMETERS, TIME, handDamping } from "./parameters.ts";
 
 // The first piece (docs/decisions.md, decision 4): one chain pendulum to grab
 // and throw, whose number of masses changes while it moves, under a time that
-// runs as fast as the visitor asks and the machine allows (decision 15). The
-// twins and the trail come in later slices.
+// runs as fast as the visitor asks and the machine allows (decision 15), held
+// by a hand from elastic to firm (decision 18). The twins and the trail come
+// in later slices.
 
 const G = 9.81;
 // A frame longer than this (a hidden tab, a stall) moves the chain by this
@@ -63,8 +64,12 @@ function play({ canvas, gl }: Stage): void {
     hand: tokenColor("--color-hand"),
     pivot: tokenColor("--color-pivot"),
   };
-  const rods = new SegmentBatch(chain.n + 1);
+  const rods = new SegmentBatch(chain.n);
   const dots = new SegmentBatch(chain.n + 2);
+  // the hand's spring, drawn stronger the harder the hand pulls
+  const spring = new SegmentBatch(1);
+  const pull = new Float64Array(2);
+  let strength = 0;
   let x = new Float64Array(chain.n);
   let y = new Float64Array(chain.n);
 
@@ -83,6 +88,20 @@ function play({ canvas, gl }: Stage): void {
     hand = null;
   }
 
+  /** A hand on mass `index`, with the grip the hand's control asks for, where `at` is and moving as it moves. */
+  function holding(
+    index: number,
+    at: { x: number; y: number; vx: number; vy: number },
+  ): Hand {
+    const rate = value(HAND);
+    const held = createHand(chain, index, rate, handDamping(rate));
+    held.x = at.x;
+    held.y = at.y;
+    held.vx = at.vx;
+    held.vy = at.vy;
+    return held;
+  }
+
   /** The same motion on another number of masses, the hand keeping hold of the same place along the chain. */
   function setMasses(n: number): void {
     if (n === chain.n) return;
@@ -96,12 +115,7 @@ function play({ canvas, gl }: Stage): void {
     if (hand !== null) {
       const along = (hand.index + 1) / before.n;
       const index = Math.min(n - 1, Math.max(0, Math.round(along * n) - 1));
-      const held = createHand(chain, index);
-      held.x = hand.x;
-      held.y = hand.y;
-      held.vx = hand.vx;
-      held.vy = hand.vy;
-      hand = held;
+      hand = holding(index, hand);
     }
   }
 
@@ -118,6 +132,8 @@ function play({ canvas, gl }: Stage): void {
     const next = stepValue(parameter, value(parameter), direction);
     values.set(parameter.id, next);
     if (parameter === MASSES) setMasses(next);
+    // a new grip takes hold at once, where the hand is
+    if (parameter === HAND && hand !== null) hand = holding(hand.index, hand);
     controls.showValue(parameter.id, next);
     const search = writeAddress(PARAMETERS, values, location.search);
     history.replaceState(
@@ -176,9 +192,12 @@ function play({ canvas, gl }: Stage): void {
     // Grabbing the chain sets it going again, if it was paused.
     if (paused) setPaused(false);
     // the nearest mass, wherever the press lands
-    hand = createHand(chain, chain.nearestMass(state.theta, px, py));
-    hand.x = px;
-    hand.y = py;
+    hand = holding(chain.nearestMass(state.theta, px, py), {
+      x: px,
+      y: py,
+      vx: 0,
+      vy: 0,
+    });
     Object.assign(pointer, {
       id: event.pointerId,
       x: px,
@@ -245,6 +264,7 @@ function play({ canvas, gl }: Stage): void {
     chain.positions(state.theta, x, y);
     rods.clear();
     dots.clear();
+    spring.clear();
     let ax = 0;
     let ay = 0;
     for (let i = 0; i < chain.n; i++) {
@@ -257,11 +277,27 @@ function play({ canvas, gl }: Stage): void {
       ay = by;
     }
     if (hand !== null) {
+      // How hard the hand pulls, in weights of the whole chain, eased over a
+      // few frames so that a jittery pointer does not flicker: a hand that
+      // lifts the chain pulls about one weight, one that whirls it several.
+      chain.handForce(state.theta, state.omega, hand, pull);
+      const weights =
+        Math.hypot(pull[0] ?? 0, pull[1] ?? 0) / (chain.totalMass * G);
+      strength += 0.25 * (1 - Math.exp(-weights) - strength);
       // the spring between the held mass and the hand
       const hx = x[hand.index] ?? 0;
       const hy = y[hand.index] ?? 0;
-      rods.push(hx, hy, hand.x, hand.y, colors.hand, 0.7);
-      dots.push(hand.x, hand.y, hand.x, hand.y, colors.hand, 0.9);
+      spring.push(hx, hy, hand.x, hand.y, colors.hand, 0.35 + 0.65 * strength);
+      dots.push(
+        hand.x,
+        hand.y,
+        hand.x,
+        hand.y,
+        colors.hand,
+        0.6 + 0.4 * strength,
+      );
+    } else {
+      strength = 0;
     }
     dots.push(0, 0, 0, 0, colors.pivot, 0.8);
 
@@ -273,6 +309,12 @@ function play({ canvas, gl }: Stage): void {
       roundEnds: chain.n <= 64,
       halo: 5 * ratio,
       haloGain: 0.22,
+    });
+    lines.draw(spring, scale, {
+      radius: (0.8 + 1.4 * strength) * ratio,
+      roundEnds: true,
+      halo: 5 * ratio,
+      haloGain: 0.2 + 0.3 * strength,
     });
     lines.draw(dots, scale, {
       radius: Math.min(4.5, Math.max(2, 0.2 * rodPixels)) * ratio,
