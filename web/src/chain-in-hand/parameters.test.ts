@@ -20,4 +20,10 @@ describe("the first piece's parameters", () => {
     expect(TIME.values.at(-1)).toBe(4);
     expect(TIME.values).toContain(1);
   });
+
+  it("start time at 0.8 of real time, the author's choice, with 0.9 one step up (decision 17)", () => {
+    expect(TIME.initial).toBe(0.8);
+    const start = TIME.values.indexOf(TIME.initial);
+    expect(TIME.values[start + 1]).toBe(0.9);
+  });
 });
