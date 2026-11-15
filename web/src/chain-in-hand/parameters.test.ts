@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 
+import { FAN_PALETTES } from "../core/palettes.ts";
 import { checkParameters } from "../core/parameters.ts";
 import {
   HAND,
   MASSES,
+  PALETTE,
   PARAMETERS,
   TIME,
   TRAIL,
@@ -84,5 +86,20 @@ describe("the first piece's parameters", () => {
     expect(TRAIL.speak?.(0)).toBe("off");
     expect(TRAIL.speak?.(2.5)).toBe("2.5 s");
     expect(TRAIL.speak?.(600)).toBe("stays");
+  });
+
+  it("step through the twins' palettes, opening with the sketch's, which the author keeps (decision 23)", () => {
+    expect(PALETTE.values).toEqual(FAN_PALETTES.map((_, i) => i));
+    expect(PALETTE.initial).toBe(0);
+    expect(PALETTE.keys).toEqual({ down: ["5"], up: ["6"] });
+  });
+
+  it("paint the palette as five dots from one edge of the fan to the other, and name it for a screen reader", () => {
+    FAN_PALETTES.forEach((palette, i) => {
+      expect(PALETTE.show(i)).toBe(palette.name);
+      expect(PALETTE.swatches?.(i)).toEqual(
+        [0, 0.25, 0.5, 0.75, 1].map((place) => palette.color(place)),
+      );
+    });
   });
 });

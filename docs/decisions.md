@@ -350,6 +350,30 @@ Four others stay open: how close the twins are born, which shows the
 butterfly effect; which masses draw trails; keys alone, with nothing on
 screen; and one switch for both.
 
+## 23. Palettes for the twins
+
+*2026-11-15.* The first piece's twins, and the trails they leave, take their
+colours from one of five palettes, on a control of their own with the keys 5
+and 6 and a place in the address. A palette gives a colour to every place
+across the fan, from one edge to the other.
+
+- **Dusk** is the sketch's ramp, blue through violet, magenta and coral to
+  amber: the colours the twins have had until now, unchanged. It is the first
+  palette and the one the piece opens with.
+- **Fire** (deep red through orange to golden yellow), **ice** (aqua through
+  sky blue to violet), **spectrum** (the rainbow, red to violet) and
+  **silver** (no colour, dim grey to white) are candidates.
+
+The control paints five dots, from one edge of the fan to the other, in the
+palette's colours, and a screen reader hears the palette's name. Another
+palette colours the twins at once; the trails they have already left keep
+their colours and fade. The chain, its own trail and the hand keep their
+colours.
+
+**Why.** The author wants to change the twins' palette, and to keep the
+sketch's for its beauty. Which candidates stay, and how they look, the author
+decides by trying them.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.

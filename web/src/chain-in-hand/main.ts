@@ -1,8 +1,9 @@
 import "../styles/base.css";
 
-import { fanColor, tokenColor, type Rgb } from "../core/color.ts";
+import { tokenColor, type Rgb } from "../core/color.ts";
 import { mountControls } from "../core/controls.ts";
 import { Lines, SegmentBatch } from "../core/lines.ts";
+import { fanPalette } from "../core/palettes.ts";
 import {
   keyAction,
   readAddress,
@@ -20,6 +21,7 @@ import { Stepper, restingState, type ChainState } from "../physics/step.ts";
 import {
   HAND,
   MASSES,
+  PALETTE,
   PARAMETERS,
   TIME,
   TRAIL,
@@ -31,8 +33,9 @@ import {
 // and throw, whose number of masses changes while it moves, under a time that
 // runs as fast as the visitor asks and the machine allows (decision 15), held
 // by a hand from elastic to firm (decision 18), with twins born a hair apart
-// that fan out to show chaos (decision 20), and trails of light behind the
-// tips of the chain and of its twins (decision 21).
+// that fan out to show chaos (decision 20) in a palette of the visitor's
+// choice (decision 23), and trails of light behind the tips of the chain and
+// of its twins (decision 21).
 
 const G = 9.81;
 // A frame longer than this (a hidden tab, a stall) moves the chain by this
@@ -100,9 +103,15 @@ function play({ canvas, gl }: Stage): void {
     0.002 * (chain.n / 2) ** 1.5,
   );
   const mostTwins = Math.max(...TWIN_COUNT.values);
-  const fanColors = Array.from({ length: mostTwins }, (_, j) =>
-    fanColor(fanPlace(j)),
-  );
+  let fanColors: Rgb[] = [];
+  /** Each twin's colour, by its place in the fan, from the palette asked for. */
+  function paint(): void {
+    const palette = fanPalette(value(PALETTE));
+    fanColors = Array.from({ length: mostTwins }, (_, j) =>
+      palette.color(fanPlace(j)),
+    );
+  }
+  paint();
   const fan = new SegmentBatch(value(TWIN_COUNT) * chain.n);
   const dots = new SegmentBatch(chain.n + 2);
   // the hand's spring, drawn stronger the harder the hand pulls
@@ -256,6 +265,9 @@ function play({ canvas, gl }: Stage): void {
     // the hand holds it; trails turned off go dark, to start afresh
     if (parameter === TWIN_COUNT && hand === null) spawnTwins();
     if (parameter === TRAIL && next === 0) trails.clear();
+    // another palette colours the twins at once; the trails they left keep
+    // their colours and fade
+    if (parameter === PALETTE) paint();
     controls.showValue(parameter.id, next);
     const search = writeAddress(PARAMETERS, values, location.search);
     history.replaceState(

@@ -4,6 +4,7 @@
 // list of values, so that every value a visitor can reach is one that was
 // chosen and can be written in an address.
 
+import type { Rgb } from "./color.ts";
 import type { Icon } from "./icons.ts";
 
 export interface Parameter {
@@ -26,6 +27,11 @@ export interface Parameter {
   readonly speak?: (value: number) => string;
   /** An icon shown beside the value, so that the control reads without words. */
   readonly icon?: Icon;
+  /**
+   * Colours shown as dots in place of the text of `show`, for a parameter
+   * whose values are colours; a screen reader still hears the text.
+   */
+  readonly swatches?: (value: number) => readonly Rgb[];
 }
 
 /** A value for every parameter, by id. */

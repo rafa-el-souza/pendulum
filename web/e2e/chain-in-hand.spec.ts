@@ -276,3 +276,48 @@ test("an address asks for 4 096 twins and trails that stay, and the budget carri
   await frames(page, 10);
   expect(errors).toEqual([]);
 });
+
+test("the palette's keys change the twins' colours, the control paints them, and the address follows", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("chain-in-hand/");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  const palette = page
+    .getByRole("group", { name: "Colours of the twins" })
+    .locator("output");
+  const dots = palette.locator("[aria-hidden='true'] > span");
+  // the colours the page paints the dots with (a string, as in frames())
+  const painted = (): Promise<string[]> =>
+    page.evaluate(
+      `[...document.querySelectorAll('[aria-label="Colours of the twins"] output [aria-hidden="true"] > span')].map((dot) => getComputedStyle(dot).color)`,
+    );
+
+  await expect(palette).toContainText("dusk");
+  await expect(dots).toHaveCount(5);
+  const dusk = await painted();
+  expect(new Set(dusk).size).toBe(5);
+
+  await page.keyboard.press("6");
+  await expect(palette).toContainText("fire");
+  await expect(page).toHaveURL(/[?&]palette=1(&|$)/);
+  expect(await painted()).not.toEqual(dusk);
+
+  await page.keyboard.press("5");
+  await expect(palette).toContainText("dusk");
+  await expect(page).not.toHaveURL(/palette=/);
+  expect(await painted()).toEqual(dusk);
+  await frames(page, 10);
+  expect(errors).toEqual([]);
+});
+
+test("an address carries the palette", async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto("chain-in-hand/?palette=4");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await expect(
+    page.getByRole("group", { name: "Colours of the twins" }).locator("output"),
+  ).toContainText("silver");
+  await frames(page, 10);
+  expect(errors).toEqual([]);
+});

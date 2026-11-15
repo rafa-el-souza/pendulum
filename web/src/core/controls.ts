@@ -4,6 +4,7 @@
 // (decision 16). Every control has a key, shown beside it on screens with a
 // pointer that hovers; keyboard focus keeps them in sight.
 
+import { cssColor } from "./color.ts";
 import { cls } from "./css.ts";
 import styles from "./controls.module.css";
 import { drawIcon, type Icon } from "./icons.ts";
@@ -94,6 +95,8 @@ export function mountControls(
       /** Where the value is shown, and where it is said, when the two differ. */
       shown: HTMLElement;
       spoken: HTMLElement | null;
+      /** The colours painted, when the value is shown in colours. */
+      painted: string;
     }
   >();
   for (const parameter of parameters) {
@@ -106,7 +109,10 @@ export function mountControls(
     output.setAttribute("aria-live", "polite");
     let shown: HTMLElement = output;
     let spoken: HTMLElement | null = null;
-    if (parameter.icon !== undefined || parameter.speak !== undefined) {
+    // shown as something other than its text: in words of its own, or in colours
+    const unspoken =
+      parameter.speak !== undefined || parameter.swatches !== undefined;
+    if (parameter.icon !== undefined || unspoken) {
       shown = document.createElement("span");
       if (parameter.icon !== undefined) {
         const icon = document.createElement("span");
@@ -115,7 +121,7 @@ export function mountControls(
         output.append(icon);
       }
       output.append(shown);
-      if (parameter.speak !== undefined) {
+      if (unspoken) {
         // shown to the eye, and said in words to a screen reader
         shown.setAttribute("aria-hidden", "true");
         spoken = document.createElement("span");
@@ -134,7 +140,13 @@ export function mountControls(
       hint(showKeys([parameter.keys.down[0], parameter.keys.up[0]])),
     );
     bar.append(group);
-    outputs.set(parameter.id, { parameter, output, shown, spoken });
+    outputs.set(parameter.id, {
+      parameter,
+      output,
+      shown,
+      spoken,
+      painted: "",
+    });
   }
 
   const actionButtons = new Map<string, HTMLButtonElement>();
@@ -166,7 +178,22 @@ export function mountControls(
       if (entry === undefined) throw new Error(`no control shows ${id}`);
       const at = reached ?? value;
       const text = entry.parameter.show(at);
-      if (entry.shown.textContent !== text) entry.shown.textContent = text;
+      const swatches = entry.parameter.swatches?.(at).map((c) => cssColor(c));
+      if (swatches === undefined) {
+        if (entry.shown.textContent !== text) entry.shown.textContent = text;
+      } else if (entry.painted !== swatches.join()) {
+        // one dot for each colour, painted through a custom property
+        entry.painted = swatches.join();
+        entry.shown.replaceChildren(
+          ...swatches.map((color) => {
+            const dot = document.createElement("span");
+            dot.className = cls(styles, "swatch");
+            dot.style.setProperty("--swatch", color);
+            dot.textContent = "●";
+            return dot;
+          }),
+        );
+      }
       if (entry.spoken !== null) {
         const words = entry.parameter.speak?.(at) ?? text;
         if (entry.spoken.textContent !== words) {
