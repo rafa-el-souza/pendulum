@@ -22,13 +22,18 @@ export type Icon =
   | "hand"
   | "gravity"
   | "palette"
+  | "mode"
+  | "amplitude"
   | "left"
   | "right";
 
 const SVG = "http://www.w3.org/2000/svg";
 
-/** Each icon as SVG path data on a 24 by 24 grid: filled shapes, then strokes. */
-const ICONS: Record<Icon, { fill: string; stroke: string }> = {
+/**
+ * Each icon as SVG path data on a 24 by 24 grid: strokes drawn faint, behind
+ * the rest, for a position the drawing only recalls; filled shapes; strokes.
+ */
+const ICONS: Record<Icon, { fill: string; stroke: string; faint?: string }> = {
   pause: { fill: "M6 5h4v14H6zM14 5h4v14h-4z", stroke: "" },
   play: { fill: "M8 5l11 7-11 7z", stroke: "" },
   // a circle turning back on itself, its arrowhead at the top pointing left
@@ -106,6 +111,18 @@ const ICONS: Record<Icon, { fill: string; stroke: string }> = {
     stroke:
       "M12 3a9 9 0 1 0 0 18c1.2 0 1.8-1 1.3-2-.6-1.1 0-2.5 1.3-2.5H17a4 4 0 0 0 4-4C21 7 17 3 12 3z",
   },
+  // a string held at both ends in its second mode, as a standing wave is
+  // drawn: one end of its swing, the other faint, and its nodes
+  mode: {
+    fill: "M1.9 12a1.6 1.6 0 1 0 3.2 0a1.6 1.6 0 1 0 -3.2 0M10.4 12a1.6 1.6 0 1 0 3.2 0a1.6 1.6 0 1 0 -3.2 0M18.9 12a1.6 1.6 0 1 0 3.2 0a1.6 1.6 0 1 0 -3.2 0",
+    stroke: "M3.5 12Q7.75 4 12 12T20.5 12",
+    faint: "M3.5 12Q7.75 20 12 12T20.5 12",
+  },
+  // a pendulum, and the marks of its swing either side of the bob
+  amplitude: {
+    fill: "M10.5 3a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0 -3 0M9.4 15a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0 -5.2 0",
+    stroke: "M12 3V12.5M6.5 11.5Q4.5 15 6.5 18.5M17.5 11.5Q19.5 15 17.5 18.5",
+  },
   // chevrons: there is more of the row this way
   left: { fill: "", stroke: "M15 5l-7 7 7 7" },
   right: { fill: "", stroke: "M9 5l7 7-7 7" },
@@ -118,22 +135,27 @@ export function drawIcon(name: Icon): SVGSVGElement {
   svg.setAttribute("width", "20");
   svg.setAttribute("height", "20");
   svg.setAttribute("aria-hidden", "true");
-  const { fill, stroke } = ICONS[name];
+  const { fill, stroke, faint } = ICONS[name];
+  if (faint !== undefined) svg.append(strokes(faint, 0.4));
   if (fill !== "") {
     const path = document.createElementNS(SVG, "path");
     path.setAttribute("d", fill);
     path.setAttribute("fill", "currentColor");
     svg.append(path);
   }
-  if (stroke !== "") {
-    const path = document.createElementNS(SVG, "path");
-    path.setAttribute("d", stroke);
-    path.setAttribute("fill", "none");
-    path.setAttribute("stroke", "currentColor");
-    path.setAttribute("stroke-width", "2");
-    path.setAttribute("stroke-linecap", "round");
-    path.setAttribute("stroke-linejoin", "round");
-    svg.append(path);
-  }
+  if (stroke !== "") svg.append(strokes(stroke, 1));
   return svg;
+}
+
+/** Path data drawn as round-ended strokes, at the given opacity. */
+function strokes(data: string, opacity: number): SVGPathElement {
+  const path = document.createElementNS(SVG, "path");
+  path.setAttribute("d", data);
+  path.setAttribute("fill", "none");
+  path.setAttribute("stroke", "currentColor");
+  path.setAttribute("stroke-width", "2");
+  path.setAttribute("stroke-linecap", "round");
+  path.setAttribute("stroke-linejoin", "round");
+  if (opacity < 1) path.setAttribute("opacity", String(opacity));
+  return path;
 }
