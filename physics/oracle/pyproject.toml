@@ -1,0 +1,34 @@
+[project]
+name = "pendulum-oracle"
+version = "0.0.0"
+description = "Independent checks of the physics behind the pendulum toy: the paper's equations re-derived from first principles, and a second formulation to compare against"
+requires-python = ">=3.12"
+dependencies = [
+    # No floor of our own: SymPy 1.14 caps mpmath below 1.4.
+    "mpmath",
+    "numpy>=2.5",
+    "pyyaml>=6.0",
+    "scipy>=1.18",
+    "sympy>=1.14",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2",
+    "ruff>=0.17",
+]
+
+# A set of scripts and tests, not a distributable package.
+[tool.uv]
+package = false
+
+# Each directory is a flat set of modules that import their neighbours by bare
+# name, and the cross-check imports from the others, so all of them are on the
+# import path and module names are unique across the tree.
+[tool.pytest.ini_options]
+pythonpath = ["chain", "crosscheck", "limits", "registry", "symbolic"]
+testpaths = ["chain", "crosscheck", "limits", "registry", "symbolic"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
