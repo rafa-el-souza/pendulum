@@ -167,6 +167,17 @@ deploy key, one lifecycle), and a third-party static host, which adds an
 account. Every URL in the build is relative (decision 7), so the site works
 under any of them.
 
+## 13. The repository is public
+
+*2026-11-15.* The repository is public. This replaces the first sentence of
+decision 3, which kept it private for the time being; the rest of decision 3
+stands. Tracked files, commits and pull requests are written for a reader
+assessing the work, working notes stay out of git, and the code is MIT.
+
+**What follows.** GitHub Pages can now publish the site (decision 12). `main`
+can also be set to require the CI jobs to pass before a merge, which GitHub's
+free plan offers only to public repositories.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.

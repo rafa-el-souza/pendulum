@@ -56,8 +56,7 @@ is written for a reader assessing the work. Tracked text is in English.
 
 ## Hygiene
 
-- The repository is private and kept as if it were public: no private names,
-  machines, accounts, paths or working notes in tracked files, commits or pull
-  requests.
+- The repository is public: no private names, machines, accounts, paths or
+  working notes in tracked files, commits or pull requests.
 - The paper, its source and any verbatim conversion never enter git
   (`physics/README.md` says why).
