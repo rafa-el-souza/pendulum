@@ -430,6 +430,26 @@ masses draw a fan of strings, and a rope draws a surface. The twins keep
 drawing from their tips only, because every mass of 512 twins of 512 masses
 would be over 260 000 trails to draw in every piece of a frame.
 
+## 27. One switch for the twins and the trails
+
+*2026-11-15.* A switch puts out the first piece's twins and trails together,
+and lights them again: a button beside the pause and the raise, drawn as a
+light lit or out, with the key L. Their controls keep their values (how many
+twins, how far apart they are born, how long the trails last, which masses
+draw them and the palette), and stepping any of them in the dark lights the
+switch again. Put out, the twins end and the trails go dark; lit again,
+twins are born from the chain as it is. A screen reader hears whether the
+switch is on. The address does not carry it, as it does not carry the
+pause.
+
+**Why.** The author chose to have one switch for both together with their
+controls (decision 22), rather than in their place.
+
+With the switch, the bar holds eight controls and three buttons. At 1 280
+px wide it wraps to two rows, and at 390 px wide to five, which take about a
+third of a phone's screen. How the controls are laid out is still the
+author's to decide (decision 19).
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.

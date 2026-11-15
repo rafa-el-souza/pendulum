@@ -4,7 +4,15 @@
 
 /** The icons a control can show. */
 export type Icon =
-  "pause" | "play" | "raise" | "fan" | "comet" | "spread" | "ribbon";
+  | "pause"
+  | "play"
+  | "raise"
+  | "fan"
+  | "comet"
+  | "spread"
+  | "ribbon"
+  | "light"
+  | "dark";
 
 const SVG = "http://www.w3.org/2000/svg";
 
@@ -36,6 +44,17 @@ const ICONS: Record<Icon, { fill: string; stroke: string }> = {
   ribbon: {
     fill: "",
     stroke: "M3 9c3-4 6-4 9 0s6 4 9 0M3 15c3-4 6-4 9 0s6 4 9 0",
+  },
+  // a light, lit: a disc and its rays
+  light: {
+    fill: "M8 12a4 4 0 1 0 8 0a4 4 0 1 0 -8 0",
+    stroke:
+      "M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8",
+  },
+  // the same light, out: its outline alone
+  dark: {
+    fill: "",
+    stroke: "M7.5 12a4.5 4.5 0 1 0 9 0a4.5 4.5 0 1 0 -9 0",
   },
 };
 

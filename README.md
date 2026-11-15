@@ -36,8 +36,9 @@ hanging rope it becomes as n grows.
   show chaos, and its tip and theirs leave trails of light that fade. How
   many twins there are, how far apart they are born, how long the trails
   last, whether every mass of the chain leaves one and which of five
-  palettes colours the twins are controls too, and the G key passes the
-  whole frame through the light of the first sketch, to compare.
+  palettes colours the twins are controls too. One switch puts out the twins
+  and the trails and lights them again, and the G key passes the whole frame
+  through the light of the first sketch, to compare.
   Discreet controls appear when wanted, each with a key, and the address
   carries every value, so a view can be shared.
 
