@@ -450,6 +450,37 @@ px wide it wraps to two rows, and at 390 px wide to five, which take about a
 third of a phone's screen. How the controls are laid out is still the
 author's to decide (decision 19).
 
+## 28. Time can run backwards
+
+*2026-11-15.* A button beside the pause, and the key B, run the first
+piece's time backwards; pressed again, they run it forwards. The chain and
+its twins keep their places and move the opposite way. The energy is a
+quadratic form in the rates (`PH-2`) and the equations of motion hold the
+rates only squared (`PH-3`), so they are the same with time reversed, and
+from there the chain retraces the motion that led there: the twins' fan
+closes again towards the hair it was born as. Grabbing the chain, or raising
+it again, runs time forwards, and while the hand holds the chain the key
+does nothing, because the hand's damper takes energy going forwards and
+would give it going backwards. The button shows two arrowheads pointing the
+way a press would take time.
+
+How far back the fan closes is set by chaos: the integration's tiny errors
+grow as fast as the twins part, so after a few seconds open the reversed
+motion goes elsewhere and the fan stays open.
+
+**Why.** The author chose it from the proposals still open, on the
+session's recommendation. It shows that the motion is deterministic and can
+be undone, and that chaos keeps it from being undone for long.
+
+**Evidence.** With the piece's own physics, a chain run a second forwards,
+reversed and run a second more comes back to its start within 1e-12 rad with
+one mass and 1e-7 rad with two. Seventeen twins of two masses, born 1e-3 rad
+apart and 0.4 mm apart at the tips, stepped as the piece steps its twins (at
+most 1/240 s a substep), close back to 0.4 mm when reversed after up to 4 s
+of simulated time, to 3.5 mm after 5 s, and not after 6 s (10 cm); with three
+masses, up to 2 s. Substeps half as long would let two masses close after
+6 s, and would carry half as many twins.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.

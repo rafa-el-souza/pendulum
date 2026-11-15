@@ -12,7 +12,9 @@ export type Icon =
   | "spread"
   | "ribbon"
   | "light"
-  | "dark";
+  | "dark"
+  | "rewind"
+  | "forward";
 
 const SVG = "http://www.w3.org/2000/svg";
 
@@ -56,6 +58,10 @@ const ICONS: Record<Icon, { fill: string; stroke: string }> = {
     fill: "",
     stroke: "M7.5 12a4.5 4.5 0 1 0 9 0a4.5 4.5 0 1 0 -9 0",
   },
+  // two arrowheads pointing back, as on a player that rewinds
+  rewind: { fill: "M11.5 6v12L3 12zM20.5 6v12L12 12z", stroke: "" },
+  // two arrowheads pointing on
+  forward: { fill: "M3.5 6v12l8.5-6zM12 6v12l8.5-6z", stroke: "" },
 };
 
 /** An icon, sized for a control, hidden from screen readers: the control names itself. */

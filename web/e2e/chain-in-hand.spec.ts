@@ -440,3 +440,37 @@ test("the light switch puts out the twins and the trails and lights them again, 
   await expect(light).toHaveAttribute("aria-pressed", "true");
   expect(errors).toEqual([]);
 });
+
+test("the B key runs time backwards and forwards again, and grabbing the chain runs it forwards", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("chain-in-hand/?time=4");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  const backwards = page.getByRole("button", { name: "Run time backwards" });
+  const forwards = page.getByRole("button", { name: "Run time forwards" });
+  const box = await page.locator("#stage").boundingBox();
+  if (box === null) throw new Error("the stage is not on the page");
+  await expect(backwards).toBeAttached();
+
+  await frames(page, 15);
+  await page.keyboard.press("b");
+  await expect(forwards).toBeAttached();
+  await frames(page, 15);
+  await page.keyboard.press("B");
+  await expect(backwards).toBeAttached();
+
+  // backwards again, then a grab: the hand runs time forwards
+  await page.keyboard.press("b");
+  await expect(forwards).toBeAttached();
+  await page.mouse.move(
+    box.x + box.width / 2 + 60,
+    box.y + box.height / 2 + 60,
+  );
+  await page.mouse.down();
+  await frames(page, 3);
+  await expect(backwards).toBeAttached();
+  await page.mouse.up();
+  await frames(page, 5);
+  expect(errors).toEqual([]);
+});
