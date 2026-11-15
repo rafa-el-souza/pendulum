@@ -481,6 +481,78 @@ of simulated time, to 3.5 mm after 5 s, and not after 6 s (10 cm); with three
 masses, up to 2 s. Substeps half as long would let two masses close after
 6 s, and would carry half as many twins.
 
+## 29. Gravity: its strength, down to none, and its direction
+
+*2026-11-15.* Gravity is two of the first piece's parameters, each with its
+control, its keys and a place in the address.
+
+- **Its strength** steps through none and the surface gravity commonly given
+  for Pluto (0.62 m/s²), the Moon (1.62), Mars (3.71), the Earth (9.81) and
+  Jupiter (24.79), with the keys Q and E. The piece opens at the Earth's, as
+  it has until now. The control shows g = 9.81, and a screen reader hears
+  where gravity is that strong.
+- **Its direction** turns all the way round in steps of 15°, measured from
+  straight down and to the right positive, as the rods' angles are, and comes
+  round past straight up, with the keys A and D: from straight down, A points
+  it to the left and D to the right. The control shows the degrees beside an
+  arrow turned the way gravity points, and a screen reader hears the
+  direction in words.
+
+Both act at once on the chain and its twins, from where they are, and the
+twins stay. Raised again, the chain is raised against gravity as it points.
+The line of the hand still shows its pull in weights of the chain on Earth.
+In the physics, gravity is a vector: it pulls every mass alike, so the
+angles feel it only through the top rod, where the pivot holds the chain
+against it (`PH-4`), and turned by an angle it turns the whole motion by that
+angle, because the rods enter the equations only through the differences of
+their angles.
+
+What the two show. With no gravity, the twins' fan never opens: the twins
+are the chain turned by a hair, and with nothing pulling, turning the chain
+changes nothing in its motion, which keeps whatever spin it is given. From
+rest, the strength sets only the pace: gravity and the rods' lengths are the
+only scales of time, so a chain let go from rest goes through the same motion
+under any gravity, slower by the square root of the ratio, and what changes
+beyond the pace is how far a throw carries it. Turned under a chain at rest,
+gravity tips it into motion; turned upside down, it brings the chain down
+from balance, and the fan bursts open within a second.
+
+With these two, the bar holds ten controls and four buttons: two rows at
+1 280 px wide, as before, and six at 390 px. How the controls are laid out
+is still the author's to decide (decision 19).
+
+**Why.** The author chose gravity from the proposals still open, on the
+session's recommendation; it was the first of the parameters proposed for
+the piece. Each step of the strength is a place, two to three times as
+strong as the one before. How the two controls look and feel, their steps
+and their keys, the author decides by trying.
+
+**Evidence.** With the piece's own physics, 33 twins born 1e-3 rad apart and
+stepped as the piece steps its twins:
+
+- From the piece's raised start, the fan of two masses is 10 cm wide at the
+  tips after 10.1 s of simulated time under Pluto's gravity, 6.2 s under the
+  Moon's, 4.1 s under Mars's, 2.5 s under the Earth's and 1.6 s under
+  Jupiter's, as the square root of the ratio has it. With three masses, 8.7,
+  5.4, 3.6, 2.2 and 1.4 s; with eight, 7.0, 4.3, 2.9, 1.8 and 1.1 s.
+- Raised and thrown with every rod turning at 4 rad/s, with no gravity, the
+  fan of two, three and eight masses stayed under a millimetre wide for 40 s.
+  Under the Earth's gravity, the same throws opened it to 10 cm in 5.9, 2.4
+  and 1.6 s.
+- A chain hanging at rest, its twins born there, and gravity turned at once:
+  by 15°, the fan had not opened after 40 s; by 90°, it opened to 10 cm in
+  9.6, 4.9 and 3.0 s with two, three and eight masses; by 180°, in 1.1, 0.8
+  and 0.4 s.
+
+Tested: turned by any of four angles, gravity gives the oracle's
+accelerations, tensions and energies at every angle turned with it, within
+1e-12, for every number of masses in the oracle's states (`PH-4`, `PH-2`);
+Newton's law with the hand holds under gravity drawn in any direction; with
+none, a thrown chain of three masses keeps its energy to 2.3e-8 and its
+angular momentum about the pivot to 3.8e-9 over 10 s; and a chain let go
+under the Moon's gravity goes through the Earth's motion, slower by the
+square root of 9.81/1.62, to within 7.6e-13 rad with fine substeps.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
