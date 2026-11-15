@@ -71,6 +71,10 @@ paper is wrong, and every statement the project relies on, was then handed to a
 second review as a bare claim, without the route that led to it, and checked
 again from the paper up. `second_check` in the registry records the outcome.
 
+The passes and the second review were done by Claude agents. None of their
+claims is taken on trust: each one ended as a test in this directory, which
+anyone can run.
+
 The second review confirmed every claim and attached a condition to four. It
 also corrected the first pass twice: the chain is not slower than the rope in
 every mode, only in the low ones, and the paper's second derivation needs its
