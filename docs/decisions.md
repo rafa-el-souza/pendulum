@@ -413,6 +413,23 @@ billionth; with three, 0.14, 2.2 and 5.3 s; with eight, 0.12, 1.8 and 2.9 s.
 Each power of ten closer delays the opening by 0.7 to 2.4 s with two masses,
 and by 0.1 to 0.3 s with eight.
 
+## 26. Trails from every mass of the chain, or from its tip
+
+*2026-11-15.* Which masses of the first piece's chain leave trails is one of
+its parameters: the tip alone, as until now, or every mass, so that the
+chain draws a ribbon. It has the keys 1 and 2 and a place in the address.
+The tip's trail keeps its light, and from six masses up the others are
+fainter the more masses there are, at 2.2/√n of it, so that a rope draws a
+sheet of light rather than a white blot. The twins' trails stay at their
+tips. The control shows three masses, lit where they draw, beside a drawn
+ribbon.
+
+**Why.** The author chose this one of the controls proposed for the trails
+in decision 22. With every mass drawing, the chain becomes a brush: a few
+masses draw a fan of strings, and a rope draws a surface. The twins keep
+drawing from their tips only, because every mass of 512 twins of 512 masses
+would be over 260 000 trails to draw in every piece of a frame.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
