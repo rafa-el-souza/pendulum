@@ -52,13 +52,15 @@ test("paused, the chain holds still; grabbing it sets it going again", async ({
   const stage = page.locator("#stage");
   const box = await stage.boundingBox();
   if (box === null) throw new Error("the stage is not on the page");
+  // The controls fade in and out over the stage; only the chain is compared.
+  const mask = [page.getByRole("toolbar")];
 
   await frames(page, 10);
   await page.keyboard.press(" ");
   await frames(page, 3);
-  const pausedBefore = await stage.screenshot();
+  const pausedBefore = await stage.screenshot({ mask });
   await frames(page, 10);
-  expect((await stage.screenshot()).equals(pausedBefore)).toBe(true);
+  expect((await stage.screenshot({ mask })).equals(pausedBefore)).toBe(true);
 
   // A press away from the chain: the hand pulls the nearest mass to it.
   await page.mouse.move(
@@ -67,9 +69,50 @@ test("paused, the chain holds still; grabbing it sets it going again", async ({
   );
   await page.mouse.down();
   await frames(page, 3);
-  const grabbedBefore = await stage.screenshot();
+  const grabbedBefore = await stage.screenshot({ mask });
   await frames(page, 10);
-  expect((await stage.screenshot()).equals(grabbedBefore)).toBe(false);
+  expect((await stage.screenshot({ mask })).equals(grabbedBefore)).toBe(false);
   await page.mouse.up();
+  expect(errors).toEqual([]);
+});
+
+test("the keys and the controls change the masses and the time, and the address follows", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("chain-in-hand/");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  const masses = page.getByRole("group", { name: "Number of masses" });
+  const time = page.getByRole("group", { name: "Speed of time" });
+  await expect(masses.locator("output")).toHaveText("n = 2");
+  await expect(time.locator("output")).toHaveText("×2");
+
+  await page.keyboard.press("ArrowUp");
+  await page.keyboard.press("ArrowUp");
+  await expect(masses.locator("output")).toHaveText("n = 4");
+  await expect(page).toHaveURL(/[?&]n=4(&|$)/);
+
+  await page.keyboard.press("ArrowLeft");
+  await expect(time.locator("output")).toHaveText("×1.5");
+  await expect(page).toHaveURL(/[?&]time=1\.5(&|$)/);
+
+  // A key woke the controls, so their buttons take clicks.
+  await masses.getByRole("button", { name: "More: Number of masses" }).click();
+  await expect(masses.locator("output")).toHaveText("n = 6");
+  await frames(page, 20);
+  expect(errors).toEqual([]);
+});
+
+test("an address carries the masses and the time", async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto("chain-in-hand/?n=64&time=0.5");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await expect(
+    page.getByRole("group", { name: "Number of masses" }).locator("output"),
+  ).toHaveText("n = 64");
+  await expect(
+    page.getByRole("group", { name: "Speed of time" }).locator("output"),
+  ).toHaveText("×0.5");
+  await frames(page, 20);
   expect(errors).toEqual([]);
 });

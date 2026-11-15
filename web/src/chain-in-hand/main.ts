@@ -1,30 +1,43 @@
 import "../styles/base.css";
 
 import { tokenColor } from "../core/color.ts";
+import { mountControls } from "../core/controls.ts";
 import { Lines, SegmentBatch } from "../core/lines.ts";
+import {
+  keyAction,
+  readAddress,
+  stepValue,
+  writeAddress,
+  type Parameter,
+} from "../core/parameters.ts";
 import { mountStage, type Stage } from "../core/stage.ts";
 import { fitScale, toWorld } from "../core/view.ts";
 import { Chain, createHand, type Hand } from "../physics/chain.ts";
+import { resample } from "../physics/resample.ts";
 import { Stepper, restingState } from "../physics/step.ts";
+import { MASSES, PARAMETERS, TIME } from "./parameters.ts";
 
 // The first piece (docs/decisions.md, decision 4): one chain pendulum to grab
-// and throw. For now it has two masses, the number the sketch it was chosen
-// from started with; changing the number while it moves, the twins and the
-// trail come in later slices.
+// and throw, whose number of masses changes while it moves, under a time that
+// runs as fast as the visitor asks and the machine allows (decision 15). The
+// twins and the trail come in later slices.
 
 const G = 9.81;
-const MASSES = 2;
 // A frame longer than this (a hidden tab, a stall) moves the chain by this
 // much only, so that it never jumps.
 const LONGEST_FRAME = 1 / 30;
 // A pointer that has sent no move for this long has stopped moving.
 const STILL_AFTER_MS = 60;
+// The physics of one frame may take this long; past it, time runs slower
+// than asked, and the time control shows how much (decision 15).
+const PHYSICS_BUDGET_MS = 6;
 
 const canvas = document.getElementById("stage");
 const notice = document.getElementById("notice");
 if (!(canvas instanceof HTMLCanvasElement) || notice === null) {
   throw new Error("the page lacks its #stage canvas or its #notice");
 }
+
 // The light's colors come from the stylesheet, which the browser may still be
 // applying when this module runs (WebKit did so in CI, and a token read as
 // empty). So the piece starts once the page has loaded.
@@ -37,9 +50,12 @@ if (document.readyState === "complete") begin();
 else addEventListener("load", begin, { once: true });
 
 function play({ canvas, gl }: Stage): void {
-  const chain = Chain.uniform(MASSES);
-  const state = restingState(chain.n);
-  const stepper = new Stepper(chain);
+  const values = readAddress(PARAMETERS, location.search);
+  const value = (p: Parameter): number => values.get(p.id) ?? p.initial;
+
+  let chain = Chain.uniform(value(MASSES));
+  let state = restingState(chain.n);
+  let stepper = new Stepper(chain);
   const lines = new Lines(gl);
   const colors = {
     ground: tokenColor("--color-ground"),
@@ -49,11 +65,13 @@ function play({ canvas, gl }: Stage): void {
   };
   const rods = new SegmentBatch(chain.n + 1);
   const dots = new SegmentBatch(chain.n + 2);
-  const x = new Float64Array(chain.n);
-  const y = new Float64Array(chain.n);
+  let x = new Float64Array(chain.n);
+  let y = new Float64Array(chain.n);
 
   let hand: Hand | null = null;
   let paused = false;
+  // the speed time actually ran at lately, as a share of the speed asked for
+  let reached = 1;
   const pointer = { id: -1, x: 0, y: 0, vx: 0, vy: 0, at: 0 };
 
   /** Raised to one side and let go from rest: with two masses or more, a chaotic start. */
@@ -63,6 +81,80 @@ function play({ canvas, gl }: Stage): void {
       state.omega[i] = 0;
     }
     hand = null;
+  }
+
+  /** The same motion on another number of masses, the hand keeping hold of the same place along the chain. */
+  function setMasses(n: number): void {
+    if (n === chain.n) return;
+    const before = chain;
+    const moved = resample(before, state, n);
+    chain = moved.chain;
+    state = moved.state;
+    stepper = new Stepper(chain);
+    x = new Float64Array(n);
+    y = new Float64Array(n);
+    if (hand !== null) {
+      const along = (hand.index + 1) / before.n;
+      const index = Math.min(n - 1, Math.max(0, Math.round(along * n) - 1));
+      const held = createHand(chain, index);
+      held.x = hand.x;
+      held.y = hand.y;
+      held.vx = hand.vx;
+      held.vy = hand.vy;
+      hand = held;
+    }
+  }
+
+  function setPaused(value: boolean): void {
+    paused = value;
+    controls.showAction(
+      "pause",
+      paused ? "play" : "pause",
+      paused ? "Resume" : "Pause",
+    );
+  }
+
+  function step(parameter: Parameter, direction: 1 | -1): void {
+    const next = stepValue(parameter, value(parameter), direction);
+    values.set(parameter.id, next);
+    if (parameter === MASSES) setMasses(next);
+    controls.showValue(parameter.id, next);
+    const search = writeAddress(PARAMETERS, values, location.search);
+    history.replaceState(
+      null,
+      "",
+      `${location.pathname}${search}${location.hash}`,
+    );
+  }
+
+  const controls = mountControls(
+    PARAMETERS,
+    [
+      {
+        id: "pause",
+        label: "Pause",
+        icon: "pause",
+        keys: [" "],
+        keysShown: "␣",
+      },
+      {
+        id: "raise",
+        label: "Raise the chain again",
+        icon: "raise",
+        keys: ["r", "R"],
+        keysShown: "R",
+      },
+    ],
+    {
+      step,
+      act(id) {
+        if (id === "pause") setPaused(!paused);
+        else raise();
+      },
+    },
+  );
+  for (const parameter of PARAMETERS) {
+    controls.showValue(parameter.id, value(parameter));
   }
 
   function world(event: PointerEvent): [number, number] {
@@ -82,7 +174,7 @@ function play({ canvas, gl }: Stage): void {
     canvas.setPointerCapture(event.pointerId);
     const [px, py] = world(event);
     // Grabbing the chain sets it going again, if it was paused.
-    paused = false;
+    if (paused) setPaused(false);
     // the nearest mass, wherever the press lands
     hand = createHand(chain, chain.nearestMass(state.theta, px, py));
     hand.x = px;
@@ -98,7 +190,11 @@ function play({ canvas, gl }: Stage): void {
   });
 
   canvas.addEventListener("pointermove", (event) => {
-    if (event.pointerId !== pointer.id) return;
+    if (event.pointerId !== pointer.id) {
+      // a pointer moving over the stage, not holding the chain, wakes the controls
+      if (event.pointerType === "mouse") controls.wake();
+      return;
+    }
     const [px, py] = world(event);
     const dt = Math.max(1e-3, (event.timeStamp - pointer.at) / 1000);
     // A smoothed velocity, so that the throw has the speed of the gesture.
@@ -114,19 +210,30 @@ function play({ canvas, gl }: Stage): void {
     if (event.pointerId !== pointer.id) return;
     pointer.id = -1;
     hand = null;
+    // on a touch screen, lifting the finger is what wakes the controls
+    if (event.pointerType !== "mouse") controls.wake();
   };
   canvas.addEventListener("pointerup", letGo);
   canvas.addEventListener("pointercancel", letGo);
 
-  // The keyboard: space pauses and resumes, R raises the chain again.
   addEventListener("keydown", (event) => {
     if (event.metaKey || event.ctrlKey || event.altKey) return;
-    if (event.key === " ") {
+    // A focused button takes its own Space and Enter.
+    const onButton = event.target instanceof HTMLButtonElement;
+    if (onButton && (event.key === " " || event.key === "Enter")) return;
+    const action = keyAction(PARAMETERS, event.key);
+    if (action !== null) {
       event.preventDefault();
-      paused = !paused;
+      step(action.parameter, action.direction);
+    } else if (event.key === " ") {
+      event.preventDefault();
+      setPaused(!paused);
     } else if (event.key === "r" || event.key === "R") {
       raise();
+    } else {
+      return;
     }
+    controls.wake();
   });
 
   function draw(): void {
@@ -159,9 +266,11 @@ function play({ canvas, gl }: Stage): void {
     dots.push(0, 0, 0, 0, colors.pivot, 0.8);
 
     lines.clear(colors.ground);
+    // Past 64 rods the ends are cut flat, so that rods laid end to end make
+    // one even line instead of beads where their round ends overlap.
     lines.draw(rods, scale, {
-      radius: 1.3 * ratio,
-      roundEnds: true,
+      radius: (chain.n > 64 ? 1.0 : 1.3) * ratio,
+      roundEnds: chain.n <= 64,
       halo: 5 * ratio,
       haloGain: 0.22,
     });
@@ -189,11 +298,35 @@ function play({ canvas, gl }: Stage): void {
         hand.vx = pointer.vx;
         hand.vy = pointer.vy;
       }
-      stepper.advance(state, dt, G, hand);
+      const asked = dt * value(TIME);
+      const { simulated } = stepper.advance(
+        state,
+        asked,
+        G,
+        hand,
+        performance.now() + PHYSICS_BUDGET_MS,
+      );
       const finite =
         state.theta.every(Number.isFinite) &&
         state.omega.every(Number.isFinite);
       if (!finite) raise();
+
+      // The valve: when the machine keeps time below the speed asked for,
+      // the time control shows the speed reached, and comes into sight.
+      const wasHeld = reached < 0.97;
+      reached += 0.1 * (simulated / asked - reached);
+      const held = reached < 0.97;
+      const speed = value(TIME);
+      if (held) {
+        controls.showValue(
+          TIME.id,
+          speed,
+          Math.round(speed * reached * 100) / 100,
+        );
+        if (!wasHeld) controls.wake();
+      } else if (wasHeld) {
+        controls.showValue(TIME.id, speed);
+      }
     }
     draw();
   }
