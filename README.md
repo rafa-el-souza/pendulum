@@ -47,7 +47,8 @@ hanging rope it becomes as n grows.
   The chain starts raised to one side, or at rest in one of the paper's four
   lowest normal modes at an amplitude of the visitor's choice: small, it
   keeps the mode's shape and its twins stay together; large, the shape
-  breaks up and the fan opens.
+  breaks up and the fan opens. Any moment of it can be saved in the address,
+  and starts it again from there.
   The controls wait behind one small button in a corner, which opens a thin
   row of icons; each control has a key too, and the address carries every
   value, so a view can be shared.

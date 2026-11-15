@@ -712,6 +712,49 @@ What a visitor sees, with the piece's own physics:
   mode's shape stayed under a tenth of the amplitude in every case at 20°,
   and under a fifth at 45° in modes 1 and 2.
 
+## 34. A moment of the chain is saved in the address
+
+*2026-11-15.* A button after "Start again", and the key S, save the chain's
+moment in the page's address: every rod's angle and rate, written after the
+"#" as `moment=` and base64url, as 32-bit floats, seven significant digits
+to a number. Copying the address keeps the moment and shares it, and an
+address that holds one opens there. The part after the "#" never reaches a
+server, so a long chain's moment is as safe as a short one's: 22 letters
+with two masses, 5 462 with 512. Each angle is brought within half a turn
+of zero first, which leaves the chain as it was, since the rods enter its
+equations only through the sines and cosines of their angles and of their
+differences (`PH-3`, `PH-4`).
+
+While a moment is kept, it is the chain's start (decision 33): R brings the
+chain back to it, exactly as the address holds it, and the controls of the
+mode and of the amplitude show held back, having nothing to do. An address
+holding a mode and a moment starts at the moment. The button's bookmark is
+full while a moment is kept. Saving again keeps the new moment instead.
+Choosing a start, a mode or the amplitude of one, starts the chain there and
+forgets the moment; so does another number of masses, since a moment
+belongs to a chain of so many, and a moment of another number of masses
+than the address asks for is not taken. The twins are born again from the
+moment; the trails are not kept.
+
+The key, the button and what forgets the moment are the session's choices,
+which the author settles by trying.
+
+**Why.** The author asked to save and restore the state, and chose the
+address over the browser's own storage and over both: it keeps a moment and
+shares it, and it is where the piece's other settings already are. A saved
+moment is also how a configuration found by hand can be kept, which the
+modes of decision 33 began from the paper's side.
+
+**Evidence.** A moment comes back from the address within seven significant
+digits, for one mass to 512. In a chaotic motion, those digits are enough
+to part the motion restored from the one it was taken from within seconds,
+as the twins' fan shows for any small difference: with the piece's own
+physics, from the raised start run 3 s, the restored tips were 10 cm from
+the original's 7.1 s later with two masses, 3.7 s with three and 0.65 s
+with eight. Started in a mode at 30°, mode 1 of eight masses and mode 2 of
+32, they were not 1 mm apart after 60 s. Another machine's frames part a
+chaotic motion the same way, whatever the digits.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
