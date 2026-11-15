@@ -30,6 +30,12 @@ checked. This directory holds the result and the means to repeat it.
   | `registry/` | Tests that hold `equations.yaml` to its own rules. |
   | `paper.py` | Builds the local reference copy of the paper (below). |
 
+- **`fixtures/`**, the oracle's answers on chosen states of the chain, written
+  by `oracle/chain/write_states.py`: the accelerations, the rod tensions and
+  the energy. The browser's physics (`web/src/physics/`) is tested against
+  them, and an oracle test fails while the file differs from what the script
+  writes.
+
 ## What was found
 
 Of the paper's 92 display equations, 73 are right as printed, 14 carry a
