@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import oracle from "../../../physics/fixtures/chain-states.json";
-import { Chain } from "./chain.ts";
+import { Chain, gravity, type Gravity } from "./chain.ts";
 
 const EPS = Number.EPSILON;
 
@@ -28,15 +28,22 @@ function random(seed: number): () => number {
   };
 }
 
+/** The accelerations and tensions under gravity g, straight down unless a direction is given. */
 function solved(
   chain: Chain,
   theta: Float64Array,
   omega: Float64Array,
-  g: number,
+  g: number | Gravity,
 ) {
   const alpha = new Float64Array(chain.n);
   const tension = new Float64Array(chain.n);
-  chain.solve(theta, omega, g, alpha, tension);
+  chain.solve(
+    theta,
+    omega,
+    typeof g === "number" ? gravity(g) : g,
+    alpha,
+    tension,
+  );
   return { alpha, tension };
 }
 
@@ -77,9 +84,9 @@ describe("the chain by the tension route (PH-4)", () => {
         return sum + g * mass * depth;
       }, 0);
       const scale = Math.abs(energy) + lift;
-      expect(Math.abs(chain.energy(theta, omega, g) - energy)).toBeLessThan(
-        1e-12 * scale,
-      );
+      expect(
+        Math.abs(chain.energy(theta, omega, gravity(g)) - energy),
+      ).toBeLessThan(1e-12 * scale);
     },
   );
 
@@ -116,6 +123,74 @@ describe("the chain by the tension route (PH-4)", () => {
       }
     },
   );
+});
+
+// The paper's gravity points straight down. Turned by an angle, it turns the
+// whole motion by that angle: the rods enter the equations of motion only
+// through the differences of their angles (PH-3, PH-4), and gravity through
+// each angle's difference from its own direction, so the chain under gravity
+// turned by phi at angles theta + phi moves as the paper's chain at theta.
+describe("gravity of any strength, turned to any direction (PH-4, PH-2)", () => {
+  // The turn is added to every angle, which rounds the angles' differences;
+  // the joints folded back and the angles near a million turns are there to
+  // test exactly that rounding, so they are left out.
+  const plain = cases.filter(
+    (c) => !c.label.includes("folded back") && !c.label.includes("angles near"),
+  );
+  const turns = [0.3, Math.PI / 2, -2.1, Math.PI];
+
+  it("points straight down when not turned, and a quarter turn points it to the right, as a rod's angle does", () => {
+    expect(gravity(9.81)).toEqual({ x: 0, y: -9.81 });
+    const right = gravity(2, Math.PI / 2);
+    expect(right.x).toBeCloseTo(2, 15);
+    expect(right.y).toBeCloseTo(0, 15);
+  });
+
+  it("has the cases to check, every number of masses among them", () => {
+    expect(new Set(plain.map((c) => c.chain.n))).toEqual(
+      new Set([1, 2, 3, 5, 8, 32, 128, 512]),
+    );
+  });
+
+  it.each(plain)(
+    "PH-4: turned, gives the oracle's accelerations and rod tensions at every angle turned with it, $label",
+    ({ chain, theta, omega, g, alpha, tension }) => {
+      for (const turn of turns) {
+        const turned = theta.map((angle) => angle + turn);
+        const out = solved(chain, turned, omega, gravity(g, turn));
+        expect(normwise(out.alpha, alpha)).toBeLessThan(1e-12);
+        expect(normwise(out.tension, tension)).toBeLessThan(1e-12);
+      }
+    },
+  );
+
+  it.each(plain)(
+    "PH-2: turned, gives the oracle's energy at every angle turned with it, $label",
+    ({ chain, theta, omega, g, energy, m, l }) => {
+      let depth = 0;
+      const lift = m.reduce((sum, mass, i) => {
+        depth += l[i] ?? Number.NaN;
+        return sum + g * mass * depth;
+      }, 0);
+      for (const turn of turns) {
+        const turned = theta.map((angle) => angle + turn);
+        const turnedEnergy = chain.energy(turned, omega, gravity(g, turn));
+        expect(Math.abs(turnedEnergy - energy)).toBeLessThan(
+          1e-12 * (Math.abs(energy) + lift),
+        );
+      }
+    },
+  );
+
+  it("PH-4: with no gravity, a chain at rest feels no force, whatever its shape", () => {
+    const draw = random(11);
+    const chain = new Chain([1, 0.2, 3, 0.5], [0.4, 1, 0.3, 0.7]);
+    const theta = Float64Array.from({ length: 4 }, () => 10 * draw() - 5);
+    const { alpha, tension } = solved(chain, theta, new Float64Array(4), 0);
+    // a zero may come out signed
+    expect(Array.from(alpha, Math.abs)).toEqual([0, 0, 0, 0]);
+    expect(Array.from(tension, Math.abs)).toEqual([0, 0, 0, 0]);
+  });
 });
 
 describe("a chain with every rod on one line (PH-5)", () => {

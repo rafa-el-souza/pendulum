@@ -15,7 +15,7 @@ import { mountStage, type Stage } from "../core/stage.ts";
 import { LightTarget, Trails, fadeAfter } from "../core/trails.ts";
 import { TwinBudget, bornTwins, fanPlace } from "../core/twins.ts";
 import { fitScale, toWorld } from "../core/view.ts";
-import { Chain, createHand, type Hand } from "../physics/chain.ts";
+import { Chain, createHand, gravity, type Hand } from "../physics/chain.ts";
 import { resample } from "../physics/resample.ts";
 import {
   Stepper,
@@ -48,6 +48,7 @@ import {
 // whole frame through the sketch's light, to compare (decision 24).
 
 const G = 9.81;
+const DOWN = gravity(G);
 // A frame longer than this (a hidden tab, a stall) moves the chain by this
 // much only, so that it never jumps.
 const LONGEST_FRAME = 1 / 30;
@@ -643,7 +644,7 @@ function play({ canvas, gl }: Stage): void {
       const ribbonLight = 0.55 * Math.min(1, 2.2 / Math.sqrt(chain.n));
       for (let piece = 0; piece < pieces; piece++) {
         const want = asked / pieces;
-        const moved = stepper.advance(state, want, G, hand, deadline);
+        const moved = stepper.advance(state, want, DOWN, hand, deadline);
         simulated += moved.simulated;
         chain.positions(state.theta, x, y);
         for (let i = 0; i < chain.n; i++) {
@@ -687,7 +688,7 @@ function play({ canvas, gl }: Stage): void {
           if ((done & 7) === 0 && performance.now() > giveUp) break;
           const color = fanColors[done] ?? colors.chain;
           for (let piece = 0; piece < twinPieces; piece++) {
-            twinStepper.advance(twin, simulated / twinPieces, G);
+            twinStepper.advance(twin, simulated / twinPieces, DOWN);
             tip(twin.theta);
             trailPiece(
               twinTips[2 * done] ?? 0,

@@ -4,15 +4,34 @@
 // steps (docs/decisions.md, decision 5). physics/oracle/chain/README.md has the
 // derivation.
 //
-// Conventions as in the oracle: x to the right, y up, gravity (0, -g), the
-// pivot at the origin. theta[i] is the absolute angle of rod i from the
-// downward vertical, so the unit vector along rod i is e = (sin, -cos) and its
-// normal is n = (cos, sin). Index 0 is the rod at the pivot; rod i ends at
-// mass i. A positive tension pulls the two ends of its rod together.
+// Conventions as in the oracle: x to the right, y up, the pivot at the
+// origin. theta[i] is the absolute angle of rod i from the downward vertical,
+// so the unit vector along rod i is e = (sin, -cos) and its normal is
+// n = (cos, sin). Index 0 is the rod at the pivot; rod i ends at mass i. A
+// positive tension pulls the two ends of its rod together.
+//
+// The oracle's gravity is (0, -g), straight down. Here it may point anywhere
+// (docs/decisions.md, decision 29): it pulls every mass alike, so it reaches
+// the angles only through the top rod, as the pivot holds the chain against
+// it, and turned by an angle it turns the whole motion by that angle.
 
 /* eslint-disable @typescript-eslint/no-non-null-assertion --
    Every index here runs over 0..n-1 of arrays of length n, which the compiler's
    unchecked-index rule cannot see. */
+
+/** The acceleration of gravity, in m/s², x to the right and y up. */
+export interface Gravity {
+  readonly x: number;
+  readonly y: number;
+}
+
+/**
+ * Gravity of strength g, in m/s², pointing `turn` radians from straight down
+ * the way a rod's angle turns: a quarter turn points it to the right.
+ */
+export function gravity(g: number, turn = 0): Gravity {
+  return { x: g * Math.sin(turn), y: -g * Math.cos(turn) };
+}
 
 /** A chain of n point masses on n massless rods, hanging from a fixed pivot. */
 export class Chain {
@@ -80,14 +99,14 @@ export class Chain {
   }
 
   /**
-   * The angular accelerations and the rod tensions of one state (PH-4),
-   * written to alpha and tension. Every array has length n; g is in m/s². A
+   * The angular accelerations and the rod tensions of one state (PH-4) under
+   * gravity g, written to alpha and tension. Every array has length n. A
    * hand, when given, pulls on the mass it holds.
    */
   solve(
     theta: Float64Array,
     omega: Float64Array,
-    g: number,
+    g: Gravity,
     alpha: Float64Array,
     tension: Float64Array,
     hand: Hand | null = null,
@@ -121,11 +140,15 @@ export class Chain {
       cos[i] = c - lo * s;
     }
 
-    // The tension system, A T = b: b_i = l_i omega_i^2, plus g cos theta_1 at the top.
+    // The tension system, A T = b: b_i = l_i omega_i^2, plus at the top the
+    // part of gravity along the first rod, g . e_1, which is g cos theta_1
+    // for the paper's gravity, straight down.
     for (let i = 0; i < n; i++) {
       rhs[i] = this.lengths[i]! * omega[i]! * omega[i]!;
     }
-    rhs[0] = rhs[0]! + g * Math.cos(theta[0]!);
+    const topSin = Math.sin(theta[0]!);
+    const topCos = Math.cos(theta[0]!);
+    rhs[0] = rhs[0]! + g.x * topSin - g.y * topCos;
 
     // A force F on mass k is an acceleration f = F / m_k of that mass alone.
     // It enters rod k as +f and rod k + 1 as -f: along the rod in the tension
@@ -173,8 +196,9 @@ export class Chain {
 
     // l_i alpha_i is the part of the relative acceleration of the rod's two
     // ends that lies across the rod: only rod i + 1 pulling on mass i and rod
-    // i - 1 pulling on mass i - 1 have one, and at the top, gravity.
-    let carry = -g * Math.sin(theta[0]!);
+    // i - 1 pulling on mass i - 1 have one, and at the top, gravity across
+    // the first rod, g . n_1, which is -g sin theta_1 straight down.
+    let carry = g.x * topCos + g.y * topSin;
     for (let i = 0; i < n - 1; i++) {
       const across = sin[i]! * inverseMass[i]!;
       alpha[i] = (carry + tension[i + 1]! * across) * inverseLength[i]!;
@@ -250,9 +274,13 @@ export class Chain {
     return best;
   }
 
-  /** Kinetic plus potential energy (PH-2), the potential zero at the height of the pivot. */
-  energy(theta: Float64Array, omega: Float64Array, g: number): number {
-    let height = 0;
+  /**
+   * Kinetic plus potential energy (PH-2) under gravity g, the potential zero
+   * at the pivot: each mass m at r from it has -m g . r.
+   */
+  energy(theta: Float64Array, omega: Float64Array, g: Gravity): number {
+    let px = 0;
+    let py = 0;
     let vx = 0;
     let vy = 0;
     let total = 0;
@@ -260,10 +288,12 @@ export class Chain {
       const l = this.lengths[i]!;
       const s = Math.sin(theta[i]!);
       const c = Math.cos(theta[i]!);
-      height -= l * c;
+      px += l * s;
+      py -= l * c;
       vx += l * omega[i]! * c;
       vy += l * omega[i]! * s;
-      total += this.masses[i]! * (0.5 * (vx * vx + vy * vy) + g * height);
+      total +=
+        this.masses[i]! * (0.5 * (vx * vx + vy * vy) - (g.x * px + g.y * py));
     }
     return total;
   }
