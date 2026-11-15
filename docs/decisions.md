@@ -303,6 +303,28 @@ up to 8 masses, about 180 with 16, 44 with 32, 11 with 64 and 2 with 128.
 Slowing time to carry all 512 would take it to ×0.07 with 32 masses and
 ×0.004 with 128.
 
+## 21. Trails of light behind the tips, fading in simulated time
+
+*2026-11-15.* The tip of the first piece's chain, and the tip of each of its
+twins, leave trails of light like a long exposure. Their light halves every
+2.5 s of simulated time, so a paused piece keeps them, and raising the chain
+again clears them. A frame's motion is drawn in pieces, up to 480 a simulated
+second for the chain's tip and 240 for each twin's, so that a fast tip draws
+a curve. A tip that jumps more than half a metre in one piece, when the chain
+is raised again or given other masses, leaves no trail across the jump.
+
+The trails are kept in a target of their own: in half floats where the
+browser can draw into them, and elsewhere in eight bits, where a step is taken
+off every frame so that old light reaches black. They are added to the canvas
+through 1 − exp(−x), so that where many cross the light saturates softly. The
+chain, its twins and the hand are drawn on top, as before.
+
+**Why.** The trail is part of the sketch the author saw when approving the
+first piece (decision 4), and the port keeps its numbers. The sketch passed
+the whole frame through 1 − exp(−x). Here only the trails go through it, so
+that what the author has approved since looks as it did. Passing everything
+through it belongs to the visual identity, which is still open.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.

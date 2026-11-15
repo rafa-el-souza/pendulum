@@ -1,6 +1,6 @@
 import "../styles/base.css";
 
-import { fanColor, tokenColor } from "../core/color.ts";
+import { fanColor, tokenColor, type Rgb } from "../core/color.ts";
 import { mountControls } from "../core/controls.ts";
 import { Lines, SegmentBatch } from "../core/lines.ts";
 import {
@@ -11,6 +11,7 @@ import {
   type Parameter,
 } from "../core/parameters.ts";
 import { mountStage, type Stage } from "../core/stage.ts";
+import { Trails, fadeAfter } from "../core/trails.ts";
 import { TwinBudget, bornTwins, fanPlace } from "../core/twins.ts";
 import { fitScale, toWorld } from "../core/view.ts";
 import { Chain, createHand, type Hand } from "../physics/chain.ts";
@@ -22,7 +23,8 @@ import { HAND, MASSES, PARAMETERS, TIME, handDamping } from "./parameters.ts";
 // and throw, whose number of masses changes while it moves, under a time that
 // runs as fast as the visitor asks and the machine allows (decision 15), held
 // by a hand from elastic to firm (decision 18), with twins born a hair apart
-// that fan out to show chaos (decision 20). The trail comes in a later slice.
+// that fan out to show chaos (decision 20), and trails of light behind the
+// tips of the chain and of its twins (decision 21).
 
 const G = 9.81;
 // A frame longer than this (a hidden tab, a stall) moves the chain by this
@@ -41,6 +43,15 @@ const TWINS = 512;
 const TWIN_SPREAD = 1e-3;
 const TWIN_BUDGET_MS = 4;
 const TWIN_STEP = 1 / 240;
+// The trails (decision 21): their light halves in this many seconds of
+// simulated time, and a frame's motion is drawn in this many pieces to the
+// simulated second, so that a fast tip draws a curve. A tip that moves farther
+// than TRAIL_JUMP metres in one piece has jumped (raised again, or given
+// other masses), and leaves no trail across the jump.
+const TRAIL_HALF_LIFE = 2.5;
+const TRAIL_RATE = 480;
+const TWIN_TRAIL_RATE = 240;
+const TRAIL_JUMP = 0.5;
 
 const canvas = document.getElementById("stage");
 const notice = document.getElementById("notice");
@@ -95,12 +106,54 @@ function play({ canvas, gl }: Stage): void {
   let y = new Float64Array(chain.n);
   let twinX = new Float64Array(chain.n);
   let twinY = new Float64Array(chain.n);
+  // the trails, the pieces drawn into them this frame, and where each ends
+  const trails = new Trails(gl);
+  const trail = new SegmentBatch(4096);
+  const tipAt = new Float64Array(2);
+  let tipX = 0;
+  let tipY = 0;
+  let twinTips = new Float64Array(0);
 
   let hand: Hand | null = null;
   let paused = false;
   // the speed time actually ran at lately, as a share of the speed asked for
   let reached = 1;
   const pointer = { id: -1, x: 0, y: 0, vx: 0, vy: 0, at: 0 };
+
+  /** Where the tip of a chain at these angles is, written to tipAt. */
+  function tip(theta: Float64Array): void {
+    let px = 0;
+    let py = 0;
+    for (let i = 0; i < chain.n; i++) {
+      const l = chain.lengths[i] ?? 0;
+      px += l * Math.sin(theta[i] ?? 0);
+      py -= l * Math.cos(theta[i] ?? 0);
+    }
+    tipAt[0] = px;
+    tipAt[1] = py;
+  }
+
+  /** The trails go on from where the tips are now. */
+  function resetTrailEnds(): void {
+    tip(state.theta);
+    tipX = tipAt[0] ?? 0;
+    tipY = tipAt[1] ?? 0;
+    twinTips = new Float64Array(2 * twins.length);
+    twins.forEach((twin, j) => {
+      tip(twin.theta);
+      twinTips[2 * j] = tipAt[0] ?? 0;
+      twinTips[2 * j + 1] = tipAt[1] ?? 0;
+    });
+  }
+
+  /** A piece of trail from (ax, ay) to where the tip is now, unless the tip jumped. */
+  function trailTo(ax: number, ay: number, color: Rgb, light: number): void {
+    const bx = tipAt[0] ?? 0;
+    const by = tipAt[1] ?? 0;
+    if (Math.hypot(bx - ax, by - ay) < TRAIL_JUMP) {
+      trail.push(ax, ay, bx, by, color, light);
+    }
+  }
 
   /** Twins of the chain as it is now, as many as their budget carries. */
   function spawnTwins(): void {
@@ -109,6 +162,7 @@ function play({ canvas, gl }: Stage): void {
       Math.min(TWINS, twinBudget.affordable()),
       TWIN_SPREAD,
     );
+    resetTrailEnds();
   }
 
   /** Raised to one side and let go from rest: with two masses or more, a chaotic start. */
@@ -118,6 +172,7 @@ function play({ canvas, gl }: Stage): void {
       state.omega[i] = 0;
     }
     hand = null;
+    trails.clear();
     spawnTwins();
   }
 
@@ -161,6 +216,7 @@ function play({ canvas, gl }: Stage): void {
       .map((twin) => resample(before, twin, n).state);
     const carried = Math.min(TWINS, twinBudget.affordable());
     if (hand === null && twins.length < 0.5 * carried) spawnTwins();
+    resetTrailEnds();
   }
 
   function setPaused(value: boolean): void {
@@ -302,7 +358,8 @@ function play({ canvas, gl }: Stage): void {
     controls.wake();
   });
 
-  function draw(): void {
+  /** Draws a frame; `simulated` seconds of motion went by since the last one. */
+  function draw(simulated: number): void {
     const box = canvas.getBoundingClientRect();
     const ratio = box.width > 0 ? canvas.width / box.width : 1;
     const scale = fitScale(box.width, box.height, chain.totalLength) * ratio;
@@ -369,7 +426,15 @@ function play({ canvas, gl }: Stage): void {
     }
     dots.push(0, 0, 0, 0, colors.pivot, 0.8);
 
+    // The trails fade by the time that went by, take this frame's pieces, and
+    // are shown first, under the chains.
+    if (simulated > 0) {
+      trails.begin(fadeAfter(simulated, TRAIL_HALF_LIFE));
+      lines.draw(trail, scale, { radius: 0.9 * ratio, roundEnds: false });
+      trails.end();
+    }
     lines.clear(colors.ground);
+    trails.show();
     lines.draw(fan, scale, {
       radius: 0.7 * ratio,
       roundEnds: chain.n <= 64,
@@ -401,6 +466,8 @@ function play({ canvas, gl }: Stage): void {
     requestAnimationFrame(frame);
     const dt = Math.min(LONGEST_FRAME, Math.max(0, (now - last) / 1000));
     last = now;
+    trail.clear();
+    let simulated = 0;
     if (!paused && dt > 0) {
       if (hand !== null) {
         if (now - pointer.at > STILL_AFTER_MS) {
@@ -412,14 +479,21 @@ function play({ canvas, gl }: Stage): void {
         hand.vx = pointer.vx;
         hand.vy = pointer.vy;
       }
+      // The chain moves in pieces, each ending in a point of its trail.
       const asked = dt * value(TIME);
-      const { simulated } = stepper.advance(
-        state,
-        asked,
-        G,
-        hand,
-        performance.now() + PHYSICS_BUDGET_MS,
-      );
+      const deadline = performance.now() + PHYSICS_BUDGET_MS;
+      const pieces = Math.min(16, Math.max(4, Math.ceil(asked * TRAIL_RATE)));
+      for (let piece = 0; piece < pieces; piece++) {
+        const want = asked / pieces;
+        const moved = stepper.advance(state, want, G, hand, deadline);
+        simulated += moved.simulated;
+        tip(state.theta);
+        trailTo(tipX, tipY, colors.chain, 0.55);
+        tipX = tipAt[0] ?? 0;
+        tipY = tipAt[1] ?? 0;
+        // out of time: the rest of the frame is slow motion (decision 15)
+        if (moved.simulated < want * 0.999) break;
+      }
       const finite =
         state.theta.every(Number.isFinite) &&
         state.omega.every(Number.isFinite);
@@ -431,10 +505,31 @@ function play({ canvas, gl }: Stage): void {
       if (twins.length > 0 && simulated > 0) {
         const start = performance.now();
         const giveUp = start + 4 * TWIN_BUDGET_MS;
+        // faint, so that where many twins' trails run together they read as one
+        const light = Math.min(
+          0.35,
+          Math.max(0.03, 1.2 / Math.sqrt(twins.length)),
+        );
+        const twinPieces = Math.min(
+          8,
+          Math.max(1, Math.ceil(simulated * TWIN_TRAIL_RATE)),
+        );
         let done = 0;
         for (const twin of twins) {
           if ((done & 7) === 0 && performance.now() > giveUp) break;
-          twinStepper.advance(twin, simulated, G);
+          const color = fanColors[done] ?? colors.chain;
+          for (let piece = 0; piece < twinPieces; piece++) {
+            twinStepper.advance(twin, simulated / twinPieces, G);
+            tip(twin.theta);
+            trailTo(
+              twinTips[2 * done] ?? 0,
+              twinTips[2 * done + 1] ?? 0,
+              color,
+              light,
+            );
+            twinTips[2 * done] = tipAt[0] ?? 0;
+            twinTips[2 * done + 1] = tipAt[1] ?? 0;
+          }
           done++;
         }
         twins.length = twinBudget.measured(
@@ -461,7 +556,7 @@ function play({ canvas, gl }: Stage): void {
         controls.showValue(TIME.id, speed);
       }
     }
-    draw();
+    draw(simulated);
   }
 
   raise();
