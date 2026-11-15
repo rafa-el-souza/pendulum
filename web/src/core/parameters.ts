@@ -4,6 +4,8 @@
 // list of values, so that every value a visitor can reach is one that was
 // chosen and can be written in an address.
 
+import type { Icon } from "./icons.ts";
+
 export interface Parameter {
   /** Its key in the address: lowercase letters. */
   readonly id: string;
@@ -22,6 +24,8 @@ export interface Parameter {
   readonly show: (value: number) => string;
   /** What a screen reader says for a value, when what is shown does not read aloud. */
   readonly speak?: (value: number) => string;
+  /** An icon shown beside the value, so that the control reads without words. */
+  readonly icon?: Icon;
 }
 
 /** A value for every parameter, by id. */

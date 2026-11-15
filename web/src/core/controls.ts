@@ -6,10 +6,8 @@
 
 import { cls } from "./css.ts";
 import styles from "./controls.module.css";
+import { drawIcon, type Icon } from "./icons.ts";
 import type { Parameter } from "./parameters.ts";
-
-/** The icons an action's button can show, drawn rather than typed, so that every device has them. */
-export type Icon = "pause" | "play" | "raise";
 
 /** A button that does one thing, such as pausing. */
 export interface Action {
@@ -38,45 +36,6 @@ export interface Controls {
 
 /** How long the controls stay in sight after the last sign of a visitor, in ms. */
 const STAY_MS = 2500;
-
-const SVG = "http://www.w3.org/2000/svg";
-
-/** Each icon as SVG path data on a 24 by 24 grid: filled shapes, then strokes. */
-const ICONS: Record<Icon, { fill: string; stroke: string }> = {
-  pause: { fill: "M6 5h4v14H6zM14 5h4v14h-4z", stroke: "" },
-  play: { fill: "M8 5l11 7-11 7z", stroke: "" },
-  // a circle turning back on itself, its arrowhead at the top pointing left
-  raise: {
-    fill: "",
-    stroke: "M5.5 8.25A7.5 7.5 0 1 0 12 4.5M15 2l-3 2.5 3 2.5",
-  },
-};
-
-function drawIcon(name: Icon): SVGSVGElement {
-  const svg = document.createElementNS(SVG, "svg");
-  svg.setAttribute("viewBox", "0 0 24 24");
-  svg.setAttribute("width", "20");
-  svg.setAttribute("height", "20");
-  svg.setAttribute("aria-hidden", "true");
-  const { fill, stroke } = ICONS[name];
-  if (fill !== "") {
-    const path = document.createElementNS(SVG, "path");
-    path.setAttribute("d", fill);
-    path.setAttribute("fill", "currentColor");
-    svg.append(path);
-  }
-  if (stroke !== "") {
-    const path = document.createElementNS(SVG, "path");
-    path.setAttribute("d", stroke);
-    path.setAttribute("fill", "none");
-    path.setAttribute("stroke", "currentColor");
-    path.setAttribute("stroke-width", "2");
-    path.setAttribute("stroke-linecap", "round");
-    path.setAttribute("stroke-linejoin", "round");
-    svg.append(path);
-  }
-  return svg;
-}
 
 /** The keys shown beside a control: arrows as arrows. */
 function showKeys(keys: readonly (string | undefined)[]): string {
@@ -147,13 +106,22 @@ export function mountControls(
     output.setAttribute("aria-live", "polite");
     let shown: HTMLElement = output;
     let spoken: HTMLElement | null = null;
-    if (parameter.speak !== undefined) {
-      // shown to the eye, and said in words to a screen reader
+    if (parameter.icon !== undefined || parameter.speak !== undefined) {
       shown = document.createElement("span");
-      shown.setAttribute("aria-hidden", "true");
-      spoken = document.createElement("span");
-      spoken.className = cls(styles, "spoken");
-      output.append(shown, spoken);
+      if (parameter.icon !== undefined) {
+        const icon = document.createElement("span");
+        icon.className = cls(styles, "icon");
+        icon.append(drawIcon(parameter.icon));
+        output.append(icon);
+      }
+      output.append(shown);
+      if (parameter.speak !== undefined) {
+        // shown to the eye, and said in words to a screen reader
+        shown.setAttribute("aria-hidden", "true");
+        spoken = document.createElement("span");
+        spoken.className = cls(styles, "spoken");
+        output.append(spoken);
+      }
     }
     group.append(
       button("−", `Less: ${parameter.label}`, parameter.keys.down, () => {
