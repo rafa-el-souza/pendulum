@@ -45,10 +45,13 @@ describe("a hand that holds one mass", () => {
         const omega = l.map(
           (length) => 3 * (2 * draw() - 1) * Math.sqrt(g / length),
         );
+        // every grip from a rubber band to a firm hand, damped from a tenth of
+        // critical to critical for the mass it holds
         const hand = createHand(
           chain,
           Math.floor(draw() * n),
-          10 + 50 * draw(),
+          2 + 58 * draw(),
+          0.1 + 0.9 * draw(),
         );
         hand.x = 4 * (2 * draw() - 1);
         hand.y = 4 * (2 * draw() - 1);
@@ -89,6 +92,17 @@ describe("a hand that holds one mass", () => {
             ];
           }
         }
+        // the pull the drawing reads is the force the motion obeys
+        const pull = new Float64Array(2);
+        chain.handForce(theta, omega, hand, pull);
+        const [forceX = 0, forceY = 0] = force;
+        const forceSize = Math.abs(forceX) + Math.abs(forceY);
+        expect(Math.abs(at(pull, 0) - forceX)).toBeLessThanOrEqual(
+          1e-12 * forceSize,
+        );
+        expect(Math.abs(at(pull, 1) - forceY)).toBeLessThanOrEqual(
+          1e-12 * forceSize,
+        );
         for (let i = 0; i < n; i++) {
           const [ex = 0, ey = 0, mx = 0, my = 0, terms = 0] = rows[i] ?? [];
           const [bx = 0, by = 0] = rows[i + 1] ?? [];
@@ -142,10 +156,51 @@ describe("a hand that holds one mass", () => {
     expect(hand.fastest).toBe(40);
   });
 
-  it("refuses a mass the chain does not have", () => {
+  it("takes a damping ratio, for a hand that bounces like a rubber band", () => {
+    // damping = ratio * 2 sqrt(stiffness * held mass). Below critical, the
+    // held mass's fastest rate stays 2 * rate * sqrt(total / held); above
+    // it, the faster of its two decays stays under ratio times that.
+    const chain = new Chain([1, 3], [1, 1]);
+    const bouncy = createHand(chain, 0, 10, 0.5);
+    expect(bouncy.stiffness).toBe(400);
+    expect(bouncy.damping).toBe(20);
+    expect(bouncy.fastest).toBe(40);
+    const heavy = createHand(chain, 0, 10, 2);
+    expect(heavy.damping).toBe(80);
+    expect(heavy.fastest).toBe(80);
+  });
+
+  it("pulls with its spring alone when it moves with the mass it holds", () => {
+    // One rod of 2 m, horizontal and turning at 0.5 rad/s: the mass is at
+    // (2, 0), moving at (0, 1). A hand 0.25 m to its right, moving with it,
+    // pulls with stiffness * 0.25 m; held still, it adds damping * 1 m/s
+    // against the motion.
+    const chain = new Chain([1], [2]);
+    const theta = Float64Array.of(Math.PI / 2);
+    const omega = Float64Array.of(0.5);
+    const hand = createHand(chain, 0, 10, 0.5);
+    hand.x = 2.25;
+    hand.y = 0;
+    hand.vx = 0;
+    hand.vy = 1;
+    const pull = new Float64Array(2);
+    chain.handForce(theta, omega, hand, pull);
+    expect(at(pull, 0)).toBeCloseTo(100 * 0.25, 12);
+    expect(at(pull, 1)).toBeCloseTo(0, 12);
+    hand.vy = 0;
+    chain.handForce(theta, omega, hand, pull);
+    expect(at(pull, 0)).toBeCloseTo(25, 12);
+    expect(at(pull, 1)).toBeCloseTo(-10 * 1, 12);
+  });
+
+  it("refuses a mass the chain does not have, and a grip that is not one", () => {
     const chain = Chain.uniform(3);
     expect(() => createHand(chain, 3)).toThrow();
     expect(() => createHand(chain, -1)).toThrow();
     expect(() => createHand(chain, 1.5)).toThrow();
+    expect(() => createHand(chain, 0, 0)).toThrow();
+    expect(() => createHand(chain, 0, Number.NaN)).toThrow();
+    expect(() => createHand(chain, 0, 10, -0.1)).toThrow();
+    expect(() => createHand(chain, 0, 10, Number.POSITIVE_INFINITY)).toThrow();
   });
 });
