@@ -14,6 +14,7 @@ equations from the outside.
 | `highprec.py` | the tension system at arbitrary precision with mpmath, for measuring rounding error |
 | `test_chain.py` | the tests (pytest, about 10 s) |
 | `accuracy.py` | the accuracy and cost study behind the last section (about 20 s) |
+| `write_states.py` | writes `physics/fixtures/chain-states.json`, the answers the browser's port is tested against; `test_write_states.py` fails while that file is stale |
 
 All functions take float64 arrays `theta`, `omega`, `m`, `l` of shape `(n,)` and a
 float `g`, and return numpy arrays (`energy` returns a float).
