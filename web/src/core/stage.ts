@@ -34,8 +34,9 @@ export function backingSize(
 /**
  * Makes the canvas fill the window and draw with WebGL2, keeping its drawing
  * buffer matched to its size on screen. The outcome is on `<html data-webgl>`:
- * "webgl2", or "unavailable" with the reason shown in the notice, in which
- * case this returns null.
+ * "webgl2", or "unavailable" with a notice shown, in which case this returns
+ * null and `<html data-webgl-error>` keeps the browser's own reason, when it
+ * gave one.
  */
 export function mountStage(
   canvas: HTMLCanvasElement,
@@ -44,12 +45,22 @@ export function mountStage(
   canvas.className = cls(styles, "stage");
   notice.className = cls(styles, "notice");
 
+  // A browser that refuses the context says why in this event, fired during
+  // getContext.
+  let refusal = "";
+  const onRefusal = (event: Event): void => {
+    if (event instanceof WebGLContextEvent) refusal = event.statusMessage;
+  };
+  canvas.addEventListener("webglcontextcreationerror", onRefusal);
   const gl = canvas.getContext("webgl2", { antialias: true });
+  canvas.removeEventListener("webglcontextcreationerror", onRefusal);
+
   if (gl === null) {
     notice.textContent =
       "This piece draws with WebGL2, which this browser did not provide.";
     notice.hidden = false;
     document.documentElement.dataset.webgl = "unavailable";
+    if (refusal !== "") document.documentElement.dataset.webglError = refusal;
     return null;
   }
 

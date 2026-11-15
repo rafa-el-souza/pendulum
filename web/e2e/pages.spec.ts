@@ -30,7 +30,13 @@ for (const piece of PIECES) {
   test(`${piece.id} opens and draws with WebGL2`, async ({ page }) => {
     const errors = collectErrors(page);
     await page.goto(pieceHref(piece));
-    await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+    const html = page.locator("html");
+    await expect(html).toHaveAttribute("data-webgl");
+    const refusal = await html.getAttribute("data-webgl-error");
+    expect(
+      await html.getAttribute("data-webgl"),
+      `no WebGL2; the browser said: ${refusal ?? "nothing"}`,
+    ).toBe("webgl2");
     expect(errors).toEqual([]);
   });
 }
