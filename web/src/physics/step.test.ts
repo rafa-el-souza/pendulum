@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import { Chain } from "./chain.ts";
-import { Stepper, restingState, type ChainState } from "./step.ts";
+import {
+  Stepper,
+  restingState,
+  reverseMotion,
+  type ChainState,
+} from "./step.ts";
 
 const G = 9.81;
 
@@ -157,4 +162,62 @@ describe("the time budget of a frame (decision 15)", () => {
     expect(result.simulated).toBeGreaterThan(0);
     expect(result.simulated).toBeLessThan(1 / 60);
   });
+});
+
+// The energy is a quadratic form in the rates (PH-2), and in the equations of
+// motion the rates appear only squared (PH-3): both are the same with every
+// rate reversed, so the motion is the same with time reversed.
+describe("time run backwards (docs/decisions.md, decision 28; PH-2, PH-3)", () => {
+  /** The piece's raised start for n masses: to one side, at rest. */
+  function raised(n: number): ChainState {
+    const state = restingState(n);
+    state.theta.forEach((_, i) => {
+      state.theta[i] = 2.2 + (0.7 * i) / Math.max(1, n - 1);
+    });
+    return state;
+  }
+
+  it("keeps every mass where it is, moving the opposite way, with the same energy", () => {
+    const chain = Chain.uniform(3);
+    const state = raised(3);
+    new Stepper(chain).advance(state, 0.7, G);
+    const theta = Float64Array.from(state.theta);
+    const omega = Float64Array.from(state.omega);
+    const energy = chain.energy(state.theta, state.omega, G);
+    reverseMotion(state);
+    expect(Array.from(state.theta)).toEqual(Array.from(theta));
+    expect(Array.from(state.omega)).toEqual(Array.from(omega).map((w) => -w));
+    expect(chain.energy(state.theta, state.omega, G)).toBeCloseTo(energy, 12);
+  });
+
+  // Chaos grows the integration's tiny errors, so how close the chain comes
+  // back depends on how chaotic it is: one mass comes back to rounding, two
+  // masses after a second each way to within about a ten-millionth of a
+  // radian, far closer than the thousandth twins are born apart.
+  it.each([
+    [1, 1e-9],
+    [2, 1e-6],
+  ])(
+    "brings a chain back to its start (n = %i, within %s): a second forwards, reversed, a second forwards, reversed again",
+    (n, within) => {
+      const chain = Chain.uniform(n);
+      const state = raised(n);
+      const start = raised(n);
+      const stepper = new Stepper(chain);
+      for (let frame = 0; frame < 60; frame++) {
+        stepper.advance(state, 1 / 60, G);
+      }
+      reverseMotion(state);
+      for (let frame = 0; frame < 60; frame++) {
+        stepper.advance(state, 1 / 60, G);
+      }
+      reverseMotion(state);
+      state.theta.forEach((angle, i) => {
+        expect(Math.abs(angle - (start.theta[i] ?? 0))).toBeLessThan(within);
+      });
+      state.omega.forEach((rate) => {
+        expect(Math.abs(rate)).toBeLessThan(within);
+      });
+    },
+  );
 });

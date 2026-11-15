@@ -25,6 +25,20 @@ export function restingState(n: number): ChainState {
   return { theta: new Float64Array(n), omega: new Float64Array(n) };
 }
 
+/**
+ * Time run backwards (docs/decisions.md, decision 28): every mass stays where
+ * it is and moves the opposite way. The chain's equations have no friction
+ * and are the same with time reversed, so advancing from here retraces the
+ * motion that led here, until the integration's tiny errors, grown as chaos
+ * grows them, take it elsewhere. A hand is not symmetric in time: its damper
+ * would give energy instead of taking it.
+ */
+export function reverseMotion(state: ChainState): void {
+  state.omega.forEach((rate, i) => {
+    state.omega[i] = -rate;
+  });
+}
+
 /** What an advance did: the substeps it took and the time it simulated, in seconds. */
 export interface Advance {
   readonly substeps: number;
