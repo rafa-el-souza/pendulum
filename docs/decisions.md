@@ -222,6 +222,18 @@ trying.
 **Why.** The author asked for discreet controls that disappear, for a more
 immersive piece, and for keys for them.
 
+## 17. Time starts at 0.8 of real time
+
+*2026-11-15.* A piece's time starts at 0.8 of real time, with 0.9 one step
+up. This entry gives decision 15 the starting value it left to the author,
+and replaces the part of its reason that expected real time to look like slow
+motion: tried on the published piece, real time already looked fast.
+
+**Why.** The author tried the first piece at its placeholder, twice real time,
+found even real time fast, and named 0.8 or 0.9. The piece opens at the lower
+of the two, and the other is one key away. The physics of scale in decision
+15 stands; what a speed looks like is settled by trying it.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
