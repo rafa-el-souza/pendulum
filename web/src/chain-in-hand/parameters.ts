@@ -29,4 +29,48 @@ export const TIME: Parameter = {
   show: (value) => `×${String(value)}`,
 };
 
-export const PARAMETERS: readonly Parameter[] = [MASSES, TIME];
+/**
+ * How firmly the hand holds the chain, from elastic to firm (decision 18):
+ * each step is a spring rate in rad/s for the whole chain's mass and a
+ * damping ratio for the mass held (createHand). At the elastic end the chain
+ * hangs below the finger and bounces as on a rubber band, and a pull let go
+ * at the right moment flings it; at the firm end, the hand before this
+ * control, the held mass stays on the finger and a throw leaves at the
+ * gesture's speed. The numbers are placeholders until the author tunes them
+ * by trying.
+ */
+const GRIPS: ReadonlyMap<number, number> = new Map([
+  [4, 0.3],
+  [7, 0.45],
+  [12, 0.6],
+  [20, 0.8],
+  [40, 1],
+]);
+
+/** The damping ratio of the hand's step at `rate` rad/s. */
+export function handDamping(rate: number): number {
+  const ratio = GRIPS.get(rate);
+  if (ratio === undefined) {
+    throw new Error(`the hand has no step at ${String(rate)} rad/s`);
+  }
+  return ratio;
+}
+
+const RATES = [...GRIPS.keys()];
+
+export const HAND: Parameter = {
+  id: "hand",
+  label: "Firmness of the hand",
+  values: RATES,
+  initial: 40,
+  keys: { down: [",", "<"], up: [".", ">"] },
+  // one pip per step, filled up to this one
+  show: (value) => {
+    const filled = RATES.indexOf(value) + 1;
+    return "●".repeat(filled) + "○".repeat(RATES.length - filled);
+  },
+  speak: (value) =>
+    `${String(RATES.indexOf(value) + 1)} of ${String(RATES.length)}`,
+};
+
+export const PARAMETERS: readonly Parameter[] = [MASSES, TIME, HAND];

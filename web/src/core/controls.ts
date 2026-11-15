@@ -129,7 +129,13 @@ export function mountControls(
 
   const outputs = new Map<
     string,
-    { output: HTMLOutputElement; parameter: Parameter }
+    {
+      parameter: Parameter;
+      output: HTMLOutputElement;
+      /** Where the value is shown, and where it is said, when the two differ. */
+      shown: HTMLElement;
+      spoken: HTMLElement | null;
+    }
   >();
   for (const parameter of parameters) {
     const group = document.createElement("div");
@@ -139,6 +145,16 @@ export function mountControls(
     const output = document.createElement("output");
     output.className = cls(styles, "value");
     output.setAttribute("aria-live", "polite");
+    let shown: HTMLElement = output;
+    let spoken: HTMLElement | null = null;
+    if (parameter.speak !== undefined) {
+      // shown to the eye, and said in words to a screen reader
+      shown = document.createElement("span");
+      shown.setAttribute("aria-hidden", "true");
+      spoken = document.createElement("span");
+      spoken.className = cls(styles, "spoken");
+      output.append(shown, spoken);
+    }
     group.append(
       button("−", `Less: ${parameter.label}`, parameter.keys.down, () => {
         handlers.step(parameter, -1);
@@ -150,7 +166,7 @@ export function mountControls(
       hint(showKeys([parameter.keys.down[0], parameter.keys.up[0]])),
     );
     bar.append(group);
-    outputs.set(parameter.id, { output, parameter });
+    outputs.set(parameter.id, { parameter, output, shown, spoken });
   }
 
   const actionButtons = new Map<string, HTMLButtonElement>();
@@ -180,8 +196,15 @@ export function mountControls(
     showValue(id, value, reached) {
       const entry = outputs.get(id);
       if (entry === undefined) throw new Error(`no control shows ${id}`);
-      const text = entry.parameter.show(reached ?? value);
-      if (entry.output.textContent !== text) entry.output.textContent = text;
+      const at = reached ?? value;
+      const text = entry.parameter.show(at);
+      if (entry.shown.textContent !== text) entry.shown.textContent = text;
+      if (entry.spoken !== null) {
+        const words = entry.parameter.speak?.(at) ?? text;
+        if (entry.spoken.textContent !== words) {
+          entry.spoken.textContent = words;
+        }
+      }
       entry.output.classList.toggle(held, reached !== undefined);
     },
     showAction(id, icon, label) {

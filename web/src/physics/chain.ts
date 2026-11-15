@@ -35,6 +35,8 @@ export class Chain {
   readonly #cos: Float64Array;
   readonly #rhs: Float64Array;
   readonly #inversePivot: Float64Array;
+  // and the hand's pull on the mass it holds
+  readonly #pull = new Float64Array(2);
 
   constructor(masses: ArrayLike<number>, lengths: ArrayLike<number>) {
     const n = masses.length;
@@ -132,25 +134,10 @@ export class Chain {
     let acrossHeld = 0;
     let acrossBelow = 0;
     if (hand !== null) {
-      let px = 0;
-      let py = 0;
-      let vx = 0;
-      let vy = 0;
-      for (let i = 0; i <= k; i++) {
-        const l = this.lengths[i]!;
-        const s = Math.sin(theta[i]!);
-        const c = Math.cos(theta[i]!);
-        px += l * s;
-        py -= l * c;
-        vx += l * omega[i]! * c;
-        vy += l * omega[i]! * s;
-      }
-      const fx =
-        (hand.stiffness * (hand.x - px) - hand.damping * (vx - hand.vx)) *
-        inverseMass[k]!;
-      const fy =
-        (hand.stiffness * (hand.y - py) - hand.damping * (vy - hand.vy)) *
-        inverseMass[k]!;
+      const pull = this.#pull;
+      this.handForce(theta, omega, hand, pull);
+      const fx = pull[0]! * inverseMass[k]!;
+      const fy = pull[1]! * inverseMass[k]!;
       const s = Math.sin(theta[k]!);
       const c = Math.cos(theta[k]!);
       rhs[k] = rhs[k]! + fx * s - fy * c;
@@ -200,6 +187,35 @@ export class Chain {
         alpha[k + 1] = alpha[k + 1]! + acrossBelow * inverseLength[k + 1]!;
       }
     }
+  }
+
+  /**
+   * The force a hand puts on the mass it holds, in N, written to out as x
+   * then y: stiffness * (where the hand is - where the mass is) - damping *
+   * (the mass's velocity - the hand's). The motion obeys it, and the drawing
+   * shows it.
+   */
+  handForce(
+    theta: Float64Array,
+    omega: Float64Array,
+    hand: Hand,
+    out: Float64Array,
+  ): void {
+    let px = 0;
+    let py = 0;
+    let vx = 0;
+    let vy = 0;
+    for (let i = 0; i <= hand.index; i++) {
+      const l = this.lengths[i]!;
+      const s = Math.sin(theta[i]!);
+      const c = Math.cos(theta[i]!);
+      px += l * s;
+      py -= l * c;
+      vx += l * omega[i]! * c;
+      vy += l * omega[i]! * s;
+    }
+    out[0] = hand.stiffness * (hand.x - px) - hand.damping * (vx - hand.vx);
+    out[1] = hand.stiffness * (hand.y - py) - hand.damping * (vy - hand.vy);
   }
 
   /** Where the masses are (PH-1), written to x and y, in m from the pivot, y up. */
@@ -293,13 +309,28 @@ export interface Hand {
 /**
  * A hand on mass `index`, at rest at the pivot until it is moved. Its spring
  * is that of the whole chain's mass oscillating at `rate` rad/s, and its
- * damping is critical for the held mass alone, which keeps the fastest rate
- * it adds at 2 * rate * sqrt(total mass / held mass).
+ * damping is `dampingRatio` times critical for the held mass alone: at 1, the
+ * held mass settles on the hand without a bounce; below 1, it bounces as on a
+ * rubber band. The fastest rate it adds is then at most 2 * max(1, ratio) *
+ * rate * sqrt(total mass / held mass).
  */
-export function createHand(chain: Chain, index: number, rate = 40): Hand {
+export function createHand(
+  chain: Chain,
+  index: number,
+  rate = 40,
+  dampingRatio = 1,
+): Hand {
   if (!Number.isInteger(index) || index < 0 || index >= chain.n) {
     throw new Error(
       `a chain of ${String(chain.n)} masses has no mass ${String(index)}`,
+    );
+  }
+  if (!(rate > 0 && Number.isFinite(rate))) {
+    throw new Error(`a hand's rate must be positive (got ${String(rate)})`);
+  }
+  if (!(dampingRatio >= 0 && Number.isFinite(dampingRatio))) {
+    throw new Error(
+      `a hand's damping ratio must be zero or more (got ${String(dampingRatio)})`,
     );
   }
   const held = chain.masses[index]!;
@@ -311,7 +342,8 @@ export function createHand(chain: Chain, index: number, rate = 40): Hand {
     vx: 0,
     vy: 0,
     stiffness,
-    damping: 2 * Math.sqrt(stiffness * held),
-    fastest: 2 * rate * Math.sqrt(chain.totalMass / held),
+    damping: 2 * dampingRatio * Math.sqrt(stiffness * held),
+    fastest:
+      2 * Math.max(1, dampingRatio) * rate * Math.sqrt(chain.totalMass / held),
   };
 }
