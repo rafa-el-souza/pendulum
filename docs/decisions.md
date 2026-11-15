@@ -153,6 +153,20 @@ follow [`CLAUDE.md`](../CLAUDE.md).
 person: the checks that protect something real stay (the physics against the
 oracle, secrets out of the history), and the ceremony goes.
 
+## 12. Hosting: GitHub Pages, on a subdomain of the author's own domain
+
+*2026-11-15.* The site will be published by GitHub Pages, under a subdomain
+of the author's own domain, once the repository is public. Until then it has
+no public address.
+
+**Why.** On GitHub's free plan, Pages publishes public repositories only. It
+needs no server and no account beyond GitHub, serves HTTPS, and takes a
+custom domain through one DNS record. Two other homes were weighed: a server
+shared with another project, which would tie the two together (one proxy, one
+deploy key, one lifecycle), and a third-party static host, which adds an
+account. Every URL in the build is relative (decision 7), so the site works
+under any of them.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
@@ -162,7 +176,6 @@ oracle, secrets out of the history), and the ceremony goes.
 - **Accessibility.** Keyboard control and a pause always within reach from the
   start; reduced motion and the rest still to be decided.
 - **Languages.**
-- **Hosting**, and with it the first public address.
 - **Visual identity.**
 - **Friction.** It is not in the paper. Whether the first piece has it, and of
   which kind, is open.
