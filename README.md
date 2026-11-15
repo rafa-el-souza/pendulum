@@ -26,7 +26,9 @@ hanging rope it becomes as n grows.
   the chain by the rod-tension route in double precision, and its motion in
   time by RK4 in substeps taken from the rod tensions. It is tested against
   answers the oracle writes, within 1e-12, against the paper's general
-  formula, and by the energy along chaotic motion.
+  formula, and by the energy along chaotic motion. The normal modes of the
+  chain of equal masses come from the zeros of Laguerre polynomials, and are
+  tested against the modes the oracle finds by another route.
 - **The first piece, begun:**
   [the chain in the hand](https://rafa-el-souza.github.io/pendulum/), which
   opens at the site's root while it is the only piece. A chain drawn as
@@ -42,6 +44,10 @@ hanging rope it becomes as n grows.
   and the trails and lights them again, time can run backwards until the fan
   closes, as far as chaos allows, and the G key passes the whole frame
   through the light of the first sketch, to compare.
+  The chain starts raised to one side, or at rest in one of the paper's four
+  lowest normal modes at an amplitude of the visitor's choice: small, it
+  keeps the mode's shape and its twins stay together; large, the shape
+  breaks up and the fan opens.
   The controls wait behind one small button in a corner, which opens a thin
   row of icons; each control has a key too, and the address carries every
   value, so a view can be shared.

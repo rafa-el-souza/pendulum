@@ -3,11 +3,13 @@ import { describe, expect, it } from "vitest";
 import { FAN_PALETTES } from "../core/palettes.ts";
 import { checkParameters, stepValue } from "../core/parameters.ts";
 import {
+  AMPLITUDE,
   CHAIN,
   GRAVITY,
   HAND,
   LIGHT,
   MASSES,
+  MODE,
   PALETTE,
   PARAMETERS,
   RIBBON,
@@ -186,9 +188,35 @@ describe("the first piece's parameters", () => {
   });
 
   it("set what moves the chain apart from the light, each parameter in one of the two, in the registry's order (decision 31)", () => {
-    expect(CHAIN).toEqual([MASSES, TIME, HAND, GRAVITY, TILT]);
+    expect(CHAIN).toEqual([MASSES, TIME, HAND, GRAVITY, TILT, MODE, AMPLITUDE]);
     expect(LIGHT).toEqual([TWIN_COUNT, SPREAD, TRAIL, RIBBON, PALETTE]);
     expect(PARAMETERS).toEqual([...CHAIN, ...LIGHT]);
+  });
+
+  it("start the chain raised to one side, as until now, or in one of the four lowest normal modes (decision 33)", () => {
+    expect(MODE.values).toEqual([0, 1, 2, 3, 4]);
+    expect(MODE.initial).toBe(0);
+    expect(MODE.keys).toEqual({ down: ["n", "N"], up: ["m", "M"] });
+    expect(MODE.icon).toBe("mode");
+  });
+
+  it("show the mode by its number, a dash for none, and say it in words", () => {
+    expect(MODE.show(0)).toBe("—");
+    expect(MODE.show(2)).toBe("2");
+    expect(MODE.speak?.(0)).toBe("raised to one side");
+    expect(MODE.speak?.(1)).toBe("normal mode 1");
+  });
+
+  it("swing a mode from 2° to 180° at its largest angle, opening at 30° (decision 33)", () => {
+    expect(AMPLITUDE.values).toEqual([2, 5, 10, 20, 30, 45, 60, 90, 120, 180]);
+    expect(AMPLITUDE.initial).toBe(30);
+    expect(AMPLITUDE.keys).toEqual({ down: ["j", "J"], up: ["k", "K"] });
+    expect(AMPLITUDE.icon).toBe("amplitude");
+  });
+
+  it("show the amplitude as an angle either way, and say it in words", () => {
+    expect(AMPLITUDE.show(20)).toBe("±20°");
+    expect(AMPLITUDE.speak?.(20)).toBe("20 degrees either way at most");
   });
 
   it("make the gravity the controls ask for: Earth's straight down at first, and a quarter turn points it to the right", () => {

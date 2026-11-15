@@ -638,6 +638,80 @@ controls of decision 31 and pass now. On the touch test, a touch on the
 faded button set the paused chain going, which only a grab does. In an
 emulated phone the controls stayed in sight 8.1 s after a touch on them.
 
+## 33. The chain starts raised, or in one of the paper's normal modes
+
+*2026-11-15.* Where the first piece's chain starts is two of its parameters,
+each with its control, its keys and a place in the address.
+
+- **The mode**, with the keys N and M, steps from the start the chain has had
+  until now, raised to one side, through the four lowest normal modes of the
+  equal chain (`PH-6`, `PH-7`): the shapes in which the chain, let go from
+  rest, swings without changing its form, each at a frequency of its own.
+  The control shows the mode's number, and a dash for none. Its icon is a
+  standing wave with its nodes.
+- **The amplitude**, with J and K, is the largest angle of any rod from the
+  way gravity points, from 2° to 180°, opening at 30°. Its icon is a pendulum
+  with the marks of its swing.
+
+A start in a mode puts the chain at rest in the mode's shape, about gravity
+as it points, and lets it go. Small, the chain keeps the shape and its twins
+stay together; large, the shape breaks up and the fan opens. The button and
+the key R start the chain again from the start chosen, and are now called
+"Start again". Stepping the mode, or the amplitude of a mode, starts the
+chain again at once. While the start is raised, the amplitude has nothing to
+do, and its control shows it held back. A chain with fewer masses than the
+mode asked for starts in its highest, and the control shows that one, held
+back. A chain still swinging as it started, not grabbed since, starts again
+in its mode when its number of masses changes; one the hand has held keeps
+its motion, as before. With no gravity there is no mode: every frequency is
+zero, and a chain started in one stays where it was put. Turned, gravity
+turns the mode with it.
+
+How the modes are found. For n equal masses on n equal rods, the paper's
+difference equation (65), written from the bottom mass up, is the
+three-term recurrence of the Laguerre polynomials. So the squared
+frequencies in units of g / l are the zeros of L_n (`PH-7`), which the
+browser finds by bisection on the polynomial's Jacobi matrix, and in mode k
+mass j, counted from the top, moves sideways by L_{n−j} at the k-th zero
+times the tip's motion. The statement `PH-7` speaks of the frequencies; the
+oracle's test of it checks the shapes too.
+
+How many modes the control offers, the amplitude's steps and its opening
+value, the keys and what R does are placeholders, which the author settles
+by trying.
+
+**Why.** The author chose it from the proposals still open, on the
+session's recommendation. It puts the checked paper to work in the piece,
+and it answers, from the paper itself, an idea of the author's: stable
+configurations offered as ready starts. It is built as the chain's starting
+point, so that other starts can join it.
+
+**Evidence.** The browser's modes against the oracle's, found from the
+linearized chain by an eigensolver with no Laguerre polynomial in the route
+(`physics/fixtures/chain-modes.json`): within 4e-11 of each squared frequency
+and 4e-10 in the shapes at 512 masses, and within 1e-15 up to four masses.
+Against the Laguerre zeros at fifty digits, the oracle's file is right to
+4e-11 at 512 masses. With the piece's own physics, a chain let go in a mode
+1e-4 rad wide is mirrored after half a period and back after one, within
+1e-8 of the amplitude, from one mass to 128.
+
+What a visitor sees, with the piece's own physics:
+
+- **How far the masses move.** At a largest angle of 10°, the tip moves 12
+  to 17% of the chain's length either way in mode 1, about 2.5% in mode 2,
+  about 1% in mode 3 and half that in mode 4, with eight masses or more. For
+  the same sideways motion, the rods of a higher mode turn further, about as
+  the square of its number, so the higher modes show only at amplitudes
+  where they begin to break.
+- **How long a mode holds.** Started in modes 1 to 3 of 2, 3, 8 and 32
+  masses, with 33 twins born 1e-3 rad apart and stepped as the piece steps
+  its twins, the fan did not open to 10 cm within 40 s at 30° or less. At
+  45° only mode 3 of three masses opened it, after 8.3 s; at 60°, also mode
+  3 of eight, after 12.8 s; at 90°, every one but mode 1 of eight, after 2.5
+  to 34 s. Over the first 20 s, the part of the chain's angles outside the
+  mode's shape stayed under a tenth of the amplitude in every case at 20°,
+  and under a fifth at 45° in modes 1 and 2.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.

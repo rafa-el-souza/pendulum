@@ -138,6 +138,44 @@ export const TILT: Parameter = {
   cyclic: true,
 };
 
+/**
+ * Where the chain starts, and starts again (decision 33): raised to one side
+ * and let go, as it has until now, or at rest in one of the lowest normal
+ * modes of the paper's equal chain (PH-6, PH-7), the shapes in which the
+ * chain swings without changing its form for as long as it swings small. A
+ * chain with fewer masses than the mode asked for starts in its highest,
+ * and the control shows that one, held back.
+ */
+export const MODE: Parameter = {
+  id: "mode",
+  label: "Normal mode",
+  values: [0, 1, 2, 3, 4],
+  initial: 0,
+  keys: { down: ["n", "N"], up: ["m", "M"] },
+  show: (value) => (value === 0 ? "—" : String(value)),
+  speak: (value) =>
+    value === 0 ? "raised to one side" : `normal mode ${String(value)}`,
+  icon: "mode",
+};
+
+/**
+ * How far a chain started in a mode swings (decision 33): the largest angle
+ * of any rod from the way gravity points, in degrees. Small, the chain keeps
+ * the mode's shape and its twins stay together; large, the shape breaks up
+ * and the fan opens. With the chain raised to one side the amplitude has
+ * nothing to do, and its control shows it held back.
+ */
+export const AMPLITUDE: Parameter = {
+  id: "amplitude",
+  label: "Amplitude of the mode",
+  values: [2, 5, 10, 20, 30, 45, 60, 90, 120, 180],
+  initial: 30,
+  keys: { down: ["j", "J"], up: ["k", "K"] },
+  show: (value) => `±${String(value)}°`,
+  speak: (value) => `${String(value)} degrees either way at most`,
+  icon: "amplitude",
+};
+
 /** A direction of the control, in degrees, as an angle that turns the way a rod's does, in radians. */
 export function radians(degrees: number): number {
   return (degrees * Math.PI) / 180;
@@ -266,8 +304,16 @@ export const PALETTE: Parameter = {
   icon: "palette",
 };
 
-/** What moves the chain: its masses, its time, the hand and gravity. */
-export const CHAIN: readonly Parameter[] = [MASSES, TIME, HAND, GRAVITY, TILT];
+/** What moves the chain: its masses, its time, the hand, gravity, and where it starts. */
+export const CHAIN: readonly Parameter[] = [
+  MASSES,
+  TIME,
+  HAND,
+  GRAVITY,
+  TILT,
+  MODE,
+  AMPLITUDE,
+];
 
 /** The light: the twins, their trails and the chain's, and their colours. */
 export const LIGHT: readonly Parameter[] = [

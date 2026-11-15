@@ -37,6 +37,9 @@ uv run --no-sync python limits/convergence.py      # rewrites convergence.md
 - `convergence.py`, `convergence.md`: the N-mass chain against the rope along the paper's
   doubling sequence, N = 1, 2, ..., 1024 (and 3, 6, ..., 768), with observed orders.
 - `verdicts.json`: one object per printed number from 48 to 85.
+- `write_modes.py`: writes `physics/fixtures/chain-modes.json`, the lowest normal modes of the
+  equal chain found from the linearized chain by the eigensolver, which the browser's port of
+  the Laguerre route is tested against; `test_write_modes.py` fails while that file is stale.
 
 ## Conventions
 
