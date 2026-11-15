@@ -15,6 +15,7 @@ export const MASSES: Parameter = {
   initial: 2,
   keys: { down: ["ArrowDown", "-"], up: ["ArrowUp", "+", "="] },
   show: (value) => `n = ${String(value)}`,
+  icon: "masses",
 };
 
 /**
@@ -29,6 +30,7 @@ export const TIME: Parameter = {
   initial: 0.8,
   keys: { down: ["ArrowLeft", "["], up: ["ArrowRight", "]"] },
   show: (value) => `×${String(value)}`,
+  icon: "time",
 };
 
 /**
@@ -73,6 +75,7 @@ export const HAND: Parameter = {
   },
   speak: (value) =>
     `${String(RATES.indexOf(value) + 1)} of ${String(RATES.length)}`,
+  icon: "hand",
 };
 
 /**
@@ -103,6 +106,7 @@ export const GRAVITY: Parameter = {
     if (body === undefined) return "none";
     return `${String(value)} metres per second squared, as on ${body}`;
   },
+  icon: "gravity",
 };
 
 /**
@@ -259,17 +263,23 @@ export const PALETTE: Parameter = {
     const palette = fanPalette(value);
     return SWATCH_PLACES.map((place) => palette.color(place));
   },
+  icon: "palette",
 };
 
-export const PARAMETERS: readonly Parameter[] = [
-  MASSES,
-  TIME,
-  HAND,
-  GRAVITY,
-  TILT,
+/** What moves the chain: its masses, its time, the hand and gravity. */
+export const CHAIN: readonly Parameter[] = [MASSES, TIME, HAND, GRAVITY, TILT];
+
+/** The light: the twins, their trails and the chain's, and their colours. */
+export const LIGHT: readonly Parameter[] = [
   TWIN_COUNT,
   SPREAD,
   TRAIL,
   RIBBON,
   PALETTE,
 ];
+
+/**
+ * Every parameter, the chain's first. The row of controls shows the two sets
+ * apart (decision 31).
+ */
+export const PARAMETERS: readonly Parameter[] = [...CHAIN, ...LIGHT];

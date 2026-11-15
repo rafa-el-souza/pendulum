@@ -568,6 +568,46 @@ its own beneath a page that lists them.
 list of one piece is a click between the visitor and the piece, with nothing
 to choose.
 
+## 31. The controls wait behind one small button
+
+*2026-11-15.* A piece's controls no longer show as a bar. When the pointer
+moves, a finger lifts or a key is pressed, only a small button comes into
+sight, in the bottom right corner: a little chain of three masses hanging,
+which reads as the three dots of "more" too. It fades after the same moment
+of stillness as the bar did. The button opens a thin row of small icons,
+without words, one per control: the actions (pause, time backwards, raise
+again, the light switch), then what moves the chain (masses, time, the hand,
+gravity's strength and direction), then the light (twins, their spread, the
+trails, which masses draw, the palette). Where the row does not fit, as on a
+phone, it scrolls sideways and fades at the side with more of it; a wheel
+turned up and down scrolls it too. An action's icon acts. A parameter's icon
+shows that one value above the row, with its − and +, and with its keys where
+a pointer hovers. A key steps its parameter with the row open or shut, and
+shows the value it changed, alone. When the machine holds time back
+(decision 15), time's value shows itself the same way, unless the visitor is
+reading another value in the open row. The row stays open or shut as the
+visitor leaves it, and Escape shuts it. A mouse resting on the controls keeps
+them in sight, and a click leaves the focus where it was, so that only focus
+from the keyboard holds them. Each icon is described by its value to a
+screen reader.
+
+This settles the layout that decision 19 left for later, and changes where
+decision 16 shows the keys: in each icon's tooltip and beside the value
+shown, no longer beside every control. Where the button sits, how it looks
+and moves, and how small the icons are, the author decides by trying.
+
+**Why.** The author asked for a layout that keeps the piece's mood: discreet,
+the screen free of distractions, gone when not needed. He suggested a
+charming button that brings out the controls, or a very discreet bar of small
+icons with a handy scroll. This joins the two; it was the recommendation, and
+he chose it to try. With ten controls and four buttons the bar had reached
+two lines on a laptop and six on a phone, and the mouse that throws the
+chain brought all of them into sight.
+
+**Evidence.** At 1 280 by 800 px the open row fits on one line, below the
+circle the chain can sweep. At 390 px it shows 334 px of its 576 and scrolls,
+and it lies below that circle too.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.

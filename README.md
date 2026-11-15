@@ -42,8 +42,9 @@ hanging rope it becomes as n grows.
   and the trails and lights them again, time can run backwards until the fan
   closes, as far as chaos allows, and the G key passes the whole frame
   through the light of the first sketch, to compare.
-  Discreet controls appear when wanted, each with a key, and the address
-  carries every value, so a view can be shared.
+  The controls wait behind one small button in a corner, which opens a thin
+  row of icons; each control has a key too, and the address carries every
+  value, so a view can be shared.
 
 Every piece is meant to run fullscreen in the major browsers.
 
