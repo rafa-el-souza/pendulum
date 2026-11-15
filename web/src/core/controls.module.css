@@ -1,20 +1,17 @@
-/* The controls of a piece: small, quiet, and out of sight until wanted
-   (docs/decisions.md, decision 16). The author tried how discreet they are
-   and when they fade, and kept both (decision 19); their layout is still to
-   be decided. */
+/* The controls of a piece: a small button in a corner and the thin row of
+   icons it opens, out of sight until wanted (docs/decisions.md, decisions 16
+   and 31). How discreet they are, where they sit and how the button looks
+   are placeholders, which the author settles by trying. */
 
-.bar {
+/* The button, the row to its left, and the value chosen above them. */
+.dock {
   position: fixed;
-  right: 0;
-  bottom: max(var(--space-2), env(safe-area-inset-bottom));
-  left: 0;
+  right: max(var(--space-1), env(safe-area-inset-right));
+  bottom: max(var(--space-1), env(safe-area-inset-bottom));
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  align-items: flex-start;
-  justify-content: center;
-  margin: 0;
-  padding: 0 var(--space-1);
+  flex-direction: column-reverse;
+  align-items: flex-end;
+  max-width: calc(100vw - 2 * var(--space-1));
   color: var(--color-ink-muted);
   font-family: var(--font-text);
   font-size: 0.875rem;
@@ -24,27 +21,126 @@
 }
 
 .awake,
-.bar:focus-within {
+.dock:focus-within {
   opacity: 0.85;
   pointer-events: auto;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .bar {
-    transition: none;
-  }
+.tray {
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: center;
+  max-width: 100%;
 }
 
-.group {
-  display: grid;
-  grid-template-columns: auto auto auto;
+/* One line of icons, in sets with a gap between them, scrolled sideways where
+   it does not fit, and faded at a side with more of it out of sight. */
+.row {
+  display: flex;
+  gap: 0.5rem;
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+  touch-action: pan-x;
+}
+
+.row::-webkit-scrollbar {
+  display: none;
+}
+
+.row[hidden],
+.reading[hidden] {
+  display: none;
+}
+
+.row[data-more="right"] {
+  mask-image: linear-gradient(to left, transparent, #000 2.5rem);
+}
+
+.row[data-more="left"] {
+  mask-image: linear-gradient(to right, transparent, #000 2.5rem);
+}
+
+.row[data-more="both"] {
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 2.5rem,
+    #000 calc(100% - 2.5rem),
+    transparent
+  );
+}
+
+.set {
+  display: flex;
+  flex: none;
+}
+
+/* The icons and the button: small glyphs on round targets a finger can hit. */
+.tool,
+.launcher {
+  position: relative;
+  flex: none;
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  scroll-snap-align: start;
+}
+
+.tool:hover,
+.launcher:hover,
+.tool[aria-expanded="true"] {
+  color: var(--color-ink);
+}
+
+/* The icon whose value shows above the row, marked by a dot beneath. */
+.tool[aria-expanded="true"]::after {
+  position: absolute;
+  bottom: 0.2rem;
+  left: 50%;
+  width: 3px;
+  height: 3px;
+  margin-left: -1.5px;
+  border-radius: 50%;
+  background: currentColor;
+  content: "";
+}
+
+.tool svg,
+.launcher svg {
+  display: block;
+  width: 1.125rem;
+  height: 1.125rem;
+  margin: auto;
+}
+
+.tool:focus-visible,
+.launcher:focus-visible,
+.button:focus-visible {
+  outline: 1px solid var(--color-ink-muted);
+  outline-offset: 2px;
+}
+
+/* A parameter's value, with its − and +, and its keys where a pointer hovers. */
+.readout {
+  display: flex;
+}
+
+.reading {
+  display: flex;
   align-items: center;
-  justify-items: center;
 }
 
 .button {
-  min-width: 2.75rem;
-  min-height: 2.75rem;
+  min-width: 2.5rem;
+  min-height: 2.5rem;
   padding: 0;
   border: 0;
   border-radius: 50%;
@@ -59,19 +155,15 @@
   background: color-mix(in srgb, var(--color-ink) 10%, transparent);
 }
 
-.button:focus-visible {
-  outline: 1px solid var(--color-ink-muted);
-  outline-offset: 2px;
-}
-
 .value {
   min-width: 4.5rem;
   color: var(--color-ink);
   font-variant-numeric: tabular-nums;
   text-align: center;
+  white-space: nowrap;
 }
 
-/* The icon that names a value's control without words. */
+/* The icon beside a value, which names its control without words. */
 .icon svg {
   display: inline-block;
   width: 1rem;
@@ -96,15 +188,16 @@
 }
 
 /* A value held below the one asked for, as time is when the machine cannot
-   keep up. */
+   keep up, and its icon in the row. */
 .held {
   color: var(--color-hand);
 }
 
 .keys {
-  grid-column: 1 / -1;
+  margin-left: 0.25rem;
   font-size: 0.75rem;
   opacity: 0.7;
+  white-space: nowrap;
 }
 
 /* Where nothing hovers, as on a phone, there are no keys to show. */
@@ -114,7 +207,8 @@
   }
 }
 
-.button svg {
-  display: block;
-  margin: auto;
+@media (prefers-reduced-motion: reduce) {
+  .dock {
+    transition: none;
+  }
 }

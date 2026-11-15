@@ -24,8 +24,10 @@ import {
   type ChainState,
 } from "../physics/step.ts";
 import {
+  CHAIN,
   GRAVITY,
   HAND,
+  LIGHT,
   MASSES,
   PALETTE,
   PARAMETERS,
@@ -50,7 +52,8 @@ import {
 // of its twins (decision 21), or of every mass of the chain (decision 26).
 // One switch puts out the twins and the trails and lights them again
 // (decision 27), and time can run backwards (decision 28). A key passes the
-// whole frame through the sketch's light, to compare (decision 24).
+// whole frame through the sketch's light, to compare (decision 24). The
+// controls wait behind one small button (decision 31).
 
 // Earth's gravity, in m/s²: the weight in which the hand's pull is shown,
 // whatever gravity the chain is under.
@@ -149,13 +152,7 @@ function play({ canvas, gl }: Stage): void {
   // The twins and the trails, lit or put out by one switch; their controls
   // keep their values, and stepping one of them lights them again.
   let lit = true;
-  const LIGHT_CONTROLS: ReadonlySet<Parameter> = new Set([
-    TWIN_COUNT,
-    SPREAD,
-    TRAIL,
-    RIBBON,
-    PALETTE,
-  ]);
+  const LIGHT_CONTROLS: ReadonlySet<Parameter> = new Set(LIGHT);
   const trail = new SegmentBatch(4096);
   const tipAt = new Float64Array(2);
   // where each mass of the chain, and each twin's tip, was at the end of the
@@ -375,38 +372,43 @@ function play({ canvas, gl }: Stage): void {
     );
   }
 
+  // The row of controls: the actions, then what moves the chain, then the
+  // light (decision 31).
   const controls = mountControls(
-    PARAMETERS,
     [
-      {
-        id: "pause",
-        label: "Pause",
-        icon: "pause",
-        keys: [" "],
-        keysShown: "␣",
-      },
-      {
-        id: "reverse",
-        label: "Run time backwards",
-        icon: "rewind",
-        keys: ["b", "B"],
-        keysShown: "B",
-      },
-      {
-        id: "raise",
-        label: "Raise the chain again",
-        icon: "raise",
-        keys: ["r", "R"],
-        keysShown: "R",
-      },
-      {
-        id: "light",
-        label: "Light",
-        icon: "light",
-        keys: ["l", "L"],
-        keysShown: "L",
-        pressed: true,
-      },
+      [
+        {
+          id: "pause",
+          label: "Pause",
+          icon: "pause",
+          keys: [" "],
+          keysShown: "␣",
+        },
+        {
+          id: "reverse",
+          label: "Run time backwards",
+          icon: "rewind",
+          keys: ["b", "B"],
+          keysShown: "B",
+        },
+        {
+          id: "raise",
+          label: "Raise the chain again",
+          icon: "raise",
+          keys: ["r", "R"],
+          keysShown: "R",
+        },
+        {
+          id: "light",
+          label: "Light",
+          icon: "light",
+          keys: ["l", "L"],
+          keysShown: "L",
+          pressed: true,
+        },
+      ],
+      CHAIN,
+      LIGHT,
     ],
     {
       step,
@@ -421,6 +423,8 @@ function play({ canvas, gl }: Stage): void {
   for (const parameter of PARAMETERS) {
     controls.showValue(parameter.id, value(parameter));
   }
+  // the button shows for a moment as the piece opens, so that it is found
+  controls.wake();
 
   function world(event: PointerEvent): [number, number] {
     const box = canvas.getBoundingClientRect();
@@ -497,7 +501,11 @@ function play({ canvas, gl }: Stage): void {
     if (action !== null) {
       event.preventDefault();
       step(action.parameter, action.direction);
-    } else if (event.key === " ") {
+      // the value the key changed comes into sight, alone
+      controls.choose(action.parameter.id);
+      return;
+    }
+    if (event.key === " ") {
       event.preventDefault();
       setPaused(!paused);
     } else if (event.key === "r" || event.key === "R") {
@@ -729,7 +737,8 @@ function play({ canvas, gl }: Stage): void {
       showTwins();
 
       // The valve: when the machine keeps time below the speed asked for,
-      // the time control shows the speed reached, and comes into sight.
+      // the time control shows the speed reached, and comes into sight
+      // unless the visitor is reading another value in the open row.
       const wasHeld = reached < 0.97;
       reached += 0.1 * (simulated / asked - reached);
       const held = reached < 0.97;
@@ -740,7 +749,7 @@ function play({ canvas, gl }: Stage): void {
           speed,
           Math.round(speed * reached * 100) / 100,
         );
-        if (!wasHeld) controls.wake();
+        if (!wasHeld) controls.notice(TIME.id);
       } else if (wasHeld) {
         controls.showValue(TIME.id, speed);
       }
