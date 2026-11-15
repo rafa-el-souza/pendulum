@@ -689,8 +689,10 @@ test.describe("on a touch screen", () => {
     await page.keyboard.press(" ");
     const resume = page.locator('#controls [aria-label="Resume"]');
     await expect(resume).toHaveCount(1);
+    // out of sight: no longer in sight, nor fading, when they still take a
+    // touch on what is seen
     const dock = page.locator("#controls");
-    await expect(dock).not.toHaveClass(/awake/, { timeout: 6000 });
+    await expect(dock).not.toHaveClass(/awake|fading/, { timeout: 6000 });
 
     // a touch on the button, out of sight, only brings the controls back
     const box = await launcher(page).boundingBox();
