@@ -81,6 +81,8 @@ function play({ canvas, gl }: Stage): void {
     event.preventDefault();
     canvas.setPointerCapture(event.pointerId);
     const [px, py] = world(event);
+    // Grabbing the chain sets it going again, if it was paused.
+    paused = false;
     // the nearest mass, wherever the press lands
     hand = createHand(chain, chain.nearestMass(state.theta, px, py));
     hand.x = px;
