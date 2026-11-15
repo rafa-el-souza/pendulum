@@ -3,7 +3,8 @@
 // need.
 
 /** The icons a control can show. */
-export type Icon = "pause" | "play" | "raise" | "fan" | "comet" | "spread";
+export type Icon =
+  "pause" | "play" | "raise" | "fan" | "comet" | "spread" | "ribbon";
 
 const SVG = "http://www.w3.org/2000/svg";
 
@@ -30,6 +31,11 @@ const ICONS: Record<Icon, { fill: string; stroke: string }> = {
   spread: {
     fill: "M10.5 4a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0 -3 0M7.2 20a1.8 1.8 0 1 0 3.6 0a1.8 1.8 0 1 0 -3.6 0M13.2 20a1.8 1.8 0 1 0 3.6 0a1.8 1.8 0 1 0 -3.6 0",
     stroke: "M12 4L9 20M12 4L15 20",
+  },
+  // a ribbon, two waves side by side
+  ribbon: {
+    fill: "",
+    stroke: "M3 9c3-4 6-4 9 0s6 4 9 0M3 15c3-4 6-4 9 0s6 4 9 0",
   },
 };
 

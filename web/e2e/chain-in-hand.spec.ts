@@ -375,3 +375,27 @@ test("the spread's keys bring the twins closer or farther at birth, and the addr
   await frames(page, 10);
   expect(errors).toEqual([]);
 });
+
+test("the keys 1 and 2 let the trails come from the tip or from every mass, and the address follows", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  // 64 masses, time four times faster, so that every mass draws a lot
+  await page.goto("chain-in-hand/?n=64&time=4");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  const ribbon = page
+    .getByRole("group", { name: "Trails from every mass" })
+    .locator("output");
+  await expect(ribbon).toContainText("the tip");
+
+  await frames(page, 5);
+  await page.keyboard.press("2");
+  await expect(ribbon).toContainText("every mass");
+  await expect(page).toHaveURL(/[?&]ribbon=1(&|$)/);
+  await frames(page, 10);
+  await page.keyboard.press("1");
+  await expect(ribbon).toContainText("the tip");
+  await expect(page).not.toHaveURL(/ribbon=/);
+  await frames(page, 5);
+  expect(errors).toEqual([]);
+});

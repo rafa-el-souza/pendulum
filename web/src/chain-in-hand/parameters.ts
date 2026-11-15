@@ -154,6 +154,23 @@ export const SPREAD: Parameter = {
 };
 
 /**
+ * Which masses of the chain leave trails (decision 26): the tip alone, as
+ * until now, or every mass, so that the chain draws a ribbon. The twins'
+ * trails stay at their tips. The control shows the chain's masses, lit where
+ * they draw.
+ */
+export const RIBBON: Parameter = {
+  id: "ribbon",
+  label: "Trails from every mass",
+  values: [0, 1],
+  initial: 0,
+  keys: { down: ["1"], up: ["2"] },
+  show: (value) => (value === 1 ? "●●●" : "○○●"),
+  speak: (value) => (value === 1 ? "every mass" : "the tip"),
+  icon: "ribbon",
+};
+
+/**
  * The twins' colours, and their trails' (decision 23): one palette per step,
  * opening with the sketch's, which the author keeps. The control paints five
  * dots from one edge of the fan to the other in the palette's colours, and a
@@ -181,5 +198,6 @@ export const PARAMETERS: readonly Parameter[] = [
   TWIN_COUNT,
   SPREAD,
   TRAIL,
+  RIBBON,
   PALETTE,
 ];
