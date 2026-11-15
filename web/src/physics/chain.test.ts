@@ -202,3 +202,34 @@ describe("a chain's masses and rods", () => {
     expect(() => new Chain(masses, lengths)).toThrow();
   });
 });
+
+describe("where the masses are (PH-1)", () => {
+  it("PH-1: a chain hanging straight has its masses one below the other", () => {
+    const chain = new Chain([1, 1, 1], [0.5, 0.25, 0.25]);
+    const x = new Float64Array(3);
+    const y = new Float64Array(3);
+    chain.positions(new Float64Array(3), x, y);
+    expect(Array.from(x)).toEqual([0, 0, 0]);
+    expect(Array.from(y)).toEqual([-0.5, -0.75, -1]);
+  });
+
+  it("PH-1: each rod adds l (sin theta, -cos theta), its angle being absolute", () => {
+    const chain = new Chain([1, 1], [1, 2]);
+    const x = new Float64Array(2);
+    const y = new Float64Array(2);
+    chain.positions(Float64Array.of(Math.PI / 2, Math.PI), x, y);
+    expect(x[0]).toBeCloseTo(1, 15);
+    expect(y[0]).toBeCloseTo(0, 15);
+    expect(x[1]).toBeCloseTo(1, 15);
+    expect(y[1]).toBeCloseTo(2, 15);
+  });
+
+  it("finds the mass nearest to a point, wherever the point is", () => {
+    // Four rods of 0.25 m hanging straight: masses at y = -0.25 ... -1.
+    const chain = Chain.uniform(4);
+    const theta = new Float64Array(4);
+    expect(chain.nearestMass(theta, 0.1, -0.45)).toBe(1);
+    expect(chain.nearestMass(theta, -3, -2)).toBe(3);
+    expect(chain.nearestMass(theta, 0, 5)).toBe(0);
+  });
+});

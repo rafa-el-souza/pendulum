@@ -12,7 +12,7 @@
    Every index here runs over 0..n-1 of arrays of length n, which the compiler's
    unchecked-index rule cannot see. */
 
-import type { Chain } from "./chain.ts";
+import type { Chain, Hand } from "./chain.ts";
 
 /** Where a chain is and how it moves: absolute angles from the downward vertical, and their rates. */
 export interface ChainState {
@@ -74,10 +74,17 @@ export class Stepper {
   /**
    * Advances the state by dt seconds under gravity g, in place, and returns
    * the number of substeps taken. Each substep is fraction / rate, at most
-   * maxStep, where rate is the larger of the fastest vibration across the
-   * rods and the fastest spin of a rod; the last one is cut to land on dt.
+   * maxStep, where rate is the largest of the fastest vibration across the
+   * rods, the fastest spin of a rod and the fastest rate a hand adds; the
+   * last one is cut to land on dt. A hand, when given, holds still in place
+   * and speed for the whole interval.
    */
-  advance(state: ChainState, dt: number, g: number): number {
+  advance(
+    state: ChainState,
+    dt: number,
+    g: number,
+    hand: Hand | null = null,
+  ): number {
     const { chain, fraction, maxStep } = this;
     const n = chain.n;
     const { theta, omega } = state;
@@ -95,10 +102,14 @@ export class Stepper {
     let left = dt;
     let substeps = 0;
     while (left > 0) {
-      chain.solve(theta, omega, g, k1, tension);
+      chain.solve(theta, omega, g, k1, tension, hand);
       let spin = 0;
       for (let i = 0; i < n; i++) spin = Math.max(spin, Math.abs(omega[i]!));
-      const rate = Math.max(chain.fastestVibration(tension), spin);
+      const rate = Math.max(
+        chain.fastestVibration(tension),
+        spin,
+        hand === null ? 0 : hand.fastest,
+      );
       let h = Math.min(maxStep, fraction / rate);
       // Within rounding of the time left, finish the frame in this substep.
       if (!(h < left * (1 - 1e-9))) h = left;
@@ -108,17 +119,17 @@ export class Stepper {
         th[i] = theta[i]! + half * omega[i]!;
         w2[i] = omega[i]! + half * k1[i]!;
       }
-      chain.solve(th, w2, g, k2, stageTension);
+      chain.solve(th, w2, g, k2, stageTension, hand);
       for (let i = 0; i < n; i++) {
         th[i] = theta[i]! + half * w2[i]!;
         w3[i] = omega[i]! + half * k2[i]!;
       }
-      chain.solve(th, w3, g, k3, stageTension);
+      chain.solve(th, w3, g, k3, stageTension, hand);
       for (let i = 0; i < n; i++) {
         th[i] = theta[i]! + h * w3[i]!;
         w4[i] = omega[i]! + h * k3[i]!;
       }
-      chain.solve(th, w4, g, k4, stageTension);
+      chain.solve(th, w4, g, k4, stageTension, hand);
       const sixth = h / 6;
       for (let i = 0; i < n; i++) {
         theta[i] =
