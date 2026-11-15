@@ -351,3 +351,27 @@ test("the G key passes the whole frame through the sketch's light, and back", as
   expect((await stage.screenshot({ mask })).equals(before)).toBe(true);
   expect(errors).toEqual([]);
 });
+
+test("the spread's keys bring the twins closer or farther at birth, and the address follows", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("chain-in-hand/");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  const spread = page
+    .getByRole("group", { name: "Spread of the twins at birth" })
+    .locator("output");
+  await expect(spread).toContainText("10 to the minus 3 radians");
+
+  await page.keyboard.press("3");
+  await expect(spread).toContainText("10 to the minus 4 radians");
+  await expect(page).toHaveURL(/[?&]spread=0\.0001(&|$)/);
+  for (let press = 0; press < 5; press++) await page.keyboard.press("3");
+  await expect(spread).toContainText("10 to the minus 9 radians");
+  await expect(page).toHaveURL(/[?&]spread=1e-9(&|$)/);
+  for (let press = 0; press < 8; press++) await page.keyboard.press("4");
+  await expect(spread).toContainText("10 to the minus 1 radians");
+  await expect(page).toHaveURL(/[?&]spread=0\.1(&|$)/);
+  await frames(page, 10);
+  expect(errors).toEqual([]);
+});

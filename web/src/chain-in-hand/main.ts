@@ -23,6 +23,7 @@ import {
   MASSES,
   PALETTE,
   PARAMETERS,
+  SPREAD,
   TIME,
   TRAIL,
   TWIN_COUNT,
@@ -47,11 +48,10 @@ const STILL_AFTER_MS = 60;
 // The physics of one frame may take this long; past it, time runs slower
 // than asked, and the time control shows how much (decision 15).
 const PHYSICS_BUDGET_MS = 6;
-// The twins (decision 20): how far apart the first and the last are born, in
-// radians, the time they may take in a frame, and their longest substep,
-// coarser than the chain's. How many are wanted is a control (decision 22);
-// those the budget cannot carry are dropped, and time never slows for them.
-const TWIN_SPREAD = 1e-3;
+// The twins (decision 20): the time they may take in a frame, and their
+// longest substep, coarser than the chain's. How many are wanted, and how far
+// apart they are born, are controls (decisions 22 and 25); those the budget
+// cannot carry are dropped, and time never slows for them.
 const TWIN_BUDGET_MS = 4;
 const TWIN_STEP = 1 / 240;
 // The trails (decision 21): a frame's motion is drawn in this many pieces to
@@ -192,7 +192,7 @@ function play({ canvas, gl }: Stage): void {
     twins = bornTwins(
       state,
       Math.min(value(TWIN_COUNT), twinBudget.affordable()),
-      TWIN_SPREAD,
+      value(SPREAD),
     );
     resetTrailEnds();
   }
@@ -273,9 +273,11 @@ function play({ canvas, gl }: Stage): void {
     if (parameter === MASSES) setMasses(next);
     // a new grip takes hold at once, where the hand is
     if (parameter === HAND && hand !== null) hand = holding(hand.index, hand);
-    // another number of twins is born at once from the chain as it is, unless
-    // the hand holds it; trails turned off go dark, to start afresh
-    if (parameter === TWIN_COUNT && hand === null) spawnTwins();
+    // another number of twins, or another spread, is born at once from the
+    // chain as it is, unless the hand holds it; trails turned off go dark, to
+    // start afresh
+    const twinsAgain = parameter === TWIN_COUNT || parameter === SPREAD;
+    if (twinsAgain && hand === null) spawnTwins();
     if (parameter === TRAIL && next === 0) trails.clear();
     // another palette colours the twins at once; the trails they left keep
     // their colours and fade

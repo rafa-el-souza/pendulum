@@ -116,6 +116,44 @@ export const TRAIL: Parameter = {
 };
 
 /**
+ * How far apart the twins are born, in radians across the fan (decision 25):
+ * from a billionth of a radian to a tenth, by powers of ten, opening at the
+ * thousandth they were born apart before this control. However close they
+ * are born, the fan opens: each power of ten closer only delays it, by a
+ * second or so with two masses and less with more (decision 25).
+ */
+const SUPERSCRIPT: Readonly<Record<string, string>> = {
+  "-": "⁻",
+  "0": "⁰",
+  "1": "¹",
+  "2": "²",
+  "3": "³",
+  "4": "⁴",
+  "5": "⁵",
+  "6": "⁶",
+  "7": "⁷",
+  "8": "⁸",
+  "9": "⁹",
+};
+
+/** The power of ten a spread is. */
+function powerOfTen(value: number): number {
+  return Math.round(Math.log10(value));
+}
+
+export const SPREAD: Parameter = {
+  id: "spread",
+  label: "Spread of the twins at birth",
+  values: [1e-9, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1],
+  initial: 1e-3,
+  keys: { down: ["3"], up: ["4"] },
+  show: (value) =>
+    `10${String(powerOfTen(value)).replace(/[-0-9]/g, (c) => SUPERSCRIPT[c] ?? c)}`,
+  speak: (value) => `10 to the minus ${String(-powerOfTen(value))} radians`,
+  icon: "spread",
+};
+
+/**
  * The twins' colours, and their trails' (decision 23): one palette per step,
  * opening with the sketch's, which the author keeps. The control paints five
  * dots from one edge of the fan to the other in the palette's colours, and a
@@ -141,6 +179,7 @@ export const PARAMETERS: readonly Parameter[] = [
   TIME,
   HAND,
   TWIN_COUNT,
+  SPREAD,
   TRAIL,
   PALETTE,
 ];
