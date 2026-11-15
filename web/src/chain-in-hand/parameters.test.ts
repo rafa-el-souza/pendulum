@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
 
 import { checkParameters } from "../core/parameters.ts";
-import { HAND, MASSES, PARAMETERS, TIME, handDamping } from "./parameters.ts";
+import {
+  HAND,
+  MASSES,
+  PARAMETERS,
+  TIME,
+  TRAIL,
+  TWIN_COUNT,
+  handDamping,
+} from "./parameters.ts";
 
 describe("the first piece's parameters", () => {
   it("are a valid registry: distinct ids and keys, increasing values", () => {
@@ -52,5 +60,29 @@ describe("the first piece's parameters", () => {
     expect(HAND.show(12)).toBe("●●●○○");
     expect(HAND.show(40)).toBe("●●●●●");
     expect(HAND.speak?.(12)).toBe("3 of 5");
+  });
+
+  it("let the twins run from none to 4 096, the sketch's choices, opening at 512 (decision 22)", () => {
+    expect(TWIN_COUNT.values).toEqual([0, 64, 512, 4096]);
+    expect(TWIN_COUNT.initial).toBe(512);
+    expect(TWIN_COUNT.show(64)).toBe("64");
+    expect(TWIN_COUNT.icon).toBe("fan");
+  });
+
+  it("let the trails run from none to one that stays, opening at the half-life they had, 2.5 s", () => {
+    expect(TRAIL.values[0]).toBe(0);
+    expect(TRAIL.initial).toBe(2.5);
+    // the last halves in ten minutes, which a visit does not see fade
+    expect(TRAIL.values.at(-1)).toBe(600);
+    expect(TRAIL.icon).toBe("comet");
+  });
+
+  it("show the trails' length as pips, none when off, and say it in seconds", () => {
+    expect(TRAIL.show(0)).toBe("○○○○○");
+    expect(TRAIL.show(2.5)).toBe("●●●○○");
+    expect(TRAIL.show(600)).toBe("●●●●●");
+    expect(TRAIL.speak?.(0)).toBe("off");
+    expect(TRAIL.speak?.(2.5)).toBe("2.5 s");
+    expect(TRAIL.speak?.(600)).toBe("stays");
   });
 });

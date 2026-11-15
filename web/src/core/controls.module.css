@@ -71,6 +71,15 @@
   text-align: center;
 }
 
+/* The icon that names a value's control without words. */
+.icon svg {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  margin-right: 0.35em;
+  vertical-align: -0.15em;
+}
+
 /* Words for a screen reader, where the value is shown in another way. */
 .spoken {
   position: absolute;
