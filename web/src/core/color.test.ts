@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseColor } from "./color.ts";
+import { cssColor, parseColor } from "./color.ts";
 
 describe("a color from the tokens, for WebGL", () => {
   it("reads #rrggbb, as the tokens write it", () => {
@@ -17,4 +17,15 @@ describe("a color from the tokens, for WebGL", () => {
       expect(() => parseColor(text)).toThrow();
     },
   );
+});
+
+describe("a color for the page, from one for WebGL", () => {
+  it("is written as rgb(r g b), each channel rounded to a whole step of 255", () => {
+    expect(cssColor([1, 0.5, 0])).toBe("rgb(255 128 0)");
+    expect(cssColor([7 / 255, 8 / 255, 11 / 255])).toBe("rgb(7 8 11)");
+  });
+
+  it("keeps each channel within 0 and 255", () => {
+    expect(cssColor([1.2, -0.1, 0.999])).toBe("rgb(255 0 255)");
+  });
 });

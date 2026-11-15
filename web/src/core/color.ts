@@ -52,3 +52,10 @@ export function tokenColor(name: string): Rgb {
   probe.remove();
   return parseColor(computed);
 }
+
+/** A color for the page's stylesheet, as rgb(r g b), each channel kept within 0 and 255. */
+export function cssColor(color: Rgb): string {
+  const channel = (value: number): string =>
+    String(Math.round(255 * Math.min(1, Math.max(0, value))));
+  return `rgb(${channel(color[0])} ${channel(color[1])} ${channel(color[2])})`;
+}

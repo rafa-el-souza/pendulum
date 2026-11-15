@@ -80,6 +80,11 @@
   vertical-align: -0.15em;
 }
 
+/* A value shown in colours: one dot each, painted from the value. */
+.swatch {
+  color: var(--swatch);
+}
+
 /* Words for a screen reader, where the value is shown in another way. */
 .spoken {
   position: absolute;
