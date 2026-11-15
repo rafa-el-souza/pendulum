@@ -1,0 +1,95 @@
+/* The controls of a piece: small, quiet, and out of sight until wanted
+   (docs/decisions.md, decision 16). How discreet, and when they fade, the
+   author decides by trying; these values are a first proposal. */
+
+.bar {
+  position: fixed;
+  right: 0;
+  bottom: max(var(--space-2), env(safe-area-inset-bottom));
+  left: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: flex-start;
+  justify-content: center;
+  margin: 0;
+  padding: 0 var(--space-1);
+  color: var(--color-ink-muted);
+  font-family: var(--font-text);
+  font-size: 0.875rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.6s ease;
+}
+
+.awake,
+.bar:focus-within {
+  opacity: 0.85;
+  pointer-events: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bar {
+    transition: none;
+  }
+}
+
+.group {
+  display: grid;
+  grid-template-columns: auto auto auto;
+  align-items: center;
+  justify-items: center;
+}
+
+.button {
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-ink);
+  font: inherit;
+  font-size: 1.125rem;
+  cursor: pointer;
+}
+
+.button:hover {
+  background: color-mix(in srgb, var(--color-ink) 10%, transparent);
+}
+
+.button:focus-visible {
+  outline: 1px solid var(--color-ink-muted);
+  outline-offset: 2px;
+}
+
+.value {
+  min-width: 4.5rem;
+  color: var(--color-ink);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+/* A value held below the one asked for, as time is when the machine cannot
+   keep up. */
+.held {
+  color: var(--color-hand);
+}
+
+.keys {
+  grid-column: 1 / -1;
+  font-size: 0.75rem;
+  opacity: 0.7;
+}
+
+/* Where nothing hovers, as on a phone, there are no keys to show. */
+@media (hover: none) {
+  .keys {
+    display: none;
+  }
+}
+
+.button svg {
+  display: block;
+  margin: auto;
+}
