@@ -32,11 +32,12 @@ hanging rope it becomes as n grows.
   A chain drawn as light, to grab anywhere and throw. Its number of masses
   runs from 1 to 512 while it moves, its time from a tenth of real time to
   four times it, and the hand that holds it from a rubber band to a firm grip.
-  Discreet controls appear when wanted, each with a key, and the address
-  carries every value, so a view can be shared.
+  Let go, it leaves 512 twins born a hair apart, which fan out in colour to
+  show chaos. Discreet controls appear when wanted, each with a key, and the
+  address carries every value, so a view can be shared.
 
-Next, the first piece gets its twins, which fan out to show chaos, and the
-trail of its tip. Every piece is meant to run fullscreen in the major browsers.
+Next, the first piece gets the trails of its tip and of its twins' tips.
+Every piece is meant to run fullscreen in the major browsers.
 
 ## How it is built
 

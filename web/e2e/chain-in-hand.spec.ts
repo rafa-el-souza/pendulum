@@ -167,3 +167,37 @@ test("an elastic hand from the address swings and throws the chain, and the grip
   await frames(page, 30);
   expect(errors).toEqual([]);
 });
+
+test("the twins are born, die when the chain is grabbed, and are born again when it is let go, through changes in the number of masses", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  // time runs four times faster, so that the fan has opened by the grab
+  await page.goto("chain-in-hand/?time=4");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  const box = await page.locator("#stage").boundingBox();
+  if (box === null) throw new Error("the stage is not on the page");
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+
+  await frames(page, 60);
+  // more masses with the twins alive, then fewer
+  for (let press = 0; press < 6; press++) await page.keyboard.press("ArrowUp");
+  await frames(page, 20);
+  for (let press = 0; press < 6; press++)
+    await page.keyboard.press("ArrowDown");
+  await frames(page, 20);
+  // grabbed, they die; let go, they are born from the chain as it is
+  await page.mouse.move(cx + 60, cy + 60);
+  await page.mouse.down();
+  await frames(page, 10);
+  await page.keyboard.press("ArrowUp");
+  await page.mouse.move(cx + 120, cy - 20);
+  await frames(page, 5);
+  await page.mouse.up();
+  await frames(page, 30);
+  // raised again, they are born again
+  await page.keyboard.press("r");
+  await frames(page, 30);
+  expect(errors).toEqual([]);
+});

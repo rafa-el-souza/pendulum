@@ -1,6 +1,6 @@
 import "../styles/base.css";
 
-import { tokenColor } from "../core/color.ts";
+import { fanColor, tokenColor } from "../core/color.ts";
 import { mountControls } from "../core/controls.ts";
 import { Lines, SegmentBatch } from "../core/lines.ts";
 import {
@@ -11,17 +11,18 @@ import {
   type Parameter,
 } from "../core/parameters.ts";
 import { mountStage, type Stage } from "../core/stage.ts";
+import { TwinBudget, bornTwins, fanPlace } from "../core/twins.ts";
 import { fitScale, toWorld } from "../core/view.ts";
 import { Chain, createHand, type Hand } from "../physics/chain.ts";
 import { resample } from "../physics/resample.ts";
-import { Stepper, restingState } from "../physics/step.ts";
+import { Stepper, restingState, type ChainState } from "../physics/step.ts";
 import { HAND, MASSES, PARAMETERS, TIME, handDamping } from "./parameters.ts";
 
 // The first piece (docs/decisions.md, decision 4): one chain pendulum to grab
 // and throw, whose number of masses changes while it moves, under a time that
 // runs as fast as the visitor asks and the machine allows (decision 15), held
-// by a hand from elastic to firm (decision 18). The twins and the trail come
-// in later slices.
+// by a hand from elastic to firm (decision 18), with twins born a hair apart
+// that fan out to show chaos (decision 20). The trail comes in a later slice.
 
 const G = 9.81;
 // A frame longer than this (a hidden tab, a stall) moves the chain by this
@@ -32,6 +33,14 @@ const STILL_AFTER_MS = 60;
 // The physics of one frame may take this long; past it, time runs slower
 // than asked, and the time control shows how much (decision 15).
 const PHYSICS_BUDGET_MS = 6;
+// The twins (decision 20): how many are wanted, how far apart the first and
+// the last are born, in radians, the time they may take in a frame, and their
+// longest substep, coarser than the chain's. Those the budget cannot carry
+// are dropped; time never slows for them.
+const TWINS = 512;
+const TWIN_SPREAD = 1e-3;
+const TWIN_BUDGET_MS = 4;
+const TWIN_STEP = 1 / 240;
 
 const canvas = document.getElementById("stage");
 const notice = document.getElementById("notice");
@@ -65,6 +74,18 @@ function play({ canvas, gl }: Stage): void {
     pivot: tokenColor("--color-pivot"),
   };
   const rods = new SegmentBatch(chain.n);
+  // the twins, and the colour of each by its place in the fan
+  let twins: ChainState[] = [];
+  let twinStepper = new Stepper(chain, { maxStep: TWIN_STEP });
+  // a first guess of a twin's cost, which the measured cost replaces in a few frames
+  const twinBudget = new TwinBudget(
+    TWIN_BUDGET_MS,
+    0.002 * (chain.n / 2) ** 1.5,
+  );
+  const fanColors = Array.from({ length: TWINS }, (_, j) =>
+    fanColor(fanPlace(j)),
+  );
+  const fan = new SegmentBatch(TWINS * chain.n);
   const dots = new SegmentBatch(chain.n + 2);
   // the hand's spring, drawn stronger the harder the hand pulls
   const spring = new SegmentBatch(1);
@@ -72,12 +93,23 @@ function play({ canvas, gl }: Stage): void {
   let strength = 0;
   let x = new Float64Array(chain.n);
   let y = new Float64Array(chain.n);
+  let twinX = new Float64Array(chain.n);
+  let twinY = new Float64Array(chain.n);
 
   let hand: Hand | null = null;
   let paused = false;
   // the speed time actually ran at lately, as a share of the speed asked for
   let reached = 1;
   const pointer = { id: -1, x: 0, y: 0, vx: 0, vy: 0, at: 0 };
+
+  /** Twins of the chain as it is now, as many as their budget carries. */
+  function spawnTwins(): void {
+    twins = bornTwins(
+      state,
+      Math.min(TWINS, twinBudget.affordable()),
+      TWIN_SPREAD,
+    );
+  }
 
   /** Raised to one side and let go from rest: with two masses or more, a chaotic start. */
   function raise(): void {
@@ -86,6 +118,7 @@ function play({ canvas, gl }: Stage): void {
       state.omega[i] = 0;
     }
     hand = null;
+    spawnTwins();
   }
 
   /** A hand on mass `index`, with the grip the hand's control asks for, where `at` is and moving as it moves. */
@@ -112,11 +145,22 @@ function play({ canvas, gl }: Stage): void {
     stepper = new Stepper(chain);
     x = new Float64Array(n);
     y = new Float64Array(n);
+    twinX = new Float64Array(n);
+    twinY = new Float64Array(n);
     if (hand !== null) {
       const along = (hand.index + 1) / before.n;
       const index = Math.min(n - 1, Math.max(0, Math.round(along * n) - 1));
       hand = holding(index, hand);
     }
+    // The twins move to the new number too, as many as it carries; back at a
+    // number that carries many more than are left, they are born again.
+    twinStepper = new Stepper(chain, { maxStep: TWIN_STEP });
+    twinBudget.rescale(before.n, n);
+    twins = twins
+      .slice(0, twinBudget.affordable())
+      .map((twin) => resample(before, twin, n).state);
+    const carried = Math.min(TWINS, twinBudget.affordable());
+    if (hand === null && twins.length < 0.5 * carried) spawnTwins();
   }
 
   function setPaused(value: boolean): void {
@@ -189,8 +233,10 @@ function play({ canvas, gl }: Stage): void {
     event.preventDefault();
     canvas.setPointerCapture(event.pointerId);
     const [px, py] = world(event);
-    // Grabbing the chain sets it going again, if it was paused.
+    // Grabbing the chain sets it going again, if it was paused, and ends its
+    // twins; letting it go gives it new ones.
     if (paused) setPaused(false);
+    twins = [];
     // the nearest mass, wherever the press lands
     hand = holding(chain.nearestMass(state.theta, px, py), {
       x: px,
@@ -229,6 +275,7 @@ function play({ canvas, gl }: Stage): void {
     if (event.pointerId !== pointer.id) return;
     pointer.id = -1;
     hand = null;
+    spawnTwins();
     // on a touch screen, lifting the finger is what wakes the controls
     if (event.pointerType !== "mouse") controls.wake();
   };
@@ -260,6 +307,27 @@ function play({ canvas, gl }: Stage): void {
     const ratio = box.width > 0 ? canvas.width / box.width : 1;
     const scale = fitScale(box.width, box.height, chain.totalLength) * ratio;
     const rodPixels = (chain.totalLength / chain.n) * (scale / ratio);
+
+    // The twins, faint, so that many together read as one bright chain and
+    // only the fringes of the fan show colour.
+    fan.clear();
+    const faint = Math.min(
+      0.5,
+      Math.max(0.05, 2.2 / Math.sqrt(Math.max(1, twins.length))),
+    );
+    twins.forEach((twin, j) => {
+      chain.positions(twin.theta, twinX, twinY);
+      const color = fanColors[j] ?? colors.chain;
+      let tx = 0;
+      let ty = 0;
+      for (let i = 0; i < chain.n; i++) {
+        const bx = twinX[i] ?? 0;
+        const by = twinY[i] ?? 0;
+        fan.push(tx, ty, bx, by, color, faint);
+        tx = bx;
+        ty = by;
+      }
+    });
 
     chain.positions(state.theta, x, y);
     rods.clear();
@@ -302,6 +370,10 @@ function play({ canvas, gl }: Stage): void {
     dots.push(0, 0, 0, 0, colors.pivot, 0.8);
 
     lines.clear(colors.ground);
+    lines.draw(fan, scale, {
+      radius: 0.7 * ratio,
+      roundEnds: chain.n <= 64,
+    });
     // Past 64 rods the ends are cut flat, so that rods laid end to end make
     // one even line instead of beads where their round ends overlap.
     lines.draw(rods, scale, {
@@ -352,6 +424,25 @@ function play({ canvas, gl }: Stage): void {
         state.theta.every(Number.isFinite) &&
         state.omega.every(Number.isFinite);
       if (!finite) raise();
+
+      // The twins live the same simulated time, within their own budget: the
+      // ones a frame does not reach, or that the budget cannot carry, are
+      // dropped, and time never slows for them (decision 20).
+      if (twins.length > 0 && simulated > 0) {
+        const start = performance.now();
+        const giveUp = start + 4 * TWIN_BUDGET_MS;
+        let done = 0;
+        for (const twin of twins) {
+          if ((done & 7) === 0 && performance.now() > giveUp) break;
+          twinStepper.advance(twin, simulated, G);
+          done++;
+        }
+        twins.length = twinBudget.measured(
+          done,
+          twins.length,
+          performance.now() - start,
+        );
+      }
 
       // The valve: when the machine keeps time below the speed asked for,
       // the time control shows the speed reached, and comes into sight.

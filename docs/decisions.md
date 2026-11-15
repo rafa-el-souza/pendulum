@@ -278,6 +278,31 @@ are laid out is left for later.
 **Why.** Each of the three was left to be settled by trying, and the author
 has tried them.
 
+## 20. Twins are dropped, and time is never slowed for them
+
+*2026-11-15.* The first piece's twins are 512 copies of the chain, born a
+hair apart when it is let go or raised, which fan out in colour to show chaos
+(decision 4). They end when it is grabbed. They live the same simulated time
+as the chain, within a budget of their own of 4 ms per frame, beside the
+6 ms of the chain's physics. When they do not fit it there are fewer of
+them, dropped from the end of an order that keeps the rest spread evenly
+over the fan: for any number of them, the largest gap is under twice an even
+share. Time never runs slower for them, and only the chain's own physics can
+slow it (decision 15). This settles the twins' part of the open question of
+the frame budget.
+
+**Why.** The author chose this on a recommendation and the numbers below.
+Slowing time to carry all the twins would all but stop the piece from 32
+masses up, and the chain in the hand would feel it. With fewer twins the fan
+grows sparser but stays whole, and the chain keeps the time asked for.
+
+**Evidence.** One twin costs, per frame at 0.8 of real time on the machine of
+decision 5, 0.002 ms with 2 masses, 0.022 ms with 16, 0.09 ms with 32, 0.35
+ms with 64, 1.6 ms with 128 and 12 ms with 512. So 4 ms carries all 512 twins
+up to 8 masses, about 180 with 16, 44 with 32, 11 with 64 and 2 with 128.
+Slowing time to carry all 512 would take it to ×0.07 with 32 masses and
+×0.004 with 128.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
