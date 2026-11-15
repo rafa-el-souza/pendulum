@@ -15,7 +15,7 @@ import { mountStage, type Stage } from "../core/stage.ts";
 import { LightTarget, Trails, fadeAfter } from "../core/trails.ts";
 import { TwinBudget, bornTwins, fanPlace } from "../core/twins.ts";
 import { fitScale, toWorld } from "../core/view.ts";
-import { Chain, createHand, gravity, type Hand } from "../physics/chain.ts";
+import { Chain, createHand, type Hand } from "../physics/chain.ts";
 import { resample } from "../physics/resample.ts";
 import {
   Stepper,
@@ -24,22 +24,27 @@ import {
   type ChainState,
 } from "../physics/step.ts";
 import {
+  GRAVITY,
   HAND,
   MASSES,
   PALETTE,
   PARAMETERS,
   RIBBON,
   SPREAD,
+  TILT,
   TIME,
   TRAIL,
   TWIN_COUNT,
+  gravityOf,
   handDamping,
+  radians,
 } from "./parameters.ts";
 
 // The first piece (docs/decisions.md, decision 4): one chain pendulum to grab
 // and throw, whose number of masses changes while it moves, under a time that
-// runs as fast as the visitor asks and the machine allows (decision 15), held
-// by a hand from elastic to firm (decision 18), with twins born a hair apart
+// runs as fast as the visitor asks and the machine allows (decision 15) and a
+// gravity from none to Jupiter's, pointing any way (decision 29), held by a
+// hand from elastic to firm (decision 18), with twins born a hair apart
 // that fan out to show chaos (decision 20) in a palette of the visitor's
 // choice (decision 23), and trails of light behind the tips of the chain and
 // of its twins (decision 21), or of every mass of the chain (decision 26).
@@ -47,8 +52,9 @@ import {
 // (decision 27), and time can run backwards (decision 28). A key passes the
 // whole frame through the sketch's light, to compare (decision 24).
 
-const G = 9.81;
-const DOWN = gravity(G);
+// Earth's gravity, in m/s²: the weight in which the hand's pull is shown,
+// whatever gravity the chain is under.
+const EARTH = 9.81;
 // A frame longer than this (a hidden tab, a stall) moves the chain by this
 // much only, so that it never jumps.
 const LONGEST_FRAME = 1 / 30;
@@ -95,6 +101,8 @@ function play({ canvas, gl }: Stage): void {
 
   let chain = Chain.uniform(value(MASSES));
   let state = restingState(chain.n);
+  // the gravity the chain and its twins are under, as its controls ask
+  let g = gravityOf(value(GRAVITY), value(TILT));
   let stepper = new Stepper(chain);
   const lines = new Lines(gl);
   const colors = {
@@ -228,10 +236,14 @@ function play({ canvas, gl }: Stage): void {
     resetTrailEnds();
   }
 
-  /** Raised to one side and let go from rest: with two masses or more, a chaotic start. */
+  /**
+   * Raised to one side, against gravity as it points now, and let go from
+   * rest: with two masses or more, a chaotic start.
+   */
   function raise(): void {
+    const down = radians(value(TILT));
     for (let i = 0; i < chain.n; i++) {
-      state.theta[i] = 2.2 + (0.7 * i) / Math.max(1, chain.n - 1);
+      state.theta[i] = down + 2.2 + (0.7 * i) / Math.max(1, chain.n - 1);
       state.omega[i] = 0;
     }
     hand = null;
@@ -338,6 +350,10 @@ function play({ canvas, gl }: Stage): void {
     const next = stepValue(parameter, value(parameter), direction);
     values.set(parameter.id, next);
     if (parameter === MASSES) setMasses(next);
+    // the chain and its twins fall another way, or harder, from where they are
+    if (parameter === GRAVITY || parameter === TILT) {
+      g = gravityOf(value(GRAVITY), value(TILT));
+    }
     // a new grip takes hold at once, where the hand is
     if (parameter === HAND && hand !== null) hand = holding(hand.index, hand);
     // another number of twins, or another spread, is born at once from the
@@ -542,12 +558,13 @@ function play({ canvas, gl }: Stage): void {
       ay = by;
     }
     if (hand !== null) {
-      // How hard the hand pulls, in weights of the whole chain, eased over a
-      // few frames so that a jittery pointer does not flicker: a hand that
-      // lifts the chain pulls about one weight, one that whirls it several.
+      // How hard the hand pulls, in weights of the whole chain on Earth, eased
+      // over a few frames so that a jittery pointer does not flicker: a hand
+      // that lifts the chain on Earth pulls about one weight, one that whirls
+      // it several. Under other gravity the same pull shows the same.
       chain.handForce(state.theta, state.omega, hand, pull);
       const weights =
-        Math.hypot(pull[0] ?? 0, pull[1] ?? 0) / (chain.totalMass * G);
+        Math.hypot(pull[0] ?? 0, pull[1] ?? 0) / (chain.totalMass * EARTH);
       strength += 0.25 * (1 - Math.exp(-weights) - strength);
       // the spring between the held mass and the hand
       const hx = x[hand.index] ?? 0;
@@ -644,7 +661,7 @@ function play({ canvas, gl }: Stage): void {
       const ribbonLight = 0.55 * Math.min(1, 2.2 / Math.sqrt(chain.n));
       for (let piece = 0; piece < pieces; piece++) {
         const want = asked / pieces;
-        const moved = stepper.advance(state, want, DOWN, hand, deadline);
+        const moved = stepper.advance(state, want, g, hand, deadline);
         simulated += moved.simulated;
         chain.positions(state.theta, x, y);
         for (let i = 0; i < chain.n; i++) {
@@ -688,7 +705,7 @@ function play({ canvas, gl }: Stage): void {
           if ((done & 7) === 0 && performance.now() > giveUp) break;
           const color = fanColors[done] ?? colors.chain;
           for (let piece = 0; piece < twinPieces; piece++) {
-            twinStepper.advance(twin, simulated / twinPieces, DOWN);
+            twinStepper.advance(twin, simulated / twinPieces, g);
             tip(twin.theta);
             trailPiece(
               twinTips[2 * done] ?? 0,

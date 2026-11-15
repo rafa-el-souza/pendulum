@@ -474,3 +474,79 @@ test("the B key runs time backwards and forwards again, and grabbing the chain r
   await frames(page, 5);
   expect(errors).toEqual([]);
 });
+
+test("gravity's keys weaken it to none and strengthen it, and turn it, and the address follows", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("chain-in-hand/");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  const strength = page
+    .getByRole("group", { name: "Strength of gravity" })
+    .locator("output");
+  const direction = page
+    .getByRole("group", { name: "Direction of gravity" })
+    .locator("output");
+  await expect(strength).toContainText("as on Earth");
+  await expect(direction).toContainText("straight down");
+
+  // weaker, down to none, with the chain moving under it, and up a step
+  await page.keyboard.press("q");
+  await expect(strength).toContainText("as on Mars");
+  await expect(page).toHaveURL(/[?&]g=3\.71(&|$)/);
+  for (let press = 0; press < 3; press++) await page.keyboard.press("q");
+  await expect(strength).toContainText("none");
+  await expect(page).toHaveURL(/[?&]g=0(&|$)/);
+  await frames(page, 5);
+  await page.keyboard.press("E");
+  await expect(strength).toContainText("as on Pluto");
+
+  // a step to the right, the arrow turning with it
+  await page.keyboard.press("d");
+  await expect(direction).toContainText("15 degrees right of straight down");
+  await expect(page).toHaveURL(/[?&]tilt=15(&|$)/);
+  await expect(direction.locator("svg")).toHaveAttribute(
+    "style",
+    /rotate\(-15deg\)/,
+  );
+  await frames(page, 5);
+  expect(errors).toEqual([]);
+});
+
+test("gravity's direction comes round past straight up, either way", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("chain-in-hand/?tilt=-165");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  const direction = page
+    .getByRole("group", { name: "Direction of gravity" })
+    .locator("output");
+  await expect(direction).toContainText("165 degrees left of straight down");
+  await page.keyboard.press("A");
+  await expect(direction).toContainText("straight up");
+  await expect(page).toHaveURL(/[?&]tilt=180(&|$)/);
+  await page.keyboard.press("D");
+  await expect(direction).toContainText("165 degrees left of straight down");
+  await expect(page).toHaveURL(/[?&]tilt=-165(&|$)/);
+  await frames(page, 5);
+  expect(errors).toEqual([]);
+});
+
+test("an address carries gravity's strength and direction, and the chain is raised against it", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("chain-in-hand/?g=1.62&tilt=90");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await expect(
+    page.getByRole("group", { name: "Strength of gravity" }).locator("output"),
+  ).toContainText("as on the Moon");
+  await expect(
+    page.getByRole("group", { name: "Direction of gravity" }).locator("output"),
+  ).toContainText("90 degrees right of straight down");
+  await frames(page, 10);
+  await page.keyboard.press("r");
+  await frames(page, 10);
+  expect(errors).toEqual([]);
+});
