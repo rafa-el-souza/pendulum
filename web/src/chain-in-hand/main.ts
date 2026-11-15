@@ -37,9 +37,10 @@ import {
 // by a hand from elastic to firm (decision 18), with twins born a hair apart
 // that fan out to show chaos (decision 20) in a palette of the visitor's
 // choice (decision 23), and trails of light behind the tips of the chain and
-// of its twins (decision 21), or of every mass of the chain (decision 26). A
-// key passes the whole frame through the sketch's light, to compare (decision
-// 24).
+// of its twins (decision 21), or of every mass of the chain (decision 26).
+// One switch puts out the twins and the trails and lights them again
+// (decision 27). A key passes the whole frame through the sketch's light, to
+// compare (decision 24).
 
 const G = 9.81;
 // A frame longer than this (a hidden tab, a stall) moves the chain by this
@@ -131,6 +132,16 @@ function play({ canvas, gl }: Stage): void {
   // here first, and go through the trails' curve with them (decision 24).
   const scene = new LightTarget(gl);
   let wholeFrame = false;
+  // The twins and the trails, lit or put out by one switch; their controls
+  // keep their values, and stepping one of them lights them again.
+  let lit = true;
+  const LIGHT_CONTROLS: ReadonlySet<Parameter> = new Set([
+    TWIN_COUNT,
+    SPREAD,
+    TRAIL,
+    RIBBON,
+    PALETTE,
+  ]);
   const trail = new SegmentBatch(4096);
   const tipAt = new Float64Array(2);
   // where each mass of the chain, and each twin's tip, was at the end of the
@@ -182,7 +193,7 @@ function play({ canvas, gl }: Stage): void {
     color: Rgb,
     light: number,
   ): void {
-    if (value(TRAIL) === 0) return;
+    if (!lit || value(TRAIL) === 0) return;
     if (Math.hypot(bx - ax, by - ay) < TRAIL_JUMP) {
       trail.push(ax, ay, bx, by, color, light);
     }
@@ -191,18 +202,18 @@ function play({ canvas, gl }: Stage): void {
   /** The twins' control: the number asked for, or the fewer the budget carries, in the tone of a value held back. */
   function showTwins(): void {
     const asked = value(TWIN_COUNT);
-    if (hand === null && twins.length < asked) {
+    if (lit && hand === null && twins.length < asked) {
       controls.showValue(TWIN_COUNT.id, asked, twins.length);
     } else {
       controls.showValue(TWIN_COUNT.id, asked);
     }
   }
 
-  /** Twins of the chain as it is now, as many as their budget carries. */
+  /** Twins of the chain as it is now, as many as their budget carries, while the light is on. */
   function spawnTwins(): void {
     twins = bornTwins(
       state,
-      Math.min(value(TWIN_COUNT), twinBudget.affordable()),
+      lit ? Math.min(value(TWIN_COUNT), twinBudget.affordable()) : 0,
       value(SPREAD),
     );
     resetTrailEnds();
@@ -269,6 +280,19 @@ function play({ canvas, gl }: Stage): void {
   }
   setWholeFrame(false);
 
+  /** The twins and the trails lit, or put out; the switch says which. */
+  function setLit(on: boolean): void {
+    lit = on;
+    if (on) {
+      if (hand === null) spawnTwins();
+    } else {
+      twins = [];
+      trails.clear();
+    }
+    controls.showAction("light", on ? "light" : "dark", "Light", on);
+    showTwins();
+  }
+
   function setPaused(value: boolean): void {
     paused = value;
     controls.showAction(
@@ -293,6 +317,7 @@ function play({ canvas, gl }: Stage): void {
     // another palette colours the twins at once; the trails they left keep
     // their colours and fade
     if (parameter === PALETTE) paint();
+    if (!lit && LIGHT_CONTROLS.has(parameter)) setLit(true);
     controls.showValue(parameter.id, next);
     const search = writeAddress(PARAMETERS, values, location.search);
     history.replaceState(
@@ -319,11 +344,20 @@ function play({ canvas, gl }: Stage): void {
         keys: ["r", "R"],
         keysShown: "R",
       },
+      {
+        id: "light",
+        label: "Light",
+        icon: "light",
+        keys: ["l", "L"],
+        keysShown: "L",
+        pressed: true,
+      },
     ],
     {
       step,
       act(id) {
         if (id === "pause") setPaused(!paused);
+        else if (id === "light") setLit(!lit);
         else raise();
       },
     },
@@ -411,6 +445,8 @@ function play({ canvas, gl }: Stage): void {
       setPaused(!paused);
     } else if (event.key === "r" || event.key === "R") {
       raise();
+    } else if (event.key === "l" || event.key === "L") {
+      setLit(!lit);
     } else if (event.key === "g" || event.key === "G") {
       setWholeFrame(!wholeFrame);
     } else {
@@ -488,7 +524,7 @@ function play({ canvas, gl }: Stage): void {
     dots.push(0, 0, 0, 0, colors.pivot, 0.8);
 
     // The trails fade by the time that went by and take this frame's pieces.
-    const halfLife = value(TRAIL);
+    const halfLife = lit ? value(TRAIL) : 0;
     if (simulated > 0 && halfLife > 0) {
       trails.begin(fadeAfter(simulated, halfLife));
       lines.draw(trail, scale, { radius: 0.9 * ratio, roundEnds: false });

@@ -399,3 +399,44 @@ test("the keys 1 and 2 let the trails come from the tip or from every mass, and 
   await frames(page, 5);
   expect(errors).toEqual([]);
 });
+
+test("the light switch puts out the twins and the trails and lights them again, without changing their controls", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("chain-in-hand/?time=4");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  const light = page.getByRole("button", { name: "Light" });
+  const twins = page
+    .getByRole("group", { name: "Number of twins" })
+    .locator("output");
+  const trail = page
+    .getByRole("group", { name: "Length of the trails" })
+    .locator("output");
+  await expect(light).toHaveAttribute("aria-pressed", "true");
+  const stage = page.locator("#stage");
+  const mask = [page.getByRole("toolbar")];
+
+  await frames(page, 15);
+  await page.keyboard.press("l");
+  await expect(light).toHaveAttribute("aria-pressed", "false");
+  // paused in the dark, the frame shows the chain alone
+  await page.keyboard.press(" ");
+  await frames(page, 3);
+  const dark = await stage.screenshot({ mask });
+  await expect(twins).toHaveText("512");
+  await expect(trail).toContainText("2.5 s");
+  await expect(page).toHaveURL(/\?time=4$/);
+
+  await page.keyboard.press("L");
+  await expect(light).toHaveAttribute("aria-pressed", "true");
+  await frames(page, 3);
+  expect((await stage.screenshot({ mask })).equals(dark)).toBe(false);
+
+  // in the dark, a control of the light lights it again
+  await page.keyboard.press("l");
+  await expect(light).toHaveAttribute("aria-pressed", "false");
+  await page.keyboard.press("8");
+  await expect(light).toHaveAttribute("aria-pressed", "true");
+  expect(errors).toEqual([]);
+});
