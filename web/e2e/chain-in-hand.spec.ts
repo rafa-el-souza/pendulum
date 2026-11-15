@@ -42,3 +42,34 @@ test("the chain can be grabbed, swung, let go, paused and raised again", async (
   await frames(page, 10);
   expect(errors).toEqual([]);
 });
+
+test("paused, the chain holds still; grabbing it sets it going again", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("chain-in-hand/");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  const stage = page.locator("#stage");
+  const box = await stage.boundingBox();
+  if (box === null) throw new Error("the stage is not on the page");
+
+  await frames(page, 10);
+  await page.keyboard.press(" ");
+  await frames(page, 3);
+  const pausedBefore = await stage.screenshot();
+  await frames(page, 10);
+  expect((await stage.screenshot()).equals(pausedBefore)).toBe(true);
+
+  // A press away from the chain: the hand pulls the nearest mass to it.
+  await page.mouse.move(
+    box.x + box.width / 2 + 100,
+    box.y + box.height / 2 + 100,
+  );
+  await page.mouse.down();
+  await frames(page, 3);
+  const grabbedBefore = await stage.screenshot();
+  await frames(page, 10);
+  expect((await stage.screenshot()).equals(grabbedBefore)).toBe(false);
+  await page.mouse.up();
+  expect(errors).toEqual([]);
+});
