@@ -6,6 +6,11 @@
   --color-ink-muted: #a3a09a;
   --color-link: #e9e7e3;
 
+  /* The pieces' light, drawn with WebGL: opaque colors (src/core/color.ts). */
+  --color-chain: #fff0d1;
+  --color-hand: #66bfff;
+  --color-pivot: #999999;
+
   --font-text: system-ui, sans-serif;
 
   --space-1: 0.5rem;
