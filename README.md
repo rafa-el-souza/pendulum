@@ -33,7 +33,8 @@ hanging rope it becomes as n grows.
   runs from 1 to 512 while it moves, its time from a tenth of real time to
   four times it, and the hand that holds it from a rubber band to a firm grip.
   Let go, it leaves 512 twins born a hair apart, which fan out in colour to
-  show chaos, and its tip and theirs leave trails of light that fade.
+  show chaos, and its tip and theirs leave trails of light that fade. How
+  many twins there are and how long the trails last are controls too.
   Discreet controls appear when wanted, each with a key, and the address
   carries every value, so a view can be shared.
 

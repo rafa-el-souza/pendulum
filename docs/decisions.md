@@ -325,6 +325,31 @@ the whole frame through 1 − exp(−x). Here only the trails go through it, so
 that what the author has approved since looks as it did. Passing everything
 through it belongs to the visual identity, which is still open.
 
+## 22. Controls for the twins and the trails
+
+*2026-11-15.* Two parameters join the first piece's registry, each with its
+control, its keys and its place in the address.
+
+- **The number of twins** runs over the sketch's choices, 0, 64, 512 and
+  4 096, and opens at 512 (keys 9 and 0). Changing it gives new twins from
+  the chain as it is. When their budget carries fewer, the control shows
+  how many it carries, in the tone of a value held back (decision 20).
+- **The length of the trails** is the half-life of their light: off, 0.5, 1,
+  2.5 and 10 s, and ten minutes, which a visit does not see fade, so those
+  trails stay until the chain is raised again. It opens at 2.5 s (keys 7
+  and 8) and is shown as pips.
+
+Each control has a drawn icon, a fan and a comet, so that it reads without
+words. How they look and where they sit, the author decides by seeing. On a
+phone the bar now wraps to three rows, which is part of the layout the
+author has left for later.
+
+**Why.** The author asked which controls the twins and the trails could
+have, and how they would be placed, and chose to see this proposal built.
+Four others stay open: how close the twins are born, which shows the
+butterfly effect; which masses draw trails; keys alone, with nothing on
+screen; and one switch for both.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
