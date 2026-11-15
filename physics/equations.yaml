@@ -1,0 +1,1252 @@
+# The equations this project stands on, and what was checked about each.
+#
+# `equations` has one entry per display equation of the paper, by the number
+# PRINTED in the PDF (the LaTeX source's labels look like numbers and are not).
+# The paper itself is not reproduced: `says` describes the equation in our
+# words, and LaTeX appears only where an entry corrects the print. To read the
+# equations, rebuild the local reference copy (see physics/README.md).
+#
+#   id      EQ-<printed number>; EQ-sigma and EQ-phi are the two unnumbered
+#           definitions.
+#   page    the paper's own page number.
+#   kind    definition | step | result | approximation.
+#   status  ok        true as printed
+#           misprint  not true as printed; `corrected` is
+#           notation  true only under the reading given in `reading`
+#           wrong     not true, and no small correction rescues it
+#           unchecked no verdict
+#   test    the test that decides the entry, under physics/oracle/. For a
+#           misprint it asserts both that the printed form fails and that the
+#           corrected form holds.
+#   second_check
+#           the verdict of a second reviewer who was given the claim without
+#           the first reviewer's route: confirmed | confirmed with conditions |
+#           disputed.
+#
+# `text` lists what is wrong or unsupported in the paper's prose and argument.
+# `statements` is the physics the project relies on, in its own notation, each
+# with the paper equations it rests on and the tests that establish it.
+# Code and tests cite these ids.
+
+paper:
+  title: Equations of Motion Formulation of a Pendulum Containing N-point Masses
+  author: Boran Yeşilyurt
+  arxiv: 1910.12610v2
+  url: https://arxiv.org/abs/1910.12610v2
+equations:
+- id: EQ-1
+  section: 2
+  page: 2
+  kind: result
+  says: Equation of motion of the simple pendulum.
+  status: ok
+  test: symbolic/test_sections_2_3.py::test_eq_1
+  second_check: confirmed
+
+- id: EQ-2
+  section: 2
+  page: 2
+  kind: definition
+  says: Lagrangian of the simple pendulum.
+  status: ok
+  test: symbolic/test_sections_2_3.py::test_eq_2
+  second_check: confirmed
+
+- id: EQ-3
+  section: 2
+  page: 2
+  kind: definition
+  says: Horizontal position of the first mass.
+  status: ok
+  test: symbolic/test_sections_2_3.py::test_eq_3
+  second_check: confirmed
+
+- id: EQ-4
+  section: 2
+  page: 2
+  kind: definition
+  says: Vertical position of the first mass.
+  status: ok
+  test: symbolic/test_sections_2_3.py::test_eq_4
+  second_check: confirmed
+
+- id: EQ-5
+  section: 2
+  page: 2
+  kind: definition
+  says: Horizontal position of the second mass.
+  status: ok
+  test: symbolic/test_sections_2_3.py::test_eq_5
+  second_check: confirmed
+
+- id: EQ-6
+  section: 2
+  page: 2
+  kind: definition
+  says: Vertical position of the second mass.
+  status: ok
+  test: symbolic/test_sections_2_3.py::test_eq_6
+  second_check: confirmed
+
+- id: EQ-7
+  section: 2
+  page: 2
+  kind: step
+  says: Differentials of the first mass's coordinates.
+  status: ok
+  test: symbolic/test_sections_2_3.py::test_eq_7
+  second_check: confirmed
+
+- id: EQ-8
+  section: 2
+  page: 2
+  kind: step
+  says: Squared speed of the first mass.
+  status: ok
+  test: symbolic/test_sections_2_3.py::test_eq_8
+  second_check: confirmed
+
+- id: EQ-9
+  section: 2
+  page: 2
+  kind: step
+  says: Kinetic energy of the first mass.
+  status: ok
+  test: symbolic/test_sections_2_3.py::test_eq_9
+  second_check: confirmed
+
+- id: EQ-10
+  section: 2
+  page: 3
+  kind: step
+  says: Potential energy of the first mass.
+  status: ok
+  test: symbolic/test_sections_2_3.py::test_eq_10
+  second_check: confirmed
+
+- id: EQ-11
+  section: 2
+  page: 3
+  kind: step
+  says: The first mass's share of the Lagrangian.
+  status: ok
+  test: symbolic/test_sections_2_3.py::test_eq_11
+  second_check: confirmed
+
+- id: EQ-12
+  section: 2
+  page: 3
+  kind: step
+  says: Differential of the second mass's horizontal coordinate.
+  status: ok
+  test: symbolic/test_sections_2_3.py::test_eq_12
+  second_check: confirmed
+
+- id: EQ-13
+  section: 2
+  page: 3
+  kind: step
+  says: Differential of the second mass's vertical coordinate.
+  status: ok
+  test: symbolic/test_sections_2_3.py::test_eq_13
+  second_check: confirmed
+
+- id: EQ-14
+  section: 2
+  page: 3
+  kind: step
+  says: Squared speed of the second mass.
+  status: misprint
+  problem: The first term is printed l_1^2\dot{\theta_1}, the first angular velocity to the first
+    power; the squared speed of m_2 has l_1^2\dot{\theta_1}^2.
+  corrected: |-
+    (dx_2/dt)^2+(dy_2/dt)^2= l_1^2\dot{\theta_1}^2+l_2^2\dot{\theta_2}^2+2l_1l_2\cos(\theta_1-\theta_2)\dot{\theta_1}\dot{\theta_2}
+  test: symbolic/test_sections_2_3.py::test_eq_14
+  second_check: confirmed
+
+- id: EQ-15
+  section: 2
+  page: 3
+  kind: step
+  says: Kinetic energy of the second mass.
+  status: misprint
+  problem: 'Two defects: l_1^2\dot{\theta_1} should be l_1^2\dot{\theta_1}^2, and the cross term l_1l_2\cos(\theta_1-\theta_2)\dot{\theta_1}\dot{\theta_2}
+    lacks the factor 2 that (14) and (17) print. Restoring only one of the two still fails.'
+  corrected: |-
+    K_2=\frac{1}{2}m_2(l_1^2\dot{\theta_1}^2+l_2^2\dot{\theta_2}^2+2l_1l_2\cos(\theta_1-\theta_2)\dot{\theta_1}\dot{\theta_2})
+  test: symbolic/test_sections_2_3.py::test_eq_15
+  second_check: confirmed
+
+- id: EQ-16
+  section: 2
+  page: 3
+  kind: step
+  says: Potential energy of the second mass.
+  status: ok
+  test: symbolic/test_sections_2_3.py::test_eq_16
+  second_check: confirmed
+
+- id: EQ-17
+  section: 2
+  page: 3
+  kind: step
+  says: The second mass's share of the Lagrangian.
+  status: misprint
+  problem: Inside the m_2 bracket l_1^2\dot{\theta_1} should be l_1^2\dot{\theta_1}^2 (the potential
+    part is right).
+  corrected: |-
+    L_2=K_2-U_2=\frac{1}{2}m_2(l_1^2\dot{\theta_1}^2+l_2^2\dot{\theta_2}^2+2l_1l_2\cos(\theta_1-\theta_2)\dot{\theta_1}\dot{\theta_2})+m_2g(l_1\cos(\theta_1)+ l_2\cos(\theta_2))
+  test: symbolic/test_sections_2_3.py::test_eq_17
+  second_check: confirmed
+
+- id: EQ-18
+  section: 2
+  page: 4
+  kind: result
+  says: Lagrangian of the double pendulum.
+  status: misprint
+  problem: 'In the m_2 term l_1^2\dot{\theta_1} should be l_1^2\dot{\theta_1}^2. Consequence: the
+    printed term is a total time derivative, so the Euler-Lagrange equation of the printed (18) for
+    theta_1 lacks m_2l_1^2\ddot{\theta_1}; (19) follows only from the corrected (18), (20) from either.'
+  corrected: |-
+    L=L_1+L_2=\frac{1}{2}m_1l_1^2\dot{\theta_1}^2+m_1gl_1\cos(\theta_1)+\frac{1}{2}m_2(l_1^2\dot{\theta_1}^2+l_2^2\dot{\theta_2}^2+2l_1l_2\cos(\theta_1-\theta_2)\dot{\theta_1}\dot{\theta_2})+m_2g(l_1\cos(\theta_1)+ l_2\cos(\theta_2))
+  test: symbolic/test_sections_2_3.py::test_eq_18
+  second_check: confirmed
+
+- id: EQ-19
+  section: 2
+  page: 4
+  kind: result
+  says: Equation of motion of the double pendulum for the first angle.
+  status: ok
+  test: symbolic/test_sections_2_3.py::test_eq_19
+  second_check: confirmed
+
+- id: EQ-20
+  section: 2
+  page: 4
+  kind: result
+  says: Equation of motion of the double pendulum for the second angle.
+  status: ok
+  test: symbolic/test_sections_2_3.py::test_eq_20
+  second_check: confirmed
+
+- id: EQ-21
+  section: 2
+  page: 4
+  kind: definition
+  says: Position of the first mass, restated for the triple pendulum.
+  status: ok
+  test: symbolic/test_sections_2_3.py::test_eq_21
+  second_check: confirmed
+
+- id: EQ-22
+  section: 2
+  page: 4
+  kind: definition
+  says: Position of the second mass, restated for the triple pendulum.
+  status: ok
+  test: symbolic/test_sections_2_3.py::test_eq_22
+  second_check: confirmed
+
+- id: EQ-23
+  section: 2
+  page: 4
+  kind: definition
+  says: Position of the third mass.
+  status: ok
+  test: symbolic/test_sections_2_3.py::test_eq_23
+  second_check: confirmed
+
+- id: EQ-24
+  section: 2
+  page: 4
+  kind: step
+  says: Differential of the third mass's horizontal coordinate.
+  status: ok
+  test: symbolic/test_sections_2_3.py::test_eq_24
+  second_check: confirmed
+
+- id: EQ-25
+  section: 2
+  page: 4
+  kind: step
+  says: Differential of the third mass's vertical coordinate.
+  status: ok
+  test: symbolic/test_sections_2_3.py::test_eq_25
+  second_check: confirmed
+
+- id: EQ-26
+  section: 2
+  page: 4
+  kind: step
+  says: Squared line element of the third mass.
+  status: misprint
+  problem: The first term of the second line is printed (\theta_1-\theta_3)d\theta_1d\theta_3; the
+    term is 2l_1l_3\cos(\theta_1-\theta_3)d\theta_1d\theta_3 (the factor 2l_1l_3\cos is missing).
+    (27) has the right term.
+  corrected: |-
+    (dx_3)^2+(dy_3)^2 =l_1^2(d\theta_1)^2+l_2^2(d\theta_2)^2+l_3^2(d\theta_3)^2+2l_1l_2\cos(\theta_1-\theta_2)d\theta_1d\theta_2+2l_1l_3\cos(\theta_1-\theta_3)d\theta_1d\theta_3+ 2l_2l_3\cos(\theta_2-\theta_3)d\theta_2d\theta_3
+  test: symbolic/test_sections_2_3.py::test_eq_26
+  second_check: confirmed
+
+- id: EQ-27
+  section: 2
+  page: 4
+  kind: step
+  says: Kinetic energy of the third mass.
+  status: ok
+  test: symbolic/test_sections_2_3.py::test_eq_27
+  second_check: confirmed
+
+- id: EQ-28
+  section: 2
+  page: 4
+  kind: step
+  says: Potential energy of the third mass.
+  status: ok
+  test: symbolic/test_sections_2_3.py::test_eq_28
+  second_check: confirmed
+
+- id: EQ-29
+  section: 2
+  page: 4
+  kind: step
+  says: The third mass's share of the Lagrangian, left implicit.
+  status: ok
+  test: symbolic/test_sections_2_3.py::test_eq_29
+  second_check: confirmed
+
+- id: EQ-30
+  section: 2
+  page: 5
+  kind: result
+  says: Equation of motion of the triple pendulum for the first angle.
+  status: ok
+  test: symbolic/test_sections_2_3.py::test_eq_30
+  second_check: confirmed
+
+- id: EQ-31
+  section: 2
+  page: 6
+  kind: result
+  says: Equation of motion of the triple pendulum for the second angle.
+  status: ok
+  test: symbolic/test_sections_2_3.py::test_eq_31
+  second_check: confirmed
+
+- id: EQ-32
+  section: 2
+  page: 6
+  kind: result
+  says: Equation of motion of the triple pendulum for the third angle.
+  status: ok
+  test: symbolic/test_sections_2_3.py::test_eq_32
+  second_check: confirmed
+
+- id: EQ-sigma
+  section: 2
+  kind: definition
+  says: 'The selector sigma_jk: one when j <= k, zero otherwise. In the sums it keeps the masses at
+    or below rod j.'
+  status: ok
+  test: symbolic/test_sections_2_3.py::test_sigma
+  second_check: confirmed
+
+- id: EQ-33
+  section: 2
+  page: 6
+  kind: step
+  says: The gravity terms of the three-mass equations, written as one sum.
+  status: ok
+  test: symbolic/test_sections_2_3.py::test_eq_33
+  second_check: confirmed
+
+- id: EQ-34
+  section: 2
+  page: 6
+  kind: step
+  says: The terms in each angle's own acceleration, for three masses, written as one sum.
+  status: ok
+  test: symbolic/test_sections_2_3.py::test_eq_34
+  second_check: confirmed
+
+- id: EQ-35
+  section: 2
+  page: 6
+  kind: step
+  says: The products of two angular velocities that come from differentiating the Lagrangian by an
+    angle, for three masses.
+  status: ok
+  test: symbolic/test_sections_2_3.py::test_eq_35
+  second_check: confirmed
+
+- id: EQ-phi
+  section: 2
+  kind: definition
+  says: 'The selector phi_jk: zero when j = k, one otherwise. It keeps the diagonal out of the coupling
+    sum.'
+  status: ok
+  test: symbolic/test_sections_2_3.py::test_phi
+  second_check: confirmed
+
+- id: EQ-36
+  section: 2
+  page: 7
+  kind: step
+  says: The terms that come from the time derivative of the Lagrangian's velocity derivative, for
+    three masses.
+  status: ok
+  test: symbolic/test_sections_2_3.py::test_eq_36
+  second_check: confirmed
+
+- id: EQ-37
+  section: 2
+  page: 7
+  kind: result
+  says: Equations of motion of the triple pendulum as a single sum.
+  status: ok
+  test: symbolic/test_sections_2_3.py::test_eq_37
+  second_check: confirmed
+
+- id: EQ-38
+  section: 2
+  page: 8
+  kind: result
+  says: General equation of motion for the j-th angle of the n-mass pendulum, from the first derivation.
+  status: ok
+  test: symbolic/test_sections_2_3.py::test_eq_38
+  second_check: confirmed
+
+- id: EQ-39
+  section: 3
+  page: 8
+  kind: definition
+  says: Position vector of the n-th mass as the sum of the rod vectors.
+  status: misprint
+  problem: The summand is printed \vec{r_n}, which does not depend on the summation index i, so the
+    sum is n\vec{r_n}; the position of mass n is \sum_{i=1}^{n}\vec{r_i}. As printed it holds only
+    for n = 1.
+  corrected: |-
+    \vec{R_n}=\sum_{i=1}^{n} \vec{r_i},\quad \vec{r_i}=l_i\sin(\theta_i)\hat{x}-l_i\cos(\theta_i)\hat{y}
+  test: symbolic/test_sections_2_3.py::test_eq_39
+  second_check: confirmed
+
+- id: EQ-40
+  section: 3
+  page: 8
+  kind: step
+  says: Velocity vector of the n-th mass.
+  status: ok
+  test: symbolic/test_sections_2_3.py::test_eq_40
+  second_check: confirmed
+
+- id: EQ-41
+  section: 3
+  page: 8
+  kind: step
+  says: Squared speed of the n-th mass as a double sum over the rods.
+  status: misprint
+  problem: The middle side is printed \vec{R_n}\cdot\vec{R_n}, the squared position, which is not
+    |\dot{\vec{R_n}}|^2; the outer equality |\dot{\vec{R_n}}|^2=\sum_{i,j=1}^{n} l_il_j\dot{\theta_i}\dot{\theta_j}\cos(\theta_i-\theta_j)
+    is right.
+  corrected: |-
+    |{\dot{\vec{R_n}}}|^{2}=\dot{\vec{R_n}}\cdot\dot{\vec{R_n}}=\sum_{i,j=1}^{n} l_il_j\dot{\theta_i}\dot{\theta_j}\cos(\theta_i-\theta_j)
+  test: symbolic/test_sections_2_3.py::test_eq_41
+  second_check: confirmed
+
+- id: EQ-42
+  section: 3
+  page: 8
+  kind: step
+  says: Kinetic energy of the system.
+  status: misprint
+  problem: Under \sum_k the speed is printed |\dot{\vec{R_n}}|^2, the speed of the last mass, for
+    every k; the kinetic energy needs |\dot{\vec{R_k}}|^2. As printed it holds only for n = 1. (46.2)
+    itself uses the corrected T.
+  corrected: |-
+    T=\sum_{k=1}^{n} \frac{1}{2}m_k|{\dot{\vec{R_k}}}|^{2}
+  test: symbolic/test_sections_2_3.py::test_eq_42
+  second_check: confirmed
+
+- id: EQ-43
+  section: 3
+  page: 8
+  kind: step
+  says: Potential energy of the system.
+  status: ok
+  test: symbolic/test_sections_2_3.py::test_eq_43
+  second_check: confirmed
+
+- id: EQ-44
+  section: 3
+  page: 8
+  kind: step
+  says: Lagrangian of the system.
+  status: misprint
+  problem: 'Same subscript as (42): |\dot{\vec{R_n}}|^2 should be |\dot{\vec{R_k}}|^2; the potential
+    part is right. As printed it holds only for n = 1.'
+  corrected: |-
+    L=T-U=\sum_{k=1}^{n} \frac{1}{2}m_k|{\dot{\vec{R_k}}}|^{2}+g \sum_{i=1}^{n} m_i \sum_{j=1}^{i} l_j\cos\theta_j
+  test: symbolic/test_sections_2_3.py::test_eq_44
+  second_check: confirmed
+
+- id: EQ-45
+  section: 3
+  page: 8
+  kind: step
+  says: Euler-Lagrange equation for the q-th angle, split into its kinetic and potential parts.
+  status: ok
+  test: symbolic/test_sections_2_3.py::test_eq_45
+  second_check: confirmed
+
+- id: EQ-46.1
+  section: 3
+  page: 8
+  kind: step
+  says: Derivative of the potential energy by the q-th angle.
+  status: ok
+  test: symbolic/test_sections_2_3.py::test_eq_46_1
+  second_check: confirmed
+
+- id: EQ-46.2
+  section: 3
+  page: 9
+  kind: step
+  says: Minus the derivative of the kinetic energy by the q-th angle.
+  status: ok
+  test: symbolic/test_sections_2_3.py::test_eq_46_2
+  second_check: confirmed
+
+- id: EQ-46.3
+  section: 3
+  page: 10
+  kind: step
+  says: Time derivative of the kinetic energy's velocity derivative, the part with equal indices.
+  status: ok
+  test: symbolic/test_sections_2_3.py::test_eq_46_3
+  second_check: confirmed
+
+- id: EQ-46.4
+  section: 3
+  page: 10
+  kind: step
+  says: Time derivative of the kinetic energy's velocity derivative, the part with different indices.
+  status: misprint
+  problem: 'The first sum carries an extra factor \dot{\theta_q}: l_il_q\dot{\theta_i}\dot{\theta_q}\sin(\theta_i-\theta_q)[\dot{\theta_q}-\dot{\theta_i}]
+    should be l_il_q\dot{\theta_i}\sin(\theta_i-\theta_q)[\dot{\theta_q}-\dot{\theta_i}]. Read with
+    its heading ''When i \neq j'' (the i = j terms of T left out), the second sum must also leave
+    out i = q, which the paper itself does with \phi_{iq} in (46). Read with its inner sum as printed
+    (all i, j = 1..k), the left side is d/dt(\partial T/\partial\dot{\theta_q}) and only the extra
+    factor is wrong.'
+  corrected: |-
+    \frac{d}{dt}\big(\frac{\partial }{\partial{\dot{\theta_q}}}\Big(\sum_{k=1}^{n} \frac{1}{2}m_k\sum_{i,j=1,\,i\neq j}^{k} l_il_j\dot{\theta_i}\dot{\theta_j}\cos(\theta_i-\theta_j) \Big)\big) = \sum_{k=q}^{n} m_k\sum_{i=1}^{k} l_il_q\dot{\theta_i}\sin(\theta_i-\theta_q)[\dot{\theta_q}-\dot{\theta_i}] + \sum_{k=q}^{n} m_k\sum_{i=1}^{k} l_il_q\phi_{iq}\cos(\theta_i-\theta_q)\ddot{\theta_i}
+  test: symbolic/test_sections_2_3.py::test_eq_46_4
+  second_check: confirmed
+
+- id: EQ-46
+  section: 3
+  page: 10
+  kind: result
+  says: General equation of motion for the q-th angle from the second derivation, as grouped double
+    sums.
+  status: misprint
+  problem: The fourth sum carries the extra factor \dot{\theta_q} of (46.4). As printed (46) is the
+    equation of motion only for n = 1, where the extra terms carry sin 0, and fails for every q when
+    n = 2, 3, 4. Without the factor it equals the Euler-Lagrange expression exactly, and (38) term
+    by term.
+  corrected: |-
+    g\sum_{i=q}^{n} m_il_q\sin(\theta_q) + \sum_{k=q}^{n} m_k\sum_{i=1}^{k} l_il_q\dot{\theta_i}\dot{\theta_q}\sin(\theta_q-\theta_i) +\sum_{k=q}^{n} m_k{l_q}^2\ddot{\theta_q} +\sum_{k=q}^{n} m_k\sum_{i=1}^{k} l_il_q\dot{\theta_i}\sin(\theta_i-\theta_q)[\dot{\theta_q}-\dot{\theta_i}] + \sum_{k=q}^{n} m_k\sum_{i=1}^{k} l_il_q\phi_{iq}\cos(\theta_i-\theta_q)\ddot{\theta_i}=0
+  test: symbolic/test_sections_2_3.py::test_eq_46
+  second_check: confirmed
+
+- id: EQ-47
+  section: 3
+  page: 10
+  kind: result
+  says: The second derivation's equation of motion under a single outer sum.
+  status: misprint
+  problem: (47) is (46) regrouped (identical as printed), with the same extra factor \dot{\theta_q}
+    in its fourth term.
+  corrected: |-
+    \sum_{k=q}^{n} \Big( gm_kl_q\sin(\theta_q) + m_k\sum_{i=1}^{k} l_il_q\dot{\theta_i}\dot{\theta_q}\sin(\theta_q-\theta_i) + m_k{l_q}^2\ddot{\theta_q} + m_k\sum_{i=1}^{k} l_il_q\dot{\theta_i}\sin(\theta_i-\theta_q)[\dot{\theta_q}-\dot{\theta_i}] + m_k\sum_{i=1}^{k} l_il_q\phi_{iq}\cos(\theta_i-\theta_q)\ddot{\theta_i} \Big)=0
+  test: symbolic/test_sections_2_3.py::test_eq_47
+  second_check: confirmed
+
+- id: EQ-48
+  section: 4
+  page: 11
+  kind: approximation
+  says: Small-angle sine.
+  status: ok
+  test: limits/test_sections_4_5.py::test_eq48_sine_approximant_error_is_cubic
+
+- id: EQ-49
+  section: 4
+  page: 11
+  kind: approximation
+  says: Small-angle cosine, to second order.
+  status: ok
+  test: limits/test_sections_4_5.py::test_eq49_cosine_approximant_error_is_quartic
+
+- id: EQ-50
+  section: 4
+  page: 11
+  kind: approximation
+  says: The general formula with the small-angle substitutions, and its expansion.
+  status: ok
+  test: limits/test_sections_4_5.py::test_eq50_is_eq38_truncated_and_expanded
+
+- id: EQ-51
+  section: 4
+  page: 11
+  kind: approximation
+  says: The expanded small-angle form of the general formula.
+  status: ok
+  test: limits/test_sections_4_5.py::test_eq51_restates_eq50
+
+- id: EQ-52
+  section: 4
+  page: 11
+  kind: approximation
+  says: The small-angle form worked out for the simple pendulum.
+  status: ok
+  test: limits/test_sections_4_5.py::test_eq52_simple_pendulum_lines
+
+- id: EQ-53
+  section: 4
+  page: 11
+  kind: approximation
+  says: The small-angle form worked out for the first angle of the double pendulum.
+  status: misprint
+  problem: 'The third term is printed with the dot over the whole group, \dot{\theta_1^2}: read literally,
+    the time derivative of theta_1^2, which is 2 theta_1 \dot{\theta_1} and does not cancel the fourth
+    term. With \dot{\theta_1}^2 the line is exactly (51) for n = 2, j = 1. The text announces j =
+    1, 2 and gives only j = 1.'
+  corrected: |-
+    gl_1\theta_1m_1+m_1l_1^2\ddot{\theta_1}+\theta_1(m_1+m_2)l_1^2\dot{\theta_1}^2-(m_1+m_2)\theta_1\dot{\theta_1}^2l_1^2+\theta_1gl_1m_2+m_2l_1^2\ddot{\theta_1}+\theta_1m_2l_1l_2\dot{\theta_2}^2-m_2l_1l_2\theta_2\dot{\theta_2}^2+(m_2)l_1l_2(\ddot{\theta_2}-\frac{\theta_1^2}{2}\ddot{\theta_2}-\frac{\theta_2^2}{2}\ddot{\theta_2}+\theta_1\theta_2\ddot{\theta_2})=0
+  test: limits/test_sections_4_5.py::test_eq53_printed_fails_corrected_passes
+  second_check: confirmed with conditions
+
+- id: EQ-54
+  section: 5
+  page: 12
+  kind: result
+  says: Linearized equation of motion for the j-th angle.
+  status: ok
+  test: limits/test_sections_4_5.py::test_eq54_is_the_first_principles_linearization
+  second_check: confirmed
+
+- id: EQ-55
+  section: 5
+  page: 12
+  kind: definition
+  says: Linear mass density of the chain of equal masses.
+  status: ok
+  test: limits/test_sections_4_5.py::test_eq55_density_constant_along_the_refinement
+
+- id: EQ-56
+  section: 5
+  page: 13
+  kind: step
+  says: The gravity sum of the linearized equation in terms of the horizontal displacements, for equal
+    masses and lengths.
+  status: ok
+  test: limits/test_sections_4_5.py::test_eq56_first_sum
+
+- id: EQ-57
+  section: 5
+  page: 13
+  kind: step
+  says: The own-acceleration sum in terms of the displacements.
+  status: ok
+  test: limits/test_sections_4_5.py::test_eq57_second_sum
+
+- id: EQ-58
+  section: 5
+  page: 13
+  kind: step
+  says: The coupling sum over the rods above j, in terms of the displacements.
+  status: ok
+  test: limits/test_sections_4_5.py::test_eq58_third_sum_below
+
+- id: EQ-59
+  section: 5
+  page: 13
+  kind: step
+  says: The same sum after telescoping.
+  status: ok
+  test: limits/test_sections_4_5.py::test_eq59_third_sum_below_telescoped
+
+- id: EQ-60
+  section: 5
+  page: 13
+  kind: step
+  says: The coupling sum over the rods below j, expanded.
+  status: notation
+  problem: The two terms written out exist only while j + 2 <= n. Read literally at j = n, the left
+    side is an empty sum while the right side names the accelerations of masses n + 1 and n + 2, which
+    do not exist. As printed it holds for j <= n - 1, and for j = n with the reading below. (61),
+    which is what the paper goes on to use, holds for every j as printed.
+  reading: |-
+    \ddot{x}_k := 0\ \ (k>n)\ \text{in (60) as printed, which then holds for }1\le j\le n
+  test: limits/test_sections_4_5.py::test_eq60_last_mass_needs_the_reading
+  second_check: confirmed
+
+- id: EQ-61
+  section: 5
+  page: 13
+  kind: step
+  says: The same sum after telescoping.
+  status: ok
+  test: limits/test_sections_4_5.py::test_eq61_closed_form_all_j
+  second_check: confirmed
+
+- id: EQ-62
+  section: 5
+  page: 14
+  kind: step
+  says: The linearized equation with every sum substituted.
+  status: misprint
+  problem: A stray symbol s multiplies the last bracket and is defined nowhere. Without it the line
+    is exactly (54) after substituting (56), (57), (59) and (61).
+  corrected: |-
+    (n-j+1)mlg\frac{(x_j-x_{j-1})}{l} + (n-j+1)ml^2\frac{(\ddot{x_j}-\ddot{x}_{j-1})}{l}+(n-j+1)ml^2\frac{\ddot{x}_{j-1}}{l}+\frac{ml^2}{l}(-(n-j)\ddot{x}_j+\sum_{k=j+1}^{n}\ddot{x}_k)=0
+  test: limits/test_sections_4_5.py::test_eq62_printed_fails_corrected_passes
+  second_check: confirmed
+
+- id: EQ-63
+  section: 5
+  page: 14
+  kind: step
+  says: The same after cancellation.
+  status: ok
+  test: limits/test_sections_4_5.py::test_eq63_after_cancellations
+
+- id: EQ-64
+  section: 5
+  page: 14
+  kind: step
+  says: The previous line solved for the summed accelerations at and below mass j.
+  status: ok
+  test: limits/test_sections_4_5.py::test_eq64_rearranges_eq63
+
+- id: EQ-65
+  section: 5
+  page: 14
+  kind: step
+  says: Difference equation for the displacement of mass j.
+  status: ok
+  test: limits/test_sections_4_5.py::test_eq65_is_the_first_principles_equation
+  second_check: confirmed
+
+- id: EQ-66
+  section: 5
+  page: 14
+  kind: result
+  says: Difference equation for the displacement of mass j in second-difference form, for the refined
+    chain.
+  status: ok
+  test: limits/test_sections_4_5.py::test_eq66_rewrites_eq65_in_sequential_form
+  second_check: confirmed
+
+- id: EQ-67
+  section: 5
+  page: 14
+  kind: step
+  says: The acceleration of mass j becomes the field's second time derivative.
+  status: notation
+  problem: Meaningful only if the index moves with the refinement, j = j_p with j_p l_p tending to
+    y (the text says later that (l_p) j is the position of mass j along the rope), and only if the
+    chain's solutions converge to a field x(y, t) with a continuous second derivative in t, which
+    is assumed and not shown. With j fixed, mass j runs into the pivot and the limit is zero.
+  reading: |-
+    \lim_{p\to\infty}\ddot{x}_{j_p}(t)=\frac{\partial^2 x(y,t)}{\partial t^2},\qquad j_p\,l_p\to y
+  test: limits/test_sections_4_5.py::test_eq67_reading_on_discrete_modes
+  second_check: confirmed
+
+- id: EQ-68
+  section: 5
+  page: 14
+  kind: step
+  says: Neighbouring displacements coincide in the limit.
+  status: ok
+  test: limits/test_sections_4_5.py::test_eq68_neighbour_gap_vanishes
+
+- id: EQ-69
+  section: 5
+  page: 14
+  kind: step
+  says: The difference quotient of the displacement along the chain.
+  status: ok
+  test: limits/test_sections_4_5.py::test_eq69_is_an_identity
+
+- id: EQ-70
+  section: 5
+  page: 14
+  kind: step
+  says: 'Its limit: the slope of the displacement field.'
+  status: notation
+  problem: 'Same reading as (67): j = j_p with j_p l / 2^p tending to y, and the x_j samples of a
+    field continuously differentiable in y near that point, which is assumed. With j fixed the quotient
+    tends to the slope at the pivot.'
+  reading: |-
+    \lim_{p\to\infty}\frac{x_{j_p}-x_{j_p-1}}{l/2^p}=\frac{\partial x(y,t)}{\partial y},\qquad j_p\,l/2^p\to y
+  test: limits/test_sections_4_5.py::test_eq70_reading_on_discrete_modes
+  second_check: confirmed
+
+- id: EQ-71
+  section: 5
+  page: 15
+  kind: step
+  says: The length of chain below mass j, in the limit.
+  status: notation
+  problem: True with j = j_p and (l_p) j_p tending to y, which the sentence after (71) states. When
+    y is a multiple of some l / 2^p the expression equals L - y exactly from that refinement on; otherwise
+    only in the limit. With j fixed the limit is L. This y is the distance below the pivot, opposite
+    in sign to the y axis of the figures.
+  reading: |-
+    \lim_{p\to\infty}\big((n_p)(l_p)-(l_p)\,j_p\big)=L-y\qquad\text{for }(l_p)\,j_p\to y
+  test: limits/test_sections_4_5.py::test_eq71_reading
+  second_check: confirmed with conditions
+
+- id: EQ-72
+  section: 5
+  page: 15
+  kind: step
+  says: The second difference quotient, rearranged.
+  status: ok
+  test: limits/test_sections_4_5.py::test_eq72_is_an_identity
+
+- id: EQ-73
+  section: 5
+  page: 15
+  kind: step
+  says: 'Its limit: the second derivative weighted by the length of chain below.'
+  status: notation
+  problem: 'Same reading as (67): j = j_p with j_p l_p tending to y, and the x_j samples of a field
+    twice continuously differentiable in y near that point, which is assumed. With j fixed the expression
+    tends to L times the second derivative at the pivot.'
+  reading: |-
+    \lim_{p\to\infty}((n_p)-j_p)\frac{x_{j_p+1}-2x_{j_p}+x_{j_p-1}}{l_p}=(L-y)\frac{\partial^2 x(y,t)}{\partial y^2},\qquad j_p\,l_p\to y
+  test: limits/test_sections_4_5.py::test_eq73_reading_on_discrete_modes
+  second_check: confirmed
+
+- id: EQ-74
+  section: 5
+  page: 15
+  kind: result
+  says: Wave equation for the small transverse motion of the hanging chain, as the limit of infinitely
+    many masses.
+  status: ok
+  test: limits/test_sections_4_5.py::test_eq74_is_the_rope_equation
+  second_check: confirmed
+
+- id: EQ-75
+  section: 5
+  page: 15
+  kind: definition
+  says: Euler-Lagrange equation for a field in one space dimension.
+  status: ok
+  test: limits/test_sections_4_5.py::test_eq75_matches_sympy_euler_equations
+
+- id: EQ-76
+  section: 5
+  page: 15
+  kind: definition
+  says: The Lagrangian as the integrated kinetic minus potential energy of the elements.
+  status: ok
+  test: limits/test_sections_4_5.py::test_eq76_chain_lagrangian_splits_into_element_energies
+
+- id: EQ-77
+  section: 5
+  page: 15
+  kind: step
+  says: Arc element, rise of an element, and potential energy of an element of the rope.
+  status: ok
+  test: limits/test_sections_4_5.py::test_eq77_rope_potential
+
+- id: EQ-78
+  section: 5
+  page: 16
+  kind: step
+  says: Kinetic energy of an element of the rope.
+  status: ok
+  test: limits/test_sections_4_5.py::test_eq78_kinetic_energy_at_quadratic_order
+
+- id: EQ-79
+  section: 5
+  page: 16
+  kind: step
+  says: The same for small slopes.
+  status: ok
+  test: limits/test_sections_4_5.py::test_eq79_kinetic_energy_limit
+
+- id: EQ-80
+  section: 5
+  page: 16
+  kind: step
+  says: Lagrangian of the hanging rope.
+  status: ok
+  test: limits/test_sections_4_5.py::test_eq80_is_the_limit_of_the_chain_lagrangian
+
+- id: EQ-81
+  section: 5
+  page: 16
+  kind: result
+  says: Wave equation of the hanging rope from the field Lagrangian.
+  status: ok
+  test: limits/test_sections_4_5.py::test_eq81_follows_from_eq80_by_eq75
+  second_check: confirmed
+
+- id: EQ-82
+  section: 5
+  page: 16
+  kind: step
+  says: Separation of variables.
+  status: ok
+  test: limits/test_sections_4_5.py::test_eq82_separated_solutions_of_eq74
+
+- id: EQ-83
+  section: 5
+  page: 16
+  kind: step
+  says: The separated equation and its constant.
+  status: ok
+  test: limits/test_sections_4_5.py::test_eq83_separation
+
+- id: EQ-84
+  section: 5
+  page: 16
+  kind: result
+  says: 'Time equation of a mode: harmonic oscillation.'
+  status: ok
+  test: limits/test_sections_4_5.py::test_eq84_time_equation
+
+- id: EQ-85
+  section: 5
+  page: 16
+  kind: result
+  says: Shape equation of the hanging rope's modes.
+  status: ok
+  test: limits/test_sections_4_5.py::test_eq85_space_equation
+  second_check: confirmed
+
+- id: EQ-86
+  section: 6
+  page: 17
+  kind: result
+  says: The general equation of motion, restated in the conclusion.
+  status: ok
+  test: symbolic/test_sections_2_3.py::test_eq_86
+
+text:
+- id: TX-1
+  where: Section 2, after (33), page 6.
+  quote: appears in three equation
+  says: >-
+    The term named there, the third mass times its rod length squared times the third angular
+    acceleration, appears only in (32). What the three equations share is its pattern: the
+    masses at or below rod j, times the length of rod j squared, times the j-th angular
+    acceleration, which is what (34) goes on to write.
+  second_check: confirmed
+
+- id: TX-2
+  where: Section 2, the paragraph after (37), page 7.
+  quote: it will appear in the same form as we formulated in eq.18
+  says: >-
+    The equation meant is (33). The number 18 is the name of that equation in the paper's
+    source, not the number it is printed with; (18) is the Lagrangian of the double pendulum.
+  second_check: confirmed
+
+- id: TX-3
+  where: Section 2, before (38), pages 7 and 8.
+  quote: we can safely say that there will be no new terms for higher n values
+  says: >-
+    The step from three masses to any number is made by inspecting the pattern, not by proof.
+    Its result is right: with the kinetic energy written as the quadratic form of PH-2, (38) is
+    the Euler-Lagrange equation for every n, and it holds numerically from 1 to 256 masses
+    (PH-3).
+  tests:
+  - symbolic/test_sections_2_3.py::test_eq_38
+  - crosscheck/test_crosscheck.py::test_eq38_holds_for_the_constraint_force_accelerations
+  second_check: confirmed
+
+- id: TX-4
+  where: Section 3, after (46), page 10.
+  quote: When 46 is compared with 38, they are exactly the same except summation form.
+  says: >-
+    False as printed for two masses or more: (46) carries the extra angular velocity of (46.4),
+    so the paper's two derivations do not agree on the page. True once (46) is corrected, term
+    by term. The section also depends on the corrections of (39), (42) and (44): as printed,
+    those give a kinetic energy that is not the system's, and the steps that follow, (46.2)
+    and (46.3), use the right one without saying so.
+  tests:
+  - symbolic/test_sections_2_3.py::test_prose_46_and_38_are_the_same
+  - crosscheck/test_crosscheck.py::test_eq47_as_printed_is_not_eq38
+  - crosscheck/test_crosscheck.py::test_eq47_corrected_is_eq38
+  second_check: confirmed
+
+- id: TX-5
+  where: Section 4, (50) to (53), page 11.
+  says: >-
+    The small-angle substitution is not consistent in order. The general line (51) keeps terms
+    of third order in the angles and their rates, but lacks the third-order term of the sine in
+    the gravity term, minus g l_j theta_j^3 / 6 times the masses at or below rod j. It is neither
+    the linearization nor a consistent third-order approximation. The section's closing claim,
+    that the result matches the usual small-angle equations, holds only for one mass, where the
+    third-order terms that were kept cancel.
+  tests:
+  - limits/test_sections_4_5.py::test_section4_truncation_is_not_consistent_in_order
+  second_check: confirmed
+
+- id: TX-6
+  where: Section 5, the fourth assumption, page 12.
+  quote: The total length of the system is M
+  says: M is the total mass.
+  second_check: confirmed
+
+- id: TX-7
+  where: Section 5, the refinement of the chain, page 12.
+  quote: inserting a new point mass between every two point mass
+  says: >-
+    Doubling the number of masses also takes a new mass between the pivot and the first one.
+    Inserting only between masses gives 2n - 1.
+  second_check: confirmed
+
+- id: TX-8
+  where: Section 5, after (60), page 13.
+  quote: |-
+    After some algebra, the coefficient of $\ddot{\theta}_k$'s will be 1.
+  says: >-
+    What becomes one is the coefficient of each displacement's acceleration in (61). The
+    coefficient of the k-th angular acceleration in the sum is (n - k + 1) m l^2.
+  second_check: confirmed
+
+- id: TX-9
+  where: Section 5, before (70), page 14.
+  quote: |-
+    $x_j$ and $x_{j-1}$ differ by $l/2^p$
+  says: >-
+    It is the positions of the two masses along the chain that differ by l/2^p. Their
+    horizontal displacements differ by that length times the sine of the rod's angle.
+  second_check: confirmed
+
+- id: TX-10
+  where: Section 5, (67) to (73), pages 14 and 15.
+  quote: Fortunately, our limits happen to exist
+  says: >-
+    The limit argument shows consistency and nothing more: for a smooth field sampled at the
+    masses, the right side of (66) differs from that of (74) by half of g l_p times the second
+    derivative of the field along the rope, plus terms of second order in the spacing. That the
+    chain's motion has such a field as its limit is asserted, not shown; (68) holds for any
+    configuration at all and says nothing about derivatives.
+  tests:
+  - limits/test_sections_4_5.py::test_eq66_is_first_order_consistent_with_eq74
+  second_check: confirmed
+
+- id: TX-11
+  where: Section 5, from (71) on.
+  says: >-
+    In this section y is the distance below the support, zero at the support and L at the free
+    end: measured along the rope in (71) and (80), and as a vertical coordinate in (77) to
+    (79), which agree to the order kept. The figures draw the y axis upwards, so the sign is
+    the opposite of theirs.
+  second_check: confirmed
+
+- id: TX-12
+  where: Section 5, after (80), page 16.
+  quote: The integrand is the Lagrange Density
+  says: >-
+    With the factor one half outside the integral, the printed integrand is twice the density.
+    The factor does not change (81).
+  second_check: confirmed
+
+- id: TX-13
+  where: Section 5, after (81), page 16; also the abstract and the conclusion.
+  quote: our system will start moving exactly as a hanging rope
+  says: >-
+    That (81) is (74) shows that the formal limit of the chain's equation is the rope's
+    equation, not that the chain moves as the rope does. Its normal modes do converge to the
+    rope's, one by one and at first order: a low mode of N masses is slower than the rope's by
+    one part in 4N, while the modes above about 1.6 times the square root of N are faster
+    (PH-9).
+  tests:
+  - limits/test_sections_4_5.py::test_frequency_convergence_to_the_rope
+  - crosscheck/test_small_oscillations.py::test_a_low_mode_is_slower_than_the_rope_by_one_part_in_four_n
+  - crosscheck/test_small_oscillations.py::test_the_high_modes_of_a_finite_chain_are_faster_than_the_rope
+  second_check: confirmed with conditions
+
+- id: TX-14
+  where: Section 5, after (85), page 16.
+  quote: one obtains the zeroth order Bessel's Equation
+  says: >-
+    With the paper's h alone, (85) becomes h^2 Psi'' + h Psi' + 4 K h^2 Psi = 0, which is
+    Bessel's equation of order zero in the variable 2 sqrt(K) h and not in h. The paper gives
+    neither the boundary conditions nor the frequencies; they are in PH-8.
+  tests:
+  - limits/test_sections_4_5.py::test_bessel_substitution_of_the_text
+  second_check: confirmed
+
+statements:
+- id: PH-1
+  says: >-
+    Where the masses are. Each angle is measured from the downward vertical and is absolute,
+    not relative to the rod above; x points right and y up, with the pivot at the origin.
+  latex: |-
+    x_i = \sum_{k=1}^{i} l_k \sin\theta_k, \qquad y_i = -\sum_{k=1}^{i} l_k \cos\theta_k
+  rests_on: [EQ-3, EQ-4, EQ-5, EQ-6, EQ-23, EQ-39]
+  tests:
+  - symbolic/test_sections_2_3.py::test_eq_39
+  - chain/test_chain.py::test_rod_lengths_have_zero_second_derivative
+  second_check: confirmed
+
+- id: PH-2
+  says: >-
+    The energies. The kinetic energy is a quadratic form in the angular velocities whose matrix
+    A is the one of PH-3; the potential energy is zero at the height of the pivot.
+  latex: |-
+    T = \tfrac{1}{2} \sum_{i=1}^{n} m_i \left( \dot{x}_i^2 + \dot{y}_i^2 \right)
+      = \tfrac{1}{2}\, \dot\theta^{\mathsf{T}} A(\theta)\, \dot\theta,
+    \qquad
+    U = -g \sum_{i=1}^{n} m_i \sum_{k=1}^{i} l_k \cos\theta_k
+  rests_on: [EQ-41, EQ-42, EQ-43]
+  tests:
+  - symbolic/test_sections_2_3.py::test_eq_42
+  - symbolic/test_sections_2_3.py::test_eq_43
+  - symbolic/test_sections_2_3.py::test_oracle_compact_form
+  - chain/test_chain.py::test_energy_sums_kinetic_and_potential_over_the_masses
+  - chain/test_chain.py::test_energy_is_conserved_along_trajectories
+  second_check: confirmed
+
+- id: PH-3
+  says: >-
+    The equations of motion with the accelerations isolated. M_j is the total of the masses at
+    or below rod j. The matrix A is symmetric and positive definite. This is the paper's (38)
+    with its four groups of terms collected, and the same function of the state and of the
+    accelerations.
+  latex: |-
+    \sum_{k=1}^{n} A_{jk}\, \ddot\theta_k
+      + \sum_{k=1}^{n} M_{\max(j,k)}\, l_j l_k \sin(\theta_j - \theta_k)\, \dot\theta_k^2
+      + g\, M_j\, l_j \sin\theta_j = 0,
+    \qquad
+    A_{jk} = M_{\max(j,k)}\, l_j l_k \cos(\theta_j - \theta_k),
+    \qquad
+    M_j = \sum_{i=j}^{n} m_i
+  rests_on: [EQ-38, EQ-86, EQ-sigma, EQ-phi]
+  tests:
+  - symbolic/test_sections_2_3.py::test_eq_38
+  - symbolic/test_sections_2_3.py::test_oracle_compact_form
+  - crosscheck/test_crosscheck.py::test_eq38_is_the_compact_form
+  - crosscheck/test_crosscheck.py::test_eq38_holds_to_fifty_digits
+  - crosscheck/test_crosscheck.py::test_three_routes_give_the_same_accelerations
+  second_check: confirmed
+
+- id: PH-4
+  says: >-
+    The same motion from Newton's law, with the tension T_i of each rod as the unknown
+    (positive when the rod pulls its ends together). The tensions solve a symmetric positive
+    definite tridiagonal system, and the angular accelerations follow from them. Here 1/m_0 is
+    zero, and so are T_0 and T_{n+1}. Not in the paper.
+  latex: |-
+    \left( \frac{1}{m_{i-1}} + \frac{1}{m_i} \right) T_i
+      - \frac{\cos(\theta_i - \theta_{i-1})}{m_{i-1}}\, T_{i-1}
+      - \frac{\cos(\theta_{i+1} - \theta_i)}{m_i}\, T_{i+1}
+      = l_i\, \dot\theta_i^2 + \delta_{i1}\, g \cos\theta_1,
+    \qquad
+    l_i\, \ddot\theta_i
+      = \frac{\sin(\theta_{i+1} - \theta_i)}{m_i}\, T_{i+1}
+      - \frac{\sin(\theta_i - \theta_{i-1})}{m_{i-1}}\, T_{i-1}
+      - \delta_{i1}\, g \sin\theta_1
+  rests_on: []
+  tests:
+  - chain/test_chain.py::test_matches_dense_kkt_solve
+  - chain/test_chain.py::test_newton_law_holds_for_every_mass
+  - chain/test_chain.py::test_matches_arbitrary_precision_on_random_states
+  - crosscheck/test_crosscheck.py::test_eq38_holds_for_the_constraint_force_accelerations
+  second_check: confirmed
+
+- id: PH-5
+  says: >-
+    A chain with every rod on one line through the pivot, straight or folded back on itself,
+    accelerates like a simple pendulum at its first angle and not at all at the others,
+    whatever the angular velocities. An exact case for any number of masses, which any correct
+    equation of motion must reproduce. Not in the paper.
+  latex: |-
+    \theta_k \in \{ \theta_1,\ \theta_1 + \pi \}\ \text{for every } k
+    \quad\Longrightarrow\quad
+    \ddot\theta_1 = -\frac{g}{l_1} \sin\theta_1, \qquad \ddot\theta_k = 0 \ \ (k \ge 2)
+  rests_on: []
+  tests:
+  - chain/test_chain.py::test_collinear_chain_closed_form
+  - crosscheck/test_crosscheck.py::test_eq38_on_a_collinear_chain
+  - crosscheck/test_crosscheck.py::test_eq38_on_a_collinear_chain_to_fifty_digits
+  second_check: confirmed
+
+- id: PH-6
+  says: >-
+    Small oscillations about the hanging rest state, for any masses and lengths: the
+    consistent linearization of PH-3. It is the paper's (54).
+  latex: |-
+    \sum_{k=1}^{n} M_{\max(j,k)}\, l_j l_k\, \ddot\theta_k + g\, M_j\, l_j\, \theta_j = 0
+  rests_on: [EQ-54]
+  tests:
+  - limits/test_sections_4_5.py::test_eq54_is_the_first_principles_linearization
+  - crosscheck/test_small_oscillations.py::test_two_equal_masses_are_the_textbook_double_pendulum
+  second_check: confirmed
+
+- id: PH-7
+  says: >-
+    Small oscillations of N equal masses m on equal rods l, in the horizontal displacements
+    x_j, with x_0 = 0. The squared frequencies, in units of g/l, are the zeros of the Laguerre
+    polynomial of degree N. The difference equation is the paper's (65); the Laguerre zeros are
+    not in the paper.
+  latex: |-
+    \ddot{x}_j = \frac{g}{l} \left[ (N - j)\,(x_{j+1} - x_j) - (N - j + 1)\,(x_j - x_{j-1}) \right],
+    \qquad
+    L_N\!\left( \frac{\omega_k^2\, l}{g} \right) = 0
+  rests_on: [EQ-65, EQ-66]
+  tests:
+  - limits/test_sections_4_5.py::test_eq65_is_the_first_principles_equation
+  - limits/test_sections_4_5.py::test_laguerre_structure_of_the_equal_chain
+  - crosscheck/test_small_oscillations.py::test_frequencies_are_the_zeros_of_a_laguerre_polynomial
+  second_check: confirmed
+
+- id: PH-8
+  says: >-
+    The hanging rope of length L and uniform density: the equation of its small transverse
+    motion, its normal modes and their frequencies. Here y is the distance below the support,
+    j_{0,k} is the k-th zero of the Bessel function J_0, the shape vanishes at the support and
+    stays bounded at the free end. The frequencies do not depend on the density. The paper
+    gives the equation, as (74) and (81), and not its solution.
+  latex: |-
+    \frac{\partial^2 x}{\partial t^2}
+      = g\, \frac{\partial}{\partial y} \left[ (L - y)\, \frac{\partial x}{\partial y} \right],
+    \qquad
+    \Psi_k(y) = J_0\!\left( j_{0,k} \sqrt{1 - y/L} \right),
+    \qquad
+    \omega_k = \frac{j_{0,k}}{2} \sqrt{\frac{g}{L}}
+  rests_on: [EQ-74, EQ-81, EQ-85]
+  tests:
+  - limits/test_sections_4_5.py::test_eq74_is_the_rope_equation
+  - limits/test_sections_4_5.py::test_eq81_follows_from_eq80_by_eq75
+  - limits/test_sections_4_5.py::test_rope_modes_and_boundary_conditions
+  second_check: confirmed
+
+- id: PH-9
+  says: >-
+    How the chain approaches the rope. With the rope's length and mass shared among N equal
+    masses, each normal mode of the chain tends to the rope's as N grows, at first order in 1/N
+    and from below. This holds mode by mode, not for all modes at once: at a given N the modes
+    above about 1.6 times the square root of N are faster than the rope's. Against a rope
+    longer by half a rod, L (1 + 1/(2N)), the agreement is of second order. Not in the paper.
+  latex: |-
+    \frac{\omega_k(N)}{\omega_k} = 1 - \frac{1}{4N} + O\!\left( N^{-2} \right)
+    \qquad \text{for fixed } k \text{ as } N \to \infty
+  rests_on: [EQ-66, EQ-74]
+  tests:
+  - limits/test_sections_4_5.py::test_frequency_convergence_to_the_rope
+  - limits/test_sections_4_5.py::test_mode_shape_convergence_to_the_rope
+  - crosscheck/test_small_oscillations.py::test_a_low_mode_is_slower_than_the_rope_by_one_part_in_four_n
+  - crosscheck/test_small_oscillations.py::test_the_high_modes_of_a_finite_chain_are_faster_than_the_rope
+  second_check: confirmed with conditions
