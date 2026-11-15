@@ -11,7 +11,14 @@ export interface Piece {
   readonly summary: string;
 }
 
-export const PIECES: readonly Piece[] = [];
+export const PIECES: readonly Piece[] = [
+  {
+    id: "chain-in-hand",
+    title: "The chain in the hand",
+    summary:
+      "One chain to grab and throw, from one mass to a rope, with twins that show chaos.",
+  },
+];
 
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
