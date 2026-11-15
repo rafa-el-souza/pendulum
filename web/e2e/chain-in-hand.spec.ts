@@ -85,16 +85,16 @@ test("the keys and the controls change the masses and the time, and the address 
   const masses = page.getByRole("group", { name: "Number of masses" });
   const time = page.getByRole("group", { name: "Speed of time" });
   await expect(masses.locator("output")).toHaveText("n = 2");
-  await expect(time.locator("output")).toHaveText("×2");
+  await expect(time.locator("output")).toHaveText("×0.8");
 
   await page.keyboard.press("ArrowUp");
   await page.keyboard.press("ArrowUp");
   await expect(masses.locator("output")).toHaveText("n = 4");
   await expect(page).toHaveURL(/[?&]n=4(&|$)/);
 
-  await page.keyboard.press("ArrowLeft");
-  await expect(time.locator("output")).toHaveText("×1.5");
-  await expect(page).toHaveURL(/[?&]time=1\.5(&|$)/);
+  await page.keyboard.press("ArrowRight");
+  await expect(time.locator("output")).toHaveText("×0.9");
+  await expect(page).toHaveURL(/[?&]time=0\.9(&|$)/);
 
   // A key woke the controls, so their buttons take clicks.
   await masses.getByRole("button", { name: "More: Number of masses" }).click();

@@ -17,16 +17,14 @@ export const MASSES: Parameter = {
 
 /**
  * How fast time runs, as a multiple of real time for a chain 1 m long
- * (decision 15). The chain is drawn a few centimetres tall, and a real chain
- * of that size would swing three to six times faster, so real time looks like
- * slow motion; the initial value is a placeholder until the author chooses it
- * by trying.
+ * (decision 15). It starts a little slower than real time, at 0.8, which the
+ * author chose by trying, with 0.9 one step up (decision 17).
  */
 export const TIME: Parameter = {
   id: "time",
   label: "Speed of time",
-  values: [0.1, 0.25, 0.5, 1, 1.5, 2, 3, 4],
-  initial: 2,
+  values: [0.1, 0.25, 0.5, 0.8, 0.9, 1, 1.5, 2, 3, 4],
+  initial: 0.8,
   keys: { down: ["ArrowLeft", "["], up: ["ArrowRight", "]"] },
   show: (value) => `×${String(value)}`,
 };
