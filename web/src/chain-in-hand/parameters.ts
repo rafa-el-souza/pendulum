@@ -73,4 +73,51 @@ export const HAND: Parameter = {
     `${String(RATES.indexOf(value) + 1)} of ${String(RATES.length)}`,
 };
 
-export const PARAMETERS: readonly Parameter[] = [MASSES, TIME, HAND];
+/**
+ * How many twins are born when the chain is let go (decisions 20 and 22): the
+ * sketch's choices, from none to 4 096. Their budget may carry fewer, and the
+ * control then shows how many it carries.
+ */
+export const TWIN_COUNT: Parameter = {
+  id: "twins",
+  label: "Number of twins",
+  values: [0, 64, 512, 4096],
+  initial: 512,
+  keys: { down: ["9"], up: ["0"] },
+  show: (value) => String(value),
+  icon: "fan",
+};
+
+/**
+ * How long the trails last, as the half-life of their light in seconds of
+ * simulated time (decisions 21 and 22): from none to one that stays, whose
+ * half-life of ten minutes a visit does not see fade.
+ */
+const HALF_LIVES = [0, 0.5, 1, 2.5, 10, 600];
+
+export const TRAIL: Parameter = {
+  id: "trail",
+  label: "Length of the trails",
+  values: HALF_LIVES,
+  initial: 2.5,
+  keys: { down: ["7"], up: ["8"] },
+  // one pip per length, none when the trails are off
+  show: (value) => {
+    const filled = HALF_LIVES.indexOf(value);
+    return "●".repeat(filled) + "○".repeat(HALF_LIVES.length - 1 - filled);
+  },
+  speak: (value) => {
+    if (value === 0) return "off";
+    if (value === HALF_LIVES.at(-1)) return "stays";
+    return `${String(value)} s`;
+  },
+  icon: "comet",
+};
+
+export const PARAMETERS: readonly Parameter[] = [
+  MASSES,
+  TIME,
+  HAND,
+  TWIN_COUNT,
+  TRAIL,
+];

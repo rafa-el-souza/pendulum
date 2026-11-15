@@ -17,7 +17,15 @@ import { fitScale, toWorld } from "../core/view.ts";
 import { Chain, createHand, type Hand } from "../physics/chain.ts";
 import { resample } from "../physics/resample.ts";
 import { Stepper, restingState, type ChainState } from "../physics/step.ts";
-import { HAND, MASSES, PARAMETERS, TIME, handDamping } from "./parameters.ts";
+import {
+  HAND,
+  MASSES,
+  PARAMETERS,
+  TIME,
+  TRAIL,
+  TWIN_COUNT,
+  handDamping,
+} from "./parameters.ts";
 
 // The first piece (docs/decisions.md, decision 4): one chain pendulum to grab
 // and throw, whose number of masses changes while it moves, under a time that
@@ -35,20 +43,18 @@ const STILL_AFTER_MS = 60;
 // The physics of one frame may take this long; past it, time runs slower
 // than asked, and the time control shows how much (decision 15).
 const PHYSICS_BUDGET_MS = 6;
-// The twins (decision 20): how many are wanted, how far apart the first and
-// the last are born, in radians, the time they may take in a frame, and their
-// longest substep, coarser than the chain's. Those the budget cannot carry
-// are dropped; time never slows for them.
-const TWINS = 512;
+// The twins (decision 20): how far apart the first and the last are born, in
+// radians, the time they may take in a frame, and their longest substep,
+// coarser than the chain's. How many are wanted is a control (decision 22);
+// those the budget cannot carry are dropped, and time never slows for them.
 const TWIN_SPREAD = 1e-3;
 const TWIN_BUDGET_MS = 4;
 const TWIN_STEP = 1 / 240;
-// The trails (decision 21): their light halves in this many seconds of
-// simulated time, and a frame's motion is drawn in this many pieces to the
-// simulated second, so that a fast tip draws a curve. A tip that moves farther
-// than TRAIL_JUMP metres in one piece has jumped (raised again, or given
-// other masses), and leaves no trail across the jump.
-const TRAIL_HALF_LIFE = 2.5;
+// The trails (decision 21): a frame's motion is drawn in this many pieces to
+// the simulated second, so that a fast tip draws a curve. A tip that moves
+// farther than TRAIL_JUMP metres in one piece has jumped (raised again, or
+// given other masses), and leaves no trail across the jump. How long they
+// last is a control (decision 22).
 const TRAIL_RATE = 480;
 const TWIN_TRAIL_RATE = 240;
 const TRAIL_JUMP = 0.5;
@@ -93,10 +99,11 @@ function play({ canvas, gl }: Stage): void {
     TWIN_BUDGET_MS,
     0.002 * (chain.n / 2) ** 1.5,
   );
-  const fanColors = Array.from({ length: TWINS }, (_, j) =>
+  const mostTwins = Math.max(...TWIN_COUNT.values);
+  const fanColors = Array.from({ length: mostTwins }, (_, j) =>
     fanColor(fanPlace(j)),
   );
-  const fan = new SegmentBatch(TWINS * chain.n);
+  const fan = new SegmentBatch(value(TWIN_COUNT) * chain.n);
   const dots = new SegmentBatch(chain.n + 2);
   // the hand's spring, drawn stronger the harder the hand pulls
   const spring = new SegmentBatch(1);
@@ -148,6 +155,7 @@ function play({ canvas, gl }: Stage): void {
 
   /** A piece of trail from (ax, ay) to where the tip is now, unless the tip jumped. */
   function trailTo(ax: number, ay: number, color: Rgb, light: number): void {
+    if (value(TRAIL) === 0) return;
     const bx = tipAt[0] ?? 0;
     const by = tipAt[1] ?? 0;
     if (Math.hypot(bx - ax, by - ay) < TRAIL_JUMP) {
@@ -155,11 +163,21 @@ function play({ canvas, gl }: Stage): void {
     }
   }
 
+  /** The twins' control: the number asked for, or the fewer the budget carries, in the tone of a value held back. */
+  function showTwins(): void {
+    const asked = value(TWIN_COUNT);
+    if (hand === null && twins.length < asked) {
+      controls.showValue(TWIN_COUNT.id, asked, twins.length);
+    } else {
+      controls.showValue(TWIN_COUNT.id, asked);
+    }
+  }
+
   /** Twins of the chain as it is now, as many as their budget carries. */
   function spawnTwins(): void {
     twins = bornTwins(
       state,
-      Math.min(TWINS, twinBudget.affordable()),
+      Math.min(value(TWIN_COUNT), twinBudget.affordable()),
       TWIN_SPREAD,
     );
     resetTrailEnds();
@@ -214,7 +232,7 @@ function play({ canvas, gl }: Stage): void {
     twins = twins
       .slice(0, twinBudget.affordable())
       .map((twin) => resample(before, twin, n).state);
-    const carried = Math.min(TWINS, twinBudget.affordable());
+    const carried = Math.min(value(TWIN_COUNT), twinBudget.affordable());
     if (hand === null && twins.length < 0.5 * carried) spawnTwins();
     resetTrailEnds();
   }
@@ -234,6 +252,10 @@ function play({ canvas, gl }: Stage): void {
     if (parameter === MASSES) setMasses(next);
     // a new grip takes hold at once, where the hand is
     if (parameter === HAND && hand !== null) hand = holding(hand.index, hand);
+    // another number of twins is born at once from the chain as it is, unless
+    // the hand holds it; trails turned off go dark, to start afresh
+    if (parameter === TWIN_COUNT && hand === null) spawnTwins();
+    if (parameter === TRAIL && next === 0) trails.clear();
     controls.showValue(parameter.id, next);
     const search = writeAddress(PARAMETERS, values, location.search);
     history.replaceState(
@@ -428,13 +450,14 @@ function play({ canvas, gl }: Stage): void {
 
     // The trails fade by the time that went by, take this frame's pieces, and
     // are shown first, under the chains.
-    if (simulated > 0) {
-      trails.begin(fadeAfter(simulated, TRAIL_HALF_LIFE));
+    const halfLife = value(TRAIL);
+    if (simulated > 0 && halfLife > 0) {
+      trails.begin(fadeAfter(simulated, halfLife));
       lines.draw(trail, scale, { radius: 0.9 * ratio, roundEnds: false });
       trails.end();
     }
     lines.clear(colors.ground);
-    trails.show();
+    if (halfLife > 0) trails.show();
     lines.draw(fan, scale, {
       radius: 0.7 * ratio,
       roundEnds: chain.n <= 64,
@@ -510,10 +533,11 @@ function play({ canvas, gl }: Stage): void {
           0.35,
           Math.max(0.03, 1.2 / Math.sqrt(twins.length)),
         );
-        const twinPieces = Math.min(
-          8,
-          Math.max(1, Math.ceil(simulated * TWIN_TRAIL_RATE)),
-        );
+        // in one piece when there are no trails to draw
+        const twinPieces =
+          value(TRAIL) === 0
+            ? 1
+            : Math.min(8, Math.max(1, Math.ceil(simulated * TWIN_TRAIL_RATE)));
         let done = 0;
         for (const twin of twins) {
           if ((done & 7) === 0 && performance.now() > giveUp) break;
@@ -538,6 +562,7 @@ function play({ canvas, gl }: Stage): void {
           performance.now() - start,
         );
       }
+      showTwins();
 
       // The valve: when the machine keeps time below the speed asked for,
       // the time control shows the speed reached, and comes into sight.

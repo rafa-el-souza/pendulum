@@ -223,3 +223,56 @@ test("the tips leave trails, kept in half floats or eight bits as the engine all
   await frames(page, 10);
   expect(errors).toEqual([]);
 });
+
+test("the twins' and the trails' keys change their number and length, and the address follows", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("chain-in-hand/");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  const twins = page
+    .getByRole("group", { name: "Number of twins" })
+    .locator("output");
+  const trail = page
+    .getByRole("group", { name: "Length of the trails" })
+    .locator("output");
+
+  // fewer twins, then none; any machine carries 64 of two masses
+  await page.keyboard.press("9");
+  await expect(twins).toHaveText("64");
+  await expect(page).toHaveURL(/[?&]twins=64(&|$)/);
+  await page.keyboard.press("9");
+  await expect(twins).toHaveText("0");
+  await expect(page).toHaveURL(/[?&]twins=0(&|$)/);
+  await page.keyboard.press("0");
+  await page.keyboard.press("0");
+  await expect(page).not.toHaveURL(/twins=/);
+
+  // shorter trails, then none, then trails that stay
+  await expect(trail).toContainText("2.5 s");
+  await page.keyboard.press("7");
+  await expect(trail).toContainText("1 s");
+  await expect(page).toHaveURL(/[?&]trail=1(&|$)/);
+  await page.keyboard.press("7");
+  await page.keyboard.press("7");
+  await expect(trail).toContainText("off");
+  await expect(page).toHaveURL(/[?&]trail=0(&|$)/);
+  for (let press = 0; press < 5; press++) await page.keyboard.press("8");
+  await expect(trail).toContainText("stays");
+  await expect(page).toHaveURL(/[?&]trail=600(&|$)/);
+  await frames(page, 10);
+  expect(errors).toEqual([]);
+});
+
+test("an address asks for 4 096 twins and trails that stay, and the budget carries what it can", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("chain-in-hand/?twins=4096&trail=600");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await expect(
+    page.getByRole("group", { name: "Length of the trails" }).locator("output"),
+  ).toContainText("stays");
+  await frames(page, 10);
+  expect(errors).toEqual([]);
+});
