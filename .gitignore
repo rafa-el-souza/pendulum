@@ -1,0 +1,23 @@
+# The paper is not ours to redistribute (arXiv non-exclusive licence): the PDF,
+# its LaTeX source and the numbered Markdown made from it stay local.
+# physics/README.md says how to rebuild them.
+/pendulum_equations.pdf
+/reference/
+
+# Python tooling of the oracle (physics/oracle/uv.lock is tracked)
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# Editors, tools and OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Owner's private files, beside the spec, never tracked
+OWNER-*
