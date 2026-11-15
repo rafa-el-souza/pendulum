@@ -608,6 +608,36 @@ chain brought all of them into sight.
 circle the chain can sweep. At 390 px it shows 334 px of its 576 and scrolls,
 and it lies below that circle too.
 
+## 32. The controls, as the author tried them by hand
+
+*2026-11-15.* After trying decision 31 on a laptop and a phone, the author
+gave four notes, and the controls follow them. A parameter's value opens
+right above its icon, centred on it; it follows the icon as the row scrolls,
+and stays on the screen with its keys. On a touch screen, a touch on the
+controls keeps them in sight for 8 s rather than 2.5, they still take a
+touch while they fade, and a touch where they are, seen or not, only brings
+them back: it never reaches the stage to grab the chain, and the click it
+ends in works nothing that was out of sight. A touch anywhere else on the
+stage puts them away. Where the row does not fit, a chevron over the side
+with more shows it, and a touch on it scrolls the row that way. The button's
+target grows from 40 to 48 px, its glyph unchanged. This adds to decision
+31. The stay of 8 s and the look of the chevron are placeholders, which the
+author settles by trying.
+
+**Why.** His notes: a value should open right above its icon, centred; on a
+phone the controls stayed in sight too short a time after the button, and a
+touch on the button also grabbed the chain; where the controls do not fit,
+something discreet should make it plain that there are more to drag to; the
+button's size is right, but its area could be a little larger. The grab came
+from two gaps. The controls stopped taking touches as soon as they began to
+fade, while they were still in sight for 0.6 s; and a touch where they had
+been went to the stage, where a touch anywhere grabs the nearest mass.
+
+**Evidence.** The three browser tests written for the notes fail on the
+controls of decision 31 and pass now. On the touch test, a touch on the
+faded button set the paused chain going, which only a grab does. In an
+emulated phone the controls stayed in sight 8.1 s after a touch on them.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
