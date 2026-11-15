@@ -16,6 +16,7 @@ import { LightTarget, Trails, fadeAfter } from "../core/trails.ts";
 import { TwinBudget, bornTwins, fanPlace } from "../core/twins.ts";
 import { fitScale, toWorld } from "../core/view.ts";
 import { Chain, createHand, type Hand } from "../physics/chain.ts";
+import { startInMode } from "../physics/modes.ts";
 import { resample } from "../physics/resample.ts";
 import {
   Stepper,
@@ -24,11 +25,13 @@ import {
   type ChainState,
 } from "../physics/step.ts";
 import {
+  AMPLITUDE,
   CHAIN,
   GRAVITY,
   HAND,
   LIGHT,
   MASSES,
+  MODE,
   PALETTE,
   PARAMETERS,
   RIBBON,
@@ -53,7 +56,9 @@ import {
 // One switch puts out the twins and the trails and lights them again
 // (decision 27), and time can run backwards (decision 28). A key passes the
 // whole frame through the sketch's light, to compare (decision 24). The
-// controls wait behind one small button (decision 31).
+// controls wait behind one small button (decision 31). The chain starts, and
+// starts again, raised to one side or at rest in one of the paper's normal
+// modes (decision 33).
 
 // Earth's gravity, in m/s²: the weight in which the hand's pull is shown,
 // whatever gravity the chain is under.
@@ -161,6 +166,10 @@ function play({ canvas, gl }: Stage): void {
   let twinTips = new Float64Array(0);
 
   let hand: Hand | null = null;
+  // whether the chain still moves as it started, the hand not having held it
+  // since: a mode it started in is then started again on another number of
+  // masses (decision 33)
+  let fromStart = true;
   let paused = false;
   // whether time runs backwards: every motion reversed since it last ran
   // forwards (decision 28)
@@ -234,19 +243,43 @@ function play({ canvas, gl }: Stage): void {
   }
 
   /**
-   * Raised to one side, against gravity as it points now, and let go from
-   * rest: with two masses or more, a chaotic start.
+   * The chain starts again where its controls say (decision 33), let go from
+   * rest about gravity as it points now: raised to one side, a chaotic start
+   * with two masses or more; or in a normal mode of the paper, its largest
+   * angle the amplitude asked for, in the highest mode the chain has if it
+   * has fewer masses than the mode asked for.
    */
-  function raise(): void {
+  function start(): void {
     const down = radians(value(TILT));
-    for (let i = 0; i < chain.n; i++) {
-      state.theta[i] = down + 2.2 + (0.7 * i) / Math.max(1, chain.n - 1);
-      state.omega[i] = 0;
+    const mode = Math.min(value(MODE), chain.n);
+    if (mode > 0) {
+      state = startInMode(chain.n, mode, radians(value(AMPLITUDE)), down);
+    } else {
+      for (let i = 0; i < chain.n; i++) {
+        state.theta[i] = down + 2.2 + (0.7 * i) / Math.max(1, chain.n - 1);
+        state.omega[i] = 0;
+      }
     }
     hand = null;
+    fromStart = true;
     setBackwards(false);
     trails.clear();
     spawnTwins();
+    showStart();
+  }
+
+  /**
+   * The start's controls: a mode the chain lacks shows the highest it has,
+   * held back, and the amplitude, which only a mode has, shows held back
+   * while the chain starts raised.
+   */
+  function showStart(): void {
+    const mode = value(MODE);
+    if (mode > chain.n) controls.showValue(MODE.id, mode, chain.n);
+    else controls.showValue(MODE.id, mode);
+    const amplitude = value(AMPLITUDE);
+    if (mode === 0) controls.showValue(AMPLITUDE.id, amplitude, amplitude);
+    else controls.showValue(AMPLITUDE.id, amplitude);
   }
 
   /** A hand on mass `index`, with the grip the hand's control asks for, where `at` is and moving as it moves. */
@@ -290,6 +323,9 @@ function play({ canvas, gl }: Stage): void {
     const carried = Math.min(value(TWIN_COUNT), twinBudget.affordable());
     if (hand === null && twins.length < 0.5 * carried) spawnTwins();
     resetTrailEnds();
+    // a chain still swinging in the mode it started in starts again in that
+    // mode of the new chain (decision 33)
+    if (fromStart && value(MODE) > 0) start();
   }
 
   /** The sketch's light on the whole frame, or on the trails alone; the page says which. */
@@ -359,11 +395,16 @@ function play({ canvas, gl }: Stage): void {
     const twinsAgain = parameter === TWIN_COUNT || parameter === SPREAD;
     if (twinsAgain && hand === null) spawnTwins();
     if (parameter === TRAIL && next === 0) trails.clear();
+    // another mode, or another amplitude of one, starts the chain again in it
+    if (parameter === MODE || (parameter === AMPLITUDE && value(MODE) > 0)) {
+      start();
+    }
     // another palette colours the twins at once; the trails they left keep
     // their colours and fade
     if (parameter === PALETTE) paint();
     if (!lit && LIGHT_CONTROLS.has(parameter)) setLit(true);
     controls.showValue(parameter.id, next);
+    showStart();
     const search = writeAddress(PARAMETERS, values, location.search);
     history.replaceState(
       null,
@@ -392,8 +433,8 @@ function play({ canvas, gl }: Stage): void {
           keysShown: "B",
         },
         {
-          id: "raise",
-          label: "Raise the chain again",
+          id: "start",
+          label: "Start again",
           icon: "raise",
           keys: ["r", "R"],
           keysShown: "R",
@@ -416,7 +457,7 @@ function play({ canvas, gl }: Stage): void {
         if (id === "pause") setPaused(!paused);
         else if (id === "reverse") reverseTime();
         else if (id === "light") setLit(!lit);
-        else raise();
+        else start();
       },
     },
   );
@@ -446,6 +487,7 @@ function play({ canvas, gl }: Stage): void {
     // ends its twins; letting it go gives it new ones.
     if (paused) setPaused(false);
     if (backwards) setBackwards(false);
+    fromStart = false;
     twins = [];
     // the nearest mass, wherever the press lands
     hand = holding(chain.nearestMass(state.theta, px, py), {
@@ -509,7 +551,7 @@ function play({ canvas, gl }: Stage): void {
       event.preventDefault();
       setPaused(!paused);
     } else if (event.key === "r" || event.key === "R") {
-      raise();
+      start();
     } else if (event.key === "b" || event.key === "B") {
       reverseTime();
     } else if (event.key === "l" || event.key === "L") {
@@ -690,7 +732,7 @@ function play({ canvas, gl }: Stage): void {
       const finite =
         state.theta.every(Number.isFinite) &&
         state.omega.every(Number.isFinite);
-      if (!finite) raise();
+      if (!finite) start();
 
       // The twins live the same simulated time, within their own budget: the
       // ones a frame does not reach, or that the budget cannot carry, are
@@ -757,6 +799,6 @@ function play({ canvas, gl }: Stage): void {
     draw(simulated);
   }
 
-  raise();
+  start();
   requestAnimationFrame(frame);
 }

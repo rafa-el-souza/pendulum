@@ -590,6 +590,69 @@ test("an address carries gravity's strength and direction, and the chain is rais
   expect(errors).toEqual([]);
 });
 
+test("the mode's keys start the chain in a normal mode and back, the amplitude's swing it wider, and the address follows", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("./");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await openControls(page);
+  const mode = icon(page, "Normal mode");
+  const amplitude = icon(page, "Amplitude of the mode");
+  await expect(mode).toHaveAccessibleDescription("raised to one side");
+  await expect(amplitude).toHaveAccessibleDescription(
+    "30 degrees either way at most",
+  );
+  // with the chain raised, the amplitude has nothing to do, and says so
+  await expect(amplitude).toHaveClass(/_held_/);
+
+  await page.keyboard.press("m");
+  await expect(mode).toHaveAccessibleDescription("normal mode 1");
+  await expect(page).toHaveURL(/[?&]mode=1(&|$)/);
+  await expect(amplitude).not.toHaveClass(/_held_/);
+  await frames(page, 5);
+  await page.keyboard.press("K");
+  await expect(amplitude).toHaveAccessibleDescription(
+    "45 degrees either way at most",
+  );
+  await expect(page).toHaveURL(/[?&]amplitude=45(&|$)/);
+  await frames(page, 5);
+  await page.keyboard.press("r");
+  await frames(page, 5);
+
+  await page.keyboard.press("n");
+  await expect(mode).toHaveAccessibleDescription("raised to one side");
+  await expect(page).not.toHaveURL(/[?&]mode=/);
+  await expect(amplitude).toHaveClass(/_held_/);
+  await frames(page, 5);
+  expect(errors).toEqual([]);
+});
+
+test("an address starts the chain in a mode; with fewer masses it starts in its highest, held back, and more masses start the mode asked for", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("./?mode=4&amplitude=5");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await openControls(page);
+  const mode = icon(page, "Normal mode");
+  await expect(icon(page, "Amplitude of the mode")).toHaveAccessibleDescription(
+    "5 degrees either way at most",
+  );
+  // two masses have two modes
+  await expect(mode).toHaveAccessibleDescription("normal mode 2");
+  await expect(mode).toHaveClass(/_held_/);
+  await frames(page, 5);
+  await page.keyboard.press("ArrowUp");
+  await expect(mode).toHaveAccessibleDescription("normal mode 3");
+  await page.keyboard.press("ArrowUp");
+  await expect(mode).toHaveAccessibleDescription("normal mode 4");
+  await expect(mode).not.toHaveClass(/_held_/);
+  await expect(page).toHaveURL(/[?&]mode=4(&|$)/);
+  await frames(page, 5);
+  expect(errors).toEqual([]);
+});
+
 test("the controls wait behind one button, whose row shows one value at a time and shuts again", async ({
   page,
 }) => {
