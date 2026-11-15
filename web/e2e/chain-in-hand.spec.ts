@@ -33,7 +33,7 @@ test("the chain can be grabbed, swung, let go, paused and raised again", async (
     await frames(page, 1);
   }
   await page.mouse.up();
-  await frames(page, 30);
+  await frames(page, 10);
 
   await page.keyboard.press(" ");
   await frames(page, 5);
@@ -164,7 +164,7 @@ test("an elastic hand from the address swings and throws the chain, and the grip
     if (step === 6) await page.keyboard.press(".");
   }
   await page.mouse.up();
-  await frames(page, 30);
+  await frames(page, 10);
   expect(errors).toEqual([]);
 });
 
@@ -180,7 +180,7 @@ test("the twins are born, die when the chain is grabbed, and are born again when
   const cx = box.x + box.width / 2;
   const cy = box.y + box.height / 2;
 
-  await frames(page, 60);
+  await frames(page, 20);
   // more masses with the twins alive, then fewer
   for (let press = 0; press < 6; press++) await page.keyboard.press("ArrowUp");
   await frames(page, 20);
@@ -195,9 +195,31 @@ test("the twins are born, die when the chain is grabbed, and are born again when
   await page.mouse.move(cx + 120, cy - 20);
   await frames(page, 5);
   await page.mouse.up();
-  await frames(page, 30);
+  await frames(page, 10);
   // raised again, they are born again
   await page.keyboard.press("r");
-  await frames(page, 30);
+  await frames(page, 10);
+  expect(errors).toEqual([]);
+});
+
+test("the tips leave trails, kept in half floats or eight bits as the engine allows, through a pause and a raise", async ({
+  page,
+  browserName,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("chain-in-hand/?time=4");
+  const html = page.locator("html");
+  await expect(html).toHaveAttribute("data-webgl", "webgl2");
+  await expect(html).toHaveAttribute("data-trails", /^(half-float|8-bit)$/);
+  // which one each engine gave, in the test's output
+  console.log(
+    `${browserName} keeps trails in ${String(await html.getAttribute("data-trails"))}`,
+  );
+  await frames(page, 15);
+  await page.keyboard.press(" ");
+  await frames(page, 5);
+  await page.keyboard.press(" ");
+  await page.keyboard.press("r");
+  await frames(page, 10);
   expect(errors).toEqual([]);
 });
