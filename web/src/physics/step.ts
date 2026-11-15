@@ -25,6 +25,12 @@ export function restingState(n: number): ChainState {
   return { theta: new Float64Array(n), omega: new Float64Array(n) };
 }
 
+/** What an advance did: the substeps it took and the time it simulated, in seconds. */
+export interface Advance {
+  readonly substeps: number;
+  readonly simulated: number;
+}
+
 export interface StepperOptions {
   /** A substep is this fraction of the inverse rate of the fastest motion. */
   readonly fraction?: number;
@@ -72,19 +78,24 @@ export class Stepper {
   }
 
   /**
-   * Advances the state by dt seconds under gravity g, in place, and returns
-   * the number of substeps taken. Each substep is fraction / rate, at most
-   * maxStep, where rate is the largest of the fastest vibration across the
-   * rods, the fastest spin of a rod and the fastest rate a hand adds; the
-   * last one is cut to land on dt. A hand, when given, holds still in place
-   * and speed for the whole interval.
+   * Advances the state by dt seconds under gravity g, in place. Each substep
+   * is fraction / rate, at most maxStep, where rate is the largest of the
+   * fastest vibration across the rods, the fastest spin of a rod and the
+   * fastest rate a hand adds; the last one is cut to land on dt. A hand, when
+   * given, holds still in place and speed for the whole interval.
+   *
+   * If the clock (performance.now()) passes `deadline` first, the advance
+   * stops short, and the time it reports simulated is less than dt: shown at
+   * the frame's pace, that is slow motion (docs/decisions.md, decision 15).
+   * The clock is read every eight substeps.
    */
   advance(
     state: ChainState,
     dt: number,
     g: number,
     hand: Hand | null = null,
-  ): number {
+    deadline = Number.POSITIVE_INFINITY,
+  ): Advance {
     const { chain, fraction, maxStep } = this;
     const n = chain.n;
     const { theta, omega } = state;
@@ -139,7 +150,8 @@ export class Stepper {
       }
       left -= h;
       substeps++;
+      if ((substeps & 7) === 0 && performance.now() > deadline) break;
     }
-    return substeps;
+    return { substeps, simulated: dt - Math.max(0, left) };
   }
 }

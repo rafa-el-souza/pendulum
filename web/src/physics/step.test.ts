@@ -63,14 +63,18 @@ describe("the substep, taken from the rod tensions (decision 5)", () => {
     // 2 sqrt(9.81 * 128^2) = 801.8 rad/s and the substep 3.74e-4 s. A frame of
     // 1/60 s takes 44 of them and a shorter one to land on the frame.
     const chain = Chain.uniform(128);
-    expect(new Stepper(chain).advance(restingState(128), 1 / 60, G)).toBe(45);
+    expect(
+      new Stepper(chain).advance(restingState(128), 1 / 60, G).substeps,
+    ).toBe(45);
   });
 
   it("is at most 1/480 s, however slow the chain", () => {
     // One mass on 1 m at rest: the rate is 2 sqrt(9.81) = 6.3 rad/s, and
     // 0.3 / 6.3 = 0.048 s would be too coarse for RK4 to keep the energy.
     const chain = Chain.uniform(1);
-    expect(new Stepper(chain).advance(restingState(1), 1 / 60, G)).toBe(8);
+    expect(
+      new Stepper(chain).advance(restingState(1), 1 / 60, G).substeps,
+    ).toBe(8);
   });
 
   it("shortens as the chain spins, through the tension that the spin puts in the rods", () => {
@@ -79,7 +83,7 @@ describe("the substep, taken from the rod tensions (decision 5)", () => {
     const chain = Chain.uniform(1);
     const state = restingState(1);
     state.omega[0] = 400;
-    expect(new Stepper(chain).advance(state, 1 / 60, G)).toBe(45);
+    expect(new Stepper(chain).advance(state, 1 / 60, G).substeps).toBe(45);
   });
 });
 
@@ -124,5 +128,33 @@ describe("the energy along the motion, where trajectories are chaotic", () => {
     expect(state.theta.every(Number.isFinite)).toBe(true);
     expect(state.omega.every(Number.isFinite)).toBe(true);
     expect(worst).toBeLessThan(2e-2);
+  });
+});
+
+describe("the time budget of a frame (decision 15)", () => {
+  it("simulates the whole interval when no deadline is given", () => {
+    const chain = Chain.uniform(8);
+    const state = restingState(8);
+    state.theta.fill(1);
+    const result = new Stepper(chain).advance(state, 1 / 60, G);
+    expect(result.simulated).toBe(1 / 60);
+  });
+
+  it("stops short when the deadline has passed, and says how much time it simulated", () => {
+    // The clock is read every eight substeps, so a deadline already past
+    // stops the advance after the first eight: the rest is slow motion.
+    const chain = Chain.uniform(64);
+    const state = restingState(64);
+    state.theta.fill(1);
+    const result = new Stepper(chain).advance(
+      state,
+      1 / 60,
+      G,
+      null,
+      Number.NEGATIVE_INFINITY,
+    );
+    expect(result.substeps).toBe(8);
+    expect(result.simulated).toBeGreaterThan(0);
+    expect(result.simulated).toBeLessThan(1 / 60);
   });
 });
