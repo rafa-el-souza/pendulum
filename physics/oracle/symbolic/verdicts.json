@@ -1,0 +1,488 @@
+[
+  {
+    "number": "1",
+    "verdict": "ok",
+    "problem": null,
+    "correction_latex": null,
+    "checked_for": "n = 1",
+    "how": "the first-principles Euler-Lagrange expression equals m_1 l_1^2 times the printed left side (constant factor m l^2); numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_eq_1"
+  },
+  {
+    "number": "2",
+    "verdict": "ok",
+    "problem": null,
+    "correction_latex": null,
+    "checked_for": "n = 1",
+    "how": "equals T - U built from the figure geometry; numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_eq_2"
+  },
+  {
+    "number": "3",
+    "verdict": "ok",
+    "problem": null,
+    "correction_latex": null,
+    "checked_for": "n = 2, mass 1",
+    "how": "equals x_1 of the geometric construction; numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_eq_3"
+  },
+  {
+    "number": "4",
+    "verdict": "ok",
+    "problem": null,
+    "correction_latex": null,
+    "checked_for": "n = 2, mass 1",
+    "how": "equals y_1 of the geometric construction; numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_eq_4"
+  },
+  {
+    "number": "5",
+    "verdict": "ok",
+    "problem": null,
+    "correction_latex": null,
+    "checked_for": "n = 2, mass 2",
+    "how": "equals x_2 of the geometric construction; numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_eq_5"
+  },
+  {
+    "number": "6",
+    "verdict": "ok",
+    "problem": null,
+    "correction_latex": null,
+    "checked_for": "n = 2, mass 2",
+    "how": "equals y_2 of the geometric construction; numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_eq_6"
+  },
+  {
+    "number": "7",
+    "verdict": "ok",
+    "problem": null,
+    "correction_latex": null,
+    "checked_for": "n = 1, d theta_1 an independent symbol",
+    "how": "both equal the differentials of x_1 and y_1; numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_eq_7"
+  },
+  {
+    "number": "8",
+    "verdict": "ok",
+    "problem": null,
+    "correction_latex": null,
+    "checked_for": "n = 1",
+    "how": "equals the squared speed of m_1 from time differentiation; numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_eq_8"
+  },
+  {
+    "number": "9",
+    "verdict": "ok",
+    "problem": null,
+    "correction_latex": null,
+    "checked_for": "n = 1",
+    "how": "equals (1/2) m_1 times the squared speed; numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_eq_9"
+  },
+  {
+    "number": "10",
+    "verdict": "ok",
+    "problem": null,
+    "correction_latex": null,
+    "checked_for": "n = 1",
+    "how": "equals m_1 g y_1; numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_eq_10"
+  },
+  {
+    "number": "11",
+    "verdict": "ok",
+    "problem": null,
+    "correction_latex": null,
+    "checked_for": "n = 1",
+    "how": "equals K_1 - U_1 from first principles; numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_eq_11"
+  },
+  {
+    "number": "12",
+    "verdict": "ok",
+    "problem": null,
+    "correction_latex": null,
+    "checked_for": "n = 2, d theta_i independent symbols",
+    "how": "equals the differential of x_2; numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_eq_12"
+  },
+  {
+    "number": "13",
+    "verdict": "ok",
+    "problem": null,
+    "correction_latex": null,
+    "checked_for": "n = 2, d theta_i independent symbols",
+    "how": "equals the differential of y_2; numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_eq_13"
+  },
+  {
+    "number": "14",
+    "verdict": "misprint",
+    "problem": "The first term is printed l_1^2\\dot{\\theta_1}, the first angular velocity to the first power; the squared speed of m_2 has l_1^2\\dot{\\theta_1}^2.",
+    "correction_latex": "(dx_2/dt)^2+(dy_2/dt)^2= l_1^2\\dot{\\theta_1}^2+l_2^2\\dot{\\theta_2}^2+2l_1l_2\\cos(\\theta_1-\\theta_2)\\dot{\\theta_1}\\dot{\\theta_2}",
+    "checked_for": "n = 2, mass 2",
+    "how": "printed form fails against the squared speed of m_2 (relative residual of order 0.1 to 1), corrected form holds; numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_eq_14"
+  },
+  {
+    "number": "15",
+    "verdict": "misprint",
+    "problem": "Two defects: l_1^2\\dot{\\theta_1} should be l_1^2\\dot{\\theta_1}^2, and the cross term l_1l_2\\cos(\\theta_1-\\theta_2)\\dot{\\theta_1}\\dot{\\theta_2} lacks the factor 2 that (14) and (17) print. Restoring only one of the two still fails.",
+    "correction_latex": "K_2=\\frac{1}{2}m_2(l_1^2\\dot{\\theta_1}^2+l_2^2\\dot{\\theta_2}^2+2l_1l_2\\cos(\\theta_1-\\theta_2)\\dot{\\theta_1}\\dot{\\theta_2})",
+    "checked_for": "n = 2, mass 2",
+    "how": "printed form and both one-change variants fail against (1/2) m_2 times the squared speed of m_2, corrected form holds; numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_eq_15"
+  },
+  {
+    "number": "16",
+    "verdict": "ok",
+    "problem": null,
+    "correction_latex": null,
+    "checked_for": "n = 2, mass 2",
+    "how": "equals m_2 g y_2; numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_eq_16"
+  },
+  {
+    "number": "17",
+    "verdict": "misprint",
+    "problem": "Inside the m_2 bracket l_1^2\\dot{\\theta_1} should be l_1^2\\dot{\\theta_1}^2 (the potential part is right).",
+    "correction_latex": "L_2=K_2-U_2=\\frac{1}{2}m_2(l_1^2\\dot{\\theta_1}^2+l_2^2\\dot{\\theta_2}^2+2l_1l_2\\cos(\\theta_1-\\theta_2)\\dot{\\theta_1}\\dot{\\theta_2})+m_2g(l_1\\cos(\\theta_1)+ l_2\\cos(\\theta_2))",
+    "checked_for": "n = 2, mass 2",
+    "how": "printed form fails against K_2 - U_2 from first principles, corrected holds; numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_eq_17"
+  },
+  {
+    "number": "18",
+    "verdict": "misprint",
+    "problem": "In the m_2 term l_1^2\\dot{\\theta_1} should be l_1^2\\dot{\\theta_1}^2. Consequence: the printed term is a total time derivative, so the Euler-Lagrange equation of the printed (18) for theta_1 lacks m_2l_1^2\\ddot{\\theta_1}; (19) follows only from the corrected (18), (20) from either.",
+    "correction_latex": "L=L_1+L_2=\\frac{1}{2}m_1l_1^2\\dot{\\theta_1}^2+m_1gl_1\\cos(\\theta_1)+\\frac{1}{2}m_2(l_1^2\\dot{\\theta_1}^2+l_2^2\\dot{\\theta_2}^2+2l_1l_2\\cos(\\theta_1-\\theta_2)\\dot{\\theta_1}\\dot{\\theta_2})+m_2g(l_1\\cos(\\theta_1)+ l_2\\cos(\\theta_2))",
+    "checked_for": "n = 2",
+    "how": "printed form fails against the n = 2 Lagrangian, corrected holds; Euler-Lagrange equations of both forms compared with (19) and (20); numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_eq_18"
+  },
+  {
+    "number": "19",
+    "verdict": "ok",
+    "problem": null,
+    "correction_latex": null,
+    "checked_for": "n = 2, theta_1",
+    "how": "equals the first-principles Euler-Lagrange expression for theta_1, factor 1; numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_eq_19"
+  },
+  {
+    "number": "20",
+    "verdict": "ok",
+    "problem": null,
+    "correction_latex": null,
+    "checked_for": "n = 2, theta_2",
+    "how": "equals the first-principles Euler-Lagrange expression for theta_2, factor 1; numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_eq_20"
+  },
+  {
+    "number": "21",
+    "verdict": "ok",
+    "problem": null,
+    "correction_latex": null,
+    "checked_for": "n = 3, mass 1",
+    "how": "equals (x_1, y_1) of the construction; numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_eq_21"
+  },
+  {
+    "number": "22",
+    "verdict": "ok",
+    "problem": null,
+    "correction_latex": null,
+    "checked_for": "n = 3, mass 2",
+    "how": "equals (x_2, y_2) of the construction; numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_eq_22"
+  },
+  {
+    "number": "23",
+    "verdict": "ok",
+    "problem": null,
+    "correction_latex": null,
+    "checked_for": "n = 3, mass 3",
+    "how": "equals (x_3, y_3) of the construction; numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_eq_23"
+  },
+  {
+    "number": "24",
+    "verdict": "ok",
+    "problem": null,
+    "correction_latex": null,
+    "checked_for": "n = 3, d theta_i independent symbols",
+    "how": "equals the differential of x_3; numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_eq_24"
+  },
+  {
+    "number": "25",
+    "verdict": "ok",
+    "problem": null,
+    "correction_latex": null,
+    "checked_for": "n = 3, d theta_i independent symbols",
+    "how": "equals the differential of y_3; numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_eq_25"
+  },
+  {
+    "number": "26",
+    "verdict": "misprint",
+    "problem": "The first term of the second line is printed (\\theta_1-\\theta_3)d\\theta_1d\\theta_3; the term is 2l_1l_3\\cos(\\theta_1-\\theta_3)d\\theta_1d\\theta_3 (the factor 2l_1l_3\\cos is missing). (27) has the right term.",
+    "correction_latex": "(dx_3)^2+(dy_3)^2 =l_1^2(d\\theta_1)^2+l_2^2(d\\theta_2)^2+l_3^2(d\\theta_3)^2+2l_1l_2\\cos(\\theta_1-\\theta_2)d\\theta_1d\\theta_2+2l_1l_3\\cos(\\theta_1-\\theta_3)d\\theta_1d\\theta_3+ 2l_2l_3\\cos(\\theta_2-\\theta_3)d\\theta_2d\\theta_3",
+    "checked_for": "n = 3, mass 3, d theta_i independent symbols",
+    "how": "printed form fails against (dx_3)^2+(dy_3)^2 from the differentials, corrected holds; numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_eq_26"
+  },
+  {
+    "number": "27",
+    "verdict": "ok",
+    "problem": null,
+    "correction_latex": null,
+    "checked_for": "n = 3, mass 3",
+    "how": "equals (1/2) m_3 times the squared speed of m_3; numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_eq_27"
+  },
+  {
+    "number": "28",
+    "verdict": "ok",
+    "problem": null,
+    "correction_latex": null,
+    "checked_for": "n = 3, mass 3",
+    "how": "equals m_3 g y_3; numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_eq_28"
+  },
+  {
+    "number": "29",
+    "verdict": "ok",
+    "problem": null,
+    "correction_latex": null,
+    "checked_for": "n = 3",
+    "how": "a definition; with L_i = K_i - U_i, L_1+L_2+L_3 equals the n = 3 Lagrangian as the text says; numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_eq_29"
+  },
+  {
+    "number": "30",
+    "verdict": "ok",
+    "problem": null,
+    "correction_latex": null,
+    "checked_for": "n = 3, theta_1",
+    "how": "equals the first-principles Euler-Lagrange expression for theta_1, factor 1; numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_eq_30"
+  },
+  {
+    "number": "31",
+    "verdict": "ok",
+    "problem": null,
+    "correction_latex": null,
+    "checked_for": "n = 3, theta_2",
+    "how": "equals the first-principles Euler-Lagrange expression for theta_2, factor 1; numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_eq_31"
+  },
+  {
+    "number": "32",
+    "verdict": "ok",
+    "problem": null,
+    "correction_latex": null,
+    "checked_for": "n = 3, theta_3",
+    "how": "equals the first-principles Euler-Lagrange expression for theta_3, factor 1; numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_eq_32"
+  },
+  {
+    "number": "sigma",
+    "verdict": "ok",
+    "problem": null,
+    "correction_latex": null,
+    "checked_for": "n = 1..4, all j, k",
+    "how": "a definition; with it (\\sum_{q\\geq k}^{n} m_q\\sigma_{jq}) l_jl_k\\cos(\\theta_j-\\theta_k) equals the (j,k) entry of the true mass matrix d^2T/d(dtheta_j/dt)d(dtheta_k/dt); numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_sigma"
+  },
+  {
+    "number": "33",
+    "verdict": "ok",
+    "problem": null,
+    "correction_latex": null,
+    "checked_for": "n = 3, j = 1..3 (upper limit n=3 read as n with n = 3); also n = 1..4, all j, with n in place of 3",
+    "how": "equals dU/dtheta_j, and equals exactly the gravity terms of (30), (31), (32) as printed; numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_eq_33"
+  },
+  {
+    "number": "34",
+    "verdict": "ok",
+    "problem": null,
+    "correction_latex": null,
+    "checked_for": "n = 3, j = 1..3; also n = 1..4, all j, with n in place of 3",
+    "how": "equals d/dt of the d(dtheta_j/dt)-derivative of the dtheta_i^2 part of T, and exactly the l_j^2 ddot-theta_j terms of (30) to (32); numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_eq_34"
+  },
+  {
+    "number": "35",
+    "verdict": "ok",
+    "problem": null,
+    "correction_latex": null,
+    "checked_for": "n = 3, j = 1..3; also n = 1..4, all j, with n in place of 3",
+    "how": "equals -dT/dtheta_j, and exactly the sin(theta_j - theta_k) theta_j-dot theta_k-dot terms of (30) to (32), signs of (32) included; numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_eq_35"
+  },
+  {
+    "number": "phi",
+    "verdict": "ok",
+    "problem": null,
+    "correction_latex": null,
+    "checked_for": "n = 1..4, all j",
+    "how": "a definition; needed: (34)+(36) equals d/dt(dT/d(dtheta_j/dt)) with phi, and without it exceeds that by exactly (34), i.e. counts the l_j^2 inertia twice; numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_phi"
+  },
+  {
+    "number": "36",
+    "verdict": "ok",
+    "problem": null,
+    "correction_latex": null,
+    "checked_for": "n = 3, j = 1..3; also n = 1..4, all j, with n in place of 3",
+    "how": "equals d/dt of the d(dtheta_j/dt)-derivative of the cross part of T, and exactly the bracketed terms of (30) to (32); numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_eq_36"
+  },
+  {
+    "number": "37",
+    "verdict": "ok",
+    "problem": null,
+    "correction_latex": null,
+    "checked_for": "n = 3, j = 1..3",
+    "how": "equals (30), (31), (32) as printed and the first-principles Euler-Lagrange expressions, factor 1; numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_eq_37"
+  },
+  {
+    "number": "38",
+    "verdict": "ok",
+    "problem": null,
+    "correction_latex": null,
+    "checked_for": "n = 1..4, all j",
+    "how": "equals the first-principles Euler-Lagrange expression d/dt(dL/d(dtheta_j/dt)) - dL/dtheta_j, factor 1; numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_eq_38"
+  },
+  {
+    "number": "39",
+    "verdict": "misprint",
+    "problem": "The summand is printed \\vec{r_n}, which does not depend on the summation index i, so the sum is n\\vec{r_n}; the position of mass n is \\sum_{i=1}^{n}\\vec{r_i}. As printed it holds only for n = 1.",
+    "correction_latex": "\\vec{R_n}=\\sum_{i=1}^{n} \\vec{r_i},\\quad \\vec{r_i}=l_i\\sin(\\theta_i)\\hat{x}-l_i\\cos(\\theta_i)\\hat{y}",
+    "checked_for": "n = 1..4, both components",
+    "how": "printed form fails against the position of mass n for n = 2..4, corrected holds for n = 1..4; numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_eq_39"
+  },
+  {
+    "number": "40",
+    "verdict": "ok",
+    "problem": null,
+    "correction_latex": null,
+    "checked_for": "n = 1..4, both components",
+    "how": "equals the time derivative of the position of mass n, i.e. of the corrected (39); it does not follow from (39) as printed; numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_eq_40"
+  },
+  {
+    "number": "41",
+    "verdict": "misprint",
+    "problem": "The middle side is printed \\vec{R_n}\\cdot\\vec{R_n}, the squared position, which is not |\\dot{\\vec{R_n}}|^2; the outer equality |\\dot{\\vec{R_n}}|^2=\\sum_{i,j=1}^{n} l_il_j\\dot{\\theta_i}\\dot{\\theta_j}\\cos(\\theta_i-\\theta_j) is right.",
+    "correction_latex": "|{\\dot{\\vec{R_n}}}|^{2}=\\dot{\\vec{R_n}}\\cdot\\dot{\\vec{R_n}}=\\sum_{i,j=1}^{n} l_il_j\\dot{\\theta_i}\\dot{\\theta_j}\\cos(\\theta_i-\\theta_j)",
+    "checked_for": "n = 1..4",
+    "how": "middle side fails against the squared speed of mass n for every n, corrected middle side and the last side hold; numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_eq_41"
+  },
+  {
+    "number": "42",
+    "verdict": "misprint",
+    "problem": "Under \\sum_k the speed is printed |\\dot{\\vec{R_n}}|^2, the speed of the last mass, for every k; the kinetic energy needs |\\dot{\\vec{R_k}}|^2. As printed it holds only for n = 1. (46.2) itself uses the corrected T.",
+    "correction_latex": "T=\\sum_{k=1}^{n} \\frac{1}{2}m_k|{\\dot{\\vec{R_k}}}|^{2}",
+    "checked_for": "n = 1..4",
+    "how": "printed form fails against the kinetic energy for n = 2..4, corrected holds for n = 1..4; numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_eq_42"
+  },
+  {
+    "number": "43",
+    "verdict": "ok",
+    "problem": null,
+    "correction_latex": null,
+    "checked_for": "n = 1..4",
+    "how": "equals the potential energy sum_i m_i g y_i; numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_eq_43"
+  },
+  {
+    "number": "44",
+    "verdict": "misprint",
+    "problem": "Same subscript as (42): |\\dot{\\vec{R_n}}|^2 should be |\\dot{\\vec{R_k}}|^2; the potential part is right. As printed it holds only for n = 1.",
+    "correction_latex": "L=T-U=\\sum_{k=1}^{n} \\frac{1}{2}m_k|{\\dot{\\vec{R_k}}}|^{2}+g \\sum_{i=1}^{n} m_i \\sum_{j=1}^{i} l_j\\cos\\theta_j",
+    "checked_for": "n = 1..4",
+    "how": "printed form fails against the Lagrangian for n = 2..4, corrected holds for n = 1..4; numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_eq_44"
+  },
+  {
+    "number": "45",
+    "verdict": "ok",
+    "problem": null,
+    "correction_latex": null,
+    "checked_for": "n = 1..4, all q",
+    "how": "with the first-principles T and U, the middle side equals the Euler-Lagrange expression (U has no velocity dependence); numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_eq_45"
+  },
+  {
+    "number": "46.1",
+    "verdict": "ok",
+    "problem": null,
+    "correction_latex": null,
+    "checked_for": "n = 1..4, all q",
+    "how": "equals dU/dtheta_q; numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_eq_46_1"
+  },
+  {
+    "number": "46.2",
+    "verdict": "ok",
+    "problem": null,
+    "correction_latex": null,
+    "checked_for": "n = 1..4, all q",
+    "how": "the T inside the derivative equals the kinetic energy, both equalities hold, and the result is -dT/dtheta_q; numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_eq_46_2"
+  },
+  {
+    "number": "46.3",
+    "verdict": "ok",
+    "problem": null,
+    "correction_latex": null,
+    "checked_for": "n = 1..4, all q",
+    "how": "lower limit i=j=1 read as the sum over i = j from 1 to k; that sum is the dtheta_i^2 part of T and both sides equal d/dt of its d(dtheta_q/dt)-derivative; numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_eq_46_3"
+  },
+  {
+    "number": "46.4",
+    "verdict": "misprint",
+    "problem": "The first sum carries an extra factor \\dot{\\theta_q}: l_il_q\\dot{\\theta_i}\\dot{\\theta_q}\\sin(\\theta_i-\\theta_q)[\\dot{\\theta_q}-\\dot{\\theta_i}] should be l_il_q\\dot{\\theta_i}\\sin(\\theta_i-\\theta_q)[\\dot{\\theta_q}-\\dot{\\theta_i}]. Read with its heading 'When i \\neq j' (the i = j terms of T left out), the second sum must also leave out i = q, which the paper itself does with \\phi_{iq} in (46). Read with its inner sum as printed (all i, j = 1..k), the left side is d/dt(\\partial T/\\partial\\dot{\\theta_q}) and only the extra factor is wrong.",
+    "correction_latex": "\\frac{d}{dt}\\big(\\frac{\\partial }{\\partial{\\dot{\\theta_q}}}\\Big(\\sum_{k=1}^{n} \\frac{1}{2}m_k\\sum_{i,j=1,\\,i\\neq j}^{k} l_il_j\\dot{\\theta_i}\\dot{\\theta_j}\\cos(\\theta_i-\\theta_j) \\Big)\\big) = \\sum_{k=q}^{n} m_k\\sum_{i=1}^{k} l_il_q\\dot{\\theta_i}\\sin(\\theta_i-\\theta_q)[\\dot{\\theta_q}-\\dot{\\theta_i}] + \\sum_{k=q}^{n} m_k\\sum_{i=1}^{k} l_il_q\\phi_{iq}\\cos(\\theta_i-\\theta_q)\\ddot{\\theta_i}",
+    "checked_for": "n = 1..4, all q, both readings of the inner sum",
+    "how": "printed right side fails against both readings of the left side (except n = 1 with all pairs, where the extra terms carry sin 0); each corrected right side holds against its reading; numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_eq_46_4"
+  },
+  {
+    "number": "46",
+    "verdict": "misprint",
+    "problem": "The fourth sum carries the extra factor \\dot{\\theta_q} of (46.4). As printed (46) is the equation of motion only for n = 1, where the extra terms carry sin 0, and fails for every q when n = 2, 3, 4. Without the factor it equals the Euler-Lagrange expression exactly, and (38) term by term.",
+    "correction_latex": "g\\sum_{i=q}^{n} m_il_q\\sin(\\theta_q) + \\sum_{k=q}^{n} m_k\\sum_{i=1}^{k} l_il_q\\dot{\\theta_i}\\dot{\\theta_q}\\sin(\\theta_q-\\theta_i) +\\sum_{k=q}^{n} m_k{l_q}^2\\ddot{\\theta_q} +\\sum_{k=q}^{n} m_k\\sum_{i=1}^{k} l_il_q\\dot{\\theta_i}\\sin(\\theta_i-\\theta_q)[\\dot{\\theta_q}-\\dot{\\theta_i}] + \\sum_{k=q}^{n} m_k\\sum_{i=1}^{k} l_il_q\\phi_{iq}\\cos(\\theta_i-\\theta_q)\\ddot{\\theta_i}=0",
+    "checked_for": "n = 1..4, all q",
+    "how": "printed left side fails against the Euler-Lagrange expression for n = 2..4, all q; corrected holds for n = 1..4, all q, factor 1; numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_eq_46"
+  },
+  {
+    "number": "47",
+    "verdict": "misprint",
+    "problem": "(47) is (46) regrouped (identical as printed), with the same extra factor \\dot{\\theta_q} in its fourth term.",
+    "correction_latex": "\\sum_{k=q}^{n} \\Big( gm_kl_q\\sin(\\theta_q) + m_k\\sum_{i=1}^{k} l_il_q\\dot{\\theta_i}\\dot{\\theta_q}\\sin(\\theta_q-\\theta_i) + m_k{l_q}^2\\ddot{\\theta_q} + m_k\\sum_{i=1}^{k} l_il_q\\dot{\\theta_i}\\sin(\\theta_i-\\theta_q)[\\dot{\\theta_q}-\\dot{\\theta_i}] + m_k\\sum_{i=1}^{k} l_il_q\\phi_{iq}\\cos(\\theta_i-\\theta_q)\\ddot{\\theta_i} \\Big)=0",
+    "checked_for": "n = 1..4, all q",
+    "how": "printed form equals printed (46) and fails against the Euler-Lagrange expression for n = 2..4; corrected holds for n = 1..4, factor 1; numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_eq_47"
+  },
+  {
+    "number": "86",
+    "verdict": "ok",
+    "problem": null,
+    "correction_latex": null,
+    "checked_for": "n = 1..4, all j",
+    "how": "transcribed apart from (38); identical to it and equal to the first-principles Euler-Lagrange expression, factor 1; numerical identity test, 6 random generic points, 50 digits",
+    "test": "test_sections_2_3.py::test_eq_86"
+  }
+]
