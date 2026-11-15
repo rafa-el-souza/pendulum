@@ -1,0 +1,344 @@
+[
+ {
+  "number": "48",
+  "verdict": "ok",
+  "problem": null,
+  "correction_latex": null,
+  "checked_for": "theta = 1e-2 .. 1e-11",
+  "how": "(sin t - t)/t^3 -> -1/6 at 50 digits: a first-order approximant, error O(t^3)",
+  "test": "test_sections_4_5.py::test_eq48_sine_approximant_error_is_cubic"
+ },
+ {
+  "number": "49",
+  "verdict": "ok",
+  "problem": null,
+  "correction_latex": null,
+  "checked_for": "theta = 1e-2 .. 1e-11",
+  "how": "(cos t - 1 + t^2/2)/t^4 -> 1/24: a second-order approximant, error O(t^4); used together with (48) it makes section 4 inconsistent in order (separate finding)",
+  "test": "test_sections_4_5.py::test_eq49_cosine_approximant_error_is_quartic"
+ },
+ {
+  "number": "50",
+  "verdict": "ok",
+  "problem": null,
+  "correction_latex": null,
+  "checked_for": "n = 1..8, all j, unequal masses and lengths, random (not small) states",
+  "how": "first member = (38) with sin->(48), cos->(49); second member = its expansion; both identities at 50 digits",
+  "test": "test_sections_4_5.py::test_eq50_is_eq38_truncated_and_expanded"
+ },
+ {
+  "number": "51",
+  "verdict": "ok",
+  "problem": null,
+  "correction_latex": null,
+  "checked_for": "n = 1..8, all j",
+  "how": "identical to the second member of (50)",
+  "test": "test_sections_4_5.py::test_eq51_restates_eq50"
+ },
+ {
+  "number": "52",
+  "verdict": "ok",
+  "problem": null,
+  "correction_latex": null,
+  "checked_for": "n = 1, j = 1, 5 random points",
+  "how": "first line = (51) at n = j = 1 (the two cubic terms cancel); last line = second line / (m_1 l_1^2), the printed l being l_1 as in (1)",
+  "test": "test_sections_4_5.py::test_eq52_simple_pendulum_lines"
+ },
+ {
+  "number": "53",
+  "verdict": "misprint",
+  "problem": "Third term printed theta_1(m_1+m_2)l_1^2 \\dot{\\theta_1^2} with the dot set over the group theta_1^2 (PDF page 11): literally d(theta_1^2)/dt = 2 theta_1 thetadot_1, which does not cancel the fourth term. With (thetadot_1)^2 the line is exactly (51) for n = 2, j = 1. The text announces j = 1, 2 but gives only j = 1.",
+  "correction_latex": "gl_1\\theta_1m_1+m_1l_1^2\\ddot{\\theta_1}+\\theta_1(m_1+m_2)l_1^2\\dot{\\theta_1}^2-(m_1+m_2)\\theta_1\\dot{\\theta_1}^2l_1^2+\\theta_1gl_1m_2+m_2l_1^2\\ddot{\\theta_1}+\\theta_1m_2l_1l_2\\dot{\\theta_2}^2-m_2l_1l_2\\theta_2\\dot{\\theta_2}^2+(m_2)l_1l_2(\\ddot{\\theta_2}-\\frac{\\theta_1^2}{2}\\ddot{\\theta_2}-\\frac{\\theta_2^2}{2}\\ddot{\\theta_2}+\\theta_1\\theta_2\\ddot{\\theta_2})=0",
+  "checked_for": "n = 2, j = 1, 6 random points",
+  "how": "printed form differs from (51) at n = 2, j = 1 by theta_1 (m_1+m_2) l_1^2 (2 theta_1 thetadot_1 - thetadot_1^2); corrected form equals it at 50 digits",
+  "test": "test_sections_4_5.py::test_eq53_printed_fails_corrected_passes"
+ },
+ {
+  "number": "54",
+  "verdict": "ok",
+  "problem": null,
+  "correction_latex": null,
+  "checked_for": "n = 1..10, all j, unequal masses and lengths",
+  "how": "equals (M theta'' + K theta)_j of the first-principles linearization, M_ab = l_a l_b sum_{i>=max(a,b)} m_i, K = diag(g l_a sum_{i>=a} m_i); (51) - (54) is exactly the terms the text names (test_eq54_drops_exactly_the_terms_named_in_the_text)",
+  "test": "test_sections_4_5.py::test_eq54_is_the_first_principles_linearization"
+ },
+ {
+  "number": "55",
+  "verdict": "ok",
+  "problem": null,
+  "correction_latex": null,
+  "checked_for": "p = 0..10, exact rationals",
+  "how": "mu_p = n_p m_p/(n_p l_p) = m/l at every level; with the mass per point kept, mu doubles per step, as the prose says",
+  "test": "test_sections_4_5.py::test_eq55_density_constant_along_the_refinement"
+ },
+ {
+  "number": "56",
+  "verdict": "ok",
+  "problem": null,
+  "correction_latex": null,
+  "checked_for": "n = 1..10, all j, x_0 = 0",
+  "how": "sum_k sigma_jk = n - j + 1; the three members agree at 50 digits",
+  "test": "test_sections_4_5.py::test_eq56_first_sum"
+ },
+ {
+  "number": "57",
+  "verdict": "ok",
+  "problem": null,
+  "correction_latex": null,
+  "checked_for": "n = 1..10, all j, xdd_0 = 0",
+  "how": "as (56) with the accelerations",
+  "test": "test_sections_4_5.py::test_eq57_second_sum"
+ },
+ {
+  "number": "58",
+  "verdict": "ok",
+  "problem": null,
+  "correction_latex": null,
+  "checked_for": "n = 1..10, all j (empty at j = 1)",
+  "how": "for k < j: sum_{q>=k} m_q sigma_jq = (n-j+1) m and phi_jk = 1",
+  "test": "test_sections_4_5.py::test_eq58_third_sum_below"
+ },
+ {
+  "number": "59",
+  "verdict": "ok",
+  "problem": null,
+  "correction_latex": null,
+  "checked_for": "n = 1..10, all j",
+  "how": "telescoping of (58) with x_0 = 0",
+  "test": "test_sections_4_5.py::test_eq59_third_sum_below_telescoped"
+ },
+ {
+  "number": "60",
+  "verdict": "notation",
+  "problem": "The terms written out, (n-j)(xdd_{j+1}-xdd_j) and (n-j-1)(xdd_{j+2}-xdd_{j+1}), are the k = j+1 and k = j+2 terms of the sum and exist only while j+2 <= n. Read literally at j = n the left side is an empty sum, 0, while the right side is (ml^2/l)(xdd_{n+1} - xdd_{n+2}) of masses that do not exist. True for 1 <= j <= n-2 as printed, for j = n-1 (the term past the chain has coefficient 0), and for j = n under the evident reading xdd_k := 0 for k > n. (61), which is what the paper uses, holds for every j as printed.",
+  "correction_latex": "\\ddot{x}_k := 0\\ \\ (k>n)\\ \\text{in (60) as printed, which then holds for }1\\le j\\le n",
+  "checked_for": "n = 1..10, all j, random phantom xdd_{n+1}, xdd_{n+2}",
+  "how": "literal identity for j <= n-1; at j = n the left side is 0 and the printed right side is (ml^2/l)(xdd_{n+1} - xdd_{n+2}); with xdd_k := 0 for k > n it holds for every j (also test_eq60_holds_while_the_written_terms_exist)",
+  "test": "test_sections_4_5.py::test_eq60_last_mass_needs_the_reading"
+ },
+ {
+  "number": "61",
+  "verdict": "ok",
+  "problem": null,
+  "correction_latex": null,
+  "checked_for": "n = 1..10, all j (both sides 0 at j = n)",
+  "how": "summation by parts of sum_{k>j}(n-k+1)(xdd_k - xdd_{k-1})",
+  "test": "test_sections_4_5.py::test_eq61_closed_form_all_j"
+ },
+ {
+  "number": "62",
+  "verdict": "misprint",
+  "problem": "Printed '... + sum_{k=j+1}^{n} xdd_k)s = 0' (PDF page 14): a stray symbol s multiplies the last bracket and is defined nowhere. With s deleted the line is exactly (54) after substituting (56), (57), (59) and (61).",
+  "correction_latex": "(n-j+1)mlg\\frac{(x_j-x_{j-1})}{l} + (n-j+1)ml^2\\frac{(\\ddot{x_j}-\\ddot{x}_{j-1})}{l}+(n-j+1)ml^2\\frac{\\ddot{x}_{j-1}}{l}+\\frac{ml^2}{l}(-(n-j)\\ddot{x}_j+\\sum_{k=j+1}^{n}\\ddot{x}_k)=0",
+  "checked_for": "n = 1..10, all j (at j = n the bracket that s multiplies is 0)",
+  "how": "corrected form = (54) for equal masses and = the sum of (56), (57), (59), (61); printed form with a random s != 1 differs for every j < n",
+  "test": "test_sections_4_5.py::test_eq62_printed_fails_corrected_passes"
+ },
+ {
+  "number": "63",
+  "verdict": "ok",
+  "problem": null,
+  "correction_latex": null,
+  "checked_for": "n = 1..10, all j",
+  "how": "equals (62) without s and (54); the xdd_j coefficients (n-j+1) - (n-j) leave 1",
+  "test": "test_sections_4_5.py::test_eq63_after_cancellations"
+ },
+ {
+  "number": "64",
+  "verdict": "ok",
+  "problem": null,
+  "correction_latex": null,
+  "checked_for": "n = 1..10, all j",
+  "how": "left - right is identically the left side of (63): a rearrangement, valid on solutions",
+  "test": "test_sections_4_5.py::test_eq64_rearranges_eq63"
+ },
+ {
+  "number": "65",
+  "verdict": "ok",
+  "problem": null,
+  "correction_latex": null,
+  "checked_for": "n = 1..10, all j; at j = n the phantom x_{n+1} has coefficient n-j = 0",
+  "how": "m (65)_j = (M_x xdd + K_x x)_j of the first-principles displacement form, and m l (65)_j = (63)_j - (63)_{j+1}",
+  "test": "test_sections_4_5.py::test_eq65_is_the_first_principles_equation"
+ },
+ {
+  "number": "66",
+  "verdict": "ok",
+  "problem": null,
+  "correction_latex": null,
+  "checked_for": "n_p = n 2^p, n = 1..8, p = 0..2, all j; Taylor test at y = L/2 and y = L",
+  "how": "identical to (65) with n -> n_p, l -> l_p; consistent with (74) at first order, truncation g l_p x_yy/2 + O(l_p^2) (second order for a rope of length L + l_p/2; test_eq66_is_first_order_consistent_with_eq74)",
+  "test": "test_sections_4_5.py::test_eq66_rewrites_eq65_in_sequential_form"
+ },
+ {
+  "number": "67",
+  "verdict": "notation",
+  "problem": "Meaningful only if j varies with p: j = j_p with j_p l_p -> y (the text later says (l_p) j is the y-coordinate of mass j), and only if the chain's solutions converge to a field x(y,t) twice differentiable in t, which is assumed, not shown. With j fixed, mass j runs into the pivot and the limit is x_tt(0,t) = 0.",
+  "correction_latex": "\\lim_{p\\to\\infty}\\ddot{x}_{j_p}(t)=\\frac{\\partial^2 x(y,t)}{\\partial t^2},\\qquad j_p\\,l_p\\to y",
+  "checked_for": "lowest normal mode, y = 3L/4, N = 8..256; and j = 1 fixed",
+  "how": "on the chain's own normal mode -omega_N^2 v_{j_p} -> -omega^2 Psi(y) at first order; with j fixed it tends to 0",
+  "test": "test_sections_4_5.py::test_eq67_reading_on_discrete_modes"
+ },
+ {
+  "number": "68",
+  "verdict": "ok",
+  "problem": null,
+  "correction_latex": null,
+  "checked_for": "lowest normal mode, N = 8..256, j = 1 and j = N/2",
+  "how": "|x_{j+1} - x_j| = l_p |sin theta_{j+1}| <= l_p -> 0 for any j; true, but it gives only continuity, not the derivatives (70) and (73) need",
+  "test": "test_sections_4_5.py::test_eq68_neighbour_gap_vanishes"
+ },
+ {
+  "number": "69",
+  "verdict": "ok",
+  "problem": null,
+  "correction_latex": null,
+  "checked_for": "p = 0..7, exact rationals",
+  "how": "(l_p) = l/2^p by definition",
+  "test": "test_sections_4_5.py::test_eq69_is_an_identity"
+ },
+ {
+  "number": "70",
+  "verdict": "notation",
+  "problem": "Same reading as (67): j = j_p with j_p l/2^p -> y, and x_j samples of a field differentiable in y (assumed). With j fixed the quotient tends to x_y(0,t).",
+  "correction_latex": "\\lim_{p\\to\\infty}\\frac{x_{j_p}-x_{j_p-1}}{l/2^p}=\\frac{\\partial x(y,t)}{\\partial y},\\qquad j_p\\,l/2^p\\to y",
+  "checked_for": "lowest normal mode, y = L/2, N = 8..256; and j = 1 fixed",
+  "how": "on the chain's normal mode the backward quotient at j_p -> Psi'(y) at first order; with j fixed it tends to Psi'(0)",
+  "test": "test_sections_4_5.py::test_eq70_reading_on_discrete_modes"
+ },
+ {
+  "number": "71",
+  "verdict": "notation",
+  "problem": "True with j = j_p and (l_p) j_p = y, which the sentence after (71) states; then the member equals L - y exactly at every p and no limit is involved. With j fixed the limit is L. This y is the distance below the pivot (0 <= y <= L), opposite in sign to the figures' upward y axis.",
+  "correction_latex": "(n_p)(l_p)-(l_p)\\,j_p=L-y\\qquad\\text{for }(l_p)\\,j_p=y",
+  "checked_for": "p = 2..11, y = 3L/4, exact rationals; j = 3 fixed at p = 30",
+  "how": "with (l_p) j_p = y the member is L - y exactly at every p; with j fixed it tends to L",
+  "test": "test_sections_4_5.py::test_eq71_reading"
+ },
+ {
+  "number": "72",
+  "verdict": "ok",
+  "problem": null,
+  "correction_latex": null,
+  "checked_for": "n = 3, p = 0..7, all j, exact rationals",
+  "how": "multiplies by l_p/l_p = 1",
+  "test": "test_sections_4_5.py::test_eq72_is_an_identity"
+ },
+ {
+  "number": "73",
+  "verdict": "notation",
+  "problem": "Same reading as (67): j = j_p with j_p l_p -> y, and x_j samples of a field twice differentiable in y (assumed). With j fixed the member tends to L x_yy(0,t).",
+  "correction_latex": "\\lim_{p\\to\\infty}((n_p)-j_p)\\frac{x_{j_p+1}-2x_{j_p}+x_{j_p-1}}{l_p}=(L-y)\\frac{\\partial^2 x(y,t)}{\\partial y^2},\\qquad j_p\\,l_p\\to y",
+  "checked_for": "lowest normal mode, y = L/2, N = 8..256; and j = 1 fixed",
+  "how": "on the chain's normal mode the member at j_p -> (L - y) Psi''(y) at first order; with j fixed it tends to L Psi''(0)",
+  "test": "test_sections_4_5.py::test_eq73_reading_on_discrete_modes"
+ },
+ {
+  "number": "74",
+  "verdict": "ok",
+  "problem": null,
+  "correction_latex": null,
+  "checked_for": "symbolic; Taylor test of (66) at y = L/2 and y = L; N up to 1024",
+  "how": "= g d/dy[(L - y) x_y], the uniform hanging rope with y measured down from the support; (66) is consistent with it at first order and the chain's frequencies and modes converge to its own at order 1",
+  "test": "test_sections_4_5.py::test_eq74_is_the_rope_equation"
+ },
+ {
+  "number": "75",
+  "verdict": "ok",
+  "problem": null,
+  "correction_latex": null,
+  "checked_for": "symbolic, a general density",
+  "how": "equals minus sympy's euler_equations for the same density",
+  "test": "test_sections_4_5.py::test_eq75_matches_sympy_euler_equations"
+ },
+ {
+  "number": "76",
+  "verdict": "ok",
+  "problem": null,
+  "correction_latex": null,
+  "checked_for": "n = 1..8 random chains",
+  "how": "definition (L reused as the Lagrangian); the chain's quadratic Lagrangian is sum dT - sum dU element by element",
+  "test": "test_sections_4_5.py::test_eq76_chain_lagrangian_splits_into_element_energies"
+ },
+ {
+  "number": "77",
+  "verdict": "ok",
+  "problem": null,
+  "correction_latex": null,
+  "checked_for": "slopes 1e-2..1e-9; chains n = 1..8; sums N = 16..512",
+  "how": "dl and dh are the second-order expansions; dU = m_below g dh is exact for the chain (U - U_0 = sum_a mu_a g l_a (1 - cos theta_a)); the sum tends to int dU at first order",
+  "test": "test_sections_4_5.py::test_eq77_rope_potential"
+ },
+ {
+  "number": "78",
+  "verdict": "ok",
+  "problem": null,
+  "correction_latex": null,
+  "checked_for": "n = 1..6, eps = 1e-3..1e-5",
+  "how": "v^2 = x_t^2 + O(eps^4) (the vertical velocity is second order): the chain's full kinetic energy equals the quadratic one to relative O(eps^2); dl's factor changes dT by a relative x_y^2/2",
+  "test": "test_sections_4_5.py::test_eq78_kinetic_energy_at_quadratic_order"
+ },
+ {
+  "number": "79",
+  "verdict": "ok",
+  "problem": null,
+  "correction_latex": null,
+  "checked_for": "sums N = 16..512",
+  "how": "dl -> dy drops a relative x_y^2/2, beyond quadratic order; (1/2) sum m xdot_j^2 -> int (79) at first order",
+  "test": "test_sections_4_5.py::test_eq79_kinetic_energy_limit"
+ },
+ {
+  "number": "80",
+  "verdict": "ok",
+  "problem": null,
+  "correction_latex": null,
+  "checked_for": "smooth fields, N = 16..512",
+  "how": "(76) with (77) and (79) on [0, L]; the chain's first-principles quadratic Lagrangian converges to it at first order",
+  "test": "test_sections_4_5.py::test_eq80_is_the_limit_of_the_chain_lagrangian"
+ },
+ {
+  "number": "81",
+  "verdict": "ok",
+  "problem": null,
+  "correction_latex": null,
+  "checked_for": "symbolic",
+  "how": "(75) on (1/2)(mu x_t^2 - g (L-y) mu x_y^2) gives mu [x_tt - g (L-y) x_yy + g x_y]",
+  "test": "test_sections_4_5.py::test_eq81_follows_from_eq80_by_eq75"
+ },
+ {
+  "number": "82",
+  "verdict": "ok",
+  "problem": null,
+  "correction_latex": null,
+  "checked_for": "modes k = 1..3, random (y, t)",
+  "how": "Psi_k(y) cos(omega_k t) solves (74) at 50 digits",
+  "test": "test_sections_4_5.py::test_eq82_separated_solutions_of_eq74"
+ },
+ {
+  "number": "83",
+  "verdict": "ok",
+  "problem": null,
+  "correction_latex": null,
+  "checked_for": "symbolic",
+  "how": "(74) with x = Psi xi, divided by Psi xi, is left member minus middle member",
+  "test": "test_sections_4_5.py::test_eq83_separation"
+ },
+ {
+  "number": "84",
+  "verdict": "ok",
+  "problem": null,
+  "correction_latex": null,
+  "checked_for": "symbolic",
+  "how": "left member of (83) = -K",
+  "test": "test_sections_4_5.py::test_eq84_time_equation"
+ },
+ {
+  "number": "85",
+  "verdict": "ok",
+  "problem": null,
+  "correction_latex": null,
+  "checked_for": "symbolic; Bessel solutions at 50 digits",
+  "how": "middle member of (83) = -K, times Psi/g; z = 2 sqrt(K (L-y)/g) turns it into Bessel's equation of order 0",
+  "test": "test_sections_4_5.py::test_eq85_space_equation"
+ }
+]
