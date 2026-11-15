@@ -35,7 +35,8 @@ hanging rope it becomes as n grows.
   Let go, it leaves 512 twins born a hair apart, which fan out in colour to
   show chaos, and its tip and theirs leave trails of light that fade. How
   many twins there are, how long the trails last and which of five palettes
-  colours the twins are controls too.
+  colours the twins are controls too, and the G key passes the whole frame
+  through the light of the first sketch, to compare.
   Discreet controls appear when wanted, each with a key, and the address
   carries every value, so a view can be shared.
 

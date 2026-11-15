@@ -321,3 +321,33 @@ test("an address carries the palette", async ({ page }) => {
   await frames(page, 10);
   expect(errors).toEqual([]);
 });
+
+test("the G key passes the whole frame through the sketch's light, and back", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("chain-in-hand/");
+  const html = page.locator("html");
+  await expect(html).toHaveAttribute("data-webgl", "webgl2");
+  await expect(html).toHaveAttribute("data-light", "trails");
+  const stage = page.locator("#stage");
+  // The controls fade in and out over the stage; only the drawing is compared.
+  const mask = [page.getByRole("toolbar")];
+
+  // paused, every frame draws the same, so only the light can change it
+  await frames(page, 10);
+  await page.keyboard.press(" ");
+  await frames(page, 3);
+  const before = await stage.screenshot({ mask });
+
+  await page.keyboard.press("g");
+  await expect(html).toHaveAttribute("data-light", "frame");
+  await frames(page, 3);
+  expect((await stage.screenshot({ mask })).equals(before)).toBe(false);
+
+  await page.keyboard.press("G");
+  await expect(html).toHaveAttribute("data-light", "trails");
+  await frames(page, 3);
+  expect((await stage.screenshot({ mask })).equals(before)).toBe(true);
+  expect(errors).toEqual([]);
+});

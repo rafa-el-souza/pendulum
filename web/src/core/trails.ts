@@ -1,10 +1,12 @@
-// Trails of light, like a long exposure (docs/decisions.md, decision 21):
-// lines drawn into a target of their own, which fades by a factor every frame
-// and is added to the canvas through 1 - exp(-x), so that where many trails
-// cross the light saturates softly instead of clipping. The target holds half
-// floats where the browser can draw into them; elsewhere it holds eight bits,
-// which cannot keep a slow fade, so one step is taken off every frame as well
-// and the light is lifted when it is shown.
+// Light kept off the canvas. Trails, like a long exposure (docs/decisions.md,
+// decision 21): lines drawn into a target of their own, which fades by a
+// factor every frame and is added to the canvas through 1 - exp(-x), so that
+// where many trails cross the light saturates softly instead of clipping.
+// With the sketch's light on the whole frame (decision 24), the frame's lines
+// go to a second target and pass through the same curve with the trails.
+// Targets hold half floats where the browser can draw into them; elsewhere
+// they hold eight bits, which cannot keep a slow fade, so one step is taken
+// off every frame as well and the light is lifted when it is shown.
 
 const FULL_VERTEX = `#version 300 es
 layout(location = 0) in vec2 corner;
@@ -31,6 +33,21 @@ out vec4 color;
 void main() {
   vec3 light = 1.0 - exp(-texture(uTrails, vUv).rgb * uGain);
   // Light is added to the canvas, so the alpha written is zero.
+  color = vec4(pow(light, vec3(1.0 / 2.2)), 0.0);
+}`;
+
+// The trails and the frame's lines together, through the same curve.
+const SHOW_WITH_SCENE = `#version 300 es
+precision highp float;
+uniform sampler2D uTrails;
+uniform sampler2D uScene;
+uniform float uGain;
+uniform float uSceneGain;
+in vec2 vUv;
+out vec4 color;
+void main() {
+  vec3 sum = texture(uTrails, vUv).rgb * uGain + texture(uScene, vUv).rgb * uSceneGain;
+  vec3 light = 1.0 - exp(-sum);
   color = vec4(pow(light, vec3(1.0 / 2.2)), 0.0);
 }`;
 
@@ -83,40 +100,32 @@ function link(
   };
 }
 
-/** The trails of a piece, the size of the canvas's drawing buffer. */
-export class Trails {
+/** Where light is drawn off the canvas: the size of the canvas's drawing buffer. */
+export class LightTarget {
   readonly #gl: WebGL2RenderingContext;
-  readonly #fill: Linked;
-  readonly #show: Linked;
-  readonly #quad: WebGLVertexArrayObject;
   #texture: WebGLTexture | null = null;
   #framebuffer: WebGLFramebuffer | null = null;
   #width = 0;
   #height = 0;
-  /** Whether the target holds half floats; otherwise eight bits. */
+  /** Whether it holds half floats; otherwise eight bits. */
   floating: boolean;
 
   constructor(gl: WebGL2RenderingContext) {
     this.#gl = gl;
-    this.#fill = link(gl, FILL, ["uColor"]);
-    this.#show = link(gl, SHOW, ["uTrails", "uGain"]);
     this.floating = gl.getExtension("EXT_color_buffer_float") !== null;
-    const buffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-    gl.bufferData(
-      gl.ARRAY_BUFFER,
-      new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]),
-      gl.STATIC_DRAW,
-    );
-    this.#quad = gl.createVertexArray();
-    gl.bindVertexArray(this.#quad);
-    gl.enableVertexAttribArray(0);
-    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
-    gl.bindVertexArray(null);
   }
 
-  /** Makes the target the drawing buffer's size; a new target starts dark. */
-  #fit(): void {
+  get texture(): WebGLTexture | null {
+    return this.#texture;
+  }
+
+  /** How much its light is lifted when shown: eight bits stop at one, which the curve would leave grey. */
+  get gain(): number {
+    return this.floating ? 1 : 3;
+  }
+
+  /** Makes it the drawing buffer's size, dark when new. True when it is new. */
+  fit(): boolean {
     const gl = this.#gl;
     const width = gl.drawingBufferWidth;
     const height = gl.drawingBufferHeight;
@@ -125,7 +134,7 @@ export class Trails {
       width === this.#width &&
       height === this.#height
     ) {
-      return;
+      return false;
     }
     this.#width = width;
     this.#height = height;
@@ -134,13 +143,10 @@ export class Trails {
       this.floating = false;
     }
     if (!this.floating && !this.#make(gl.RGBA8, gl.UNSIGNED_BYTE)) {
-      throw new Error("the trails' target could not be drawn into");
+      throw new Error("a target for light could not be drawn into");
     }
-    // which one this browser gave, for anyone looking at the page
-    document.documentElement.dataset.trails = this.floating
-      ? "half-float"
-      : "8-bit";
     this.clear();
+    return true;
   }
 
   /** A target of this format, bound; false if it cannot be drawn into. */
@@ -181,6 +187,79 @@ export class Trails {
     );
   }
 
+  /** Draws into it from now on, over all of it; `fresh` darkens it first. */
+  bind(fresh = false): void {
+    const gl = this.#gl;
+    this.fit();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.#framebuffer);
+    gl.viewport(0, 0, this.#width, this.#height);
+    if (fresh) {
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+    }
+  }
+
+  /** Back to drawing on the canvas. */
+  unbind(): void {
+    const gl = this.#gl;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
+  }
+
+  /** Darkens all of it. */
+  clear(): void {
+    const gl = this.#gl;
+    if (this.#framebuffer === null) return;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.#framebuffer);
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  }
+}
+
+/** The trails of a piece, the size of the canvas's drawing buffer. */
+export class Trails {
+  readonly #gl: WebGL2RenderingContext;
+  readonly #fill: Linked;
+  readonly #show: Linked;
+  readonly #showWithScene: Linked;
+  readonly #quad: WebGLVertexArrayObject;
+  readonly #target: LightTarget;
+
+  constructor(gl: WebGL2RenderingContext) {
+    this.#gl = gl;
+    this.#fill = link(gl, FILL, ["uColor"]);
+    this.#show = link(gl, SHOW, ["uTrails", "uGain"]);
+    this.#showWithScene = link(gl, SHOW_WITH_SCENE, [
+      "uTrails",
+      "uScene",
+      "uGain",
+      "uSceneGain",
+    ]);
+    this.#target = new LightTarget(gl);
+    const buffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.bufferData(
+      gl.ARRAY_BUFFER,
+      new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]),
+      gl.STATIC_DRAW,
+    );
+    this.#quad = gl.createVertexArray();
+    gl.bindVertexArray(this.#quad);
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+    gl.bindVertexArray(null);
+  }
+
+  /** Fits the target, saying on the page which kind this browser gave. */
+  #fit(): void {
+    if (this.#target.fit()) {
+      document.documentElement.dataset.trails = this.#target.floating
+        ? "half-float"
+        : "8-bit";
+    }
+  }
+
   #fullscreen(): void {
     const gl = this.#gl;
     gl.bindVertexArray(this.#quad);
@@ -190,12 +269,7 @@ export class Trails {
 
   /** Darkens every trail at once. */
   clear(): void {
-    const gl = this.#gl;
-    if (this.#framebuffer === null) return;
-    gl.bindFramebuffer(gl.FRAMEBUFFER, this.#framebuffer);
-    gl.clearColor(0, 0, 0, 0);
-    gl.clear(gl.COLOR_BUFFER_BIT);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    this.#target.clear();
   }
 
   /**
@@ -206,8 +280,7 @@ export class Trails {
   begin(left: number): void {
     const gl = this.#gl;
     this.#fit();
-    gl.bindFramebuffer(gl.FRAMEBUFFER, this.#framebuffer);
-    gl.viewport(0, 0, this.#width, this.#height);
+    this.#target.bind();
     gl.enable(gl.BLEND);
     gl.blendEquation(gl.FUNC_ADD);
     gl.blendFunc(gl.ZERO, gl.CONSTANT_COLOR);
@@ -215,7 +288,7 @@ export class Trails {
     gl.useProgram(this.#fill.program);
     gl.uniform4f(this.#fill.at.uColor ?? null, 0, 0, 0, 0);
     this.#fullscreen();
-    if (!this.floating) {
+    if (!this.#target.floating) {
       // Eight bits cannot hold a slow fade: a step off as well, so that old
       // light reaches black instead of staying as a grey film.
       gl.blendEquation(gl.FUNC_REVERSE_SUBTRACT);
@@ -228,25 +301,34 @@ export class Trails {
 
   /** Back to drawing on the canvas. */
   end(): void {
-    const gl = this.#gl;
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
+    this.#target.unbind();
   }
 
-  /** Adds the trails' light to the canvas, lifted where the target holds eight bits. */
-  show(): void {
+  /**
+   * Adds the trails' light to the canvas, lifted where a target holds eight
+   * bits, and with it the light of `scene`, when given, through the same
+   * curve.
+   */
+  show(scene?: LightTarget): void {
     const gl = this.#gl;
     this.#fit();
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
+    this.#target.unbind();
     gl.enable(gl.BLEND);
     gl.blendEquation(gl.FUNC_ADD);
     gl.blendFunc(gl.ONE, gl.ONE);
-    gl.useProgram(this.#show.program);
+    const { program, at } =
+      scene === undefined ? this.#show : this.#showWithScene;
+    gl.useProgram(program);
+    if (scene !== undefined) {
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, scene.texture);
+      gl.uniform1i(at.uScene ?? null, 1);
+      gl.uniform1f(at.uSceneGain ?? null, scene.gain);
+    }
     gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, this.#texture);
-    gl.uniform1i(this.#show.at.uTrails ?? null, 0);
-    gl.uniform1f(this.#show.at.uGain ?? null, this.floating ? 1 : 3);
+    gl.bindTexture(gl.TEXTURE_2D, this.#target.texture);
+    gl.uniform1i(at.uTrails ?? null, 0);
+    gl.uniform1f(at.uGain ?? null, this.#target.gain);
     this.#fullscreen();
   }
 }

@@ -374,6 +374,24 @@ colours.
 sketch's for its beauty. Which candidates stay, and how they look, the author
 decides by trying them.
 
+## 24. The sketch's light on the whole frame, on a key, to compare
+
+*2026-11-15.* The G key passes the first piece's whole frame through the
+sketch's light, and pressing it again goes back. With it on, the chain, its
+twins, the hand and the trails are drawn off the canvas and pass together
+through 1 − exp(−x) and the gamma, as the sketch's frame did; decision 21
+kept that curve for the trails alone. Where lines overlap, the light
+saturates softly instead of clipping, and faint light, such as the twins and
+the glow around the chain, is lifted. Where the browser keeps light in eight
+bits, the frame's light is lifted as the trails' is. With it off, the piece
+draws as before. The piece opens with it off, and the address does not carry
+it. There is no button for it: the author chose a key alone for now, and a
+button may come with the layout of the controls.
+
+**Why.** The author wanted to see the sketch's light on the whole frame, as
+a switch to turn on and off. Whether it stays, and as what, the author
+decides by comparing.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
