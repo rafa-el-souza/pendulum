@@ -178,6 +178,18 @@ assessing the work, working notes stay out of git, and the code is MIT.
 can also be set to require the CI jobs to pass before a merge, which GitHub's
 free plan offers only to public repositories.
 
+## 14. Published at the repository's GitHub Pages address first
+
+*2026-11-15.* The site is published now at
+<https://rafa-el-souza.github.io/pendulum/>, the address GitHub Pages gives
+this repository. The author's subdomain stays the final address (decision 12)
+and comes once its DNS records are in place; this entry adds to decision 12
+and replaces nothing. Each push to `main` publishes the build that CI has just
+opened in the three engines, and only after every CI job has passed.
+
+**Why.** So that each slice can be tried on a laptop and on a phone as soon as
+it is merged, before the subdomain's DNS records exist.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.

@@ -3,6 +3,9 @@
 Interactive browser pieces built on one physics paper. Before any of it
 reached a screen, the paper was checked equation by equation.
 
+The site: <https://rafa-el-souza.github.io/pendulum/>, published from `main`
+after every check passes.
+
 The paper is Boran Yeşilyurt's *Equations of Motion Formulation of a Pendulum
 Containing N-point Masses*
 ([arXiv:1910.12610v2](https://arxiv.org/abs/1910.12610v2)). It covers a
@@ -35,7 +38,8 @@ chaos. Every piece is meant to run fullscreen in the major browsers.
 In Claude Code sessions, following [`CLAUDE.md`](CLAUDE.md). Each slice of
 work is one pull request, merged once CI is green. CI runs the oracle's lint
 and tests, the web app's checks with every page in three browser engines, and
-a secret scan of every commit.
+a secret scan of every commit. On `main`, once all of them pass, it publishes
+the tested build to GitHub Pages.
 
 ## Running the checks
 
