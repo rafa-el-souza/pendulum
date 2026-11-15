@@ -21,3 +21,10 @@ __pycache__/
 
 # Owner's private files, beside the spec, never tracked
 OWNER-*
+
+# Web: dependencies, builds and test output
+node_modules/
+web/dist/
+web/playwright-report/
+web/test-results/
+web/.vitest/

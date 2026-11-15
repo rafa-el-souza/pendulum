@@ -1,0 +1,17 @@
+/* Design tokens. Placeholders until the visual identity is designed with the
+   author: every color, typeface and spacing of the pages reads from here. */
+:root {
+  --color-ground: #07080b;
+  --color-ink: #e9e7e3;
+  --color-ink-muted: #a3a09a;
+  --color-link: #e9e7e3;
+
+  --font-text: system-ui, sans-serif;
+
+  --space-1: 0.5rem;
+  --space-2: 1rem;
+  --space-3: 2rem;
+  --space-4: 4rem;
+
+  --measure: 36rem;
+}

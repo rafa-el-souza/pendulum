@@ -1,5 +1,6 @@
-# Checks for every pull request and for main: the oracle's lint and tests, and
-# a secret scan of every commit. CI holds no secret and deploys nothing. The
+# Checks for every pull request and for main: the oracle's lint and tests, the
+# web app's checks with every page opened in three browser engines, and a
+# secret scan of every commit. CI holds no secret and deploys nothing. The
 # workflows themselves are linted by the pre-commit hook, with actionlint.
 name: CI
 
@@ -49,6 +50,56 @@ jobs:
 
       - name: Tests (every display equation of the paper, and the second route)
         run: uv run --locked pytest
+
+  web:
+    name: "Web: types, lint, unit tests, build and three browsers"
+    permissions:
+      contents: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: web/.nvmrc
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      # No install scripts run (web/.npmrc).
+      - name: Install
+        run: npm ci
+
+      - name: Types
+        run: npm run typecheck
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: Prettier
+        run: npm run format:check
+
+      - name: Vitest
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      # Their system packages include Xvfb, the virtual display below.
+      - name: Install Chromium, Firefox and WebKit
+        run: npm run e2e:browsers
+
+      # Firefox runs headed here, on the virtual display, to get WebGL2
+      # (web/playwright.config.ts); Chromium and WebKit stay headless.
+      - name: Every page in the three engines
+        run: xvfb-run --auto-servernum npm run e2e
 
   secret_scan:
     name: "Secrets: gitleaks"
