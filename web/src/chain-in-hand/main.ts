@@ -1,8 +1,9 @@
 import "../styles/base.css";
 
-import { fanColor, tokenColor, type Rgb } from "../core/color.ts";
+import { tokenColor, type Rgb } from "../core/color.ts";
 import { mountControls } from "../core/controls.ts";
 import { Lines, SegmentBatch } from "../core/lines.ts";
+import { fanPalette } from "../core/palettes.ts";
 import {
   keyAction,
   readAddress,
@@ -100,8 +101,9 @@ function play({ canvas, gl }: Stage): void {
     0.002 * (chain.n / 2) ** 1.5,
   );
   const mostTwins = Math.max(...TWIN_COUNT.values);
+  const palette = fanPalette(0);
   const fanColors = Array.from({ length: mostTwins }, (_, j) =>
-    fanColor(fanPlace(j)),
+    palette.color(fanPlace(j)),
   );
   const fan = new SegmentBatch(value(TWIN_COUNT) * chain.n);
   const dots = new SegmentBatch(chain.n + 2);

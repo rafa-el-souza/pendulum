@@ -52,17 +52,3 @@ export function tokenColor(name: string): Rgb {
   probe.remove();
   return parseColor(computed);
 }
-
-/**
- * A colour across a fan of twins, from blue at 0 through magenta to amber at
- * 1: the sketch's ramp, a placeholder until the visual identity is designed
- * with the author.
- */
-export function fanColor(place: number): Rgb {
-  const t = 0.36 - 0.46 * place;
-  return [
-    0.5 + 0.5 * Math.cos(2 * Math.PI * t),
-    0.5 + 0.5 * Math.cos(2 * Math.PI * (t + 0.33)),
-    0.5 + 0.5 * Math.cos(2 * Math.PI * (t + 0.67)),
-  ];
-}
