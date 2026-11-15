@@ -1,3 +1,4 @@
+import { FAN_PALETTES, fanPalette } from "../core/palettes.ts";
 import type { Parameter } from "../core/parameters.ts";
 
 // The first piece's parameters (docs/decisions.md, decision 10). Each feeds
@@ -114,10 +115,32 @@ export const TRAIL: Parameter = {
   icon: "comet",
 };
 
+/**
+ * The twins' colours, and their trails' (decision 23): one palette per step,
+ * opening with the sketch's, which the author keeps. The control paints five
+ * dots from one edge of the fan to the other in the palette's colours, and a
+ * screen reader hears its name.
+ */
+const SWATCH_PLACES = [0, 0.25, 0.5, 0.75, 1];
+
+export const PALETTE: Parameter = {
+  id: "palette",
+  label: "Colours of the twins",
+  values: FAN_PALETTES.map((_, i) => i),
+  initial: 0,
+  keys: { down: ["5"], up: ["6"] },
+  show: (value) => fanPalette(value).name,
+  swatches: (value) => {
+    const palette = fanPalette(value);
+    return SWATCH_PLACES.map((place) => palette.color(place));
+  },
+};
+
 export const PARAMETERS: readonly Parameter[] = [
   MASSES,
   TIME,
   HAND,
   TWIN_COUNT,
   TRAIL,
+  PALETTE,
 ];
