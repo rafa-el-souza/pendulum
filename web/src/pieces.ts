@@ -6,7 +6,7 @@
 export interface Piece {
   /** Folder of the piece's page and segment of its route: lowercase words joined by hyphens. */
   readonly id: string;
-  /** Working name, shown in the tab. */
+  /** Its name, which begins the page's title, shown in the tab and naming a bookmark. */
   readonly title: string;
   /** One sentence, the description of the piece's page. */
   readonly summary: string;
@@ -14,8 +14,10 @@ export interface Piece {
 
 export const PIECES: readonly Piece[] = [
   {
+    // the folder and the route keep the working name, the chain in the hand;
+    // the piece is called Pendulum for now (docs/decisions.md, decision 37)
     id: "chain-in-hand",
-    title: "The chain in the hand",
+    title: "Pendulum",
     summary:
       "One chain to grab and throw, from one mass to a rope, with twins that show chaos.",
   },
