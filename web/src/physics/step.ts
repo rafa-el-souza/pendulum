@@ -102,6 +102,12 @@ export class Stepper {
    * stops short, and the time it reports simulated is less than dt: shown at
    * the frame's pace, that is slow motion (docs/decisions.md, decision 15).
    * The clock is read every eight substeps.
+   *
+   * `meanTension`, when given, receives each rod's tension averaged over the
+   * time simulated, with RK4's own weights on the tensions its four stages
+   * meet, which is Simpson's rule over each substep (docs/decisions.md,
+   * decision 35). With no time to simulate, it receives the tension of the
+   * instant.
    */
   advance(
     state: ChainState,
@@ -109,6 +115,7 @@ export class Stepper {
     g: Gravity,
     hand: Hand | null = null,
     deadline = Number.POSITIVE_INFINITY,
+    meanTension: Float64Array | null = null,
   ): Advance {
     const { chain, fraction, maxStep } = this;
     const n = chain.n;
@@ -126,6 +133,7 @@ export class Stepper {
 
     let left = dt;
     let substeps = 0;
+    if (meanTension !== null) meanTension.fill(0);
     while (left > 0) {
       chain.solve(theta, omega, g, k1, tension, hand);
       let spin = 0;
@@ -140,22 +148,28 @@ export class Stepper {
       if (!(h < left * (1 - 1e-9))) h = left;
 
       const half = 0.5 * h;
+      const sixth = h / 6;
+      // the tension's integral over the substep, a sixth of h at each end
+      // and a third at the middle, met twice
+      if (meanTension !== null) addTo(meanTension, tension, sixth);
       for (let i = 0; i < n; i++) {
         th[i] = theta[i]! + half * omega[i]!;
         w2[i] = omega[i]! + half * k1[i]!;
       }
       chain.solve(th, w2, g, k2, stageTension, hand);
+      if (meanTension !== null) addTo(meanTension, stageTension, 2 * sixth);
       for (let i = 0; i < n; i++) {
         th[i] = theta[i]! + half * w2[i]!;
         w3[i] = omega[i]! + half * k2[i]!;
       }
       chain.solve(th, w3, g, k3, stageTension, hand);
+      if (meanTension !== null) addTo(meanTension, stageTension, 2 * sixth);
       for (let i = 0; i < n; i++) {
         th[i] = theta[i]! + h * w3[i]!;
         w4[i] = omega[i]! + h * k3[i]!;
       }
       chain.solve(th, w4, g, k4, stageTension, hand);
-      const sixth = h / 6;
+      if (meanTension !== null) addTo(meanTension, stageTension, sixth);
       for (let i = 0; i < n; i++) {
         theta[i] =
           theta[i]! + sixth * (omega[i]! + 2 * w2[i]! + 2 * w3[i]! + w4[i]!);
@@ -166,6 +180,22 @@ export class Stepper {
       substeps++;
       if ((substeps & 7) === 0 && performance.now() > deadline) break;
     }
-    return { substeps, simulated: dt - Math.max(0, left) };
+    const simulated = dt - Math.max(0, left);
+    if (meanTension !== null) {
+      if (substeps === 0) {
+        chain.solve(theta, omega, g, k1, meanTension, hand);
+      } else {
+        const inverse = 1 / simulated;
+        for (let i = 0; i < n; i++) meanTension[i] = meanTension[i]! * inverse;
+      }
+    }
+    return { substeps, simulated };
+  }
+}
+
+/** Adds weight times each of `values` to `sums`. */
+function addTo(sums: Float64Array, values: Float64Array, weight: number): void {
+  for (let i = 0; i < sums.length; i++) {
+    sums[i] = sums[i]! + weight * values[i]!;
   }
 }
