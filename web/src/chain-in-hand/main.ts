@@ -53,8 +53,10 @@ import {
   TWIN_COUNT,
   gravityOf,
   handDamping,
+  MARK_STEP,
   radians,
   shakeOf,
+  trailFade,
 } from "./parameters.ts";
 import { titleOf } from "./title.ts";
 
@@ -65,7 +67,8 @@ import { titleOf } from "./title.ts";
 // hand from elastic to firm (decision 18), with twins born a hair apart
 // that fan out to show chaos (decision 20) in a palette of the visitor's
 // choice (decision 23), and trails of light behind the tips of the chain and
-// of its twins (decision 21), or of every mass of the chain (decision 26).
+// of its twins (decision 21), or of every mass of the chain (decision 26),
+// which can leave a mark that stays (decision 42).
 // One switch puts out the twins and the trails and lights them again
 // (decision 27), and time can run backwards (decision 28). A key passes the
 // whole frame through the sketch's light, to compare (decision 24). The
@@ -626,6 +629,8 @@ function play({ canvas, gl }: Stage): void {
     const twinsAgain = parameter === TWIN_COUNT || parameter === SPREAD;
     if (twinsAgain && hand === null) spawnTwins();
     if (parameter === TRAIL && next === 0) trails.clear();
+    // leaving the step that leaves a mark puts the mark out (decision 42)
+    if (parameter === TRAIL && before === MARK_STEP) trails.clearMark();
     // another mode, or another amplitude of one, starts the chain again in it
     if (chooses) start();
     // a pivot that starts to shake stands the chain on its head at once; a
@@ -933,12 +938,24 @@ function play({ canvas, gl }: Stage): void {
     const sy = shaking === null ? 0 : PIVOT_STREAK * shaking.y;
     dots.push(-sx, -sy, sx, sy, colors.pivot, 0.8);
 
-    // The trails fade by the time that went by and take this frame's pieces.
-    const halfLife = lit ? value(TRAIL) : 0;
-    if (simulated > 0 && halfLife > 0) {
+    // The trails fade by the time that went by and take this frame's pieces;
+    // the step that leaves a mark keeps the brightest of them too (decision
+    // 42).
+    const trailStep = lit ? value(TRAIL) : 0;
+    const { halfLife, mark } = trailFade(trailStep);
+    if (simulated > 0 && trailStep > 0) {
       trails.begin(fadeAfter(simulated, halfLife));
       lines.draw(trail, scale, { radius: 0.9 * ratio, roundEnds: false });
       trails.end();
+      if (mark) {
+        trails.beginMark();
+        lines.draw(trail, scale, {
+          radius: 0.9 * ratio,
+          roundEnds: false,
+          keep: true,
+        });
+        trails.end();
+      }
     }
     if (wholeFrame) {
       // the frame's lines, then all of it through the curve
@@ -946,11 +963,11 @@ function play({ canvas, gl }: Stage): void {
       drawLines(scale, ratio, rodPixels);
       scene.unbind();
       lines.clear(colors.ground);
-      trails.show(scene);
+      trails.show(scene, mark);
     } else {
       // the trails through the curve, under the chains
       lines.clear(colors.ground);
-      if (halfLife > 0) trails.show();
+      if (trailStep > 0) trails.show(undefined, mark);
       drawLines(scale, ratio, rodPixels);
     }
   }

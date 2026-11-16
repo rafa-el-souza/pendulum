@@ -293,10 +293,31 @@ test("the twins' and the trails' keys change their number and length, and the ad
   await page.keyboard.press("7");
   await expect(trail).toHaveAccessibleDescription("off");
   await expect(page).toHaveURL(/[?&]trail=0(&|$)/);
+  // up past ten seconds, the step that leaves a mark, then the one that stays
   for (let press = 0; press < 5; press++) await page.keyboard.press("8");
+  await expect(trail).toHaveAccessibleDescription("leaves a mark");
+  await expect(page).toHaveURL(/[?&]trail=100(&|$)/);
+  await frames(page, 10);
+  await page.keyboard.press("8");
   await expect(trail).toHaveAccessibleDescription("stays");
   await expect(page).toHaveURL(/[?&]trail=600(&|$)/);
   await frames(page, 10);
+  expect(errors).toEqual([]);
+});
+
+test("an address asks for trails that leave a mark, which draw with the sketch's light too", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("./?trail=100&ribbon=1");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await openControls(page);
+  await expect(icon(page, "Length of the trails")).toHaveAccessibleDescription(
+    "leaves a mark",
+  );
+  await frames(page, 30);
+  await page.keyboard.press("g");
+  await frames(page, 30);
   expect(errors).toEqual([]);
 });
 

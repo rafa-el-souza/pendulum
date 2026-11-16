@@ -67,6 +67,7 @@ describe("the title of the first piece's page (decision 38)", () => {
     ["trail", 0, "no trails"],
     ["trail", 10, "trails 10 s"],
     ["trail", 600, "trails that stay"],
+    ["trail", 100, "trails that leave a mark"],
     ["ribbon", 1, "trails from every mass"],
     ["palette", 1, "fire palette"],
     ["palette", 9, "reef palette"],

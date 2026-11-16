@@ -8,6 +8,7 @@ import {
   AMPLITUDE,
   BODIES,
   HAND,
+  MARK_STEP,
   MODE,
   PARAMETERS,
   SPREAD,
@@ -49,6 +50,7 @@ function words(parameter: Parameter, value: number): string {
     case "trail":
       if (value === 0) return "no trails";
       if (value === TRAIL.values.at(-1)) return "trails that stay";
+      if (value === MARK_STEP) return "trails that leave a mark";
       return `trails ${String(value)} s`;
     case "ribbon":
       return "trails from every mass";
