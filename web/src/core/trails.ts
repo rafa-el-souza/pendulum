@@ -6,7 +6,12 @@
 // go to a second target and pass through the same curve with the trails.
 // Targets hold half floats where the browser can draw into them; elsewhere
 // they hold eight bits, which cannot keep a slow fade, so one step is taken
-// off every frame as well and the light is lifted when it is shown.
+// off every frame as well and the light is lifted when it is shown. A fade
+// smaller than half floats can take off waits until, with the next frames',
+// it takes off a 256th, so that light never stops fading (decision 42).
+// The trails can leave a mark (decision 42): a second target keeps, at every
+// point, the brightest piece of trail drawn there, and shows under the
+// fading trails after they are gone.
 
 const FULL_VERTEX = `#version 300 es
 layout(location = 0) in vec2 corner;
@@ -27,11 +32,14 @@ void main() {
 const SHOW = `#version 300 es
 precision highp float;
 uniform sampler2D uTrails;
+uniform sampler2D uMark;
 uniform float uGain;
+uniform float uMarkGain;
 in vec2 vUv;
 out vec4 color;
 void main() {
-  vec3 light = 1.0 - exp(-texture(uTrails, vUv).rgb * uGain);
+  vec3 sum = texture(uTrails, vUv).rgb * uGain + texture(uMark, vUv).rgb * uMarkGain;
+  vec3 light = 1.0 - exp(-sum);
   // Light is added to the canvas, so the alpha written is zero.
   color = vec4(pow(light, vec3(1.0 / 2.2)), 0.0);
 }`;
@@ -41,19 +49,52 @@ const SHOW_WITH_SCENE = `#version 300 es
 precision highp float;
 uniform sampler2D uTrails;
 uniform sampler2D uScene;
+uniform sampler2D uMark;
 uniform float uGain;
 uniform float uSceneGain;
+uniform float uMarkGain;
 in vec2 vUv;
 out vec4 color;
 void main() {
-  vec3 sum = texture(uTrails, vUv).rgb * uGain + texture(uScene, vUv).rgb * uSceneGain;
+  vec3 sum = texture(uTrails, vUv).rgb * uGain + texture(uScene, vUv).rgb * uSceneGain + texture(uMark, vUv).rgb * uMarkGain;
   vec3 light = 1.0 - exp(-sum);
   color = vec4(pow(light, vec3(1.0 / 2.2)), 0.0);
 }`;
 
-/** How much of a trail's light is left after `seconds` of simulated time, with a half-life of `halfLife` seconds. */
+/** How much of a trail's light is left after `seconds` of simulated time, with a half-life of `halfLife` seconds; none fades with a half-life without end. */
 export function fadeAfter(seconds: number, halfLife: number): number {
   return 0.5 ** (seconds / halfLife);
+}
+
+/**
+ * The least a fade takes off at once: eight times half a step of a half
+ * float's precision, so that rounding never undoes it.
+ */
+export const FADE_STEP = 1 / 256;
+
+/**
+ * Fades asked for frame by frame, passed on once together they take off at
+ * least FADE_STEP of the light (decision 42). A half float rounds a fade
+ * smaller than half a step of its precision back to the light it had, and
+ * light that took off so little every frame stopped fading.
+ */
+export class FadeBatch {
+  /** The fade kept, not yet passed on. */
+  pending = 1;
+
+  /** Takes a frame's fade; returns the fade to apply now, 1 for none. */
+  take(left: number): number {
+    this.pending *= left;
+    if (this.pending > 1 - FADE_STEP) return 1;
+    const now = this.pending;
+    this.pending = 1;
+    return now;
+  }
+
+  /** Forgets the fade kept, as the light is cleared. */
+  reset(): void {
+    this.pending = 1;
+  }
 }
 
 function compile(
@@ -225,18 +266,25 @@ export class Trails {
   readonly #showWithScene: Linked;
   readonly #quad: WebGLVertexArrayObject;
   readonly #target: LightTarget;
+  // the mark: the brightest piece of trail drawn at every point, kept while
+  // the trails leave one
+  readonly #mark: LightTarget;
+  readonly #batch = new FadeBatch();
 
   constructor(gl: WebGL2RenderingContext) {
     this.#gl = gl;
     this.#fill = link(gl, FILL, ["uColor"]);
-    this.#show = link(gl, SHOW, ["uTrails", "uGain"]);
+    this.#show = link(gl, SHOW, ["uTrails", "uMark", "uGain", "uMarkGain"]);
     this.#showWithScene = link(gl, SHOW_WITH_SCENE, [
       "uTrails",
       "uScene",
+      "uMark",
       "uGain",
       "uSceneGain",
+      "uMarkGain",
     ]);
     this.#target = new LightTarget(gl);
+    this.#mark = new LightTarget(gl);
     const buffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
     gl.bufferData(
@@ -267,27 +315,37 @@ export class Trails {
     gl.bindVertexArray(null);
   }
 
-  /** Darkens every trail at once. */
+  /** Darkens every trail at once, and the mark. */
   clear(): void {
     this.#target.clear();
+    this.#mark.clear();
+    this.#batch.reset();
+  }
+
+  /** Darkens the mark alone. */
+  clearMark(): void {
+    this.#mark.clear();
   }
 
   /**
-   * Fades the light the trails hold to `left` of itself, and leaves their
-   * target bound, so that what is drawn next is added to them. end() goes
-   * back to the canvas.
+   * Fades the light the trails hold to `left` of itself, once the fades
+   * asked for take off enough together, and leaves their target bound, so
+   * that what is drawn next is added to them. end() goes back to the canvas.
    */
   begin(left: number): void {
     const gl = this.#gl;
     this.#fit();
     this.#target.bind();
     gl.enable(gl.BLEND);
-    gl.blendEquation(gl.FUNC_ADD);
-    gl.blendFunc(gl.ZERO, gl.CONSTANT_COLOR);
-    gl.blendColor(left, left, left, left);
     gl.useProgram(this.#fill.program);
     gl.uniform4f(this.#fill.at.uColor ?? null, 0, 0, 0, 0);
-    this.#fullscreen();
+    const now = this.#batch.take(left);
+    if (now < 1) {
+      gl.blendEquation(gl.FUNC_ADD);
+      gl.blendFunc(gl.ZERO, gl.CONSTANT_COLOR);
+      gl.blendColor(now, now, now, now);
+      this.#fullscreen();
+    }
     if (!this.#target.floating) {
       // Eight bits cannot hold a slow fade: a step off as well, so that old
       // light reaches black instead of staying as a grey film.
@@ -299,6 +357,14 @@ export class Trails {
     }
   }
 
+  /**
+   * Binds the mark, so that what is drawn next, drawn keeping the brightest
+   * (LineStyle.keep), stays in it. end() goes back to the canvas.
+   */
+  beginMark(): void {
+    this.#mark.bind();
+  }
+
   /** Back to drawing on the canvas. */
   end(): void {
     this.#target.unbind();
@@ -306,10 +372,10 @@ export class Trails {
 
   /**
    * Adds the trails' light to the canvas, lifted where a target holds eight
-   * bits, and with it the light of `scene`, when given, through the same
-   * curve.
+   * bits, and with it the light of `scene`, when given, and of the mark,
+   * when `marked`, through the same curve.
    */
-  show(scene?: LightTarget): void {
+  show(scene?: LightTarget, marked = false): void {
     const gl = this.#gl;
     this.#fit();
     this.#target.unbind();
@@ -325,6 +391,15 @@ export class Trails {
       gl.uniform1i(at.uScene ?? null, 1);
       gl.uniform1f(at.uSceneGain ?? null, scene.gain);
     }
+    // without a mark, the trails stand in for it, at no light
+    const mark = marked && this.#mark.texture !== null;
+    gl.activeTexture(gl.TEXTURE2);
+    gl.bindTexture(
+      gl.TEXTURE_2D,
+      mark ? this.#mark.texture : this.#target.texture,
+    );
+    gl.uniform1i(at.uMark ?? null, 2);
+    gl.uniform1f(at.uMarkGain ?? null, mark ? this.#mark.gain : 0);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, this.#target.texture);
     gl.uniform1i(at.uTrails ?? null, 0);

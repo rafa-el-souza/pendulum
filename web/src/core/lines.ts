@@ -84,6 +84,11 @@ export interface LineStyle {
   readonly halo?: number;
   /** How bright the glow is at the line, as a share of the line's own light. */
   readonly haloGain?: number;
+  /**
+   * Keeps at every point the brightest light drawn there, instead of adding
+   * it, as a trail's mark does (decision 42).
+   */
+  readonly keep?: boolean;
 }
 
 /** Segments to draw, eight floats each: ax, ay, bx, by in metres, then red, green, blue and an intensity. */
@@ -221,7 +226,7 @@ export class Lines {
     gl.uniform1f(at.uHalo ?? null, style.halo ?? 0);
     gl.uniform1f(at.uHaloGain ?? null, style.haloGain ?? 0);
     gl.enable(gl.BLEND);
-    gl.blendEquation(gl.FUNC_ADD);
+    gl.blendEquation(style.keep === true ? gl.MAX : gl.FUNC_ADD);
     gl.blendFunc(gl.ONE, gl.ONE);
     gl.bindVertexArray(this.#vao);
     gl.bindBuffer(gl.ARRAY_BUFFER, this.#instances);
