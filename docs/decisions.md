@@ -897,6 +897,92 @@ under the shake (`PH-5`); the substep; the tension over whole periods of a
 chain standing upright; and the periods closed across advances, the first,
 seen only in part, dropped.
 
+## 37. The first piece is called Pendulum, for now
+
+*2026-11-16.* The first piece's name, which begins its page's title and so
+names a bookmark and a shared link, is "Pendulum", and the README calls it
+so. The folder of its code and its route, `/chain-in-hand/`, which forwards
+to the site's root (decision 30), keep the working name, the chain in the
+hand, as do the entries above.
+
+**Why.** The author found the working name literal, which is what he liked
+in it, but not a name, and chose Pendulum until the piece has one of its
+own, for the title and the README. The route stays: the name is for now,
+and the piece opens at the site's root.
+
+## 38. A saved moment carries the whole screen, in a short code
+
+*2026-11-16.* Replaces what decision 34 kept of a moment, and what decisions
+24, 27 and 35 said of the address. The address carries the first piece's
+switches: the light of the twins and the trails, the tension's colours and
+the sketch's light on the whole frame. Without a saved moment it stays
+readable, as decision 10 made it, and carries them as `light=0`,
+`tension=1` and `sketch=1` when they differ from how the piece opens.
+
+S saves the whole screen in a code after the "#", in place of the readable
+part: the value of every control, every switch, whether the piece was
+paused and which way its time ran, where the shaken pivot was in its cycle,
+the minute the moment was saved, and the moment itself. Opened, the screen
+comes back: the controls and the switches as they were, paused if it was
+paused, its time running the way it ran, the shake where it was, and the
+chain at the moment. R starts the chain again there, with its time running
+that way and its shake at that point. A control or a switch changed after
+saving rewrites the code around the same moment; choosing a mode, the
+amplitude of one, or another number of masses still forgets the moment,
+and the address is readable again. The twins are born again from the
+moment, and the trails start empty: neither fits in an address. And the
+limit of decision 34 stands: even restored exactly, a chaotic motion parts
+from the one it was saved from within seconds, since every machine steps
+time in frames of its own.
+
+A control is written as the place of its value among the values its table
+names, in as few bits as they need: five for the 18 numbers of masses, one
+for the ribbon. The screen without the moment takes 12 bytes, and the
+moment eight to a mass in the 32-bit floats of decision 34, all in
+base64url. The first byte is the code's version, and the table of each
+version, the controls in order with every value each had and the switches,
+is frozen once published: a control or a value added makes a new version,
+written beside the old one, which keeps reading the addresses written with
+it. An address of decision 34, the values readable and `#moment=` after the
+"#", still opens where it was saved.
+
+The page's title names the screen: the piece's name; what differs from how
+it opens, in a few words; and for a saved moment, the minute it was saved,
+in the visitor's time zone and with the year when it is not this one, and
+a mark of four letters drawn from the moment and that minute, in letters
+that read without doubt (Crockford's base 32, without I, L, O or U), as in
+"Pendulum · 8 masses, the Moon · 16 Nov 01:42 · K7QF". Two bookmarks of
+one piece read apart.
+
+The words of the title, their order, the mark, and what the summary leaves
+out (the mode and its amplitude while a moment is saved) are the session's
+choices, which the author settles by seeing them.
+
+**Why.** The author called it a bug that a saved moment did not bring the
+screen back with it: the idea is that a state, a screen, is reproduced.
+Asked what the address should carry, the author chose every control; asked
+how to shorten the links, a compact code after the "#", with a button to
+share and a QR code, which are another pull request's. The author leaned
+towards a title with what differs, the minute and the mark together, to
+tell bookmarks apart, and chose that without a moment the address stays
+readable and carries the switches.
+
+**Evidence.** The address of a saved moment, the site's included, is 80
+letters long with two masses and 144 with eight, whatever the controls,
+and 5 520 with 512. The screen measured on the published page before this
+change, eight masses on the Moon with three controls of the light changed,
+took 175 letters, and brought back neither its switches nor its pause; two
+masses with nothing else changed took 71, the moment alone. The code's
+first twelve bytes, written for eight masses on the
+Moon with the tension's colours, paused and saved at 01:42 UTC on 16
+November 2026, were checked bit by bit against the table, and a test keeps
+that code opening as it did. Another test keeps the newest table equal to
+the registry. A screen comes back from its code for one mass to 512, its
+moment within seven significant digits and the shake's phase within a
+512th of a turn. In the browser, a screen saved with eight masses on the
+Moon, the three switches changed and the piece paused opens in a browser of
+its own with the same controls, switches, pause and title.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
