@@ -39,8 +39,9 @@ hanging rope it becomes as n grows.
   Let go, it leaves 512 twins born a hair apart, which fan out in colour to
   show chaos, and its tip and theirs leave trails of light that fade. How
   many twins there are, how far apart they are born, how long the trails
-  last, whether every mass of the chain leaves one and which of five
-  palettes colours the twins are controls too. One switch puts out the twins
+  last, whether every mass of the chain leaves one and which of ten
+  palettes colours the twins are controls too, and so is the ground, one of
+  eleven dark colours, each with a chain's colour to go with it. One switch puts out the twins
   and the trails and lights them again, time can run backwards until the fan
   closes, as far as chaos allows, and the G key passes the whole frame
   through the light of the first sketch, to compare.
@@ -50,9 +51,10 @@ hanging rope it becomes as n grows.
   breaks up and the fan opens. Any moment of it can be saved in the address,
   with the whole screen around it in a short code, and opens again as it
   was, under a title that names it and the minute it was saved. A switch paints each rod by how hard it
-  pulls against the weight it holds: warm where the chain is pulled hard, at
-  the bottom of a swing or in a whip's crack, blue where it goes slack, and
-  violet where a rod pushes, which a chain of links could not do. And the
+  pulls against the weight it holds: in the first of four scales, warm where
+  the chain is pulled hard, at the bottom of a swing or in a whip's crack,
+  blue where it goes slack, and violet where a rod pushes, which a chain of
+  links could not do. And the
   pivot can shake, a millimetre either way hundreds of times a second, on
   which the chain stands on its head, as Kapitza's pendulum does: up to
   twelve masses; from sixteen, the shake takes the chain apart.
