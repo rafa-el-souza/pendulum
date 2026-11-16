@@ -1122,6 +1122,52 @@ codes of both versions. In the browser, the ground's keys change the canvas
 and the page and come back to the same frame, the scale's key turns the
 colours on, and an address carries both.
 
+## 42. The trails' light fades to the dark, and can leave a mark
+
+*2026-11-16.* Three changes to the first piece's trails.
+
+- **Their light always fades.** The trails are kept in half floats where
+  the browser can draw into them (decision 21), and a half float rounds a
+  fade smaller than half a step of its precision back to the light it had.
+  A frame's fade shrinks with the frame: at a tenth of real time, with
+  trails of 10 s, or on a screen of 120 frames a second, it fell below that
+  step, and light stopped fading at half or more of what it had been, and
+  stayed. The fades are now gathered, frame after frame, and applied once
+  together they take off a 256th of the light, which rounding cannot undo.
+- **The step that stays, stays.** The last step, written 600 in the
+  address, had a half-life of ten minutes that the rounding above kept from
+  ever showing; it no longer fades at all.
+- **A step that leaves a mark.** Before it, a step written 100 fades as the
+  piece opens, with a half-life of 2.5 s, and keeps in a second target, at
+  every point, the brightest piece of trail drawn there. The mark shows
+  under the trails, through the same curve, after they have faded: a memory
+  of where the chain and its twins went, the same on every screen. Leaving
+  the step puts the mark out; the light switch, R and trails off clear it
+  with the trails. Its half-life, how bright the mark is (the brightest
+  piece, as drawn) and its place on the control are the session's choices,
+  which the author settles by looking.
+
+A saved moment's code gets its version 3, with the trails' seven steps. A
+code the published page wrote in version 2 is kept in the tests, and opens
+as it was.
+
+**Why.** The author saw light near white that did not seem to fade, and
+asked whether a mode could keep the old behaviour beside the fix. The old
+behaviour depended on the screen's frame rate, the speed of time, the
+half-life and how the graphics card rounds, so it could not look the same
+everywhere; of the fix alone, the fix with the old behaviour imitated on a
+switch, and the fix with a step that leaves a mark on purpose, the author
+chose the last, as the session recommended.
+
+**Evidence.** In Chromium, a half-float target holding light 1 was faded
+frame by frame as the trails were, for twenty half-lives, after which a
+millionth is left. At 0.8 of real time and 60 frames a second it reached
+8·10⁻⁶ with a half-life of 2.5 s; at a tenth of real time, and with 10 s
+trails at 120 frames a second, it stopped at 0.53; at a quarter with 10 s,
+at 0.85. Gathered as now, every case reached under 10⁻⁵. A unit test that
+rounds to half floats shows the same: the light stops above a half frame by
+frame, and reaches a millionth gathered.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
