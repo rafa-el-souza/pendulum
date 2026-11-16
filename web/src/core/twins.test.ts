@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
 
 import { restingState } from "../physics/step.ts";
-import { TwinBudget, bornTwins, fanPlace } from "./twins.ts";
+import {
+  Fading,
+  TwinBudget,
+  apart,
+  bornPerFrame,
+  bornTwin,
+  bornTwins,
+  fanPlace,
+  lightApart,
+} from "./twins.ts";
 
 // Twins: copies of a chain born a hair apart, which fan out to show chaos
 // (docs/decisions.md, decision 4), carried by a budget of their own that
@@ -80,5 +89,110 @@ describe("the twins' budget", () => {
     const budget = new TwinBudget(4, 0.01);
     budget.rescale(2, 8);
     expect(budget.cost).toBeCloseTo(0.01 * 8, 15);
+  });
+});
+
+// Twins that fade (decision 43): each one's light falls with how far chaos
+// has carried it from the chain, and never rises again; those gone dark are
+// born again on the chain, a few a frame, so that the twins come out of it
+// as a plume.
+
+describe("twins that fade", () => {
+  it("are born again each at its own place in the fan: the chain as it is now, turned by the twin's share of the spread", () => {
+    const chain = restingState(2);
+    chain.theta.set([1.1, -0.4]);
+    chain.omega.set([2, 3]);
+    for (const j of [0, 1, 7, 300]) {
+      const twin = bornTwin(chain, j, 1e-3);
+      const turn = 1e-3 * (fanPlace(j) - 0.5);
+      expect(twin.theta[0]).toBeCloseTo(1.1 + turn, 15);
+      expect(twin.theta[1]).toBeCloseTo(-0.4 + turn, 15);
+      expect([...twin.omega]).toEqual([2, 3]);
+      expect(twin.theta).not.toBe(chain.theta);
+      expect(twin.omega).not.toBe(chain.omega);
+      // the same twin as the whole fan has at that place
+      expect(twin).toEqual(bornTwins(chain, j + 1, 1e-3)[j]);
+    }
+  });
+
+  it("measure how far apart two chains look: the root mean square of the distances between their masses, as a share of the chain's length", () => {
+    // one mass, a metre down and a metre up
+    expect(
+      apart(
+        Float64Array.of(0),
+        Float64Array.of(-1),
+        Float64Array.of(0),
+        Float64Array.of(1),
+        1,
+      ),
+    ).toBeCloseTo(2, 15);
+    // two masses of a chain 1 m long, hanging and held out level: the first
+    // half a metre down against half a metre out, the second a metre down
+    // against a metre out
+    const hanging = [Float64Array.of(0, 0), Float64Array.of(-0.5, -1)] as const;
+    const level = [Float64Array.of(0.5, 1), Float64Array.of(0, 0)] as const;
+    expect(apart(...hanging, ...level, 1)).toBeCloseTo(
+      Math.sqrt((0.5 + 2) / 2),
+      15,
+    );
+    // the same, on a chain twice as long, is half as far
+    expect(apart(...hanging, ...level, 2)).toBeCloseTo(
+      Math.sqrt((0.5 + 2) / 2) / 2,
+      15,
+    );
+    expect(apart(...hanging, ...hanging, 1)).toBe(0);
+  });
+
+  it("light a twin fully on the chain, to a third of it at the reach, and all but out at twice the reach", () => {
+    expect(lightApart(0, 0.2)).toBe(1);
+    expect(lightApart(0.2, 0.2)).toBeCloseTo(Math.exp(-1), 15);
+    expect(lightApart(0.4, 0.2)).toBeLessThan(1 / 50);
+    expect(lightApart(0.1, 0.2)).toBeGreaterThan(lightApart(0.15, 0.2));
+  });
+
+  it("keep a twin's light from rising again once chaos has carried it off, even where it crosses the chain", () => {
+    const fading = new Fading(8);
+    expect([...fading.light]).toEqual(new Array(8).fill(1));
+    fading.see(3, 0.1, 0.2);
+    expect(fading.light[3]).toBeCloseTo(lightApart(0.1, 0.2), 15);
+    // crossing the chain, it stays as dark as it has been
+    fading.see(3, 0, 0.2);
+    expect(fading.light[3]).toBeCloseTo(lightApart(0.1, 0.2), 15);
+    fading.see(3, 0.3, 0.2);
+    expect(fading.light[3]).toBeCloseTo(lightApart(0.3, 0.2), 15);
+    // the others keep theirs, and born again they are all lit
+    expect(fading.light[2]).toBe(1);
+    fading.relight();
+    expect(fading.light[3]).toBe(1);
+  });
+
+  it("give back the twins gone dark to be born again, a few a frame, taking them in turn, lit again", () => {
+    const fading = new Fading(16);
+    for (const j of [1, 4, 5, 9, 12]) fading.see(j, 1, 0.2);
+    // 2 a frame: from the first, then on from where the last frame stopped,
+    // and round
+    expect(fading.gone(16, 2)).toEqual([1, 4]);
+    expect(fading.light[1]).toBe(1);
+    expect(fading.light[4]).toBe(1);
+    expect(fading.gone(16, 2)).toEqual([5, 9]);
+    fading.see(2, 1, 0.2);
+    expect(fading.gone(16, 2)).toEqual([12, 2]);
+    expect(fading.gone(16, 2)).toEqual([]);
+    // a twin still lit, if faintly, is left alone
+    fading.see(6, 0.25, 0.2);
+    expect(fading.gone(16, 2)).toEqual([]);
+    // and only those among the twins there are count
+    fading.see(14, 1, 0.2);
+    expect(fading.gone(14, 2)).toEqual([]);
+    expect(fading.gone(15, 2)).toEqual([14]);
+  });
+
+  it("bear at most a sixty-fourth of the twins in a frame, again or anew, and one at least", () => {
+    expect(bornPerFrame(512)).toBe(8);
+    expect(bornPerFrame(4096)).toBe(64);
+    expect(bornPerFrame(100)).toBe(2);
+    expect(bornPerFrame(64)).toBe(1);
+    expect(bornPerFrame(3)).toBe(1);
+    expect(bornPerFrame(0)).toBe(1);
   });
 });
