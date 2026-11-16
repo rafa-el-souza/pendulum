@@ -1,0 +1,80 @@
+/* The page's address, shared and shown as a QR code (docs/decisions.md,
+   decision 40). How the card and the word that a link was copied look and
+   where they sit are placeholders, which the author settles by seeing. */
+
+/* The card, in the middle of the screen, over the piece. */
+.card {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  align-items: center;
+  width: min(86vmin, 30rem);
+  /* room at the top for the close button, on the card's dark and not on the code */
+  padding: 2.75rem var(--space-2) var(--space-2);
+  color: var(--color-ink-muted);
+  font-family: var(--font-text);
+  font-size: 0.8125rem;
+  background: color-mix(in srgb, var(--color-ground) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-ink) 14%, transparent);
+  border-radius: 1rem;
+  transform: translate(-50%, -50%);
+}
+
+.card[hidden],
+.said[hidden] {
+  display: none;
+}
+
+/* The code: dark modules on the chain's light, as a reader expects them. */
+.code {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+}
+
+/* What the address opens, under the code; or why there is no code. */
+.title {
+  margin: 0;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.close {
+  position: absolute;
+  top: 0.25rem;
+  right: 0.25rem;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  font-size: 1.25rem;
+  line-height: 1;
+  background: none;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.close:focus-visible {
+  outline: 2px solid var(--color-ink-muted);
+}
+
+/* The word that the link was copied, a moment above the controls. */
+.said {
+  position: fixed;
+  bottom: calc(max(var(--space-1), env(safe-area-inset-bottom)) + 3.5rem);
+  left: 50%;
+  margin: 0;
+  padding: 0.375rem 0.75rem;
+  color: var(--color-ink);
+  font-family: var(--font-text);
+  font-size: 0.875rem;
+  background: color-mix(in srgb, var(--color-ground) 88%, transparent);
+  border-radius: 1rem;
+  transform: translateX(-50%);
+}
