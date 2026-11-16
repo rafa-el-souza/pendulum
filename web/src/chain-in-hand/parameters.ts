@@ -253,26 +253,40 @@ export const TWIN_COUNT: Parameter = {
 };
 
 /**
- * How long the trails last, as the half-life of their light in seconds of
- * simulated time (decisions 21 and 22): from none to one that stays, whose
- * half-life of ten minutes a visit does not see fade.
+ * How long the trails last (decisions 21 and 22): the half-life of their
+ * light in seconds of simulated time, from none to one that stays, written
+ * 600. Before it, the step written 100 fades as the trails open, with a
+ * half-life of 2.5 s, and leaves a mark: the brightest piece of trail drawn
+ * at every point stays, under the trails that fade (decision 42).
  */
-const HALF_LIVES = [0, 0.5, 1, 2.5, 10, 600];
+export const MARK_STEP = 100;
+const STAYS = 600;
+const STEPS = [0, 0.5, 1, 2.5, 10, MARK_STEP, STAYS];
+
+/** How a step of the trails fades: its half-life, without end for the one that stays, and whether it leaves a mark. */
+export function trailFade(value: number): { halfLife: number; mark: boolean } {
+  if (value === MARK_STEP) return { halfLife: 2.5, mark: true };
+  if (value === STAYS) {
+    return { halfLife: Number.POSITIVE_INFINITY, mark: false };
+  }
+  return { halfLife: value, mark: false };
+}
 
 export const TRAIL: Parameter = {
   id: "trail",
   label: "Length of the trails",
-  values: HALF_LIVES,
+  values: STEPS,
   initial: 2.5,
   keys: { down: ["7"], up: ["8"] },
-  // one pip per length, none when the trails are off
+  // one pip per step, none when the trails are off
   show: (value) => {
-    const filled = HALF_LIVES.indexOf(value);
-    return "●".repeat(filled) + "○".repeat(HALF_LIVES.length - 1 - filled);
+    const filled = STEPS.indexOf(value);
+    return "●".repeat(filled) + "○".repeat(STEPS.length - 1 - filled);
   },
   speak: (value) => {
     if (value === 0) return "off";
-    if (value === HALF_LIVES.at(-1)) return "stays";
+    if (value === MARK_STEP) return "leaves a mark";
+    if (value === STAYS) return "stays";
     return `${String(value)} s`;
   },
   icon: "comet",

@@ -27,7 +27,9 @@ import {
   TWIN_COUNT,
   gravityOf,
   handDamping,
+  MARK_STEP,
   shakeOf,
+  trailFade,
 } from "./parameters.ts";
 
 describe("the first piece's parameters", () => {
@@ -91,17 +93,31 @@ describe("the first piece's parameters", () => {
   it("let the trails run from none to one that stays, opening at the half-life they had, 2.5 s", () => {
     expect(TRAIL.values[0]).toBe(0);
     expect(TRAIL.initial).toBe(2.5);
-    // the last halves in ten minutes, which a visit does not see fade
+    // the last, written 600, stays
     expect(TRAIL.values.at(-1)).toBe(600);
     expect(TRAIL.icon).toBe("comet");
   });
 
+  it("have a step before the one that stays which fades as the first piece's trails do and leaves a mark (decision 42)", () => {
+    expect(TRAIL.values).toEqual([0, 0.5, 1, 2.5, 10, MARK_STEP, 600]);
+    expect(trailFade(MARK_STEP)).toEqual({ halfLife: 2.5, mark: true });
+    expect(trailFade(600)).toEqual({
+      halfLife: Number.POSITIVE_INFINITY,
+      mark: false,
+    });
+    for (const value of [0.5, 1, 2.5, 10]) {
+      expect(trailFade(value)).toEqual({ halfLife: value, mark: false });
+    }
+  });
+
   it("show the trails' length as pips, none when off, and say it in seconds", () => {
-    expect(TRAIL.show(0)).toBe("○○○○○");
-    expect(TRAIL.show(2.5)).toBe("●●●○○");
-    expect(TRAIL.show(600)).toBe("●●●●●");
+    expect(TRAIL.show(0)).toBe("○○○○○○");
+    expect(TRAIL.show(2.5)).toBe("●●●○○○");
+    expect(TRAIL.show(MARK_STEP)).toBe("●●●●●○");
+    expect(TRAIL.show(600)).toBe("●●●●●●");
     expect(TRAIL.speak?.(0)).toBe("off");
     expect(TRAIL.speak?.(2.5)).toBe("2.5 s");
+    expect(TRAIL.speak?.(MARK_STEP)).toBe("leaves a mark");
     expect(TRAIL.speak?.(600)).toBe("stays");
   });
 

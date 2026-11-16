@@ -97,11 +97,25 @@ const VERSION_2: CodeTable = {
   switches: ["light", "tension", "sketch"],
 };
 
+/**
+ * The code's third version (decision 42), frozen once published: the
+ * trails' step that leaves a mark, written 100, before the one that stays.
+ */
+const VERSION_3: CodeTable = {
+  version: 3,
+  controls: VERSION_2.controls.map((control) =>
+    control.id === "trail"
+      ? { id: "trail", values: [0, 0.5, 1, 2.5, 10, 100, 600] }
+      : control,
+  ),
+  switches: ["light", "tension", "sketch"],
+};
+
 /** Every version of the code the piece reads, oldest first. */
-export const CODES: readonly CodeTable[] = [VERSION_1, VERSION_2];
+export const CODES: readonly CodeTable[] = [VERSION_1, VERSION_2, VERSION_3];
 
 /** The version the piece writes: the newest. */
-export const CODE: CodeTable = VERSION_2;
+export const CODE: CodeTable = VERSION_3;
 
 /** What an address opens: the controls, the switches, and the moment saved, if any. */
 export interface Opening {

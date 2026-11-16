@@ -84,8 +84,29 @@ describe("the first piece's address (decision 38)", () => {
     expect(opened.values.get("palette")).toBe(0);
   });
 
-  it("writes codes of version 2, which hold the ground, the scale and the palettes added (decision 41)", () => {
-    expect(CODE.version).toBe(2);
+  it("opens a code of version 2 as the published page wrote it (decision 41)", () => {
+    // two masses, the neon scale on the rust ground, the tension's colours
+    // on, paused, saved at 04:25 UTC on 16 November 2026
+    const opened = openingOf("", `#${VERSION_2}`);
+    expect(opened.values.get("n")).toBe(2);
+    expect(opened.values.get("scale")).toBe(2);
+    expect(opened.values.get("ground")).toBe(6);
+    expect(opened.values.get("trail")).toBe(2.5);
+    expect(opened.switches.get("tension")).toBe(true);
+    expect(opened.saved?.paused).toBe(true);
+    expect(opened.saved?.savedAt).toBe(Date.UTC(2026, 10, 16, 4, 25));
+  });
+
+  it("writes codes of version 3, which hold the trails' mark (decision 42)", () => {
+    expect(CODE.version).toBe(3);
+    const { values, switches } = opening();
+    values.set("n", 3);
+    values.set("trail", 100);
+    const opened = openingOf("", addressOf(values, switches, moment(3), ""));
+    expect(opened.values).toEqual(values);
+  });
+
+  it("writes codes that hold the ground, the scale and the palettes added (decision 41)", () => {
     const { values, switches } = opening();
     values.set("n", 3);
     values.set("palette", 9);
@@ -186,5 +207,8 @@ describe("the first piece's address (decision 38)", () => {
  * version 1 as it was published": its first twelve bytes checked bit by bit
  * against the table by hand, then eight masses at rest.
  */
+/** A code of version 2, as the published page wrote it on saving a moment. */
+const VERSION_2 = "AgnIsCTME2gAByHEpEiOEsDCZw7AJPE3wBujYEA";
+
 const VERSION_1 =
   "ASnEsCTMNAADkOEMAAAAPwAAAD8AAAA_AAAAPwAAAD8AAAA_AAAAPwAAAD8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
