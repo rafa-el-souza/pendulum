@@ -33,5 +33,7 @@ export default defineConfig({
   test: {
     include: ["src/**/*.test.ts"],
     environment: "node",
+    // the design tokens are read as text by the test of the grounds
+    css: { include: [/tokens\.css/] },
   },
 });

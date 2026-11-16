@@ -12,6 +12,7 @@ import {
   TensionShades,
   earthWeights,
   tensionScale,
+  tensionScaleAt,
 } from "../core/tension.ts";
 import { LightTarget, Trails, fadeAfter } from "../core/trails.ts";
 import { TwinBudget, bornTwins, fanPlace } from "../core/twins.ts";
@@ -200,7 +201,7 @@ function play({ canvas, gl }: Stage): void {
   let pieceTension = new Float64Array(chain.n);
   let frameTension = new Float64Array(chain.n);
   let tensionScratch = new Float64Array(chain.n);
-  const tensionColor = tensionScale(colors.chain);
+  const tensionColor = tensionScale(colors.chain, tensionScaleAt(0));
   // each rod's colour, worked out once a frame for its rod, its mass and the
   // trail the mass leaves
   let rodColors: Rgb[] = [];
