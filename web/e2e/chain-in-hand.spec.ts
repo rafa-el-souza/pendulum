@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { decodeQR } from "qr/decode.js";
 
 import { collectErrors } from "./errors.ts";
 
@@ -845,6 +846,132 @@ test("a saved moment opens elsewhere as the screen it was: the controls, the swi
   await elsewhere.close();
   expect(errors).toEqual([]);
   expect(otherErrors).toEqual([]);
+});
+
+test("the H key and its button hand the page's address and title to the device's sheet for sharing", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  // a sheet that keeps what it is handed, since no engine opens one in a test
+  await page.addInitScript(
+    "window.shared = []; Object.defineProperty(navigator, 'share', { configurable: true, value: (data) => { window.shared.push(data); return Promise.resolve(); } });",
+  );
+  await page.goto("./?n=8");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await page.keyboard.press("h");
+  await expect.poll(() => page.evaluate("window.shared.length")).toBe(1);
+  expect(await page.evaluate("window.shared[0]")).toEqual({
+    title: "Pendulum · 8 masses",
+    url: page.url(),
+  });
+  await openControls(page);
+  await icon(page, "Share this page's address").click();
+  await expect.poll(() => page.evaluate("window.shared.length")).toBe(2);
+  expect(errors).toEqual([]);
+});
+
+test("without a sheet for sharing, the address is copied, and the button and a word say so", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  // no sheet, and a clipboard that keeps what it is given
+  await page.addInitScript(
+    "window.copied = []; Object.defineProperty(navigator, 'share', { configurable: true, value: undefined }); Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: (text) => { window.copied.push(text); return Promise.resolve(); } } });",
+  );
+  await page.goto("./?g=1.62");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await openControls(page);
+  await icon(page, "Share this page's address").click();
+  await expect(
+    page.getByRole("status").filter({ hasText: "Link copied" }),
+  ).toBeVisible();
+  await expect(icon(page, "Link copied")).toBeVisible();
+  expect(await page.evaluate("window.copied")).toEqual([page.url()]);
+  expect(errors).toEqual([]);
+});
+
+/**
+ * The QR code the card shows, drawn on a canvas in the page, as its pixels.
+ * (A string, because this file is not typed with the DOM.)
+ */
+async function cardPixels(
+  page: Page,
+): Promise<{ width: number; height: number; data: Uint8Array }> {
+  const { width, height, data } = await page.evaluate<{
+    width: number;
+    height: number;
+    data: number[];
+  }>(`(async () => {
+    const size = 320;
+    const svg = document.querySelector("#link-card svg").cloneNode(true);
+    svg.setAttribute("width", String(size));
+    svg.setAttribute("height", String(size));
+    const image = new Image();
+    image.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(new XMLSerializer().serializeToString(svg));
+    await image.decode();
+    const canvas = document.createElement("canvas");
+    canvas.width = size;
+    canvas.height = size;
+    const context = canvas.getContext("2d");
+    context.drawImage(image, 0, 0, size, size);
+    return { width: size, height: size, data: Array.from(context.getImageData(0, 0, size, size).data) };
+  })()`);
+  return { width, height, data: Uint8Array.from(data) };
+}
+
+test("the O key and its button show the page's address as a QR code that reads back as the address, following it, and Escape shuts it", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("./?n=8&g=1.62");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  const card = page.getByRole("dialog", {
+    name: "This page's address as a QR code",
+  });
+  await expect(card).toBeHidden();
+  await page.keyboard.press("o");
+  await expect(card).toBeVisible();
+  await expect(
+    card.getByRole("img", { name: "QR code of this page's address" }),
+  ).toBeVisible();
+  await expect(card).toHaveAttribute("data-address", page.url());
+  await expect(card).toContainText("Pendulum · 8 masses, the Moon");
+  expect(decodeQR(await cardPixels(page))).toBe(page.url());
+
+  // a moment saved changes the address, and the code follows it
+  await page.keyboard.press("s");
+  await expect(card).toHaveAttribute("data-address", /\/#[A-Za-z0-9_-]+$/);
+  await expect(card).toHaveAttribute("data-address", page.url());
+  expect(decodeQR(await cardPixels(page))).toBe(page.url());
+
+  await page.keyboard.press("Escape");
+  await expect(card).toBeHidden();
+  await openControls(page);
+  await icon(page, "QR code of this page's address").click();
+  await expect(card).toBeVisible();
+  await card.getByRole("button", { name: "Close" }).click();
+  await expect(card).toBeHidden();
+  expect(errors).toEqual([]);
+});
+
+test("an address longer than a QR code holds says so in place of the code", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("./?n=384&twins=0&trail=0");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await page.keyboard.press(" ");
+  await page.keyboard.press("s");
+  await expect(page).toHaveURL(/\/#[A-Za-z0-9_-]{4112}$/);
+  await page.keyboard.press("o");
+  const card = page.getByRole("dialog", {
+    name: "This page's address as a QR code",
+  });
+  await expect(card).toContainText("too long for a QR code");
+  await expect(
+    card.getByRole("img", { name: "QR code of this page's address" }),
+  ).toBeHidden();
+  expect(errors).toEqual([]);
 });
 
 test("an address with a moment starts the chain there, and another number of masses forgets it", async ({

@@ -29,6 +29,9 @@ export type Icon =
   | "balance"
   | "weighing"
   | "shake"
+  | "share"
+  | "copied"
+  | "qr"
   | "left"
   | "right";
 
@@ -151,6 +154,18 @@ const ICONS: Record<Icon, { fill: string; stroke: string; faint?: string }> = {
     stroke: "M12 15V5.5M5 20.5l2.33-2 2.33 2 2.33-2 2.34 2 2.33-2 2.33 2",
   },
   // chevrons: there is more of the row this way
+  // a box open at the top, an arrow rising out of it, as phones draw sharing
+  share: {
+    fill: "",
+    stroke: "M8.5 9.5H6.5v11h11v-11h-2M12 15V3M8.5 6.5L12 3l3.5 3.5",
+  },
+  // a tick, a moment after the address was copied
+  copied: { fill: "", stroke: "M5 12.5l4.5 4.5L19 7.5" },
+  // a QR code: its three corner squares, hollow round a centre, and a few modules
+  qr: {
+    fill: "M6 6h2v2H6zM16 6h2v2h-2zM6 16h2v2H6zM14 14h2v2h-2zM18 14h2v2h-2zM16 16h2v2h-2zM14 18h2v2h-2zM18 18h2v2h-2z",
+    stroke: "M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4z",
+  },
   left: { fill: "", stroke: "M15 5l-7 7 7 7" },
   right: { fill: "", stroke: "M9 5l7 7-7 7" },
 };
