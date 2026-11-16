@@ -16,7 +16,15 @@ import {
   tensionScaleAt,
 } from "../core/tension.ts";
 import { LightTarget, Trails, fadeAfter } from "../core/trails.ts";
-import { TwinBudget, bornTwins, fanPlace } from "../core/twins.ts";
+import {
+  Fading,
+  TwinBudget,
+  apart,
+  bornPerFrame,
+  bornTwin,
+  bornTwins,
+  fanPlace,
+} from "../core/twins.ts";
 import { fitScale, toWorld } from "../core/view.ts";
 import { Chain, createHand, type Hand } from "../physics/chain.ts";
 import { startInMode } from "../physics/modes.ts";
@@ -35,6 +43,8 @@ import {
   AMPLITUDE,
   CHAIN,
   COLOURS,
+  FADE,
+  FADE_REACH,
   GRAVITY,
   GROUND,
   HAND,
@@ -81,7 +91,8 @@ import { titleOf } from "./title.ts";
 // whole screen, which the page's title names (decision 38); it can be shared,
 // and shown as a QR code (decision 40). The ground is one of several dark
 // ones, each with its chain's colours, and the tension's colours one of
-// several scales (decision 41).
+// several scales (decision 41). The twins can stay, or fade as chaos carries
+// them off from the chain and be born again on it, a plume (decision 43).
 
 // A frame longer than this (a hidden tab, a stall) moves the chain by this
 // much only, so that it never jumps.
@@ -177,6 +188,9 @@ function play({ canvas, gl }: Stage): void {
     );
   }
   paint();
+  // While the twins fade (decision 43), each one's light, which falls as it
+  // parts from the chain; those gone dark are born again on the chain.
+  const fading = new Fading(mostTwins);
   const fan = new SegmentBatch(value(TWIN_COUNT) * chain.n);
   const dots = new SegmentBatch(chain.n + 2);
   // the hand's spring, drawn stronger the harder the hand pulls
@@ -202,7 +216,7 @@ function play({ canvas, gl }: Stage): void {
   // where each mass of the chain, and each twin's tip, was at the end of the
   // last piece of trail
   let ends = new Float64Array(2 * chain.n);
-  let twinTips = new Float64Array(0);
+  const twinTips = new Float64Array(2 * mostTwins);
   // The colour of the tension (decision 35), off until it is switched on:
   // each rod's tension averaged over the motion of the frame, or of the
   // instant when no time went by, in Earth weights of what the rod holds.
@@ -263,12 +277,16 @@ function play({ canvas, gl }: Stage): void {
       ends[2 * i] = x[i] ?? 0;
       ends[2 * i + 1] = y[i] ?? 0;
     }
-    twinTips = new Float64Array(2 * twins.length);
     twins.forEach((twin, j) => {
-      tip(twin.theta);
-      twinTips[2 * j] = tipAt[0] ?? 0;
-      twinTips[2 * j + 1] = tipAt[1] ?? 0;
+      tipFrom(j, twin);
     });
+  }
+
+  /** Twin j's trail goes on from where its tip is now. */
+  function tipFrom(j: number, twin: ChainState): void {
+    tip(twin.theta);
+    twinTips[2 * j] = tipAt[0] ?? 0;
+    twinTips[2 * j + 1] = tipAt[1] ?? 0;
   }
 
   /** A piece of trail from (ax, ay) to (bx, by), unless the point jumped. */
@@ -303,7 +321,37 @@ function play({ canvas, gl }: Stage): void {
       lit ? Math.min(value(TWIN_COUNT), twinBudget.affordable()) : 0,
       value(SPREAD),
     );
+    fading.relight();
     resetTrailEnds();
+  }
+
+  /**
+   * While the twins fade (decision 43), those gone dark are born again on the
+   * chain as it is, each at its place in the fan, and where the budget
+   * carries more twins than there are, new ones are born too: at most a
+   * sixty-fourth of them in a frame, so that they come out of the chain as a
+   * plume.
+   */
+  function bearAgain(): void {
+    const carried = Math.min(value(TWIN_COUNT), twinBudget.affordable());
+    const most = bornPerFrame(carried);
+    const gone = fading.gone(Math.min(twins.length, carried), most);
+    for (const j of gone) {
+      const twin = bornTwin(state, j, value(SPREAD));
+      twins[j] = twin;
+      tipFrom(j, twin);
+    }
+    for (
+      let born = gone.length;
+      born < most && twins.length < carried;
+      born++
+    ) {
+      const j = twins.length;
+      const twin = bornTwin(state, j, value(SPREAD));
+      twins.push(twin);
+      fading.light[j] = 1;
+      tipFrom(j, twin);
+    }
   }
 
   /**
@@ -623,10 +671,11 @@ function play({ canvas, gl }: Stage): void {
     }
     // a new grip takes hold at once, where the hand is
     if (parameter === HAND && hand !== null) hand = holding(hand.index, hand);
-    // another number of twins, or another spread, is born at once from the
-    // chain as it is, unless the hand holds it; trails turned off go dark, to
-    // start afresh
-    const twinsAgain = parameter === TWIN_COUNT || parameter === SPREAD;
+    // another number of twins, another spread, or twins that fade or stay,
+    // are born at once from the chain as it is, unless the hand holds it;
+    // trails turned off go dark, to start afresh
+    const twinsAgain =
+      parameter === TWIN_COUNT || parameter === SPREAD || parameter === FADE;
     if (twinsAgain && hand === null) spawnTwins();
     if (parameter === TRAIL && next === 0) trails.clear();
     // leaving the step that leaves a mark puts the mark out (decision 42)
@@ -869,13 +918,17 @@ function play({ canvas, gl }: Stage): void {
     const rodPixels = (chain.totalLength / chain.n) * (scale / ratio);
 
     // The twins, faint, so that many together read as one bright chain and
-    // only the fringes of the fan show colour.
+    // only the fringes of the fan show colour; while they fade, each in its
+    // own light, and those gone dark not at all.
     fan.clear();
     const faint = Math.min(
       0.5,
       Math.max(0.05, 2.2 / Math.sqrt(Math.max(1, twins.length))),
     );
+    const fades = value(FADE) === 1;
     twins.forEach((twin, j) => {
+      const shine = fades ? (fading.light[j] ?? 1) : 1;
+      if (shine < 1 / 64) return;
       chain.positions(twin.theta, twinX, twinY);
       const color = fanColors[j] ?? colors.chain;
       let tx = 0;
@@ -883,7 +936,7 @@ function play({ canvas, gl }: Stage): void {
       for (let i = 0; i < chain.n; i++) {
         const bx = twinX[i] ?? 0;
         const by = twinY[i] ?? 0;
-        fan.push(tx, ty, bx, by, color, faint);
+        fan.push(tx, ty, bx, by, color, faint * shine);
         tx = bx;
         ty = by;
       }
@@ -1096,10 +1149,14 @@ function play({ canvas, gl }: Stage): void {
         const twinShakes = Array.from({ length: twinPieces }, (_, piece) =>
           shakeAt(frameStartPhase + (rate * piece * simulated) / twinPieces),
         );
+        // while they fade, each in its own light, which then falls with how
+        // far it has gone from the chain (decision 43)
+        const fades = value(FADE) === 1;
         let done = 0;
         for (const twin of twins) {
           if ((done & 7) === 0 && performance.now() > giveUp) break;
           const color = fanColors[done] ?? colors.chain;
+          const shine = fades ? (fading.light[done] ?? 1) : 1;
           for (let piece = 0; piece < twinPieces; piece++) {
             twinStepper.advance(twin, simulated / twinPieces, g, {
               shake: twinShakes[piece] ?? null,
@@ -1111,10 +1168,18 @@ function play({ canvas, gl }: Stage): void {
               tipAt[0] ?? 0,
               tipAt[1] ?? 0,
               color,
-              light,
+              light * shine,
             );
             twinTips[2 * done] = tipAt[0] ?? 0;
             twinTips[2 * done + 1] = tipAt[1] ?? 0;
+          }
+          if (fades) {
+            chain.positions(twin.theta, twinX, twinY);
+            fading.see(
+              done,
+              apart(x, y, twinX, twinY, chain.totalLength),
+              FADE_REACH,
+            );
           }
           done++;
         }
@@ -1123,6 +1188,9 @@ function play({ canvas, gl }: Stage): void {
           twins.length,
           performance.now() - start,
         );
+      }
+      if (value(FADE) === 1 && lit && hand === null && simulated > 0) {
+        bearAgain();
       }
       showTwins();
 

@@ -111,11 +111,30 @@ const VERSION_3: CodeTable = {
   switches: ["light", "tension", "sketch"],
 };
 
+/**
+ * The code's fourth version (decision 43), frozen once published: whether the
+ * twins fade, after the spread of their birth.
+ */
+const VERSION_4: CodeTable = {
+  version: 4,
+  controls: VERSION_3.controls.flatMap((control) =>
+    control.id === "spread"
+      ? [control, { id: "fade", values: [0, 1] }]
+      : [control],
+  ),
+  switches: ["light", "tension", "sketch"],
+};
+
 /** Every version of the code the piece reads, oldest first. */
-export const CODES: readonly CodeTable[] = [VERSION_1, VERSION_2, VERSION_3];
+export const CODES: readonly CodeTable[] = [
+  VERSION_1,
+  VERSION_2,
+  VERSION_3,
+  VERSION_4,
+];
 
 /** The version the piece writes: the newest. */
-export const CODE: CodeTable = VERSION_3;
+export const CODE: CodeTable = VERSION_4;
 
 /** What an address opens: the controls, the switches, and the moment saved, if any. */
 export interface Opening {

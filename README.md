@@ -37,12 +37,15 @@ hanging rope it becomes as n grows.
   gravity from none to Jupiter's, pointing any way round, and the hand that
   holds it from a rubber band to a firm grip.
   Let go, it leaves 512 twins born a hair apart, which fan out in colour to
-  show chaos, and its tip and theirs leave trails of light that fade. How
-  many twins there are, how far apart they are born, how long the trails
-  last and whether they leave a mark that stays, whether every mass of the
-  chain leaves one and which of ten palettes colours the twins are controls
-  too, and so is the ground, one of eleven dark colours, each with a
-  chain's colour to go with it. One switch puts out the twins and the
+  show chaos, and its tip and theirs leave trails of light that fade. The
+  twins can stay, a cloud over the whole disc once the fan has opened, or
+  fade as chaos carries them off and be born again on the chain, so that
+  they come out of it as a plume. How many twins there are, how far apart
+  they are born, whether they fade, how long the trails last and whether
+  they leave a mark that stays, whether every mass of the chain leaves one
+  and which of ten palettes colours the twins are controls too, and so is
+  the ground, one of eleven dark colours, each with a chain's colour to go
+  with it. One switch puts out the twins and the
   trails and lights them again, time can run backwards until the fan
   closes, as far as chaos allows, and the G key passes the whole frame
   through the light of the first sketch, to compare.

@@ -331,6 +331,34 @@ export const SPREAD: Parameter = {
 };
 
 /**
+ * Whether the twins stay or fade (decision 43). They stay, as they have until
+ * now and as the piece opens: once the fan has opened they fill the disc, a
+ * cloud that does not go. Or each fades as chaos carries it off from the
+ * chain, its light falling with how far it looks from it and never rising
+ * again, and once dark it is born again on the chain, at its place in the
+ * fan, a few a frame, so that the twins come out of the chain as a plume
+ * and come apart in the chaos. One key switches, coming round.
+ */
+export const FADE: Parameter = {
+  id: "fade",
+  label: "Twins carried off by chaos",
+  values: [0, 1],
+  initial: 0,
+  keys: { down: [], up: ["p", "P"] },
+  cyclic: true,
+  show: (value) => (value === 1 ? "fade" : "stay"),
+  icon: "snuffed",
+};
+
+/**
+ * How far a twin that fades looks from its chain when its light is down to a
+ * third, as a share of the chain's length (decision 43): three tenths. At
+ * twice that it has all but gone, and is born again. The session's choice,
+ * which the author settles by looking.
+ */
+export const FADE_REACH = 0.3;
+
+/**
  * Which masses of the chain leave trails (decision 26): the tip alone, as
  * until now, or every mass, so that the chain draws a ribbon. The twins'
  * trails stay at their tips. The control shows the chain's masses, lit where
@@ -417,10 +445,11 @@ export const CHAIN: readonly Parameter[] = [
   AMPLITUDE,
 ];
 
-/** The light: the twins, their trails and the chain's, and their colours. */
+/** The light: the twins and whether they fade, their trails and the chain's, and their colours. */
 export const LIGHT: readonly Parameter[] = [
   TWIN_COUNT,
   SPREAD,
+  FADE,
   TRAIL,
   RIBBON,
   PALETTE,

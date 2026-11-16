@@ -97,13 +97,46 @@ describe("the first piece's address (decision 38)", () => {
     expect(opened.saved?.savedAt).toBe(Date.UTC(2026, 10, 16, 4, 25));
   });
 
-  it("writes codes of version 3, which hold the trails' mark (decision 42)", () => {
-    expect(CODE.version).toBe(3);
+  it("writes codes that hold the trails' mark (decision 42)", () => {
     const { values, switches } = opening();
     values.set("n", 3);
     values.set("trail", 100);
     const opened = openingOf("", addressOf(values, switches, moment(3), ""));
     expect(opened.values).toEqual(values);
+  });
+
+  it("opens a code of version 3 as the published page wrote it, with the twins that stay (decision 43)", () => {
+    // three masses, 64 twins born 10⁻⁵ apart, trails that leave a mark, the
+    // gold palette on the plum ground, the tension's colours on, paused,
+    // saved at 05:22 UTC on 16 November 2026
+    const opened = openingOf("", `#${VERSION_3}`);
+    expect(opened.values.get("n")).toBe(3);
+    expect(opened.values.get("twins")).toBe(64);
+    expect(opened.values.get("spread")).toBe(1e-5);
+    expect(opened.values.get("trail")).toBe(100);
+    expect(opened.values.get("palette")).toBe(6);
+    expect(opened.values.get("ground")).toBe(4);
+    expect(opened.values.get("fade")).toBe(0);
+    expect(opened.switches.get("tension")).toBe(true);
+    expect(opened.saved?.paused).toBe(true);
+    expect(opened.saved?.savedAt).toBe(Date.UTC(2026, 10, 16, 5, 22));
+    expect(opened.saved?.state.theta).toHaveLength(3);
+  });
+
+  it("writes codes of version 4, which hold whether the twins fade (decision 43)", () => {
+    expect(CODE.version).toBe(4);
+    const { values, switches } = opening();
+    values.set("n", 3);
+    values.set("fade", 1);
+    const opened = openingOf("", addressOf(values, switches, moment(3), ""));
+    expect(opened.values).toEqual(values);
+  });
+
+  it("carries the twins that fade readable, without a moment", () => {
+    const { values, switches } = opening();
+    values.set("fade", 1);
+    expect(addressOf(values, switches, null, "")).toBe("?fade=1");
+    expect(openingOf("?fade=1", "").values.get("fade")).toBe(1);
   });
 
   it("writes codes that hold the ground, the scale and the palettes added (decision 41)", () => {
@@ -209,6 +242,9 @@ describe("the first piece's address (decision 38)", () => {
  */
 /** A code of version 2, as the published page wrote it on saving a moment. */
 const VERSION_2 = "AgnIsCTME2gAByHEpEiOEsDCZw7AJPE3wBujYEA";
+
+/** A code of version 3, as the published page wrote it on saving a moment. */
+const VERSION_3 = "AxHIsCKUwmgAByHFiATCnz4oTQ6-UJerPiHLdMFrTWFBttOcQQ";
 
 const VERSION_1 =
   "ASnEsCTMNAADkOEMAAAAPwAAAD8AAAA_AAAAPwAAAD8AAAA_AAAAPwAAAD8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";

@@ -24,6 +24,7 @@ export type Icon =
   | "palette"
   | "scale"
   | "ground"
+  | "snuffed"
   | "mode"
   | "amplitude"
   | "save"
@@ -132,6 +133,13 @@ const ICONS: Record<Icon, { fill: string; stroke: string; faint?: string }> = {
     fill: "M9.75 15.5h2.5v6h-2.5z",
     stroke:
       "M4.5 3.5h12a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-12a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1zM17.5 6h2.5v5.5H11v4",
+  },
+  // a candle just put out, its smoke rising and coming apart: the twins that
+  // go out as chaos carries them off
+  snuffed: {
+    fill: "M9.5 14h5v7.5h-5z",
+    stroke: "M12 14v-1.5c0-1.4-2-1.8-2-3.3",
+    faint: "M10 9.2c0-1.5 3-1.7 3-3.4s-2.5-1.6-2.5-3.3",
   },
   // a string held at both ends in its second mode, as a standing wave is
   // drawn: one end of its swing, the other faint, and its nodes

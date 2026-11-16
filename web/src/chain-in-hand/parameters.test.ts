@@ -8,6 +8,8 @@ import {
   AMPLITUDE,
   CHAIN,
   COLOURS,
+  FADE,
+  FADE_REACH,
   GRAVITY,
   GROUND,
   HAND,
@@ -222,9 +224,24 @@ describe("the first piece's parameters", () => {
       MODE,
       AMPLITUDE,
     ]);
-    expect(LIGHT).toEqual([TWIN_COUNT, SPREAD, TRAIL, RIBBON, PALETTE]);
+    expect(LIGHT).toEqual([TWIN_COUNT, SPREAD, FADE, TRAIL, RIBBON, PALETTE]);
     expect(COLOURS).toEqual([SCALE, GROUND]);
     expect(PARAMETERS).toEqual([...CHAIN, ...LIGHT, ...COLOURS]);
+  });
+
+  it("let the twins stay, as they have until now and as the piece opens, or fade as chaos carries them off, on one key (decision 43)", () => {
+    expect(FADE.values).toEqual([0, 1]);
+    expect(FADE.initial).toBe(0);
+    expect(FADE.keys).toEqual({ down: [], up: ["p", "P"] });
+    expect(FADE.cyclic).toBe(true);
+    expect(stepValue(FADE, 0, 1)).toBe(1);
+    expect(stepValue(FADE, 1, 1)).toBe(0);
+    expect(FADE.show(0)).toBe("stay");
+    expect(FADE.show(1)).toBe("fade");
+  });
+
+  it("fade a twin to a third of its light three tenths of the chain's length from it, the session's reach, which the author settles by looking (decision 43)", () => {
+    expect(FADE_REACH).toBe(0.3);
   });
 
   it("step through the tension's scales on one key, beside the tension's T, coming round, opening with decision 35's (decision 41)", () => {

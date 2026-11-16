@@ -47,6 +47,8 @@ function words(parameter: Parameter, value: number): string {
       return value === 0 ? "no twins" : `${String(value)} twins`;
     case "spread":
       return `born ${SPREAD.show(value)} apart`;
+    case "fade":
+      return "twins that fade";
     case "trail":
       if (value === 0) return "no trails";
       if (value === TRAIL.values.at(-1)) return "trails that stay";

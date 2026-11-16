@@ -542,6 +542,51 @@ test("the spread's keys bring the twins closer or farther at birth, and the addr
   expect(errors).toEqual([]);
 });
 
+test("the P key lets the twins fade as chaos carries them off and stay again, and the address and the title follow", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  // time runs four times faster, so that twins part and are born again
+  await page.goto("./?time=4");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await openControls(page);
+  const fade = icon(page, "Twins carried off by chaos");
+  await expect(fade).toHaveAccessibleDescription("stay");
+  await page.keyboard.press("p");
+  await expect(fade).toHaveAccessibleDescription("fade");
+  await expect(page).toHaveURL(/[?&]fade=1(&|$)/);
+  await expect(page).toHaveTitle(/twins that fade/);
+  await frames(page, 90);
+  await page.keyboard.press("P");
+  await expect(fade).toHaveAccessibleDescription("stay");
+  await expect(page).not.toHaveURL(/fade=/);
+  await frames(page, 10);
+  expect(errors).toEqual([]);
+});
+
+test("an address asks for 4 096 twins that fade, which are born again from the chain let go", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("./?fade=1&twins=4096&time=4");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  const box = await page.locator("#stage").boundingBox();
+  if (box === null) throw new Error("the stage is not on the page");
+  await frames(page, 60);
+  // grabbed, they die; let go, they are born from the chain and fade again
+  await page.mouse.move(box.x + box.width / 2 + 60, box.y + box.height / 2);
+  await page.mouse.down();
+  await frames(page, 5);
+  await page.mouse.move(box.x + box.width / 2 - 40, box.y + box.height / 2);
+  await page.mouse.up();
+  await frames(page, 30);
+  await openControls(page);
+  await expect(
+    icon(page, "Twins carried off by chaos"),
+  ).toHaveAccessibleDescription("fade");
+  expect(errors).toEqual([]);
+});
+
 test("the keys 1 and 2 let the trails come from the tip or from every mass, and the address follows", async ({
   page,
 }) => {
