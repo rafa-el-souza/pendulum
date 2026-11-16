@@ -48,7 +48,10 @@ hanging rope it becomes as n grows.
   lowest normal modes at an amplitude of the visitor's choice: small, it
   keeps the mode's shape and its twins stay together; large, the shape
   breaks up and the fan opens. Any moment of it can be saved in the address,
-  and starts it again from there.
+  and starts it again from there. A switch paints each rod by how hard it
+  pulls against the weight it holds: warm where the chain is pulled hard, at
+  the bottom of a swing or in a whip's crack, blue where it goes slack, and
+  violet where a rod pushes, which a chain of links could not do.
   The controls wait behind one small button in a corner, which opens a thin
   row of icons; each control has a key too, and the address carries every
   value, so a view can be shared.
