@@ -64,6 +64,7 @@ describe("the title of the first piece's page (decision 38)", () => {
     ["twins", 0, "no twins"],
     ["twins", 4096, "4096 twins"],
     ["spread", 1e-6, "born 10⁻⁶ apart"],
+    ["fade", 1, "twins that fade"],
     ["trail", 0, "no trails"],
     ["trail", 10, "trails 10 s"],
     ["trail", 600, "trails that stay"],
