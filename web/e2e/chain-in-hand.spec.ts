@@ -362,7 +362,7 @@ test("an address carries the palette", async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test("the G key passes the whole frame through the sketch's light, and back", async ({
+test("the G key passes the whole frame through the sketch's light, and back, and the address follows", async ({
   page,
 }) => {
   const errors = collectErrors(page);
@@ -382,11 +382,13 @@ test("the G key passes the whole frame through the sketch's light, and back", as
 
   await page.keyboard.press("g");
   await expect(html).toHaveAttribute("data-light", "frame");
+  await expect(page).toHaveURL(/\?sketch=1$/);
   await frames(page, 3);
   expect((await stage.screenshot({ mask })).equals(before)).toBe(false);
 
   await page.keyboard.press("G");
   await expect(html).toHaveAttribute("data-light", "trails");
+  await expect(page).not.toHaveURL(/sketch/);
   await frames(page, 3);
   expect((await stage.screenshot({ mask })).equals(before)).toBe(true);
   expect(errors).toEqual([]);
@@ -438,7 +440,7 @@ test("the keys 1 and 2 let the trails come from the tip or from every mass, and 
   expect(errors).toEqual([]);
 });
 
-test("the light switch puts out the twins and the trails and lights them again, without changing their controls", async ({
+test("the light switch puts out the twins and the trails and lights them again, without changing their controls, and the address follows", async ({
   page,
 }) => {
   const errors = collectErrors(page);
@@ -461,10 +463,11 @@ test("the light switch puts out the twins and the trails and lights them again, 
   const dark = await stage.screenshot({ mask });
   await expect(twins).toHaveAccessibleDescription("512");
   await expect(trail).toHaveAccessibleDescription("2.5 s");
-  await expect(page).toHaveURL(/\?time=4$/);
+  await expect(page).toHaveURL(/\?time=4&light=0$/);
 
   await page.keyboard.press("L");
   await expect(light).toHaveAttribute("aria-pressed", "true");
+  await expect(page).toHaveURL(/\?time=4$/);
   await frames(page, 3);
   expect((await stage.screenshot({ mask })).equals(dark)).toBe(false);
 
@@ -473,10 +476,11 @@ test("the light switch puts out the twins and the trails and lights them again, 
   await expect(light).toHaveAttribute("aria-pressed", "false");
   await page.keyboard.press("8");
   await expect(light).toHaveAttribute("aria-pressed", "true");
+  await expect(page).toHaveURL(/\?time=4&trail=10$/);
   expect(errors).toEqual([]);
 });
 
-test("the T key and its switch paint the chain by its tension and back, outside the address", async ({
+test("the T key and its switch paint the chain by its tension and back, and the address follows", async ({
   page,
 }) => {
   const errors = collectErrors(page);
@@ -498,10 +502,11 @@ test("the T key and its switch paint the chain by its tension and back, outside 
   await expect(tension).toHaveAttribute("aria-pressed", "true");
   await frames(page, 3);
   expect((await stage.screenshot({ mask })).equals(plain)).toBe(false);
-  await expect(page).toHaveURL(/\?n=8$/);
+  await expect(page).toHaveURL(/\?n=8&tension=1$/);
 
   await tension.click();
   await expect(tension).toHaveAttribute("aria-pressed", "false");
+  await expect(page).toHaveURL(/\?n=8$/);
   await frames(page, 3);
   expect((await stage.screenshot({ mask })).equals(plain)).toBe(true);
 
@@ -744,39 +749,102 @@ function saveButton(page: Page): Locator {
     .getByRole("button", { name: /^Save this moment/ });
 }
 
-test("the S key saves the moment into the address, R starts the chain there, and choosing a mode forgets it", async ({
+/** A title with a saved moment's minute and mark (decision 38), after what differs, if anything. */
+const SAVED_TITLE =
+  /^Pendulum( · .+)? · \d{1,2} [A-Z][a-z]{2}( \d{4})? \d{2}:\d{2} · [0-9A-HJKMNP-TV-Z]{4}$/;
+
+test("the S key saves the moment and the screen into the address, R starts the chain there, and choosing a mode forgets it", async ({
   page,
 }) => {
   const errors = collectErrors(page);
   await page.goto("./");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await expect(page).toHaveTitle("Pendulum");
   await openControls(page);
   const mode = icon(page, "Normal mode");
   await expect(saveButton(page)).toHaveAccessibleName("Save this moment");
   await frames(page, 10);
 
-  // two masses: two angles and two rates, in 22 letters
+  // two masses: the screen in twelve bytes and the moment in sixteen, 38 letters
   await page.keyboard.press("s");
-  await expect(page).toHaveURL(/#moment=[A-Za-z0-9_-]{22}$/);
+  await expect(page).toHaveURL(/\/#[A-Za-z0-9_-]{38}$/);
+  await expect(page).toHaveTitle(SAVED_TITLE);
   await expect(saveButton(page)).toHaveAccessibleName(
     "Save this moment over the one saved",
   );
   await expect(mode).toHaveClass(/_held_/);
+  const saved = page.url();
+  const mark = (await page.title()).slice(-4);
   await frames(page, 10);
   await page.keyboard.press("r");
   await frames(page, 5);
-  // another value goes into the address beside the moment
+  // another value goes into the code, beside the same moment, and the title names it
   await page.keyboard.press("e");
-  await expect(page).toHaveURL(/\?g=24\.79#moment=[A-Za-z0-9_-]{22}$/);
+  await expect(page).toHaveURL(/\/#[A-Za-z0-9_-]{38}$/);
+  expect(page.url()).not.toBe(saved);
+  await expect(page).toHaveTitle(SAVED_TITLE);
+  await expect(page).toHaveTitle(
+    new RegExp(`^Pendulum · Jupiter · .+ · ${mark}$`),
+  );
 
   // a mode chosen is where the chain starts now, and the moment leaves
   await page.keyboard.press("m");
   await expect(mode).toHaveAccessibleDescription("normal mode 1");
-  await expect(page).not.toHaveURL(/#moment=/);
+  await expect(page).not.toHaveURL(/#/);
+  await expect(page).toHaveURL(/\?g=24\.79&mode=1$/);
+  await expect(page).toHaveTitle("Pendulum · Jupiter, mode 1");
   await expect(saveButton(page)).toHaveAccessibleName("Save this moment");
   await expect(mode).not.toHaveClass(/_held_/);
   await frames(page, 5);
   expect(errors).toEqual([]);
+});
+
+test("a saved moment opens elsewhere as the screen it was: the controls, the switches, the pause and the title", async ({
+  page,
+  browser,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("./?n=8&g=1.62");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await frames(page, 10);
+  await page.keyboard.press("t");
+  await page.keyboard.press("g");
+  await page.keyboard.press("l");
+  await expect(page).toHaveURL(/\?n=8&g=1\.62&light=0&tension=1&sketch=1$/);
+  await page.keyboard.press(" ");
+  await page.keyboard.press("s");
+  await expect(page).toHaveURL(/\/#[A-Za-z0-9_-]+$/);
+  await expect(page).toHaveTitle(
+    /^Pendulum · 8 masses, the Moon, light out, tension colours, sketch light, paused · /,
+  );
+  const title = await page.title();
+
+  // opened in a browser of its own, as a link shared is
+  const elsewhere = await browser.newContext();
+  const other = await elsewhere.newPage();
+  const otherErrors = collectErrors(other);
+  await other.goto(page.url());
+  const html = other.locator("html");
+  await expect(html).toHaveAttribute("data-webgl", "webgl2");
+  await expect(html).toHaveAttribute("data-light", "frame");
+  await expect(other).toHaveTitle(title);
+  await openControls(other);
+  await expect(icon(other, "Light")).toHaveAttribute("aria-pressed", "false");
+  await expect(icon(other, "Colours of the tension")).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(icon(other, "Resume")).toBeVisible();
+  await expect(icon(other, "Number of masses")).toHaveAccessibleDescription(
+    "n = 8",
+  );
+  await expect(saveButton(other)).toHaveAccessibleName(
+    "Save this moment over the one saved",
+  );
+  await frames(other, 5);
+  await elsewhere.close();
+  expect(errors).toEqual([]);
+  expect(otherErrors).toEqual([]);
 });
 
 test("an address with a moment starts the chain there, and another number of masses forgets it", async ({

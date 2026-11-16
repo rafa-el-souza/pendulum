@@ -1,0 +1,159 @@
+import { describe, expect, it } from "vitest";
+
+import { readCode, writeCode } from "../core/code.ts";
+import { checkParameters, initialValues } from "../core/parameters.ts";
+import { writeMoment } from "../core/moment.ts";
+import {
+  CODE,
+  CODES,
+  SWITCHES,
+  addressOf,
+  openingOf,
+  type Saved,
+} from "./address.ts";
+import { PARAMETERS } from "./parameters.ts";
+
+// What the first piece's address carries (docs/decisions.md, decision 38):
+// without a saved moment, its values and switches, readable; with one, the
+// whole screen in a code after the "#".
+
+function moment(n: number, changes: Partial<Saved> = {}): Saved {
+  return {
+    state: {
+      theta: Float64Array.from({ length: n }, (_, i) => 0.5 - i / n),
+      omega: Float64Array.from({ length: n }, (_, i) => 1 - i / n),
+    },
+    paused: true,
+    backwards: true,
+    phase: Math.PI / 2,
+    savedAt: Date.UTC(2026, 10, 16, 1, 42),
+    ...changes,
+  };
+}
+
+function opening() {
+  return {
+    values: initialValues(PARAMETERS),
+    switches: new Map(SWITCHES.map(({ id, initial }) => [id, initial])),
+  };
+}
+
+describe("the first piece's address (decision 38)", () => {
+  it("has switches whose ids are no parameter's: the light, the tension's colours and the sketch's light", () => {
+    expect(() => {
+      checkParameters(PARAMETERS, SWITCHES);
+    }).not.toThrow();
+    expect(SWITCHES).toEqual([
+      { id: "light", initial: true },
+      { id: "tension", initial: false },
+      { id: "sketch", initial: false },
+    ]);
+  });
+
+  it("writes codes in the newest version, whose table is the registry as it is: a change to the controls asks for a new version", () => {
+    expect(CODES.at(-1)).toBe(CODE);
+    expect(CODE.controls).toEqual(
+      PARAMETERS.map(({ id, values }) => ({ id, values })),
+    );
+    expect(CODE.switches).toEqual(SWITCHES.map(({ id }) => id));
+    expect(new Set(CODES.map(({ version }) => version)).size).toBe(
+      CODES.length,
+    );
+  });
+
+  it("opens a code of version 1 as it was published", () => {
+    // 8 masses on the Moon, the tension's colours on, paused, saved at 01:42
+    // UTC on 16 November 2026, the chain at rest half a radian out
+    const opened = openingOf("", `#${VERSION_1}`);
+    expect(opened.values.get("n")).toBe(8);
+    expect(opened.values.get("g")).toBe(1.62);
+    expect(opened.values.get("time")).toBe(0.8);
+    expect(opened.switches.get("tension")).toBe(true);
+    expect(opened.switches.get("light")).toBe(true);
+    expect(opened.saved?.paused).toBe(true);
+    expect(opened.saved?.backwards).toBe(false);
+    expect(opened.saved?.savedAt).toBe(Date.UTC(2026, 10, 16, 1, 42));
+    expect(opened.saved?.state.theta).toEqual(new Float64Array(8).fill(0.5));
+    expect(opened.saved?.state.omega).toEqual(new Float64Array(8));
+  });
+
+  it("without a moment, is readable: the values and the switches that differ from the opening, and nothing after the #", () => {
+    const { values, switches } = opening();
+    expect(addressOf(values, switches, null, "")).toBe("");
+    values.set("n", 8);
+    values.set("g", 1.62);
+    switches.set("tension", true);
+    switches.set("light", false);
+    expect(addressOf(values, switches, null, "")).toBe(
+      "?n=8&g=1.62&light=0&tension=1",
+    );
+    const opened = openingOf("?n=8&g=1.62&light=0&tension=1", "");
+    expect(opened.values).toEqual(values);
+    expect(opened.switches).toEqual(switches);
+    expect(opened.saved).toBeNull();
+  });
+
+  it("with a moment, is the whole screen in a code after the #, without the readable part", () => {
+    const { values, switches } = opening();
+    values.set("n", 3);
+    values.set("shake", 800);
+    switches.set("sketch", true);
+    const saved = moment(3);
+    const address = addressOf(values, switches, saved, "?n=3&shake=800");
+    expect(address).toMatch(/^#[A-Za-z0-9_-]+$/);
+    // a dozen bytes and eight to a mass
+    expect(address).toHaveLength(1 + Math.ceil((4 * (12 + 8 * 3)) / 3));
+    const opened = openingOf("", address);
+    expect(opened.values).toEqual(values);
+    expect(opened.switches).toEqual(switches);
+    expect(opened.saved?.paused).toBe(true);
+    expect(opened.saved?.backwards).toBe(true);
+    expect(opened.saved?.phase).toBeCloseTo(Math.PI / 2, 12);
+    expect(opened.saved?.savedAt).toBe(saved.savedAt);
+    expect(opened.saved?.state.theta).toHaveLength(3);
+  });
+
+  it("still opens an address of decision 34, the values readable and the moment after the #, its time not known", () => {
+    const text = writeMoment({
+      theta: Float64Array.of(0.5),
+      omega: Float64Array.of(0),
+    });
+    const opened = openingOf("?n=1&g=1.62", `#moment=${text}`);
+    expect(opened.values.get("n")).toBe(1);
+    expect(opened.values.get("g")).toBe(1.62);
+    expect(opened.saved?.state.theta).toEqual(Float64Array.of(0.5));
+    expect(opened.saved?.paused).toBe(false);
+    expect(opened.saved?.backwards).toBe(false);
+    expect(opened.saved?.savedAt).toBe(0);
+    // a moment of another number of masses than the address asks for is not taken
+    expect(openingOf("?n=2", `#moment=${text}`).saved).toBeNull();
+  });
+
+  it("takes from a code only what the registry still has, and refuses a code whose moment is not of its number of masses", () => {
+    const { values, switches } = opening();
+    values.set("n", 4);
+    const four = writeCode(CODE, { values, switches, ...moment(4) });
+    const three = writeCode(CODE, {
+      values,
+      switches,
+      ...moment(3),
+    });
+    expect(openingOf("", `#${four}`).saved).not.toBeNull();
+    // the masses' control says 4 and the moment has 3: nothing is taken
+    const refused = openingOf("?g=1.62", `#${three}`);
+    expect(refused.saved).toBeNull();
+    expect(refused.values.get("n")).toBe(2);
+    expect(refused.values.get("g")).toBe(1.62);
+    // a code the reader does not know opens the readable part, if any
+    expect(readCode(CODES, "AAAA")).toBeNull();
+    expect(openingOf("?n=8", "#AAAA").values.get("n")).toBe(8);
+  });
+});
+
+/**
+ * A code of version 1 as it was written when published, for "opens a code of
+ * version 1 as it was published": its first twelve bytes checked bit by bit
+ * against the table by hand, then eight masses at rest.
+ */
+const VERSION_1 =
+  "ASnEsCTMNAADkOEMAAAAPwAAAD8AAAA_AAAAPwAAAD8AAAA_AAAAPwAAAD8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";

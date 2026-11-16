@@ -29,10 +29,10 @@ hanging rope it becomes as n grows.
   formula, and by the energy along chaotic motion. The normal modes of the
   chain of equal masses come from the zeros of Laguerre polynomials, and are
   tested against the modes the oracle finds by another route.
-- **The first piece, begun:**
-  [the chain in the hand](https://rafa-el-souza.github.io/pendulum/), which
-  opens at the site's root while it is the only piece. A chain drawn as
-  light, to grab anywhere and throw. Its number of masses runs from 1 to 512
+- **The first piece, begun,** called
+  [Pendulum](https://rafa-el-souza.github.io/pendulum/) for now, which opens
+  at the site's root while it is the only piece. A chain drawn as light, to
+  grab anywhere and throw. Its number of masses runs from 1 to 512
   while it moves, its time from a tenth of real time to four times it, its
   gravity from none to Jupiter's, pointing any way round, and the hand that
   holds it from a rubber band to a firm grip.
@@ -48,7 +48,8 @@ hanging rope it becomes as n grows.
   lowest normal modes at an amplitude of the visitor's choice: small, it
   keeps the mode's shape and its twins stay together; large, the shape
   breaks up and the fan opens. Any moment of it can be saved in the address,
-  and starts it again from there. A switch paints each rod by how hard it
+  with the whole screen around it in a short code, and opens again as it
+  was, under a title that names it and the minute it was saved. A switch paints each rod by how hard it
   pulls against the weight it holds: warm where the chain is pulled hard, at
   the bottom of a swing or in a whip's crack, blue where it goes slack, and
   violet where a rod pushes, which a chain of links could not do. And the
@@ -57,7 +58,7 @@ hanging rope it becomes as n grows.
   twelve masses; from sixteen, the shake takes the chain apart.
   The controls wait behind one small button in a corner, which opens a thin
   row of icons; each control has a key too, and the address carries every
-  value, so a view can be shared.
+  value and switch, so a view can be shared.
 
 Every piece is meant to run fullscreen in the major browsers.
 

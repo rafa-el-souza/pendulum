@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { hashWith, momentInHash, readMoment, writeMoment } from "./moment.ts";
+import { momentInHash, readMoment, writeMoment } from "./moment.ts";
 
 /** A small deterministic generator, so that every run draws the same states. */
 function random(seed: number): () => number {
@@ -95,14 +95,5 @@ describe("a moment of the chain, kept in the address (decision 34)", () => {
     expect(momentInHash("", 2)).toBeNull();
     expect(momentInHash("#moment=", 2)).toBeNull();
     expect(momentInHash("#something-else", 2)).toBeNull();
-  });
-
-  it("goes into the # of an address, and out of it, leaving the rest as it was", () => {
-    expect(hashWith("", "abc")).toBe("#moment=abc");
-    expect(hashWith("#moment=old", "new")).toBe("#moment=new");
-    expect(hashWith("#x=1", "abc")).toBe("#x=1&moment=abc");
-    expect(hashWith("#x=1&moment=abc", null)).toBe("#x=1");
-    expect(hashWith("#moment=abc", null)).toBe("");
-    expect(hashWith("", null)).toBe("");
   });
 });

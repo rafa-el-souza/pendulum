@@ -5,9 +5,12 @@ import {
   initialValues,
   keyAction,
   readAddress,
+  readSwitches,
   stepValue,
   writeAddress,
+  writeSwitches,
   type Parameter,
+  type Switch,
 } from "./parameters.ts";
 
 const count: Parameter = {
@@ -99,6 +102,25 @@ describe("the registry of parameters (decision 10)", () => {
       checkParameters(parameters);
     }).toThrow();
   });
+
+  it.each<[string, Switch[]]>([
+    ["a switch with a parameter's id", [{ id: "n", initial: false }]],
+    [
+      "two switches with one id",
+      [
+        { id: "light", initial: true },
+        { id: "light", initial: false },
+      ],
+    ],
+    [
+      "a switch whose id is not lowercase letters",
+      [{ id: "Light", initial: true }],
+    ],
+  ])("refuses %s", (_, switches) => {
+    expect(() => {
+      checkParameters(both, switches);
+    }).toThrow();
+  });
 });
 
 describe("the shareable address", () => {
@@ -137,5 +159,49 @@ describe("the shareable address", () => {
       ["time", 0.5],
     ]);
     expect(readAddress(both, writeAddress(both, values, ""))).toEqual(values);
+  });
+});
+
+describe("the switches in the shareable address (decision 38)", () => {
+  const light: Switch = { id: "light", initial: true };
+  const tension: Switch = { id: "tension", initial: false };
+  const switches = [light, tension];
+
+  it("reads those it carries, 1 on and 0 off, and keeps the rest as the piece opens", () => {
+    expect(readSwitches(switches, "?n=8&light=0&tension=1")).toEqual(
+      new Map([
+        ["light", false],
+        ["tension", true],
+      ]),
+    );
+    expect(readSwitches(switches, "?light=off&tension=")).toEqual(
+      new Map([
+        ["light", true],
+        ["tension", false],
+      ]),
+    );
+  });
+
+  it("writes only those that differ from how the piece opens, after the values, and keeps anything else", () => {
+    const off = new Map([
+      ["light", false],
+      ["tension", false],
+    ]);
+    expect(writeSwitches(switches, off, "?n=8")).toBe("?n=8&light=0");
+    expect(writeSwitches(switches, off, "?tension=1&ref=x")).toBe(
+      "?ref=x&light=0",
+    );
+    const opening = new Map([
+      ["light", true],
+      ["tension", false],
+    ]);
+    expect(writeSwitches(switches, opening, "?light=0")).toBe("");
+    const both = new Map([
+      ["light", true],
+      ["tension", true],
+    ]);
+    expect(readSwitches(switches, writeSwitches(switches, both, ""))).toEqual(
+      both,
+    );
   });
 });

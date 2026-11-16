@@ -13,7 +13,7 @@ const piece = onlyPiece(PIECES);
 test(`the root opens ${piece.id} and draws with WebGL2`, async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto("./");
-  await expect(page).toHaveTitle(`${piece.title} · Pendulum`);
+  await expect(page).toHaveTitle(piece.title);
   await expect(page.locator('meta[name="description"]')).toHaveAttribute(
     "content",
     piece.summary,

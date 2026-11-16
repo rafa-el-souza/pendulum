@@ -45,19 +45,48 @@ export interface Parameter {
 /** A value for every parameter, by id. */
 export type Values = ReadonlyMap<string, number>;
 
+/**
+ * A switch of a piece, on or off, such as its light: the address carries it
+ * when it differs from how the piece opens (decision 38).
+ */
+export interface Switch {
+  /** Its key in the address: lowercase letters, none a parameter's. */
+  readonly id: string;
+  /** Whether it is on as a visit starts. */
+  readonly initial: boolean;
+}
+
 const ID = /^[a-z]+$/;
 
-/** Throws unless ids and keys are distinct, values increase, and each initial value is one of them. */
-export function checkParameters(parameters: readonly Parameter[]): void {
+/**
+ * Throws unless the ids of the parameters and of the switches are lowercase
+ * letters and distinct, the keys are distinct, the values increase, and each
+ * initial value is one of them.
+ */
+export function checkParameters(
+  parameters: readonly Parameter[],
+  switches: readonly Switch[] = [],
+): void {
   const ids = new Set<string>();
   const keys = new Set<string>();
+  for (const { id } of switches) {
+    if (!ID.test(id)) {
+      throw new Error(
+        `switch id ${JSON.stringify(id)} is not lowercase letters`,
+      );
+    }
+    if (ids.has(id)) throw new Error(`two switches share the id ${id}`);
+    ids.add(id);
+  }
   for (const p of parameters) {
     if (!ID.test(p.id)) {
       throw new Error(
         `parameter id ${JSON.stringify(p.id)} is not lowercase letters`,
       );
     }
-    if (ids.has(p.id)) throw new Error(`two parameters share the id ${p.id}`);
+    if (ids.has(p.id)) {
+      throw new Error(`two parameters or switches share the id ${p.id}`);
+    }
     ids.add(p.id);
     if (p.values.length === 0) throw new Error(`${p.id} has no values`);
     p.values.forEach((v, i) => {
@@ -142,6 +171,40 @@ export function writeAddress(
     const value = values.get(p.id);
     if (value !== undefined && value !== p.initial)
       query.set(p.id, String(value));
+  }
+  const text = query.toString();
+  return text === "" ? "" : `?${text}`;
+}
+
+/** The switches an address's search carries ("?tension=1"), 1 on and 0 off; any other as the piece opens. */
+export function readSwitches(
+  switches: readonly Switch[],
+  search: string,
+): Map<string, boolean> {
+  const query = new URLSearchParams(search);
+  return new Map(
+    switches.map(({ id, initial }) => {
+      const text = query.get(id);
+      return [id, text === "1" ? true : text === "0" ? false : initial];
+    }),
+  );
+}
+
+/**
+ * The search part of an address carrying the switches as `on` says: only
+ * those that differ from how the piece opens, after whatever else `search`
+ * carried. Empty when nothing is left.
+ */
+export function writeSwitches(
+  switches: readonly Switch[],
+  on: ReadonlyMap<string, boolean>,
+  search: string,
+): string {
+  const query = new URLSearchParams(search);
+  for (const { id, initial } of switches) {
+    query.delete(id);
+    const value = on.get(id) ?? initial;
+    if (value !== initial) query.set(id, value ? "1" : "0");
   }
   const text = query.toString();
   return text === "" ? "" : `?${text}`;
