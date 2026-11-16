@@ -629,6 +629,51 @@ test("an address carries gravity's strength and direction, and the chain is rais
   expect(errors).toEqual([]);
 });
 
+test("the shake's keys stand the chain on its head and let it fall, and the address follows", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("./");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await openControls(page);
+  const shake = icon(page, "Shake of the pivot");
+  await expect(shake).toHaveAccessibleDescription("still");
+
+  await page.keyboard.press("v");
+  await expect(shake).toHaveAccessibleDescription(
+    "800 times a second, a millimetre either way",
+  );
+  await expect(page).toHaveURL(/[?&]shake=800(&|$)/);
+  await frames(page, 10);
+  for (let press = 0; press < 3; press++) await page.keyboard.press("V");
+  await expect(shake).toHaveAccessibleDescription(
+    "1600 times a second, a millimetre either way",
+  );
+  await expect(page).toHaveURL(/[?&]shake=1600(&|$)/);
+  await frames(page, 10);
+  for (let press = 0; press < 3; press++) await page.keyboard.press("c");
+  await expect(shake).toHaveAccessibleDescription("still");
+  await expect(page).not.toHaveURL(/shake=/);
+  await frames(page, 10);
+  expect(errors).toEqual([]);
+});
+
+test("an address with a shake opens with the chain standing, which draws in the tension's colours and runs backwards", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("./?n=4&shake=1200");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await frames(page, 20);
+  await page.keyboard.press("t");
+  await frames(page, 20);
+  await page.keyboard.press("b");
+  await frames(page, 10);
+  await page.keyboard.press("r");
+  await frames(page, 10);
+  expect(errors).toEqual([]);
+});
+
 test("the mode's keys start the chain in a normal mode and back, the amplitude's swing it wider, and the address follows", async ({
   page,
 }) => {

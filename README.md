@@ -51,7 +51,10 @@ hanging rope it becomes as n grows.
   and starts it again from there. A switch paints each rod by how hard it
   pulls against the weight it holds: warm where the chain is pulled hard, at
   the bottom of a swing or in a whip's crack, blue where it goes slack, and
-  violet where a rod pushes, which a chain of links could not do.
+  violet where a rod pushes, which a chain of links could not do. And the
+  pivot can shake, a millimetre either way hundreds of times a second, on
+  which the chain stands on its head, as Kapitza's pendulum does: up to
+  twelve masses; from sixteen, the shake takes the chain apart.
   The controls wait behind one small button in a corner, which opens a thin
   row of icons; each control has a key too, and the address carries every
   value, so a view can be shared.

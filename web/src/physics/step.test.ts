@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import { Chain, gravity, type Gravity } from "./chain.ts";
 import {
+  PeriodTension,
   Stepper,
   restingState,
   reverseMotion,
   type ChainState,
+  type Shake,
 } from "./step.ts";
 
 const G = 9.81;
@@ -187,13 +189,9 @@ describe("the time budget of a frame (decision 15)", () => {
     const chain = Chain.uniform(64);
     const state = restingState(64);
     state.theta.fill(1);
-    const result = new Stepper(chain).advance(
-      state,
-      1 / 60,
-      DOWN,
-      null,
-      Number.NEGATIVE_INFINITY,
-    );
+    const result = new Stepper(chain).advance(state, 1 / 60, DOWN, {
+      deadline: Number.NEGATIVE_INFINITY,
+    });
     expect(result.substeps).toBe(8);
     expect(result.simulated).toBeGreaterThan(0);
     expect(result.simulated).toBeLessThan(1 / 60);
@@ -364,14 +362,9 @@ describe("each rod's mean tension over an advance (decision 35; PH-3, PH-4)", ()
     // M_j g, with M_j the mass at or below rod j (PH-3), here 1, 0.5 and 0.3 kg.
     const chain = new Chain([0.5, 0.2, 0.3], [0.3, 0.3, 0.4]);
     const mean = new Float64Array(3);
-    new Stepper(chain).advance(
-      restingState(3),
-      1 / 60,
-      DOWN,
-      null,
-      Number.POSITIVE_INFINITY,
-      mean,
-    );
+    new Stepper(chain).advance(restingState(3), 1 / 60, DOWN, {
+      meanTension: mean,
+    });
     [1, 0.5, 0.3].forEach((below, j) => {
       expect(mean[j]).toBeCloseTo(G * below, 12);
     });
@@ -406,14 +399,9 @@ describe("each rod's mean tension over an advance (decision 35; PH-3, PH-4)", ()
 
     const mean = new Float64Array(8);
     const off = (maxStep: number): number => {
-      new Stepper(chain, { maxStep }).advance(
-        copied(state),
-        dt,
-        DOWN,
-        null,
-        Number.POSITIVE_INFINITY,
-        mean,
-      );
+      new Stepper(chain, { maxStep }).advance(copied(state), dt, DOWN, {
+        meanTension: mean,
+      });
       return Math.max(
         ...Array.from(sampled, (t, j) => Math.abs((mean[j] ?? Number.NaN) - t)),
       );
@@ -442,20 +430,13 @@ describe("each rod's mean tension over an advance (decision 35; PH-3, PH-4)", ()
       copied(state),
       1 / 60,
       DOWN,
-      null,
-      Number.NEGATIVE_INFINITY,
-      short,
+      { deadline: Number.NEGATIVE_INFINITY, meanTension: short },
     );
     expect(simulated).toBeLessThan(1 / 60);
     const exact = new Float64Array(64);
-    new Stepper(chain).advance(
-      copied(state),
-      simulated,
-      DOWN,
-      null,
-      Number.POSITIVE_INFINITY,
-      exact,
-    );
+    new Stepper(chain).advance(copied(state), simulated, DOWN, {
+      meanTension: exact,
+    });
     const scale = Math.max(...Array.from(exact, Math.abs));
     exact.forEach((t, j) => {
       expect(Math.abs((short[j] ?? Number.NaN) - t)).toBeLessThan(1e-9 * scale);
@@ -467,16 +448,182 @@ describe("each rod's mean tension over an advance (decision 35; PH-3, PH-4)", ()
     const state = raised(3);
     new Stepper(chain).advance(state, 0.4, DOWN);
     const mean = new Float64Array(3);
-    new Stepper(chain).advance(
-      state,
-      0,
-      DOWN,
-      null,
-      Number.POSITIVE_INFINITY,
-      mean,
-    );
+    new Stepper(chain).advance(state, 0, DOWN, { meanTension: mean });
     expect(Array.from(mean)).toEqual(
       Array.from(tensionsOf(chain, state, DOWN)),
     );
+  });
+});
+
+/** The pivot shaken up and down: a cos(W t) along the vertical. */
+function shaken(amplitude: number, rate: number, phase = 0): Shake {
+  return { amplitude, rate, x: 0, y: 1, phase };
+}
+
+/** One pendulum's angle over time, shaken, let go at rest from `start`, sampled every 1/240 s. */
+function swing(
+  start: number,
+  amplitude: number,
+  rate: number,
+  seconds: number,
+): number[] {
+  const chain = Chain.uniform(1);
+  const state: ChainState = {
+    theta: Float64Array.of(start),
+    omega: Float64Array.of(0),
+  };
+  const stepper = new Stepper(chain);
+  const angles: number[] = [];
+  const frame = 1 / 240;
+  let phase = 0;
+  for (let k = 0; k < seconds / frame; k++) {
+    stepper.advance(state, frame, DOWN, {
+      shake: shaken(amplitude, rate, phase),
+    });
+    phase += rate * frame;
+    angles.push(state.theta[0] ?? Number.NaN);
+  }
+  return angles;
+}
+
+/** The mean time between the moments a slow swing, sampled every 1/240 s, crosses its centre going up. */
+function period(angles: number[], centre: number): number {
+  const ups: number[] = [];
+  // a crossing counts once the swing has been well below the centre, so that
+  // the shake's own small quiver across it is not counted
+  let armed = false;
+  angles.forEach((angle, k) => {
+    const off = angle - centre;
+    if (off < -0.02) armed = true;
+    if (armed && off > 0) {
+      ups.push(k / 240);
+      armed = false;
+    }
+  });
+  const first = ups[1] ?? Number.NaN;
+  const last = ups.at(-1) ?? Number.NaN;
+  return (last - first) / (ups.length - 2);
+}
+
+// A pivot shaken along a line (docs/decisions.md, decision 36). In its frame,
+// every mass feels gravity and, besides, a W² cos(W t) along the line, so the
+// chain moves as under a gravity that oscillates, and the tension route
+// holds there unchanged (PH-4). Kapitza (1951), and Landau and Lifshitz,
+// Mechanics, §30: for one pendulum of length l shaken along the vertical,
+// with a ≪ l and W ≫ sqrt(g / l), the slow motion is that in the potential
+// m g l (−cos φ + a² W² sin² φ / (4 g l)). Upside down it is stable when
+// a² W² > 2 g l, and swings about it at sqrt(a² W² / (2 l²) − g / l);
+// hanging, at sqrt(g / l + a² W² / (2 l²)).
+describe("a pivot shaken up and down (decision 36; PH-4, PH-5)", () => {
+  it("holds one pendulum upside down when a² W² > 2 g l, and lets it fall when less", () => {
+    // 2 cm: 2 g l = 19.6 m²/s², so the edge is at W = 221 rad/s. Measured
+    // over 30 s from 0.1 rad off: at 220 rad/s it falls, at 225 it stands.
+    const off = (angles: number[]): number =>
+      Math.max(...angles.map((angle) => Math.abs(angle - Math.PI)));
+    expect(off(swing(Math.PI - 0.1, 0.02, 230, 30))).toBeLessThan(0.2);
+    expect(off(swing(Math.PI - 0.1, 0.02, 215, 30))).toBeGreaterThan(1);
+  });
+
+  it("swings one pendulum about upside down, and about hanging, at the rates of the averaged potential", () => {
+    // 2 cm at 300 rad/s: a² W² / (2 l²) = 18 s⁻², so upside down the swing
+    // takes 2π / sqrt(18 − 9.81) = 2.1955 s, and hanging 2π / sqrt(27.81) =
+    // 1.1915 s, against 2.006 s unshaken. Measured: 2.1976 s and 1.1917 s,
+    // 0.09% and 0.02% off, as the averaging leaves terms of order a / l.
+    const up = period(swing(Math.PI - 0.05, 0.02, 300, 30), Math.PI);
+    const down = period(swing(0.05, 0.02, 300, 20), 0);
+    expect(Math.abs(up / ((2 * Math.PI) / Math.sqrt(18 - G)) - 1)).toBeLessThan(
+      0.005,
+    );
+    expect(
+      Math.abs(down / ((2 * Math.PI) / Math.sqrt(18 + G)) - 1),
+    ).toBeLessThan(0.005);
+  });
+
+  it("keeps a chain on one line through the pivot on it, upright, whatever the shake", () => {
+    // PH-5: every rod on one line accelerates like one pendulum at its first
+    // angle, here upright, where gravity along the line has no grip.
+    const chain = Chain.uniform(8);
+    const state = restingState(8);
+    state.theta.fill(Math.PI);
+    new Stepper(chain).advance(state, 1, DOWN, { shake: shaken(0.02, 300) });
+    state.theta.forEach((angle) => {
+      expect(angle).toBe(Math.PI);
+    });
+  });
+
+  it("takes substeps no longer than 0.3 / W", () => {
+    // One mass at rest, hanging: unshaken it takes substeps of 1/480 s.
+    const chain = Chain.uniform(1);
+    const { substeps } = new Stepper(chain).advance(
+      restingState(1),
+      1 / 60,
+      DOWN,
+      {
+        shake: shaken(0.001, 2000),
+      },
+    );
+    expect(substeps).toBeGreaterThanOrEqual(Math.ceil((1 / 60) * (2000 / 0.3)));
+  });
+});
+
+describe("each rod's tension over whole periods of the shake (decision 36; PH-4, PH-5)", () => {
+  it("is the weight below each rod, pushing, for a chain standing upright, while the instant swings by a W² / g weights", () => {
+    // Upright and still, rod j pushes with M_j times the gravity along the
+    // line, 9.81 + 1 800 cos(W t) for 2 cm at 300 rad/s: 185 weights either
+    // way of one, pushing. Over a whole period the shake averages out.
+    // Measured: within 6.4e-6 of a weight, where the mean over a frame of
+    // 1/120 s is up to 139 weights off.
+    const chain = new Chain([0.5, 0.2, 0.3], [0.3, 0.3, 0.4]);
+    const state = restingState(3);
+    state.theta.fill(Math.PI);
+    const meter = new PeriodTension(3);
+    const stepper = new Stepper(chain);
+    const rate = 300;
+    let phase = 0.7;
+    let lowest = 0;
+    let highest = 0;
+    for (let k = 0; k < 9; k++) {
+      stepper.advance(state, 1 / 120, DOWN, {
+        shake: shaken(0.02, rate, phase),
+        periodTension: meter,
+      });
+      phase += rate / 120;
+      const top =
+        tensionsOf(chain, state, {
+          x: 0,
+          y: -G - 0.02 * rate * rate * Math.cos(phase),
+        })[0] ?? Number.NaN;
+      lowest = Math.min(lowest, top);
+      highest = Math.max(highest, top);
+    }
+    expect(meter.closed).toBe(true);
+    [1, 0.5, 0.3].forEach((below, j) => {
+      expect(Math.abs((meter.mean[j] ?? Number.NaN) + G * below)).toBeLessThan(
+        1e-3 * G * below,
+      );
+    });
+    // and the instant, which a frame's mean would show, swings far wider
+    expect(highest - lowest).toBeGreaterThan(100 * G);
+  });
+
+  it("closes a period at each whole turn of the shake's phase, across advances, once it has seen one whole", () => {
+    // 2 cm at 300 rad/s: a period is 20.9 ms, and an advance of 1/120 s
+    // moves the phase by 2.5 rad. From 0.7, the first turn ends in the third
+    // advance, after part of a period only, and the first whole period ends
+    // in the fifth.
+    const chain = Chain.uniform(2);
+    const meter = new PeriodTension(2);
+    const stepper = new Stepper(chain);
+    const state = restingState(2);
+    const advance = (k: number): void => {
+      stepper.advance(state, 1 / 120, DOWN, {
+        shake: shaken(0.02, 300, 0.7 + 2.5 * k),
+        periodTension: meter,
+      });
+    };
+    for (let k = 0; k < 4; k++) advance(k);
+    expect(meter.closed).toBe(false);
+    advance(4);
+    expect(meter.closed).toBe(true);
   });
 });

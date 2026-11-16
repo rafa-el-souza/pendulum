@@ -1,6 +1,7 @@
 import { FAN_PALETTES, fanPalette } from "../core/palettes.ts";
 import type { Parameter } from "../core/parameters.ts";
 import { gravity, type Gravity } from "../physics/chain.ts";
+import type { Shake } from "../physics/step.ts";
 
 // The first piece's parameters (docs/decisions.md, decision 10). Each feeds
 // its control on screen, its keys and the shareable address.
@@ -176,6 +177,34 @@ export const AMPLITUDE: Parameter = {
   icon: "amplitude",
 };
 
+/**
+ * How far the shaken pivot goes either way of its place, in m (decision 36): a
+ * millimetre. A chain stands on a shake only while the shake is small beside
+ * each of its rods and fast, its speed a W above about 4.5 m/s: at a
+ * millimetre, from one mass to twelve on the steps below, and from sixteen
+ * the chain shakes itself apart, its fastest vibrations caught by the shake.
+ */
+export const SHAKE_AMPLITUDE = 0.001;
+
+/**
+ * The pivot shaken along gravity's line, in hertz, or still (decision 36): the
+ * shake of Kapitza's pendulum, on which the chain stands on its head without
+ * falling. Shaken, the chain starts again standing.
+ */
+export const SHAKE: Parameter = {
+  id: "shake",
+  label: "Shake of the pivot",
+  values: [0, 800, 1200, 1600],
+  initial: 0,
+  keys: { down: ["c", "C"], up: ["v", "V"] },
+  show: (value) => (value === 0 ? "—" : `${String(value)} Hz`),
+  speak: (value) =>
+    value === 0
+      ? "still"
+      : `${String(value)} times a second, a millimetre either way`,
+  icon: "shake",
+};
+
 /** A direction of the control, in degrees, as an angle that turns the way a rod's does, in radians. */
 export function radians(degrees: number): number {
   return (degrees * Math.PI) / 180;
@@ -184,6 +213,26 @@ export function radians(degrees: number): number {
 /** The gravity that the strength and the direction of the controls ask for. */
 export function gravityOf(strength: number, degrees: number): Gravity {
   return gravity(strength, radians(degrees));
+}
+
+/**
+ * The shake the controls ask for, `hertz` times a second along the line of
+ * gravity turned `degrees` from straight down, from `phase`; none while still.
+ */
+export function shakeOf(
+  hertz: number,
+  degrees: number,
+  phase: number,
+): Shake | null {
+  if (hertz === 0) return null;
+  const turn = radians(degrees);
+  return {
+    amplitude: SHAKE_AMPLITUDE,
+    rate: 2 * Math.PI * hertz,
+    x: -Math.sin(turn),
+    y: Math.cos(turn),
+    phase,
+  };
 }
 
 /**
@@ -304,13 +353,14 @@ export const PALETTE: Parameter = {
   icon: "palette",
 };
 
-/** What moves the chain: its masses, its time, the hand, gravity, and where it starts. */
+/** What moves the chain: its masses, its time, the hand, gravity, the shake, and where it starts. */
 export const CHAIN: readonly Parameter[] = [
   MASSES,
   TIME,
   HAND,
   GRAVITY,
   TILT,
+  SHAKE,
   MODE,
   AMPLITUDE,
 ];

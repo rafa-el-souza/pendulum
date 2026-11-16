@@ -22,7 +22,7 @@ function settle(rate: number): { theta: number; omega: number; off: number } {
   hand.y = 0;
   const stepper = new Stepper(chain);
   for (let frame = 0; frame < 60 * 40; frame++) {
-    stepper.advance(state, 1 / 60, gravity(G), hand);
+    stepper.advance(state, 1 / 60, gravity(G), { hand });
   }
   const x = new Float64Array(1);
   const y = new Float64Array(1);

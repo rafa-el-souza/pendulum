@@ -13,6 +13,8 @@ import {
   PALETTE,
   PARAMETERS,
   RIBBON,
+  SHAKE,
+  SHAKE_AMPLITUDE,
   SPREAD,
   TILT,
   TIME,
@@ -20,6 +22,7 @@ import {
   TWIN_COUNT,
   gravityOf,
   handDamping,
+  shakeOf,
 } from "./parameters.ts";
 
 describe("the first piece's parameters", () => {
@@ -188,7 +191,16 @@ describe("the first piece's parameters", () => {
   });
 
   it("set what moves the chain apart from the light, each parameter in one of the two, in the registry's order (decision 31)", () => {
-    expect(CHAIN).toEqual([MASSES, TIME, HAND, GRAVITY, TILT, MODE, AMPLITUDE]);
+    expect(CHAIN).toEqual([
+      MASSES,
+      TIME,
+      HAND,
+      GRAVITY,
+      TILT,
+      SHAKE,
+      MODE,
+      AMPLITUDE,
+    ]);
     expect(LIGHT).toEqual([TWIN_COUNT, SPREAD, TRAIL, RIBBON, PALETTE]);
     expect(PARAMETERS).toEqual([...CHAIN, ...LIGHT]);
   });
@@ -217,6 +229,37 @@ describe("the first piece's parameters", () => {
   it("show the amplitude as an angle either way, and say it in words", () => {
     expect(AMPLITUDE.show(20)).toBe("±20°");
     expect(AMPLITUDE.speak?.(20)).toBe("20 degrees either way at most");
+  });
+
+  it("shake the pivot a millimetre either way at 800, 1 200 or 1 600 Hz, opening still (decision 36)", () => {
+    expect(SHAKE.values).toEqual([0, 800, 1200, 1600]);
+    expect(SHAKE.initial).toBe(0);
+    expect(SHAKE.keys).toEqual({ down: ["c", "C"], up: ["v", "V"] });
+    expect(SHAKE.icon).toBe("shake");
+    expect(SHAKE_AMPLITUDE).toBe(0.001);
+  });
+
+  it("show the shake in hertz, a dash while still, and say it in words", () => {
+    expect(SHAKE.show(0)).toBe("—");
+    expect(SHAKE.show(1200)).toBe("1200 Hz");
+    expect(SHAKE.speak?.(0)).toBe("still");
+    expect(SHAKE.speak?.(800)).toBe(
+      "800 times a second, a millimetre either way",
+    );
+  });
+
+  it("make the shake the controls ask for, along gravity's line, or none while still", () => {
+    expect(shakeOf(0, 0, 1)).toBeNull();
+    const up = shakeOf(800, 0, 1);
+    expect(up?.amplitude).toBe(0.001);
+    expect(up?.rate).toBeCloseTo(2 * Math.PI * 800, 9);
+    expect(up?.x).toBeCloseTo(0, 15);
+    expect(up?.y).toBeCloseTo(1, 15);
+    expect(up?.phase).toBe(1);
+    // gravity turned a quarter to the right: the shake runs across the screen
+    const across = shakeOf(1600, 90, 0);
+    expect(Math.abs(across?.x ?? 0)).toBeCloseTo(1, 15);
+    expect(across?.y).toBeCloseTo(0, 15);
   });
 
   it("make the gravity the controls ask for: Earth's straight down at first, and a quarter turn points it to the right", () => {

@@ -45,6 +45,83 @@ export interface Advance {
   readonly simulated: number;
 }
 
+/**
+ * A pivot shaken back and forth along a line (docs/decisions.md, decision
+ * 36): `t` seconds into an advance it is amplitude * cos(phase + rate * t)
+ * from its place along (x, y), a unit vector, x to the right and y up. In its
+ * frame every mass feels, besides gravity, amplitude * rate² * cos(phase +
+ * rate * t) along the line, so the chain moves there as under a gravity that
+ * oscillates, and its equations are the same (PH-4).
+ */
+export interface Shake {
+  /** How far the pivot goes either way of its place, in m. */
+  readonly amplitude: number;
+  /** In rad/s. */
+  readonly rate: number;
+  readonly x: number;
+  readonly y: number;
+  /** Where in its cycle the pivot is as the advance starts, in rad. */
+  readonly phase: number;
+}
+
+/**
+ * Each rod's tension averaged over whole periods of a shaking pivot
+ * (docs/decisions.md, decision 36), kept across advances. Within a period a
+ * fast shake swings the tension by many weights, and a mean over any other
+ * stretch of time keeps part of that swing; over a whole period it averages
+ * out. An advance given a shake and this meter lands a substep on every
+ * whole turn of the shake's phase and closes the period there. The first
+ * turn it meets ends a period it saw only in part, which is dropped.
+ */
+export class PeriodTension {
+  /** Each rod's mean tension over the last whole period, in N. */
+  readonly mean: Float64Array;
+  /** Whether a whole period has closed since the meter was made. */
+  closed = false;
+  readonly #sum: Float64Array;
+  #time = 0;
+  #whole = false;
+
+  constructor(n: number) {
+    this.mean = new Float64Array(n);
+    this.#sum = new Float64Array(n);
+  }
+
+  /** Adds `weight` seconds of these tensions to the period going on. */
+  add(tension: Float64Array, weight: number): void {
+    addTo(this.#sum, tension, weight);
+    this.#time += weight;
+  }
+
+  /** Ends the period going on: its mean is kept if it was seen whole, and the next one starts. */
+  close(): void {
+    if (this.#whole && this.#time > 0) {
+      const inverse = 1 / this.#time;
+      for (let i = 0; i < this.mean.length; i++) {
+        this.mean[i] = this.#sum[i]! * inverse;
+      }
+      this.closed = true;
+    }
+    this.#whole = true;
+    this.#sum.fill(0);
+    this.#time = 0;
+  }
+}
+
+/** What an advance may be given besides the state, the time and gravity. */
+export interface AdvanceOptions {
+  /** A hand on one mass, held still in place and speed for the whole interval. */
+  readonly hand?: Hand | null;
+  /** The clock (performance.now()) past which the advance stops short. */
+  readonly deadline?: number;
+  /** Receives each rod's tension averaged over the time simulated (decision 35). */
+  readonly meanTension?: Float64Array | null;
+  /** The pivot shaken along a line (decision 36). */
+  readonly shake?: Shake | null;
+  /** Takes each rod's tension over whole periods of the shake (decision 36). */
+  readonly periodTension?: PeriodTension | null;
+}
+
 export interface StepperOptions {
   /** A substep is this fraction of the inverse rate of the fastest motion. */
   readonly fraction?: number;
@@ -68,6 +145,8 @@ export class Stepper {
   readonly #w3: Float64Array;
   readonly #w4: Float64Array;
   readonly #theta: Float64Array;
+  // gravity in the frame of a shaken pivot, at the stage being taken
+  readonly #shaken = { x: 0, y: 0 };
 
   constructor(chain: Chain, options: StepperOptions = {}) {
     this.chain = chain;
@@ -94,11 +173,12 @@ export class Stepper {
   /**
    * Advances the state by dt seconds under gravity g, in place. Each substep
    * is fraction / rate, at most maxStep, where rate is the largest of the
-   * fastest vibration across the rods, the fastest spin of a rod and the
-   * fastest rate a hand adds; the last one is cut to land on dt. A hand, when
-   * given, holds still in place and speed for the whole interval.
+   * fastest vibration across the rods, the fastest spin of a rod, the
+   * fastest rate a hand adds and the rate of a shake; the last one is cut to
+   * land on dt. A hand, when given, holds still in place and speed for the
+   * whole interval, in the frame of the pivot.
    *
-   * If the clock (performance.now()) passes `deadline` first, the advance
+   * If the clock (performance.now()) passes the `deadline` first, the advance
    * stops short, and the time it reports simulated is less than dt: shown at
    * the frame's pace, that is slow motion (docs/decisions.md, decision 15).
    * The clock is read every eight substeps.
@@ -107,16 +187,21 @@ export class Stepper {
    * time simulated, with RK4's own weights on the tensions its four stages
    * meet, which is Simpson's rule over each substep (docs/decisions.md,
    * decision 35). With no time to simulate, it receives the tension of the
-   * instant.
+   * instant. A shake, when given, adds its pull to gravity at every stage,
+   * and with a `periodTension` meter a substep lands on every whole turn of
+   * its phase, where the meter closes a period.
    */
   advance(
     state: ChainState,
     dt: number,
     g: Gravity,
-    hand: Hand | null = null,
-    deadline = Number.POSITIVE_INFINITY,
-    meanTension: Float64Array | null = null,
+    options: AdvanceOptions = {},
   ): Advance {
+    const hand = options.hand ?? null;
+    const deadline = options.deadline ?? Number.POSITIVE_INFINITY;
+    const meanTension = options.meanTension ?? null;
+    const shake = options.shake ?? null;
+    const meter = shake === null ? null : (options.periodTension ?? null);
     const { chain, fraction, maxStep } = this;
     const n = chain.n;
     const { theta, omega } = state;
@@ -134,16 +219,29 @@ export class Stepper {
     let left = dt;
     let substeps = 0;
     if (meanTension !== null) meanTension.fill(0);
+    // the time into the advance at which the shake's phase next completes a
+    // whole turn, and its period
+    const turn = 2 * Math.PI;
+    const period = shake === null ? 0 : turn / shake.rate;
+    let closeAt = Number.POSITIVE_INFINITY;
+    if (meter !== null && shake !== null) {
+      const into = ((shake.phase % turn) + turn) % turn;
+      closeAt = (turn - into) / shake.rate;
+    }
     while (left > 0) {
-      chain.solve(theta, omega, g, k1, tension, hand);
+      const at = dt - left;
+      chain.solve(theta, omega, this.#gravity(g, shake, at), k1, tension, hand);
       let spin = 0;
       for (let i = 0; i < n; i++) spin = Math.max(spin, Math.abs(omega[i]!));
       const rate = Math.max(
         chain.fastestVibration(tension),
         spin,
         hand === null ? 0 : hand.fastest,
+        shake === null ? 0 : shake.rate,
       );
       let h = Math.min(maxStep, fraction / rate);
+      // Land on the end of the shake's turn, for the meter.
+      if (closeAt - at < h) h = closeAt - at;
       // Within rounding of the time left, finish the frame in this substep.
       if (!(h < left * (1 - 1e-9))) h = left;
 
@@ -152,24 +250,30 @@ export class Stepper {
       // the tension's integral over the substep, a sixth of h at each end
       // and a third at the middle, met twice
       if (meanTension !== null) addTo(meanTension, tension, sixth);
+      if (meter !== null) meter.add(tension, sixth);
       for (let i = 0; i < n; i++) {
         th[i] = theta[i]! + half * omega[i]!;
         w2[i] = omega[i]! + half * k1[i]!;
       }
-      chain.solve(th, w2, g, k2, stageTension, hand);
+      const middle = this.#gravity(g, shake, at + half);
+      chain.solve(th, w2, middle, k2, stageTension, hand);
       if (meanTension !== null) addTo(meanTension, stageTension, 2 * sixth);
+      if (meter !== null) meter.add(stageTension, 2 * sixth);
       for (let i = 0; i < n; i++) {
         th[i] = theta[i]! + half * w2[i]!;
         w3[i] = omega[i]! + half * k2[i]!;
       }
-      chain.solve(th, w3, g, k3, stageTension, hand);
+      chain.solve(th, w3, middle, k3, stageTension, hand);
       if (meanTension !== null) addTo(meanTension, stageTension, 2 * sixth);
+      if (meter !== null) meter.add(stageTension, 2 * sixth);
       for (let i = 0; i < n; i++) {
         th[i] = theta[i]! + h * w3[i]!;
         w4[i] = omega[i]! + h * k3[i]!;
       }
-      chain.solve(th, w4, g, k4, stageTension, hand);
+      const end = this.#gravity(g, shake, at + h);
+      chain.solve(th, w4, end, k4, stageTension, hand);
       if (meanTension !== null) addTo(meanTension, stageTension, sixth);
+      if (meter !== null) meter.add(stageTension, sixth);
       for (let i = 0; i < n; i++) {
         theta[i] =
           theta[i]! + sixth * (omega[i]! + 2 * w2[i]! + 2 * w3[i]! + w4[i]!);
@@ -178,18 +282,37 @@ export class Stepper {
       }
       left -= h;
       substeps++;
+      // a whole turn of the shake ends here
+      if (meter !== null && closeAt - (dt - left) <= 1e-9 * period) {
+        meter.close();
+        closeAt += period;
+      }
       if ((substeps & 7) === 0 && performance.now() > deadline) break;
     }
     const simulated = dt - Math.max(0, left);
     if (meanTension !== null) {
       if (substeps === 0) {
-        chain.solve(theta, omega, g, k1, meanTension, hand);
+        const now = this.#gravity(g, shake, 0);
+        chain.solve(theta, omega, now, k1, meanTension, hand);
       } else {
         const inverse = 1 / simulated;
         for (let i = 0; i < n; i++) meanTension[i] = meanTension[i]! * inverse;
       }
     }
     return { substeps, simulated };
+  }
+
+  /** Gravity in the frame of the pivot, `at` seconds into the advance: g, and a shake's pull along its line. */
+  #gravity(g: Gravity, shake: Shake | null, at: number): Gravity {
+    if (shake === null) return g;
+    const pull =
+      shake.amplitude *
+      shake.rate *
+      shake.rate *
+      Math.cos(shake.phase + shake.rate * at);
+    this.#shaken.x = g.x + pull * shake.x;
+    this.#shaken.y = g.y + pull * shake.y;
+    return this.#shaken;
   }
 }
 

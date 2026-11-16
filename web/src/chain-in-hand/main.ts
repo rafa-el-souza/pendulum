@@ -31,10 +31,12 @@ import { Chain, createHand, type Hand } from "../physics/chain.ts";
 import { startInMode } from "../physics/modes.ts";
 import { resample } from "../physics/resample.ts";
 import {
+  PeriodTension,
   Stepper,
   restingState,
   reverseMotion,
   type ChainState,
+  type Shake,
 } from "../physics/step.ts";
 import {
   AMPLITUDE,
@@ -47,6 +49,7 @@ import {
   PALETTE,
   PARAMETERS,
   RIBBON,
+  SHAKE,
   SPREAD,
   TILT,
   TIME,
@@ -55,6 +58,7 @@ import {
   gravityOf,
   handDamping,
   radians,
+  shakeOf,
 } from "./parameters.ts";
 
 // The first piece (docs/decisions.md, decision 4): one chain pendulum to grab
@@ -71,7 +75,9 @@ import {
 // controls wait behind one small button (decision 31). The chain starts, and
 // starts again, raised to one side or at rest in one of the paper's normal
 // modes (decision 33), or from a moment saved in the address (decision 34).
-// A switch paints each rod by its tension (decision 35).
+// A switch paints each rod by its tension (decision 35). The pivot can be
+// shaken along gravity's line, fast enough that the chain stands on its head
+// (decision 36).
 
 // A frame longer than this (a hidden tab, a stall) moves the chain by this
 // much only, so that it never jumps.
@@ -99,6 +105,11 @@ const TRAIL_JUMP = 0.5;
 // this share of the way to that of its tension every frame, a few frames to
 // follow a change, as the hand's line eases its pull.
 const TENSION_EASE = 0.25;
+// The shaken pivot (decision 36): the chain starts standing this far off
+// upright, in rad, and the pivot is drawn as a streak this long either way
+// along the shake, in m: a sign of the shake, which is a millimetre.
+const STANDING_LEAN = 0.1;
+const PIVOT_STREAK = 0.025;
 
 const canvas = document.getElementById("stage");
 const notice = document.getElementById("notice");
@@ -191,6 +202,15 @@ function play({ canvas, gl }: Stage): void {
   // each rod's colour, worked out once a frame for its rod, its mass and the
   // trail the mass leaves
   let rodColors: Rgb[] = [];
+  // The shaken pivot (decision 36): where in its cycle the shake is, carried
+  // from frame to frame, and each rod's tension over whole periods of it,
+  // which the colour of the tension shows while the pivot shakes.
+  let shakePhase = 0;
+  let meter = new PeriodTension(chain.n);
+  /** The shake the controls ask for, from `phase`, or none while the pivot is still. */
+  function shakeAt(phase: number): Shake | null {
+    return shakeOf(value(SHAKE), value(TILT), phase);
+  }
 
   let hand: Hand | null = null;
   // whether the chain still swings in the mode it started in, the hand not
@@ -278,7 +298,8 @@ function play({ canvas, gl }: Stage): void {
    * as it points now (decision 33), raised to one side, a chaotic start with
    * two masses or more, or in a normal mode of the paper, its largest angle
    * the amplitude asked for, in the highest mode the chain has if it has
-   * fewer masses than the mode asked for.
+   * fewer masses than the mode asked for; or, raised while the pivot shakes,
+   * standing straight on its head, leaning a little (decision 36).
    */
   function start(): void {
     const down = radians(value(TILT));
@@ -290,6 +311,9 @@ function play({ canvas, gl }: Stage): void {
       };
     } else if (mode > 0) {
       state = startInMode(chain.n, mode, radians(value(AMPLITUDE)), down);
+    } else if (value(SHAKE) > 0) {
+      state.theta.fill(down + Math.PI - STANDING_LEAN);
+      state.omega.fill(0);
     } else {
       for (let i = 0; i < chain.n; i++) {
         state.theta[i] = down + 2.2 + (0.7 * i) / Math.max(1, chain.n - 1);
@@ -298,6 +322,7 @@ function play({ canvas, gl }: Stage): void {
     }
     hand = null;
     inMode = saved === null && mode > 0;
+    meter = new PeriodTension(chain.n);
     setBackwards(false);
     trails.clear();
     spawnTwins();
@@ -353,6 +378,7 @@ function play({ canvas, gl }: Stage): void {
     weights = earthWeights(chain);
     shades = new TensionShades(n);
     rodColors = Array.from({ length: n }, () => colors.chain);
+    meter = new PeriodTension(n);
     pieceTension = new Float64Array(n);
     frameTension = new Float64Array(n);
     tensionScratch = new Float64Array(n);
@@ -403,6 +429,7 @@ function play({ canvas, gl }: Stage): void {
     if (on) {
       shades = new TensionShades(chain.n);
       rodColors = Array.from({ length: chain.n }, () => colors.chain);
+      meter = new PeriodTension(chain.n);
     }
     controls.showAction(
       "tension",
@@ -431,6 +458,10 @@ function play({ canvas, gl }: Stage): void {
     if (hand !== null) return;
     reverseMotion(state);
     for (const twin of twins) reverseMotion(twin);
+    // the shake runs back too: its pivot keeps its place and moves the other
+    // way, which is its phase turned over
+    shakePhase = -shakePhase;
+    meter = new PeriodTension(chain.n);
     setBackwards(!backwards);
   }
 
@@ -483,7 +514,8 @@ function play({ canvas, gl }: Stage): void {
   }
 
   function step(parameter: Parameter, direction: 1 | -1): void {
-    const next = stepValue(parameter, value(parameter), direction);
+    const before = value(parameter);
+    const next = stepValue(parameter, before, direction);
     values.set(parameter.id, next);
     // a moment saved belongs to a chain of so many masses, and choosing a
     // start, a mode or the amplitude of one, starts there instead
@@ -505,6 +537,13 @@ function play({ canvas, gl }: Stage): void {
     if (parameter === TRAIL && next === 0) trails.clear();
     // another mode, or another amplitude of one, starts the chain again in it
     if (chooses) start();
+    // a pivot that starts to shake stands the chain on its head at once; a
+    // shake that changes or stops leaves the chain where it is, and a chain
+    // standing falls when it stops
+    if (parameter === SHAKE) {
+      meter = new PeriodTension(chain.n);
+      if (before === 0 && next > 0) start();
+    }
     // another palette colours the twins at once; the trails they left keep
     // their colours and fade
     if (parameter === PALETTE) paint();
@@ -763,7 +802,11 @@ function play({ canvas, gl }: Stage): void {
     } else {
       strength = 0;
     }
-    dots.push(0, 0, 0, 0, colors.pivot, 0.8);
+    // the pivot, drawn as a streak along its line while it shakes
+    const shaking = shakeAt(0);
+    const sx = shaking === null ? 0 : PIVOT_STREAK * shaking.x;
+    const sy = shaking === null ? 0 : PIVOT_STREAK * shaking.y;
+    dots.push(-sx, -sy, sx, sy, colors.pivot, 0.8);
 
     // The trails fade by the time that went by and take this frame's pieces.
     const halfLife = lit ? value(TRAIL) : 0;
@@ -837,6 +880,8 @@ function play({ canvas, gl }: Stage): void {
       // The chain moves in pieces, each ending in a point of its trail.
       const asked = dt * value(TIME);
       const deadline = performance.now() + PHYSICS_BUDGET_MS;
+      // the twins go through the frame's time from the same point of the shake
+      const frameStartPhase = shakePhase;
       const pieces = Math.min(16, Math.max(4, Math.ceil(asked * TRAIL_RATE)));
       // The tip draws, and with the ribbon every mass does (decision 26), the
       // others fainter the more there are, so that the ribbon stays light.
@@ -844,16 +889,20 @@ function play({ canvas, gl }: Stage): void {
       const ribbonLight = 0.55 * Math.min(1, 2.2 / Math.sqrt(chain.n));
       for (let piece = 0; piece < pieces; piece++) {
         const want = asked / pieces;
-        const moved = stepper.advance(
-          state,
-          want,
-          g,
+        const shake = shakeAt(shakePhase);
+        const moved = stepper.advance(state, want, g, {
           hand,
           deadline,
-          tensionShown ? pieceTension : null,
-        );
+          meanTension: tensionShown && shake === null ? pieceTension : null,
+          shake,
+          periodTension: tensionShown ? meter : null,
+        });
         simulated += moved.simulated;
-        if (tensionShown) {
+        if (shake !== null) {
+          shakePhase =
+            (shakePhase + shake.rate * moved.simulated) % (2 * Math.PI);
+        }
+        if (tensionShown && shake === null) {
           for (let i = 0; i < chain.n; i++) {
             frameTension[i] =
               (frameTension[i] ?? 0) + moved.simulated * (pieceTension[i] ?? 0);
@@ -900,12 +949,19 @@ function play({ canvas, gl }: Stage): void {
           value(TRAIL) === 0
             ? 1
             : Math.min(8, Math.max(1, Math.ceil(simulated * TWIN_TRAIL_RATE)));
+        // shaken as the chain was, piece by piece
+        const rate = 2 * Math.PI * value(SHAKE);
+        const twinShakes = Array.from({ length: twinPieces }, (_, piece) =>
+          shakeAt(frameStartPhase + (rate * piece * simulated) / twinPieces),
+        );
         let done = 0;
         for (const twin of twins) {
           if ((done & 7) === 0 && performance.now() > giveUp) break;
           const color = fanColors[done] ?? colors.chain;
           for (let piece = 0; piece < twinPieces; piece++) {
-            twinStepper.advance(twin, simulated / twinPieces, g);
+            twinStepper.advance(twin, simulated / twinPieces, g, {
+              shake: twinShakes[piece] ?? null,
+            });
             tip(twin.theta);
             trailPiece(
               twinTips[2 * done] ?? 0,
@@ -947,22 +1003,28 @@ function play({ canvas, gl }: Stage): void {
       }
     }
     if (tensionShown) {
-      // the tension over the frame's motion, or of the instant when none
-      if (simulated > 0) {
-        for (let i = 0; i < chain.n; i++) {
-          frameTension[i] = (frameTension[i] ?? 0) / simulated;
-        }
+      if (value(SHAKE) > 0) {
+        // over whole periods of the shake, where its swing averages out; until
+        // one has closed, the colours wait
+        if (meter.closed) shades.ease(meter.mean, weights, TENSION_EASE);
       } else {
-        chain.solve(
-          state.theta,
-          state.omega,
-          g,
-          tensionScratch,
-          frameTension,
-          hand,
-        );
+        // the tension over the frame's motion, or of the instant when none
+        if (simulated > 0) {
+          for (let i = 0; i < chain.n; i++) {
+            frameTension[i] = (frameTension[i] ?? 0) / simulated;
+          }
+        } else {
+          chain.solve(
+            state.theta,
+            state.omega,
+            g,
+            tensionScratch,
+            frameTension,
+            hand,
+          );
+        }
+        shades.ease(frameTension, weights, TENSION_EASE);
       }
-      shades.ease(frameTension, weights, TENSION_EASE);
       for (let i = 0; i < chain.n; i++) {
         rodColors[i] = tensionColor(shades.places[i] ?? 0);
       }

@@ -821,6 +821,82 @@ fourth order of RK4 has it; stopped short by the frame's deadline, it is the
 average over the time simulated. Measured in Earth weights, every rod of a
 chain hanging at rest on Earth holds one, with equal masses and unequal.
 
+## 36. The pivot can shake, and the chain stands on its head
+
+*2026-11-16.* A control after gravity's direction, with the keys C and V and
+a place in the address, shakes the pivot a millimetre either way along the
+line of gravity, 800, 1 200 or 1 600 times a second, or keeps it still, as
+the piece opens. Turned on, it starts the chain again standing straight on
+its head, leaning 0.1 rad, and R starts it there while the pivot shakes: the
+chain stands, swaying slowly about upright. A shake that changes or stops
+leaves the chain where it is, and a chain standing falls when it stops. A
+mode or a saved moment still starts the chain where they say.
+
+In the frame of a pivot moving a cos(W t) along a line, every mass feels,
+besides gravity, a W² cos(W t) along it: the chain moves there as under a
+gravity that oscillates, and its equations are the same (`PH-4`). So each
+stage of RK4 solves the chain under the gravity of its own instant, and the
+substeps are no longer than 0.3 / W. This is Kapitza's pendulum: averaged
+over the fast shake, the slow motion is that in a potential with a second
+minimum, upright, where the chain stands when the shake is small beside its
+rods and fast. The shake's phase is carried from frame to frame, turned over
+when time runs backwards so that the pivot retraces its motion too, and the
+twins are shaken from the same point of it. The hand acts in the pivot's
+frame. The pivot is drawn as a short streak along its line, a sign of the
+shake: a millimetre would not show.
+
+With the tension's colours (decision 35), the shaken chain shows each rod's
+tension over whole periods of the shake. Within a period, a shake of 800 Hz
+swings every tension by about 2 600 weights either way; over a whole period
+that averages out, and over a frame it does not. The stepper lands a
+substep on every whole turn of the shake and closes the period there. A
+chain standing shows violet: its rods hold it up by pushing, which a chain
+of links cannot do.
+
+The amplitude, the steps, the keys, the start standing and its lean,
+starting there as the shake turns on, the streak, and the place in the row
+are the session's choices, which the author settles by trying.
+
+**Why.** The author chose it from the proposals still open, on the
+session's recommendation: of them, the effect that surprises most, a chain
+that stands on its head without falling.
+
+**Evidence.** With the piece's own physics:
+
+- Against Kapitza's averaged potential (Landau and Lifshitz, *Mechanics*,
+  §30), one pendulum 1 m long shaken 2 cm stands upside down from 225 rad/s
+  and falls at 220, the edge a² W² = 2 g l being at 221 rad/s. Shaken at
+  300 rad/s, it swings about upright in 2.1976 s against the potential's
+  2.1955 s, and hanging in 1.1917 s against 1.1915 s.
+- Which chains stand, started straight and leaning 0.05 rad, over 20 s:
+  shaken 2 cm, one to three masses, from a W of 4 to 5 m/s, and four, six
+  and eight never; shaken 1 mm, one and two masses from 4.5 m/s, and three
+  to twelve from 4 m/s. Sixteen, 24 and 32 do not stand at all: under a
+  tension that swings by thousands of weights, their fastest vibrations
+  reach half the shake's rate, and the shake feeds them until the chain
+  comes apart, within the first frame with sixteen. The smaller the shake
+  beside the rods, the more masses stand.
+- So the shake is a millimetre, and its steps are an a W of 5.0, 7.5 and
+  10.1 m/s, on each of which one to twelve masses stand. Started straight,
+  two masses stand from up to 0.3 rad off upright, four and eight from 0.2
+  and twelve from 0.1; the start leans 0.1 rad. From the raised start, on
+  any step, the chain does not climb up: it ends hanging or tumbling, which
+  is why the shake starts it standing.
+- Over whole periods of a shake of 2 cm at 300 rad/s, a chain standing
+  upright pushes with the weight below each rod to within 6.4e-6 of a
+  weight, while the instant swings by 185 weights either way and the mean
+  over a frame of 1/120 s is up to 139 weights off.
+- A frame of a shaken chain's physics takes 0.2 to 0.8 ms from two masses
+  to twelve; with 64 masses at 1 600 Hz, 11 ms, past the frame's budget, so
+  time runs slower (decision 15). The twins are dearer too: 4 to 32 fit in
+  their budget, where 200 to 600 fit with the pivot still.
+
+Tested: the edge of stability and the two rates against the averaged
+potential; a chain on one line through the pivot, upright, staying there
+under the shake (`PH-5`); the substep; the tension over whole periods of a
+chain standing upright; and the periods closed across advances, the first,
+seen only in part, dropped.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
