@@ -983,6 +983,53 @@ moment within seven significant digits and the shake's phase within a
 Moon, the three switches changed and the piece paused opens in a browser of
 its own with the same controls, switches, pause and title.
 
+## 40. The address can be shared, and shown as a QR code
+
+*2026-11-16.* Two buttons after "Save this moment", with the keys H and O,
+share the page's address and show it as a QR code, whatever it holds: the
+readable values and switches, or a saved screen's code (decision 38).
+
+Sharing hands the address and the page's title to the device's own sheet,
+where the browser has one, as phones do; where it has none, or the sheet
+refuses, the address is copied, and the button turns into a tick and a word
+says "Link copied" for two seconds. The QR code opens on a card in the
+middle of the screen, with the title under it, and follows the address
+while it is open; Escape, the card's close button or O again shut it. Its
+dark modules are the piece's ground on the chain's light, the way readers
+expect them, with the four light modules round the code that its standard
+asks for.
+
+The code comes from the `qr` library (MIT or Apache-2.0, no dependencies),
+at its lowest error correction, which holds the most: a code on a screen is
+read whole. A code holds at most 2 953 letters, so the address of a saved
+moment fits with up to about 270 masses; past that, the card says the
+address is too long, and that fewer masses make it shorter. The library
+loads only when the card first opens, in a file of its own of 6.5 kB
+compressed, beside the piece's 22.7 kB.
+
+The keys, the icons (a box with an arrow rising out of it, as phones draw
+sharing, and a QR code's three corners), the card and the word are the
+session's choices, which the author settles by trying them. Drawn and set
+aside for the icons: three nodes joined, as other phones draw sharing, which
+beside the row's chains read as masses; an arrow leaving a box, which reads
+as opening elsewhere; two links of a chain; filled squares, which read as a
+grid of apps; and a phone.
+
+**Why.** The author asked for a clean and cheap way to shorten the links,
+and chose the compact code of decision 38 with a button to share and a QR
+code. Of a small library and an encoder of the project's own, the author
+chose the library the session recommended: it carries a reader too, with
+which the tests check that the code drawn reads back as the address.
+
+**Evidence.** The libraries measured before the choice, each bundled with
+the piece's own tools and minified, the encoding alone, compressed:
+`lean-qr` 4.2 kB, `uqr` 4.3 kB, `qr` 7.3 kB, `qrcode-generator` 8.3 kB;
+`qrcode`, the best known, needs three other packages. In the unit tests, the
+path the card draws, put into pixels, reads back as the address of a saved
+moment of 1, 8, 64 and 256 masses; 384 and 512 give no code. In the
+browser, the code on the card, drawn on a canvas and read in the test, is
+the page's address, before and after a moment is saved.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.

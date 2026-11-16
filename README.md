@@ -58,7 +58,8 @@ hanging rope it becomes as n grows.
   twelve masses; from sixteen, the shake takes the chain apart.
   The controls wait behind one small button in a corner, which opens a thin
   row of icons; each control has a key too, and the address carries every
-  value and switch, so a view can be shared.
+  value and switch, so a view can be shared: through the device's own sheet
+  for sharing, or as a QR code to open it on a phone.
 
 Every piece is meant to run fullscreen in the major browsers.
 
