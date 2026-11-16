@@ -18,7 +18,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e": "playwright test",
-    "e2e:browsers": "playwright install --with-deps chromium firefox webkit"
+    "e2e:browsers": "playwright install --with-deps chromium firefox webkit",
+    "icon": "node scripts/icon.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
