@@ -1,8 +1,9 @@
 import "../styles/base.css";
 
-import { tokenColor, type Rgb } from "../core/color.ts";
+import { cssColor, tokenColor, type Rgb } from "../core/color.ts";
 import { mountControls } from "../core/controls.ts";
 import { Lines, SegmentBatch } from "../core/lines.ts";
+import { mountLinkCard, shareLink } from "../core/link.ts";
 import { fanPalette } from "../core/palettes.ts";
 import { keyAction, stepValue, type Parameter } from "../core/parameters.ts";
 import { mountStage, type Stage } from "../core/stage.ts";
@@ -69,7 +70,8 @@ import { titleOf } from "./title.ts";
 // A switch paints each rod by its tension (decision 35). The pivot can be
 // shaken along gravity's line, fast enough that the chain stands on its head
 // (decision 36). The address carries the switches too, and a saved moment the
-// whole screen, which the page's title names (decision 38).
+// whole screen, which the page's title names (decision 38); it can be shared,
+// and shown as a QR code (decision 40).
 
 // A frame longer than this (a hidden tab, a stall) moves the chain by this
 // much only, so that it never jumps.
@@ -102,6 +104,8 @@ const TENSION_EASE = 0.25;
 // along the shake, in m: a sign of the shake, which is a millimetre.
 const STANDING_LEAN = 0.1;
 const PIVOT_STREAK = 0.025;
+// How long the share button shows that the address was copied, in ms.
+const COPIED_MS = 2000;
 // The piece's name, which begins the page's title (decision 37).
 const NAME =
   PIECES.find(({ id }) => id === "chain-in-hand")?.title ?? document.title;
@@ -517,14 +521,36 @@ function play({ canvas, gl }: Stage): void {
   /**
    * The address says what the screen is now: with a moment saved, its code
    * after the "#"; without, the values and the switches that differ from the
-   * opening (decision 38). The title follows, and the button says whether a
-   * moment is kept.
+   * opening (decision 38). The title follows, the button says whether a
+   * moment is kept, and an open QR code shows the new address (decision 40).
    */
   function keepAddress(): void {
     const part = addressOf(values, switches(), saved, location.search);
     history.replaceState(null, "", `${location.pathname}${part}`);
     showTitle();
     showSave();
+    card.update(location.href, document.title);
+  }
+
+  // The address shared, or shown as a QR code (decision 40).
+  const card = mountLinkCard({
+    dark: cssColor(colors.ground),
+    light: cssColor(colors.chain),
+  });
+  let copiedTimer = 0;
+  /** Shares the address as it is, with the title; where it was copied, the button and a word say so a moment. */
+  async function share(): Promise<void> {
+    const done = await shareLink(location.href, document.title);
+    if (done === "copied") {
+      card.say("Link copied");
+      controls.showAction("share", "copied", "Link copied");
+      clearTimeout(copiedTimer);
+      copiedTimer = window.setTimeout(() => {
+        controls.showAction("share", "share", "Share this page's address");
+      }, COPIED_MS);
+    } else if (done === "failed") {
+      card.say("The link could not be copied");
+    }
   }
 
   function showSave(): void {
@@ -619,6 +645,20 @@ function play({ canvas, gl }: Stage): void {
           keysShown: "S",
         },
         {
+          id: "share",
+          label: "Share this page's address",
+          icon: "share",
+          keys: ["h", "H"],
+          keysShown: "H",
+        },
+        {
+          id: "qr",
+          label: "QR code of this page's address",
+          icon: "qr",
+          keys: ["o", "O"],
+          keysShown: "O",
+        },
+        {
           id: "light",
           label: "Light",
           icon: "light",
@@ -645,6 +685,8 @@ function play({ canvas, gl }: Stage): void {
         else if (id === "reverse") reverseTime();
         else if (id === "light" || id === "tension") toggle(id);
         else if (id === "save") save();
+        else if (id === "share") void share();
+        else if (id === "qr") card.toggle(location.href, document.title);
         else start();
       },
     },
@@ -747,6 +789,10 @@ function play({ canvas, gl }: Stage): void {
       start();
     } else if (event.key === "s" || event.key === "S") {
       save();
+    } else if (event.key === "h" || event.key === "H") {
+      void share();
+    } else if (event.key === "o" || event.key === "O") {
+      card.toggle(location.href, document.title);
     } else if (event.key === "b" || event.key === "B") {
       reverseTime();
     } else if (event.key === "l" || event.key === "L") {
