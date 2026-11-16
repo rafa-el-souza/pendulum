@@ -1,11 +1,15 @@
 import { describe, expect, it } from "vitest";
 
+import { GROUNDS } from "../core/grounds.ts";
 import { FAN_PALETTES } from "../core/palettes.ts";
 import { checkParameters, stepValue } from "../core/parameters.ts";
+import { TENSION_SCALES } from "../core/tension.ts";
 import {
   AMPLITUDE,
   CHAIN,
+  COLOURS,
   GRAVITY,
+  GROUND,
   HAND,
   LIGHT,
   MASSES,
@@ -13,6 +17,7 @@ import {
   PALETTE,
   PARAMETERS,
   RIBBON,
+  SCALE,
   SHAKE,
   SHAKE_AMPLITUDE,
   SPREAD,
@@ -202,7 +207,36 @@ describe("the first piece's parameters", () => {
       AMPLITUDE,
     ]);
     expect(LIGHT).toEqual([TWIN_COUNT, SPREAD, TRAIL, RIBBON, PALETTE]);
-    expect(PARAMETERS).toEqual([...CHAIN, ...LIGHT]);
+    expect(COLOURS).toEqual([SCALE, GROUND]);
+    expect(PARAMETERS).toEqual([...CHAIN, ...LIGHT, ...COLOURS]);
+  });
+
+  it("step through the tension's scales on one key, beside the tension's T, coming round, opening with decision 35's (decision 41)", () => {
+    expect(SCALE.values).toEqual(TENSION_SCALES.map((_, i) => i));
+    expect(SCALE.initial).toBe(0);
+    expect(SCALE.keys).toEqual({ down: [], up: ["y", "Y"] });
+    expect(SCALE.cyclic).toBe(true);
+    expect(stepValue(SCALE, TENSION_SCALES.length - 1, 1)).toBe(0);
+  });
+
+  it("paint a scale as five dots, from a push to sixteen weights, and name it for a screen reader", () => {
+    TENSION_SCALES.forEach((scale, i) => {
+      expect(SCALE.show(i)).toBe(scale.name);
+      expect(SCALE.swatches?.(i)).toEqual(
+        scale.stops.map(([, color]) => color),
+      );
+    });
+  });
+
+  it("step through the grounds on U and I, coming round, opening on the one the piece has had (decision 41)", () => {
+    expect(GROUND.values).toEqual(GROUNDS.map((_, i) => i));
+    expect(GROUND.initial).toBe(0);
+    expect(GROUND.keys).toEqual({ down: ["u", "U"], up: ["i", "I"] });
+    expect(GROUND.cyclic).toBe(true);
+    expect(stepValue(GROUND, 0, -1)).toBe(GROUNDS.length - 1);
+    GROUNDS.forEach((ground, i) => {
+      expect(GROUND.show(i)).toBe(ground.name);
+    });
   });
 
   it("start the chain raised to one side, as until now, or in one of the four lowest normal modes (decision 33)", () => {

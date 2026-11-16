@@ -43,6 +43,18 @@ describe("the palettes of a fan of twins", () => {
     for (const name of names) expect(name).toMatch(/^[a-z][a-z ]*$/);
   });
 
+  it("keep the five of decision 23 first, in their order, so that an address written before keeps its colours, and add new ones after (decision 41)", () => {
+    const names = FAN_PALETTES.map((palette) => palette.name);
+    expect(names.slice(0, 5)).toEqual([
+      "dusk",
+      "fire",
+      "ice",
+      "spectrum",
+      "silver",
+    ]);
+    expect(names.length).toBeGreaterThan(5);
+  });
+
   it("are found by their place in the list, and nowhere else", () => {
     expect(fanPalette(0)).toBe(FAN_PALETTES[0]);
     expect(() => fanPalette(FAN_PALETTES.length)).toThrow();

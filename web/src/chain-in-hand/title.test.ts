@@ -69,6 +69,9 @@ describe("the title of the first piece's page (decision 38)", () => {
     ["trail", 600, "trails that stay"],
     ["ribbon", 1, "trails from every mass"],
     ["palette", 1, "fire palette"],
+    ["palette", 9, "reef palette"],
+    ["scale", 1, "incandescent scale"],
+    ["ground", 2, "navy ground"],
   ])('says %s = %s as "%s"', (id, value, words) => {
     const { values, switches } = opening();
     values.set(id, value);

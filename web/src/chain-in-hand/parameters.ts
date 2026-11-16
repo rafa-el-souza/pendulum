@@ -1,5 +1,7 @@
+import { GROUNDS, groundAt } from "../core/grounds.ts";
 import { FAN_PALETTES, fanPalette } from "../core/palettes.ts";
 import type { Parameter } from "../core/parameters.ts";
+import { TENSION_SCALES, tensionScaleAt } from "../core/tension.ts";
 import { gravity, type Gravity } from "../physics/chain.ts";
 import type { Shake } from "../physics/step.ts";
 
@@ -353,6 +355,42 @@ export const PALETTE: Parameter = {
   icon: "palette",
 };
 
+/**
+ * The scale of the tension's colours (decision 41): decision 35's first, then
+ * the others, on one key beside the T that turns the colours on, coming round
+ * from the last to the first. Stepping it turns the colours on. The control
+ * paints five dots, from a push to sixteen weights, and a screen reader
+ * hears the scale's name.
+ */
+export const SCALE: Parameter = {
+  id: "scale",
+  label: "Scale of the tension's colours",
+  values: TENSION_SCALES.map((_, i) => i),
+  initial: 0,
+  keys: { down: [], up: ["y", "Y"] },
+  cyclic: true,
+  show: (value) => tensionScaleAt(value).name,
+  swatches: (value) => tensionScaleAt(value).stops.map(([, color]) => color),
+  icon: "scale",
+};
+
+/**
+ * The ground the piece is drawn on (decision 41), with the chain's colour,
+ * the hand's and the row's that go with it: the ground the piece has had
+ * first, then the others once round the colours, coming round from either
+ * end. The control shows its name.
+ */
+export const GROUND: Parameter = {
+  id: "ground",
+  label: "Colour of the ground",
+  values: GROUNDS.map((_, i) => i),
+  initial: 0,
+  keys: { down: ["u", "U"], up: ["i", "I"] },
+  cyclic: true,
+  show: (value) => groundAt(value).name,
+  icon: "ground",
+};
+
 /** What moves the chain: its masses, its time, the hand, gravity, the shake, and where it starts. */
 export const CHAIN: readonly Parameter[] = [
   MASSES,
@@ -374,8 +412,15 @@ export const LIGHT: readonly Parameter[] = [
   PALETTE,
 ];
 
+/** The colours that are not the light's: the tension's scale and the ground (decision 41). */
+export const COLOURS: readonly Parameter[] = [SCALE, GROUND];
+
 /**
- * Every parameter, the chain's first. The row of controls shows the two sets
+ * Every parameter, the chain's first. The row of controls shows the sets
  * apart (decision 31).
  */
-export const PARAMETERS: readonly Parameter[] = [...CHAIN, ...LIGHT];
+export const PARAMETERS: readonly Parameter[] = [
+  ...CHAIN,
+  ...LIGHT,
+  ...COLOURS,
+];

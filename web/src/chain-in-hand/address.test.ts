@@ -77,6 +77,26 @@ describe("the first piece's address (decision 38)", () => {
     expect(opened.saved?.state.omega).toEqual(new Float64Array(8));
   });
 
+  it("opens a code of version 1 on the ground and the scale of the tension the piece opens with, and with its palette (decision 41)", () => {
+    const opened = openingOf("", `#${VERSION_1}`);
+    expect(opened.values.get("ground")).toBe(0);
+    expect(opened.values.get("scale")).toBe(0);
+    expect(opened.values.get("palette")).toBe(0);
+  });
+
+  it("writes codes of version 2, which hold the ground, the scale and the palettes added (decision 41)", () => {
+    expect(CODE.version).toBe(2);
+    const { values, switches } = opening();
+    values.set("n", 3);
+    values.set("palette", 9);
+    values.set("scale", 3);
+    values.set("ground", 10);
+    switches.set("tension", true);
+    const opened = openingOf("", addressOf(values, switches, moment(3), ""));
+    expect(opened.values).toEqual(values);
+    expect(opened.switches).toEqual(switches);
+  });
+
   it("without a moment, is readable: the values and the switches that differ from the opening, and nothing after the #", () => {
     const { values, switches } = opening();
     expect(addressOf(values, switches, null, "")).toBe("");
@@ -91,6 +111,17 @@ describe("the first piece's address (decision 38)", () => {
     expect(opened.values).toEqual(values);
     expect(opened.switches).toEqual(switches);
     expect(opened.saved).toBeNull();
+    // the ground and the scale, after the light's controls (decision 41)
+    values.set("palette", 7);
+    values.set("scale", 1);
+    values.set("ground", 3);
+    expect(addressOf(values, switches, null, "")).toBe(
+      "?n=8&g=1.62&palette=7&scale=1&ground=3&light=0&tension=1",
+    );
+    expect(
+      openingOf("?n=8&g=1.62&palette=7&scale=1&ground=3&light=0&tension=1", "")
+        .values,
+    ).toEqual(values);
   });
 
   it("with a moment, is the whole screen in a code after the #, without the readable part", () => {
@@ -101,8 +132,8 @@ describe("the first piece's address (decision 38)", () => {
     const saved = moment(3);
     const address = addressOf(values, switches, saved, "?n=3&shake=800");
     expect(address).toMatch(/^#[A-Za-z0-9_-]+$/);
-    // a dozen bytes and eight to a mass
-    expect(address).toHaveLength(1 + Math.ceil((4 * (12 + 8 * 3)) / 3));
+    // thirteen bytes and eight to a mass
+    expect(address).toHaveLength(1 + Math.ceil((4 * (13 + 8 * 3)) / 3));
     const opened = openingOf("", address);
     expect(opened.values).toEqual(values);
     expect(opened.switches).toEqual(switches);

@@ -81,11 +81,27 @@ const VERSION_1: CodeTable = {
   switches: ["light", "tension", "sketch"],
 };
 
+/**
+ * The code's second version (decision 41), frozen once published: the
+ * palettes added, and the tension's scale and the ground after the light's
+ * controls.
+ */
+const VERSION_2: CodeTable = {
+  version: 2,
+  controls: [
+    ...VERSION_1.controls.filter(({ id }) => id !== "palette"),
+    { id: "palette", values: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] },
+    { id: "scale", values: [0, 1, 2, 3] },
+    { id: "ground", values: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10] },
+  ],
+  switches: ["light", "tension", "sketch"],
+};
+
 /** Every version of the code the piece reads, oldest first. */
-export const CODES: readonly CodeTable[] = [VERSION_1];
+export const CODES: readonly CodeTable[] = [VERSION_1, VERSION_2];
 
 /** The version the piece writes: the newest. */
-export const CODE: CodeTable = VERSION_1;
+export const CODE: CodeTable = VERSION_2;
 
 /** What an address opens: the controls, the switches, and the moment saved, if any. */
 export interface Opening {

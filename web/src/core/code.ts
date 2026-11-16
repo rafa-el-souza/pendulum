@@ -4,7 +4,7 @@
 // shaken pivot was in its cycle, the minute the moment was saved, and the
 // moment of the chain, in base64url. A control is written as the place of its
 // value among the values its table names, in as few bits as they need, so
-// that the whole screen but the moment takes a dozen bytes. The moment
+// that the whole screen but the moment takes about a dozen bytes. The moment
 // follows from the next whole byte, in the bytes of decision 34.
 //
 // The table of each version is frozen once published, so that a code keeps

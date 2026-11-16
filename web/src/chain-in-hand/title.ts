@@ -1,6 +1,8 @@
 import { markOf } from "../core/code.ts";
+import { groundAt } from "../core/grounds.ts";
 import { fanPalette } from "../core/palettes.ts";
 import type { Parameter, Values } from "../core/parameters.ts";
+import { tensionScaleAt } from "../core/tension.ts";
 import { SWITCHES, type Saved } from "./address.ts";
 import {
   AMPLITUDE,
@@ -52,6 +54,10 @@ function words(parameter: Parameter, value: number): string {
       return "trails from every mass";
     case "palette":
       return `${fanPalette(value).name} palette`;
+    case "scale":
+      return `${tensionScaleAt(value).name} scale`;
+    case "ground":
+      return `${groundAt(value).name} ground`;
     default:
       return `${parameter.id} ${String(value)}`;
   }

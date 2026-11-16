@@ -1,7 +1,8 @@
 import "../styles/base.css";
 
-import { cssColor, tokenColor, type Rgb } from "../core/color.ts";
+import { cssColor, type Rgb } from "../core/color.ts";
 import { mountControls } from "../core/controls.ts";
+import { groundAt } from "../core/grounds.ts";
 import { Lines, SegmentBatch } from "../core/lines.ts";
 import { mountLinkCard, shareLink } from "../core/link.ts";
 import { fanPalette } from "../core/palettes.ts";
@@ -33,7 +34,9 @@ import { addressOf, openingOf, type Saved } from "./address.ts";
 import {
   AMPLITUDE,
   CHAIN,
+  COLOURS,
   GRAVITY,
+  GROUND,
   HAND,
   LIGHT,
   MASSES,
@@ -41,6 +44,7 @@ import {
   PALETTE,
   PARAMETERS,
   RIBBON,
+  SCALE,
   SHAKE,
   SPREAD,
   TILT,
@@ -72,7 +76,9 @@ import { titleOf } from "./title.ts";
 // shaken along gravity's line, fast enough that the chain stands on its head
 // (decision 36). The address carries the switches too, and a saved moment the
 // whole screen, which the page's title names (decision 38); it can be shared,
-// and shown as a QR code (decision 40).
+// and shown as a QR code (decision 40). The ground is one of several dark
+// ones, each with its chain's colours, and the tension's colours one of
+// several scales (decision 41).
 
 // A frame longer than this (a hidden tab, a stall) moves the chain by this
 // much only, so that it never jumps.
@@ -141,11 +147,13 @@ function play({ canvas, gl }: Stage): void {
   let g = gravityOf(value(GRAVITY), value(TILT));
   let stepper = new Stepper(chain);
   const lines = new Lines(gl);
-  const colors = {
-    ground: tokenColor("--color-ground"),
-    chain: tokenColor("--color-chain"),
-    hand: tokenColor("--color-hand"),
-    pivot: tokenColor("--color-pivot"),
+  // the ground asked for, and the colours that stand out from it (decision 41)
+  const opening = groundAt(value(GROUND));
+  const colors: { ground: Rgb; chain: Rgb; hand: Rgb; pivot: Rgb } = {
+    ground: opening.ground,
+    chain: opening.chain,
+    hand: opening.hand,
+    pivot: opening.pivot,
   };
   const rods = new SegmentBatch(chain.n);
   // the twins, and the colour of each by its place in the fan
@@ -201,7 +209,7 @@ function play({ canvas, gl }: Stage): void {
   let pieceTension = new Float64Array(chain.n);
   let frameTension = new Float64Array(chain.n);
   let tensionScratch = new Float64Array(chain.n);
-  const tensionColor = tensionScale(colors.chain, tensionScaleAt(0));
+  let tensionColor = tensionScale(colors.chain, tensionScaleAt(value(SCALE)));
   // each rod's colour, worked out once a frame for its rod, its mass and the
   // trail the mass leaves
   let rodColors: Rgb[] = [];
@@ -533,11 +541,43 @@ function play({ canvas, gl }: Stage): void {
     card.update(location.href, document.title);
   }
 
-  // The address shared, or shown as a QR code (decision 40).
-  const card = mountLinkCard({
+  // The address shared, or shown as a QR code (decision 40), in the ground's
+  // colours.
+  const cardColors = {
     dark: cssColor(colors.ground),
     light: cssColor(colors.chain),
-  });
+  };
+  const card = mountLinkCard(cardColors);
+
+  /**
+   * Dresses the piece in the ground asked for (decision 41): the canvas, the
+   * page and the row in its colours, the chain, the hand and the pivot in
+   * theirs, and the tension's scale around the chain's colour. The trails
+   * already drawn keep their colours and fade.
+   */
+  function dress(): void {
+    const ground = groundAt(value(GROUND));
+    colors.ground = ground.ground;
+    colors.chain = ground.chain;
+    colors.hand = ground.hand;
+    colors.pivot = ground.pivot;
+    const tokens: [string, Rgb][] = [
+      ["--color-ground", ground.ground],
+      ["--color-ink", ground.ink],
+      ["--color-ink-muted", ground.inkMuted],
+      ["--color-link", ground.ink],
+      ["--color-chain", ground.chain],
+      ["--color-hand", ground.hand],
+      ["--color-pivot", ground.pivot],
+    ];
+    for (const [name, color] of tokens) {
+      document.documentElement.style.setProperty(name, cssColor(color));
+    }
+    tensionColor = tensionScale(colors.chain, tensionScaleAt(value(SCALE)));
+    cardColors.dark = cssColor(colors.ground);
+    cardColors.light = cssColor(colors.chain);
+  }
+  dress();
   let copiedTimer = 0;
   /** Shares the address as it is, with the title; where it was copied, the button and a word say so a moment. */
   async function share(): Promise<void> {
@@ -598,6 +638,13 @@ function play({ canvas, gl }: Stage): void {
     // another palette colours the twins at once; the trails they left keep
     // their colours and fade
     if (parameter === PALETTE) paint();
+    // another ground dresses the piece at once; another scale paints the
+    // tension in it, and turns its colours on (decision 41)
+    if (parameter === GROUND) dress();
+    if (parameter === SCALE) {
+      tensionColor = tensionScale(colors.chain, tensionScaleAt(next));
+      if (!tensionShown) setTensionShown(true);
+    }
     if (!lit && LIGHT_CONTROLS.has(parameter)) setLit(true);
     controls.showValue(parameter.id, next);
     showStart();
@@ -678,6 +725,7 @@ function play({ canvas, gl }: Stage): void {
       ],
       CHAIN,
       LIGHT,
+      COLOURS,
     ],
     {
       step,
