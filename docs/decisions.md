@@ -1168,6 +1168,57 @@ at 0.85. Gathered as now, every case reached under 10⁻⁵. A unit test that
 rounds to half floats shows the same: the light stops above a half frame by
 frame, and reaches a millionth gathered.
 
+## 43. The twins can stay, or fade as chaos carries them off
+
+*2026-11-16.* A parameter joins the first piece's light, after the spread:
+whether the twins stay or fade, on the P key, coming round, with `fade=1`
+in the address.
+
+- **They stay,** as they have until now and as the piece opens: once the
+  fan has opened, they fill the disc, a cloud that does not go.
+- **Or they fade.** Each twin's light falls with how far it looks from the
+  chain, the root mean square of the distances between its masses and the
+  chain's, as a share of the chain's length: whole while the two look as
+  one, a third at three tenths of the chain's length, and all but out at
+  twice that. It never rises again, so a twin that chaos has carried off
+  stays dark where it crosses the chain: the light measures how far the
+  chain can still be foretold from it. A twin gone dark is born again on
+  the chain as it is, at its own place in the fan, so that it keeps its
+  colour and its share of the spread; at most a sixty-fourth of the twins
+  is born in a frame, taken in turn, and where the budget carries more
+  twins than there are, new ones are born too. The twins come out of the
+  chain as a plume that comes apart in the chaos, and their trails, dimmed
+  with them, weave along the chain's paths instead of filling the disc.
+
+Switching gives new twins from the chain as it is, as another number or
+spread does. The control's icon is a candle just put out, its smoke rising
+and coming apart. A saved moment's code gets its version 4, and a code the
+published page wrote in version 3 is kept in the tests, opening as it was
+with the twins that stay. The reach, the births in a frame and the icon
+are the session's choices, which the author settles by looking.
+
+**Why.** The author asked whether the twins could fade, as the trails do,
+and then said that twins that fade and twins that do not each have their
+charm, so the twins that stay are kept beside the new ones, not replaced.
+Of four ways to fade them (each fan fading with a half-life after its birth
+and born again once gone, as if it breathed; the light by the distance; a
+flow of births at the chain; none, as until now), the session recommended
+the light by the distance with the flow and built it to be seen. While the
+twins fade, the budget's room fills again, so twins the budget dropped
+come back; the twins that stay still come back only when new ones are
+born, which stays open.
+
+**Evidence.** Captured in Chromium at 0.8 of real time with two masses and
+512 twins, after 1.6, 4.8, 11 and 19 simulated seconds: the twins that stay
+fill the disc with a pink cloud by 11 s; the twins that fade leave it dark
+between their trails, which weave a ball of light about the chain's paths.
+Without trails, the plume is a fringe of colour along the chain. Reaches
+of a fifth, three tenths, 0.35 and a half of the chain's length were
+compared: at a fifth the plume barely shows, and at a half the trails fill
+the disc nearly as the cloud does. Of eighteen icons drawn and looked at in
+the row at its size, the fan's variants read as the twins' own control
+beside them, and the candle put out read at once.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
