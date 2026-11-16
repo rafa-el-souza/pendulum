@@ -844,14 +844,11 @@ function play({ canvas, gl }: Stage): void {
       const ribbonLight = 0.55 * Math.min(1, 2.2 / Math.sqrt(chain.n));
       for (let piece = 0; piece < pieces; piece++) {
         const want = asked / pieces;
-        const moved = stepper.advance(
-          state,
-          want,
-          g,
+        const moved = stepper.advance(state, want, g, {
           hand,
           deadline,
-          tensionShown ? pieceTension : null,
-        );
+          meanTension: tensionShown ? pieceTension : null,
+        });
         simulated += moved.simulated;
         if (tensionShown) {
           for (let i = 0; i < chain.n; i++) {

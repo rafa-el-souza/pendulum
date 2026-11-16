@@ -187,13 +187,9 @@ describe("the time budget of a frame (decision 15)", () => {
     const chain = Chain.uniform(64);
     const state = restingState(64);
     state.theta.fill(1);
-    const result = new Stepper(chain).advance(
-      state,
-      1 / 60,
-      DOWN,
-      null,
-      Number.NEGATIVE_INFINITY,
-    );
+    const result = new Stepper(chain).advance(state, 1 / 60, DOWN, {
+      deadline: Number.NEGATIVE_INFINITY,
+    });
     expect(result.substeps).toBe(8);
     expect(result.simulated).toBeGreaterThan(0);
     expect(result.simulated).toBeLessThan(1 / 60);
@@ -364,14 +360,9 @@ describe("each rod's mean tension over an advance (decision 35; PH-3, PH-4)", ()
     // M_j g, with M_j the mass at or below rod j (PH-3), here 1, 0.5 and 0.3 kg.
     const chain = new Chain([0.5, 0.2, 0.3], [0.3, 0.3, 0.4]);
     const mean = new Float64Array(3);
-    new Stepper(chain).advance(
-      restingState(3),
-      1 / 60,
-      DOWN,
-      null,
-      Number.POSITIVE_INFINITY,
-      mean,
-    );
+    new Stepper(chain).advance(restingState(3), 1 / 60, DOWN, {
+      meanTension: mean,
+    });
     [1, 0.5, 0.3].forEach((below, j) => {
       expect(mean[j]).toBeCloseTo(G * below, 12);
     });
@@ -406,14 +397,9 @@ describe("each rod's mean tension over an advance (decision 35; PH-3, PH-4)", ()
 
     const mean = new Float64Array(8);
     const off = (maxStep: number): number => {
-      new Stepper(chain, { maxStep }).advance(
-        copied(state),
-        dt,
-        DOWN,
-        null,
-        Number.POSITIVE_INFINITY,
-        mean,
-      );
+      new Stepper(chain, { maxStep }).advance(copied(state), dt, DOWN, {
+        meanTension: mean,
+      });
       return Math.max(
         ...Array.from(sampled, (t, j) => Math.abs((mean[j] ?? Number.NaN) - t)),
       );
@@ -442,20 +428,13 @@ describe("each rod's mean tension over an advance (decision 35; PH-3, PH-4)", ()
       copied(state),
       1 / 60,
       DOWN,
-      null,
-      Number.NEGATIVE_INFINITY,
-      short,
+      { deadline: Number.NEGATIVE_INFINITY, meanTension: short },
     );
     expect(simulated).toBeLessThan(1 / 60);
     const exact = new Float64Array(64);
-    new Stepper(chain).advance(
-      copied(state),
-      simulated,
-      DOWN,
-      null,
-      Number.POSITIVE_INFINITY,
-      exact,
-    );
+    new Stepper(chain).advance(copied(state), simulated, DOWN, {
+      meanTension: exact,
+    });
     const scale = Math.max(...Array.from(exact, Math.abs));
     exact.forEach((t, j) => {
       expect(Math.abs((short[j] ?? Number.NaN) - t)).toBeLessThan(1e-9 * scale);
@@ -467,14 +446,7 @@ describe("each rod's mean tension over an advance (decision 35; PH-3, PH-4)", ()
     const state = raised(3);
     new Stepper(chain).advance(state, 0.4, DOWN);
     const mean = new Float64Array(3);
-    new Stepper(chain).advance(
-      state,
-      0,
-      DOWN,
-      null,
-      Number.POSITIVE_INFINITY,
-      mean,
-    );
+    new Stepper(chain).advance(state, 0, DOWN, { meanTension: mean });
     expect(Array.from(mean)).toEqual(
       Array.from(tensionsOf(chain, state, DOWN)),
     );

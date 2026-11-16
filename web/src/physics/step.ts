@@ -45,6 +45,16 @@ export interface Advance {
   readonly simulated: number;
 }
 
+/** What an advance may be given besides the state, the time and gravity. */
+export interface AdvanceOptions {
+  /** A hand on one mass, held still in place and speed for the whole interval. */
+  readonly hand?: Hand | null;
+  /** The clock (performance.now()) past which the advance stops short. */
+  readonly deadline?: number;
+  /** Receives each rod's tension averaged over the time simulated (decision 35). */
+  readonly meanTension?: Float64Array | null;
+}
+
 export interface StepperOptions {
   /** A substep is this fraction of the inverse rate of the fastest motion. */
   readonly fraction?: number;
@@ -98,7 +108,7 @@ export class Stepper {
    * fastest rate a hand adds; the last one is cut to land on dt. A hand, when
    * given, holds still in place and speed for the whole interval.
    *
-   * If the clock (performance.now()) passes `deadline` first, the advance
+   * If the clock (performance.now()) passes the `deadline` first, the advance
    * stops short, and the time it reports simulated is less than dt: shown at
    * the frame's pace, that is slow motion (docs/decisions.md, decision 15).
    * The clock is read every eight substeps.
@@ -113,10 +123,11 @@ export class Stepper {
     state: ChainState,
     dt: number,
     g: Gravity,
-    hand: Hand | null = null,
-    deadline = Number.POSITIVE_INFINITY,
-    meanTension: Float64Array | null = null,
+    options: AdvanceOptions = {},
   ): Advance {
+    const hand = options.hand ?? null;
+    const deadline = options.deadline ?? Number.POSITIVE_INFINITY;
+    const meanTension = options.meanTension ?? null;
     const { chain, fraction, maxStep } = this;
     const n = chain.n;
     const { theta, omega } = state;

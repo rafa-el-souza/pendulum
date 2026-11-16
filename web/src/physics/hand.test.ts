@@ -141,7 +141,7 @@ describe("a hand that holds one mass", () => {
       hand.y = n === 1 ? -0.8 : -0.4;
       const stepper = new Stepper(chain);
       for (let frame = 0; frame < 120; frame++) {
-        stepper.advance(state, 1 / 60, gravity(9.81), hand);
+        stepper.advance(state, 1 / 60, gravity(9.81), { hand });
       }
       const x = new Float64Array(n);
       const y = new Float64Array(n);
