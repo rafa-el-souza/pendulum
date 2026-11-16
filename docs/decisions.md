@@ -755,6 +755,72 @@ with eight. Started in a mode at 30°, mode 1 of eight masses and mode 2 of
 32, they were not 1 mm apart after 60 s. Another machine's frames part a
 chaotic motion the same way, whatever the digits.
 
+## 35. The chain can be painted by its tension
+
+*2026-11-16.* A switch after "Light", and the key T, paint each rod of the
+chain by its tension, and give the chain its own colour back. It is off as
+the piece opens and, like the light, is not kept in the address.
+
+A rod's colour measures its tension against the weight it holds hanging
+still on Earth: the Earth's gravity times the mass at or below it (M_j of
+`PH-3`). A chain hanging at rest on Earth holds one weight in every rod
+(`PH-4`) and keeps its own colour all along. With the Earth fixed in the
+measure, it stands under any gravity and with none, as the hand's line does
+(decision 29): at rest under Jupiter's gravity the chain is warm, under the
+Moon's it is cool, and with none it is slack.
+
+The scale has the chain's own colour at one weight. Above, it goes a quarter
+of the way to the hot end each time the tension doubles, through amber at two
+weights and orange at four to red at sixteen and more. Below, it goes in a
+straight line to blue as the rod goes slack, and on to violet as it pushes,
+reaching it at a push of one weight. The rods of these equations are rigid
+and can push, which a chain of links cannot do, so the violet marks where a
+real chain would fold.
+
+The colour shown is each rod's tension averaged over the motion of the
+frame, as the substeps of RK4 meet it, and eased a quarter of the way each
+frame, as the hand's line is. Each mass takes the colour of the rod it hangs
+from, and so does the trail it leaves, which then paints the tension over
+the space the chain sweeps. The twins keep their palette. The switch's icon
+is a spring balance: its hook empty while the chain keeps its own colour,
+filled while it is painted.
+
+The measure, the scale and its colours, the easing, the colour of the masses
+and of the trails, the twins' palette, the key, the button and its icon, and
+keeping the switch out of the address are the session's choices, which the
+author settles by looking.
+
+**Why.** The author chose it from the proposals still open, on the
+session's recommendation: the force running through the chain, which the
+physics computes at every substep, did not show until now.
+
+**Evidence.** With the piece's own physics, at sixty frames a second and
+time at ×0.8:
+
+- Started in mode 1 at 30°, a chain of 2, 8 or 64 masses holds between 0.90
+  and 1.26 weights in every rod, the most at the bottom of the swing, so the
+  colour breathes, warmer as the chain passes the bottom. Mode 2 of two
+  masses at 30° runs from 0.36 to 2.36.
+- From the raised start, which is chaotic, the tensions run from pushing to
+  pulling with many weights, the more so towards the tip of a long chain:
+  over 20 s, from −3.4 to 27 weights with two masses, −36 to 119 with eight,
+  −539 to 905 with 64 and −4 386 to 10 288 with 512. Rods push in 17 to 21%
+  of the rods' time.
+- In that motion, the colour of the instant at each frame's end jumps by half
+  the scale or more from one frame to the next in 18% of the rods' frames
+  with eight masses, and in 45% with 64 or 512: the chain would flicker.
+  Averaged over the frame, in 16, 29 and 4%; averaged and eased, in under
+  0.05%, as in a chain whirled by the hand and let go. With two masses, under
+  0.05% even at the instant.
+- The colour adds 4 to 5% to a frame's physics with 64 and 512 masses.
+
+Tested: hanging at rest, the tension averaged over an advance is the weight
+below each rod (`PH-3`, `PH-4`); whipping, it is within 8.5e-7 of an average
+sampled 4 000 times, and sixteen times closer with half the substep, as the
+fourth order of RK4 has it; stopped short by the frame's deadline, it is the
+average over the time simulated. Measured in Earth weights, every rod of a
+chain hanging at rest on Earth holds one, with equal masses and unequal.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.

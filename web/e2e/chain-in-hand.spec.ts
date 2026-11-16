@@ -476,6 +476,45 @@ test("the light switch puts out the twins and the trails and lights them again, 
   expect(errors).toEqual([]);
 });
 
+test("the T key and its switch paint the chain by its tension and back, outside the address", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("./?n=8");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await openControls(page);
+  const tension = icon(page, "Colours of the tension");
+  await expect(tension).toHaveAttribute("aria-pressed", "false");
+  const stage = page.locator("#stage");
+  const mask = controlsBox(page);
+
+  // paused, every frame draws the same, so only the colours can change it
+  await frames(page, 10);
+  await icon(page, "Pause").click();
+  await frames(page, 3);
+  const plain = await stage.screenshot({ mask });
+
+  await page.keyboard.press("t");
+  await expect(tension).toHaveAttribute("aria-pressed", "true");
+  await frames(page, 3);
+  expect((await stage.screenshot({ mask })).equals(plain)).toBe(false);
+  await expect(page).toHaveURL(/\?n=8$/);
+
+  await tension.click();
+  await expect(tension).toHaveAttribute("aria-pressed", "false");
+  await frames(page, 3);
+  expect((await stage.screenshot({ mask })).equals(plain)).toBe(true);
+
+  // running, and through another number of masses, it draws without error
+  await page.keyboard.press("T");
+  await icon(page, "Resume").click();
+  await frames(page, 10);
+  await page.keyboard.press("ArrowUp");
+  await frames(page, 10);
+  await expect(tension).toHaveAttribute("aria-pressed", "true");
+  expect(errors).toEqual([]);
+});
+
 test("the B key runs time backwards and forwards again, and grabbing the chain runs it forwards", async ({
   page,
 }) => {

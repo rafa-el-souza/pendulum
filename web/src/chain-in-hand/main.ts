@@ -18,6 +18,12 @@ import {
   type Parameter,
 } from "../core/parameters.ts";
 import { mountStage, type Stage } from "../core/stage.ts";
+import {
+  EARTH,
+  TensionShades,
+  earthWeights,
+  tensionScale,
+} from "../core/tension.ts";
 import { LightTarget, Trails, fadeAfter } from "../core/trails.ts";
 import { TwinBudget, bornTwins, fanPlace } from "../core/twins.ts";
 import { fitScale, toWorld } from "../core/view.ts";
@@ -65,10 +71,8 @@ import {
 // controls wait behind one small button (decision 31). The chain starts, and
 // starts again, raised to one side or at rest in one of the paper's normal
 // modes (decision 33), or from a moment saved in the address (decision 34).
+// A switch paints each rod by its tension (decision 35).
 
-// Earth's gravity, in m/s²: the weight in which the hand's pull is shown,
-// whatever gravity the chain is under.
-const EARTH = 9.81;
 // A frame longer than this (a hidden tab, a stall) moves the chain by this
 // much only, so that it never jumps.
 const LONGEST_FRAME = 1 / 30;
@@ -91,6 +95,10 @@ const TWIN_STEP = 1 / 240;
 const TRAIL_RATE = 480;
 const TWIN_TRAIL_RATE = 240;
 const TRAIL_JUMP = 0.5;
+// The colour of the tension (decision 35): each rod's place on the scale moves
+// this share of the way to that of its tension every frame, a few frames to
+// follow a change, as the hand's line eases its pull.
+const TENSION_EASE = 0.25;
 
 const canvas = document.getElementById("stage");
 const notice = document.getElementById("notice");
@@ -170,6 +178,19 @@ function play({ canvas, gl }: Stage): void {
   // last piece of trail
   let ends = new Float64Array(2 * chain.n);
   let twinTips = new Float64Array(0);
+  // The colour of the tension (decision 35), off until it is switched on:
+  // each rod's tension averaged over the motion of the frame, or of the
+  // instant when no time went by, in Earth weights of what the rod holds.
+  let tensionShown = false;
+  let weights = earthWeights(chain);
+  let shades = new TensionShades(chain.n);
+  let pieceTension = new Float64Array(chain.n);
+  let frameTension = new Float64Array(chain.n);
+  let tensionScratch = new Float64Array(chain.n);
+  const tensionColor = tensionScale(colors.chain);
+  // each rod's colour, worked out once a frame for its rod, its mass and the
+  // trail the mass leaves
+  let rodColors: Rgb[] = [];
 
   let hand: Hand | null = null;
   // whether the chain still swings in the mode it started in, the hand not
@@ -329,6 +350,12 @@ function play({ canvas, gl }: Stage): void {
     y = new Float64Array(n);
     twinX = new Float64Array(n);
     twinY = new Float64Array(n);
+    weights = earthWeights(chain);
+    shades = new TensionShades(n);
+    rodColors = Array.from({ length: n }, () => colors.chain);
+    pieceTension = new Float64Array(n);
+    frameTension = new Float64Array(n);
+    tensionScratch = new Float64Array(n);
     if (hand !== null) {
       const along = (hand.index + 1) / before.n;
       const index = Math.min(n - 1, Math.max(0, Math.round(along * n) - 1));
@@ -367,6 +394,22 @@ function play({ canvas, gl }: Stage): void {
     }
     controls.showAction("light", on ? "light" : "dark", "Light", on);
     showTwins();
+  }
+
+  /** Each rod painted by its tension, or the chain in its own colour; the switch says which. */
+  function setTensionShown(on: boolean): void {
+    tensionShown = on;
+    // switched on, the colours come up from the chain's own over a few frames
+    if (on) {
+      shades = new TensionShades(chain.n);
+      rodColors = Array.from({ length: chain.n }, () => colors.chain);
+    }
+    controls.showAction(
+      "tension",
+      on ? "weighing" : "balance",
+      "Colours of the tension",
+      on,
+    );
   }
 
   /** The time button says which way a press would take time. */
@@ -517,6 +560,14 @@ function play({ canvas, gl }: Stage): void {
           keysShown: "L",
           pressed: true,
         },
+        {
+          id: "tension",
+          label: "Colours of the tension",
+          icon: "balance",
+          keys: ["t", "T"],
+          keysShown: "T",
+          pressed: false,
+        },
       ],
       CHAIN,
       LIGHT,
@@ -527,6 +578,7 @@ function play({ canvas, gl }: Stage): void {
         if (id === "pause") setPaused(!paused);
         else if (id === "reverse") reverseTime();
         else if (id === "light") setLit(!lit);
+        else if (id === "tension") setTensionShown(!tensionShown);
         else if (id === "save") save();
         else start();
       },
@@ -630,6 +682,8 @@ function play({ canvas, gl }: Stage): void {
       reverseTime();
     } else if (event.key === "l" || event.key === "L") {
       setLit(!lit);
+    } else if (event.key === "t" || event.key === "T") {
+      setTensionShown(!tensionShown);
     } else if (event.key === "g" || event.key === "G") {
       setWholeFrame(!wholeFrame);
     } else {
@@ -675,9 +729,13 @@ function play({ canvas, gl }: Stage): void {
     for (let i = 0; i < chain.n; i++) {
       const bx = x[i] ?? 0;
       const by = y[i] ?? 0;
-      rods.push(ax, ay, bx, by, colors.chain, 0.9);
-      // the masses, while the rods are long enough to tell them apart
-      if (rodPixels >= 12) dots.push(bx, by, bx, by, colors.chain, 1);
+      const color = tensionShown
+        ? (rodColors[i] ?? colors.chain)
+        : colors.chain;
+      rods.push(ax, ay, bx, by, color, 0.9);
+      // the masses, while the rods are long enough to tell them apart, each
+      // in the colour of the rod it hangs from
+      if (rodPixels >= 12) dots.push(bx, by, bx, by, color, 1);
       ax = bx;
       ay = by;
     }
@@ -764,6 +822,7 @@ function play({ canvas, gl }: Stage): void {
     last = now;
     trail.clear();
     let simulated = 0;
+    if (tensionShown) frameTension.fill(0);
     if (!paused && dt > 0) {
       if (hand !== null) {
         if (now - pointer.at > STILL_AFTER_MS) {
@@ -785,8 +844,21 @@ function play({ canvas, gl }: Stage): void {
       const ribbonLight = 0.55 * Math.min(1, 2.2 / Math.sqrt(chain.n));
       for (let piece = 0; piece < pieces; piece++) {
         const want = asked / pieces;
-        const moved = stepper.advance(state, want, g, hand, deadline);
+        const moved = stepper.advance(
+          state,
+          want,
+          g,
+          hand,
+          deadline,
+          tensionShown ? pieceTension : null,
+        );
         simulated += moved.simulated;
+        if (tensionShown) {
+          for (let i = 0; i < chain.n; i++) {
+            frameTension[i] =
+              (frameTension[i] ?? 0) + moved.simulated * (pieceTension[i] ?? 0);
+          }
+        }
         chain.positions(state.theta, x, y);
         for (let i = 0; i < chain.n; i++) {
           const bx = x[i] ?? 0;
@@ -795,7 +867,11 @@ function play({ canvas, gl }: Stage): void {
             const light = i === chain.n - 1 ? 0.55 : ribbonLight;
             const ax = ends[2 * i] ?? bx;
             const ay = ends[2 * i + 1] ?? by;
-            trailPiece(ax, ay, bx, by, colors.chain, light);
+            // with the tension's colours, in the colour of the rod it hangs from
+            const color = tensionShown
+              ? (rodColors[i] ?? colors.chain)
+              : colors.chain;
+            trailPiece(ax, ay, bx, by, color, light);
           }
           ends[2 * i] = bx;
           ends[2 * i + 1] = by;
@@ -868,6 +944,27 @@ function play({ canvas, gl }: Stage): void {
         if (!wasHeld) controls.notice(TIME.id);
       } else if (wasHeld) {
         controls.showValue(TIME.id, speed);
+      }
+    }
+    if (tensionShown) {
+      // the tension over the frame's motion, or of the instant when none
+      if (simulated > 0) {
+        for (let i = 0; i < chain.n; i++) {
+          frameTension[i] = (frameTension[i] ?? 0) / simulated;
+        }
+      } else {
+        chain.solve(
+          state.theta,
+          state.omega,
+          g,
+          tensionScratch,
+          frameTension,
+          hand,
+        );
+      }
+      shades.ease(frameTension, weights, TENSION_EASE);
+      for (let i = 0; i < chain.n; i++) {
+        rodColors[i] = tensionColor(shades.places[i] ?? 0);
       }
     }
     draw(simulated);

@@ -338,3 +338,145 @@ describe("gravity of any strength, turned to any direction (docs/decisions.md, d
     });
   });
 });
+
+/** A copy of a state, to advance apart from it. */
+function copied(state: ChainState): ChainState {
+  return {
+    theta: Float64Array.from(state.theta),
+    omega: Float64Array.from(state.omega),
+  };
+}
+
+/** The tensions of one state, as solve() gives them. */
+function tensionsOf(chain: Chain, state: ChainState, g: Gravity): Float64Array {
+  const alpha = new Float64Array(chain.n);
+  const tension = new Float64Array(chain.n);
+  chain.solve(state.theta, state.omega, g, alpha, tension);
+  return tension;
+}
+
+// The colour of the tension (docs/decisions.md, decision 35) shows each rod's
+// tension averaged over the time a frame moves the chain, as the substeps of
+// RK4 meet it, so that a tension that changes within a frame is shown by its
+// mean rather than by whichever instant the frame ends on.
+describe("each rod's mean tension over an advance (decision 35; PH-3, PH-4)", () => {
+  it("is the weight of what hangs from the rod, for a chain hanging at rest", () => {
+    // M_j g, with M_j the mass at or below rod j (PH-3), here 1, 0.5 and 0.3 kg.
+    const chain = new Chain([0.5, 0.2, 0.3], [0.3, 0.3, 0.4]);
+    const mean = new Float64Array(3);
+    new Stepper(chain).advance(
+      restingState(3),
+      1 / 60,
+      DOWN,
+      null,
+      Number.POSITIVE_INFINITY,
+      mean,
+    );
+    [1, 0.5, 0.3].forEach((below, j) => {
+      expect(mean[j]).toBeCloseTo(G * below, 12);
+    });
+  });
+
+  it("is the tension averaged over the time advanced, to fourth order in the substep", () => {
+    // Eight masses two seconds after the piece's raised start, whipping:
+    // within a frame their tensions change by several weights. The reference
+    // is the trapezoid rule over 4 000 instants of a run with substeps 40
+    // times finer, itself within 5e-9 of the scale. Measured: 8.5e-7 of the
+    // scale with the piece's substeps, and 16 times less with half as long.
+    const chain = Chain.uniform(8);
+    const state = raised(8);
+    new Stepper(chain).advance(state, 2, DOWN);
+    const dt = 1 / 60;
+
+    const samples = 4000;
+    const fine = copied(state);
+    const fineStepper = new Stepper(chain, { maxStep: 1 / 19200 });
+    const sampled = new Float64Array(8);
+    let before = tensionsOf(chain, fine, DOWN);
+    for (let k = 0; k < samples; k++) {
+      fineStepper.advance(fine, dt / samples, DOWN);
+      const after = tensionsOf(chain, fine, DOWN);
+      after.forEach((t, j) => {
+        sampled[j] =
+          (sampled[j] ?? 0) + (0.5 * ((before[j] ?? 0) + t)) / samples;
+      });
+      before = after;
+    }
+    const scale = Math.max(...Array.from(sampled, Math.abs));
+
+    const mean = new Float64Array(8);
+    const off = (maxStep: number): number => {
+      new Stepper(chain, { maxStep }).advance(
+        copied(state),
+        dt,
+        DOWN,
+        null,
+        Number.POSITIVE_INFINITY,
+        mean,
+      );
+      return Math.max(
+        ...Array.from(sampled, (t, j) => Math.abs((mean[j] ?? Number.NaN) - t)),
+      );
+    };
+    const halved = off(1 / 960);
+    const piece = off(1 / 480);
+    expect(piece).toBeLessThan(2e-6 * scale);
+    expect(piece / halved).toBeGreaterThan(12);
+
+    // and it is neither instant at either end of the frame
+    const end = copied(state);
+    new Stepper(chain).advance(end, dt, DOWN);
+    const differs = (instant: Float64Array): number =>
+      Math.max(...Array.from(instant, (t, j) => Math.abs(t - (mean[j] ?? 0))));
+    expect(differs(tensionsOf(chain, state, DOWN))).toBeGreaterThan(
+      1e-2 * scale,
+    );
+    expect(differs(tensionsOf(chain, end, DOWN))).toBeGreaterThan(1e-2 * scale);
+  });
+
+  it("is over the time simulated when the deadline stops the advance short", () => {
+    const chain = Chain.uniform(64);
+    const state = raised(64);
+    const short = new Float64Array(64);
+    const { simulated } = new Stepper(chain).advance(
+      copied(state),
+      1 / 60,
+      DOWN,
+      null,
+      Number.NEGATIVE_INFINITY,
+      short,
+    );
+    expect(simulated).toBeLessThan(1 / 60);
+    const exact = new Float64Array(64);
+    new Stepper(chain).advance(
+      copied(state),
+      simulated,
+      DOWN,
+      null,
+      Number.POSITIVE_INFINITY,
+      exact,
+    );
+    const scale = Math.max(...Array.from(exact, Math.abs));
+    exact.forEach((t, j) => {
+      expect(Math.abs((short[j] ?? Number.NaN) - t)).toBeLessThan(1e-9 * scale);
+    });
+  });
+
+  it("is the tension of the instant when no time goes by", () => {
+    const chain = Chain.uniform(3);
+    const state = raised(3);
+    new Stepper(chain).advance(state, 0.4, DOWN);
+    const mean = new Float64Array(3);
+    new Stepper(chain).advance(
+      state,
+      0,
+      DOWN,
+      null,
+      Number.POSITIVE_INFINITY,
+      mean,
+    );
+    expect(Array.from(mean)).toEqual(
+      Array.from(tensionsOf(chain, state, DOWN)),
+    );
+  });
+});
