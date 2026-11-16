@@ -1063,6 +1063,65 @@ moment of 1, 8, 64 and 256 masses; 384 and 512 give no code. In the
 browser, the code on the card, drawn on a canvas and read in the test, is
 the page's address, before and after a moment is saved.
 
+## 41. Grounds, more palettes, and scales for the tension's colours
+
+*2026-11-16.* Three controls of the first piece choose its colours, each
+with its keys and its place in the address, after the light's controls.
+
+- **The ground**, with the keys U and I, coming round from either end: one
+  of eleven dark grounds, the night the piece has had first, then slate,
+  navy, indigo, plum, wine, rust, espresso, olive, forest and teal, once
+  round the colours. Each brings the colours that must stand out from it:
+  the chain's (and so its trail's, the light of the QR code's card and the
+  middle of the tension's scale), the hand's, the pivot's, and the row's
+  words and icons, which are the chain's colour sunk a little into the
+  ground. The canvas, the page and the row change at once; the trails
+  already drawn keep their colours and fade. The page's tokens keep the
+  first ground for the first paint, and a test holds the two together.
+- **The twins' palette** (decision 23) gains five candidates after the
+  first five, whose places addresses already name: blossom (rose to peach),
+  gold (bronze to a pale gold), meadow (deep green to yellow), neon
+  (magenta to cyan) and reef (teal and coral facing each other across a
+  pale middle).
+- **The tension's scale**, on the key Y beside the T that turns the colours
+  on (decision 35), coming round from the last: heat, decision 35's, then
+  incandescent (a slack rod glows dull orange, and one pulling hard goes
+  past white to the blue of the hottest stars), neon (cyan and blue cold,
+  pink, magenta and violet hot) and verdant (indigo and teal cold, lime and
+  greens hot). Each paints the same places, a push, a slack rod and 2, 4
+  and 16 weights, around the chain's colour. Stepping it turns the colours
+  on. The control paints its five colours as dots.
+
+The grounds are dark because the piece adds light to the canvas; a light
+ground would need another way of drawing, ink that darkens where it draws,
+which the author set aside. The icons are a paint roller for the ground and
+a thermometer for the scale; drawn and set aside: a frame with a pendulum
+in it and a filled frame cut by one, which read as a sign with "!", two
+squares overlapping, which read as arranging layers, a picture with a
+mountain, a circle half filled, which reads as switching between light and
+dark, a bar of three cells, which reads as a battery, a wedge, which reads
+as a volume, and a fan of colour cards. The new colours, the keys and the
+icons are the session's choices, which the author settles by looking.
+
+A saved moment's code gets its version 2 (decision 38): the palette's ten
+values, and the scale and the ground after it, one byte more than version
+1. Version 1 still opens, on the first ground and scale.
+
+**Why.** The author asked for new palettes, for the tension and in
+general, and for a choice of ground among a good number of pleasant
+colours. Of a ground that carries everything, a ground with its own
+tension's scale, a palette that carries the tension's scale, and three
+controls, the author chose the three controls, and the ground as a control
+of the row with its place in the address, as the session recommended.
+
+**Evidence.** Unit tests hold every ground dark (a relative luminance under
+0.025) and the chain, the hand, the pivot and the row's words clear of it
+by their contrast ratio (over 12 for the chain, 7 for the words, 4.5 for
+the rest); the first five palettes and the first scale as they were; and
+codes of both versions. In the browser, the ground's keys change the canvas
+and the page and come back to the same frame, the scale's key turns the
+colours on, and an address carries both.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.

@@ -5,7 +5,9 @@
 // crack, warms, through amber and orange to red at sixteen weights; a rod
 // that goes slack cools to blue, and one that pushes, which a chain of links
 // cannot do and the rods of these equations can (PH-4), cools on to violet.
-// The stops are placeholders for the author to settle by looking.
+// That is the first scale; the others paint the same places in other colours
+// (decision 41). The stops are placeholders for the author to settle by
+// looking.
 
 import type { Chain } from "../physics/chain.ts";
 import { parseColor, type Rgb } from "./color.ts";
@@ -16,18 +18,59 @@ export const EARTH = 9.81;
 /** Tensions of this many weights and more are at the hot end of the scale. */
 const HOT = 16;
 
-/**
- * The scale's fixed colours, at their places from -1 to 1; the chain's own
- * colour is at 0. A rod pushing with a weight or more is at -1, a slack rod
- * at -0.5, and one pulling with 2, 4 and 16 weights at 0.25, 0.5 and 1.
- */
-export const TENSION_STOPS: readonly (readonly [number, Rgb])[] = [
-  [-1, parseColor("#9a66ff")],
-  [-0.5, parseColor("#4a8cff")],
-  [0.25, parseColor("#ffc24d")],
-  [0.5, parseColor("#ff8a26")],
-  [1, parseColor("#ff3b2b")],
+/** A scale of the tension's colours. */
+export interface TensionScale {
+  /** What a screen reader, the title and the row call it. */
+  readonly name: string;
+  /**
+   * Its fixed colours, at their places from -1 to 1; the chain's own colour
+   * is at 0. A rod pushing with a weight or more is at -1, a slack rod at
+   * -0.5, and one pulling with 2, 4 and 16 weights at 0.25, 0.5 and 1.
+   */
+  readonly stops: readonly (readonly [number, Rgb])[];
+}
+
+/** A scale whose colours, written as #rrggbb, are those of a push, a slack rod, and 2, 4 and 16 weights. */
+function scale(
+  name: string,
+  push: string,
+  slack: string,
+  two: string,
+  four: string,
+  sixteen: string,
+): TensionScale {
+  return {
+    name,
+    stops: [
+      [-1, parseColor(push)],
+      [-0.5, parseColor(slack)],
+      [0.25, parseColor(two)],
+      [0.5, parseColor(four)],
+      [1, parseColor(sixteen)],
+    ],
+  };
+}
+
+export const TENSION_SCALES: readonly TensionScale[] = [
+  // decision 35's: cold violet and blue, warm amber, orange and red
+  scale("heat", "#9a66ff", "#4a8cff", "#ffc24d", "#ff8a26", "#ff3b2b"),
+  // a body's light as it heats: a slack rod glows dull orange, and one
+  // pulling hard goes past white to the blue of the hottest stars
+  scale("incandescent", "#7a1c12", "#ff6a1f", "#ffffff", "#cfe0ff", "#8fb3ff"),
+  // cold blue and cyan, warm pink, magenta and violet
+  scale("neon", "#3d5bff", "#2ad6f0", "#ff8ae0", "#ff42d0", "#c22cff"),
+  // cold indigo and teal, warm lime and greens
+  scale("verdant", "#6a4cff", "#25b5c8", "#c6f25a", "#7ee04a", "#21d07a"),
 ];
+
+/** The scale at `index` in TENSION_SCALES; any other index throws. */
+export function tensionScaleAt(index: number): TensionScale {
+  const found = Number.isInteger(index) ? TENSION_SCALES[index] : undefined;
+  if (found === undefined) {
+    throw new Error(`there is no tension scale ${String(index)}`);
+  }
+  return found;
+}
 
 /** The weight each rod holds hanging still on Earth: the Earth's gravity times the mass at or below it (M_j of PH-3), in N. */
 export function earthWeights(chain: Chain): Float64Array {
@@ -54,11 +97,12 @@ export function tensionPlace(ratio: number): number {
   return -0.5 - 0.5 * Math.min(1, -ratio);
 }
 
-/** The scale's colours with the chain's own at 0, mixed in a straight line between neighbours; outside -1 to 1, the nearer end's. */
-export function tensionScale(chain: Rgb): (place: number) => Rgb {
-  const stops = [...TENSION_STOPS, [0, chain] as const].sort(
-    ([a], [b]) => a - b,
-  );
+/** A scale's colours with the chain's own at 0, mixed in a straight line between neighbours; outside -1 to 1, the nearer end's. */
+export function tensionScale(
+  chain: Rgb,
+  { stops: fixed }: TensionScale,
+): (place: number) => Rgb {
+  const stops = [...fixed, [0, chain] as const].sort(([a], [b]) => a - b);
   const last = stops.length - 1;
   return (place) => {
     const at = Math.min(1, Math.max(-1, place));

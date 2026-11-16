@@ -2,7 +2,8 @@
 // colour to every place across the fan, from 0 at one edge to 1 at the other
 // (twins.ts, fanPlace). The first is the sketch's ramp, which the author
 // keeps. The others are candidates for the author to try: which stay, and
-// how they look, are decided by looking.
+// how they look, are decided by looking. A palette's place in the list is
+// what an address names, so new ones go at the end (decision 41).
 
 import { parseColor, type Rgb } from "./color.ts";
 
@@ -73,6 +74,31 @@ export const FAN_PALETTES: readonly Palette[] = [
   },
   // no colour, only light: dim grey to white
   { name: "silver", color: throughColors("#4a4a4a", "#ffffff") },
+  // decision 41: rose through pink and salmon to peach
+  {
+    name: "blossom",
+    color: throughColors("#ff2d6f", "#ff4f8f", "#ff77a8", "#ff9aa0", "#ffb98f"),
+  },
+  // bronze through gold to a pale gold
+  {
+    name: "gold",
+    color: throughColors("#b0662a", "#d9902f", "#f2b84a", "#ffd677", "#fff0b5"),
+  },
+  // deep green through lime to a yellow
+  {
+    name: "meadow",
+    color: throughColors("#22a05c", "#45c56a", "#93dc4c", "#d9e64a", "#ffd24a"),
+  },
+  // magenta through violet and blue to cyan
+  {
+    name: "neon",
+    color: throughColors("#ff2bd6", "#b04dff", "#5d6bff", "#2dc6ff", "#2bffe0"),
+  },
+  // two colours facing each other across the fan: teal, a pale middle, coral
+  {
+    name: "reef",
+    color: throughColors("#19d3c5", "#86e3d8", "#f2ede4", "#ffb078", "#ff6a3d"),
+  },
 ];
 
 /** The palette at `index` in FAN_PALETTES; any other index throws. */

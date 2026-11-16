@@ -22,6 +22,8 @@ export type Icon =
   | "hand"
   | "gravity"
   | "palette"
+  | "scale"
+  | "ground"
   | "mode"
   | "amplitude"
   | "save"
@@ -118,6 +120,18 @@ const ICONS: Record<Icon, { fill: string; stroke: string; faint?: string }> = {
     fill: "M6.5 12a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0 -3 0M9 7.5a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0 -3 0M13.5 7.5a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0 -3 0",
     stroke:
       "M12 3a9 9 0 1 0 0 18c1.2 0 1.8-1 1.3-2-.6-1.1 0-2.5 1.3-2.5H17a4 4 0 0 0 4-4C21 7 17 3 12 3z",
+  },
+  // a thermometer, its column half up: the tension's scale of colours, from
+  // cold to hot
+  scale: {
+    fill: "M11.25 8.5h1.5v8h-1.5zM10 18a2 2 0 1 0 4 0a2 2 0 1 0 -4 0",
+    stroke: "M10 14.6V5a2 2 0 0 1 4 0v9.6a4 4 0 1 1 -4 0z",
+  },
+  // a paint roller, as a wall is painted: the ground
+  ground: {
+    fill: "M9.75 15.5h2.5v6h-2.5z",
+    stroke:
+      "M4.5 3.5h12a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-12a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1zM17.5 6h2.5v5.5H11v4",
   },
   // a string held at both ends in its second mode, as a standing wave is
   // drawn: one end of its swing, the other faint, and its nodes

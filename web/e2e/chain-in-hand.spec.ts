@@ -363,6 +363,109 @@ test("an address carries the palette", async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
+test("the ground's keys dress the piece and the page in another ground, coming round either way, and the address follows", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("./?n=8");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await openControls(page);
+  const ground = icon(page, "Colour of the ground");
+  await expect(ground).toHaveAccessibleDescription("night");
+  const stage = page.locator("#stage");
+  // the row, and the value a key opens above it
+  const mask = [
+    ...controlsBox(page),
+    page.getByRole("group", { name: "Colour of the ground" }),
+  ];
+  // the page's ground (a string, as in frames())
+  const pageGround = (): Promise<string> =>
+    page.evaluate("getComputedStyle(document.body).backgroundColor");
+  const night = await pageGround();
+
+  // paused, every frame draws the same, so only the ground can change it;
+  // the ground's value is open above its icon in every capture
+  await frames(page, 10);
+  await page.keyboard.press(" ");
+  await ground.click();
+  await frames(page, 3);
+  const before = await stage.screenshot({ mask });
+
+  await page.keyboard.press("i");
+  await expect(ground).toHaveAccessibleDescription("slate");
+  await expect(page).toHaveURL(/\?n=8&ground=1$/);
+  expect(await pageGround()).not.toBe(night);
+  await frames(page, 3);
+  expect((await stage.screenshot({ mask })).equals(before)).toBe(false);
+
+  await page.keyboard.press("U");
+  await expect(ground).toHaveAccessibleDescription("night");
+  await expect(page).toHaveURL(/\?n=8$/);
+  expect(await pageGround()).toBe(night);
+  await frames(page, 3);
+  expect((await stage.screenshot({ mask })).equals(before)).toBe(true);
+
+  // from the first, a step down comes round to the last
+  await page.keyboard.press("u");
+  await expect(ground).toHaveAccessibleDescription("teal");
+  await expect(page).toHaveURL(/\?n=8&ground=10$/);
+  await page.keyboard.press(" ");
+  await frames(page, 10);
+  expect(errors).toEqual([]);
+});
+
+test("the Y key steps the tension's scale, coming round, and turns the tension's colours on, and the address follows", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("./?n=8");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await openControls(page);
+  const tension = icon(page, "Colours of the tension");
+  const scale = icon(page, "Scale of the tension's colours");
+  await expect(tension).toHaveAttribute("aria-pressed", "false");
+  await expect(scale).toHaveAccessibleDescription("heat");
+
+  await page.keyboard.press("y");
+  await expect(scale).toHaveAccessibleDescription("incandescent");
+  await expect(tension).toHaveAttribute("aria-pressed", "true");
+  await expect(page).toHaveURL(/\?n=8&scale=1&tension=1$/);
+  await frames(page, 5);
+
+  // the last scale comes round to the first; the colours stay on
+  await page.keyboard.press("Y");
+  await page.keyboard.press("y");
+  await page.keyboard.press("y");
+  await expect(scale).toHaveAccessibleDescription("heat");
+  await expect(page).toHaveURL(/\?n=8&tension=1$/);
+  await frames(page, 5);
+  expect(errors).toEqual([]);
+});
+
+test("an address carries the ground and the tension's scale", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("./?scale=2&ground=5&tension=1");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await openControls(page);
+  await expect(icon(page, "Colour of the ground")).toHaveAccessibleDescription(
+    "wine",
+  );
+  await expect(
+    icon(page, "Scale of the tension's colours"),
+  ).toHaveAccessibleDescription("neon");
+  await expect(icon(page, "Colours of the tension")).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  expect(
+    await page.evaluate("getComputedStyle(document.body).backgroundColor"),
+  ).toBe("rgb(42, 9, 18)");
+  await frames(page, 10);
+  expect(errors).toEqual([]);
+});
+
 test("the G key passes the whole frame through the sketch's light, and back, and the address follows", async ({
   page,
 }) => {
@@ -766,9 +869,9 @@ test("the S key saves the moment and the screen into the address, R starts the c
   await expect(saveButton(page)).toHaveAccessibleName("Save this moment");
   await frames(page, 10);
 
-  // two masses: the screen in twelve bytes and the moment in sixteen, 38 letters
+  // two masses: the screen in thirteen bytes and the moment in sixteen, 39 letters
   await page.keyboard.press("s");
-  await expect(page).toHaveURL(/\/#[A-Za-z0-9_-]{38}$/);
+  await expect(page).toHaveURL(/\/#[A-Za-z0-9_-]{39}$/);
   await expect(page).toHaveTitle(SAVED_TITLE);
   await expect(saveButton(page)).toHaveAccessibleName(
     "Save this moment over the one saved",
@@ -781,7 +884,7 @@ test("the S key saves the moment and the screen into the address, R starts the c
   await frames(page, 5);
   // another value goes into the code, beside the same moment, and the title names it
   await page.keyboard.press("e");
-  await expect(page).toHaveURL(/\/#[A-Za-z0-9_-]{38}$/);
+  await expect(page).toHaveURL(/\/#[A-Za-z0-9_-]{39}$/);
   expect(page.url()).not.toBe(saved);
   await expect(page).toHaveTitle(SAVED_TITLE);
   await expect(page).toHaveTitle(
@@ -961,8 +1064,9 @@ test("an address longer than a QR code holds says so in place of the code", asyn
   await page.goto("./?n=384&twins=0&trail=0");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   await page.keyboard.press(" ");
+  // the screen in thirteen bytes and 384 masses in eight each: 4 114 letters
   await page.keyboard.press("s");
-  await expect(page).toHaveURL(/\/#[A-Za-z0-9_-]{4112}$/);
+  await expect(page).toHaveURL(/\/#[A-Za-z0-9_-]{4114}$/);
   await page.keyboard.press("o");
   const card = page.getByRole("dialog", {
     name: "This page's address as a QR code",

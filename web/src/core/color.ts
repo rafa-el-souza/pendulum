@@ -1,5 +1,6 @@
-// Colors for WebGL come from the same design tokens as the pages
-// (src/styles/tokens.css), read when a piece starts.
+// Colors for WebGL and for the page's stylesheet: a piece draws in the colours
+// of its ground (src/core/grounds.ts), and sets the page's tokens to them
+// (src/styles/tokens.css holds the first ground's, for the first paint).
 
 /** Red, green and blue from 0 to 1. */
 export type Rgb = readonly [number, number, number];
@@ -27,30 +28,6 @@ export function parseColor(text: string): Rgb {
   throw new Error(
     `${JSON.stringify(text)} is not a color written as #rrggbb or rgb(r, g, b)`,
   );
-}
-
-/**
- * A color token of the page, such as "--color-chain". The build may rewrite
- * a token in a shorter form ("#999999" as "#999", or a name), so the browser
- * normalizes it first: as the computed color of a probe, which is always
- * rgb(r, g, b) for an opaque color. A token that is missing, or is not an
- * opaque color, throws.
- */
-export function tokenColor(name: string): Rgb {
-  const value = getComputedStyle(document.documentElement)
-    .getPropertyValue(name)
-    .trim();
-  if (value === "" || !CSS.supports("color", value)) {
-    throw new Error(
-      `the token ${name} is not a color: ${JSON.stringify(value)}`,
-    );
-  }
-  const probe = document.createElement("span");
-  probe.style.color = value;
-  document.body.append(probe);
-  const computed = getComputedStyle(probe).color;
-  probe.remove();
-  return parseColor(computed);
 }
 
 /** A color for the page's stylesheet, as rgb(r g b), each channel kept within 0 and 255. */
