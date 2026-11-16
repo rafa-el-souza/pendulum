@@ -87,7 +87,7 @@ export const HAND: Parameter = {
  * by the square root of the ratio; what changes beyond the pace is how far a
  * throw carries it, and with none it keeps whatever spin it is given.
  */
-const BODIES: ReadonlyMap<number, string> = new Map([
+export const BODIES: ReadonlyMap<number, string> = new Map([
   [0.62, "Pluto"],
   [1.62, "the Moon"],
   [3.71, "Mars"],
