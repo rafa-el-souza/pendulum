@@ -3,20 +3,8 @@ import "../styles/base.css";
 import { tokenColor, type Rgb } from "../core/color.ts";
 import { mountControls } from "../core/controls.ts";
 import { Lines, SegmentBatch } from "../core/lines.ts";
-import {
-  hashWith,
-  momentInHash,
-  readMoment,
-  writeMoment,
-} from "../core/moment.ts";
 import { fanPalette } from "../core/palettes.ts";
-import {
-  keyAction,
-  readAddress,
-  stepValue,
-  writeAddress,
-  type Parameter,
-} from "../core/parameters.ts";
+import { keyAction, stepValue, type Parameter } from "../core/parameters.ts";
 import { mountStage, type Stage } from "../core/stage.ts";
 import {
   EARTH,
@@ -38,6 +26,8 @@ import {
   type ChainState,
   type Shake,
 } from "../physics/step.ts";
+import { PIECES } from "../pieces.ts";
+import { addressOf, openingOf, type Saved } from "./address.ts";
 import {
   AMPLITUDE,
   CHAIN,
@@ -60,6 +50,7 @@ import {
   radians,
   shakeOf,
 } from "./parameters.ts";
+import { titleOf } from "./title.ts";
 
 // The first piece (docs/decisions.md, decision 4): one chain pendulum to grab
 // and throw, whose number of masses changes while it moves, under a time that
@@ -77,7 +68,8 @@ import {
 // modes (decision 33), or from a moment saved in the address (decision 34).
 // A switch paints each rod by its tension (decision 35). The pivot can be
 // shaken along gravity's line, fast enough that the chain stands on its head
-// (decision 36).
+// (decision 36). The address carries the switches too, and a saved moment the
+// whole screen, which the page's title names (decision 38).
 
 // A frame longer than this (a hidden tab, a stall) moves the chain by this
 // much only, so that it never jumps.
@@ -110,6 +102,9 @@ const TENSION_EASE = 0.25;
 // along the shake, in m: a sign of the shake, which is a millimetre.
 const STANDING_LEAN = 0.1;
 const PIVOT_STREAK = 0.025;
+// The piece's name, which begins the page's title (decision 37).
+const NAME =
+  PIECES.find(({ id }) => id === "chain-in-hand")?.title ?? document.title;
 
 const canvas = document.getElementById("stage");
 const notice = document.getElementById("notice");
@@ -129,7 +124,10 @@ if (document.readyState === "complete") begin();
 else addEventListener("load", begin, { once: true });
 
 function play({ canvas, gl }: Stage): void {
-  const values = readAddress(PARAMETERS, location.search);
+  // what the address opens: the controls, the switches, and a moment saved
+  // in it, if any (decision 38)
+  const opened = openingOf(location.search, location.hash);
+  const { values } = opened;
   const value = (p: Parameter): number => values.get(p.id) ?? p.initial;
 
   let chain = Chain.uniform(value(MASSES));
@@ -178,10 +176,10 @@ function play({ canvas, gl }: Stage): void {
   // With the sketch's light on the whole frame, the frame's lines are drawn
   // here first, and go through the trails' curve with them (decision 24).
   const scene = new LightTarget(gl);
-  let wholeFrame = false;
+  let wholeFrame = opened.switches.get("sketch") ?? false;
   // The twins and the trails, lit or put out by one switch; their controls
   // keep their values, and stepping one of them lights them again.
-  let lit = true;
+  let lit = opened.switches.get("light") ?? true;
   const LIGHT_CONTROLS: ReadonlySet<Parameter> = new Set(LIGHT);
   const trail = new SegmentBatch(4096);
   const tipAt = new Float64Array(2);
@@ -192,7 +190,7 @@ function play({ canvas, gl }: Stage): void {
   // The colour of the tension (decision 35), off until it is switched on:
   // each rod's tension averaged over the motion of the frame, or of the
   // instant when no time went by, in Earth weights of what the rod holds.
-  let tensionShown = false;
+  let tensionShown = opened.switches.get("tension") ?? false;
   let weights = earthWeights(chain);
   let shades = new TensionShades(chain.n);
   let pieceTension = new Float64Array(chain.n);
@@ -218,8 +216,8 @@ function play({ canvas, gl }: Stage): void {
   // number of masses (decision 33)
   let inMode = false;
   // the moment saved in the address, where the chain starts while there is
-  // one (decision 34)
-  let saved = momentInHash(location.hash, chain.n);
+  // one (decision 34), with how the screen around it was (decision 38)
+  let saved: Saved | null = opened.saved;
   let paused = false;
   // whether time runs backwards: every motion reversed since it last ran
   // forwards (decision 28)
@@ -294,7 +292,8 @@ function play({ canvas, gl }: Stage): void {
 
   /**
    * The chain starts again where its controls say: from the moment saved in
-   * the address, as it was (decision 34); or let go from rest about gravity
+   * the address, as it was, with its time running the way it ran and the
+   * shake where it was in its cycle (decisions 34 and 38); or let go from rest about gravity
    * as it points now (decision 33), raised to one side, a chaotic start with
    * two masses or more, or in a normal mode of the paper, its largest angle
    * the amplitude asked for, in the highest mode the chain has if it has
@@ -306,9 +305,10 @@ function play({ canvas, gl }: Stage): void {
     const mode = Math.min(value(MODE), chain.n);
     if (saved !== null) {
       state = {
-        theta: Float64Array.from(saved.theta),
-        omega: Float64Array.from(saved.omega),
+        theta: Float64Array.from(saved.state.theta),
+        omega: Float64Array.from(saved.state.omega),
       };
+      shakePhase = saved.phase;
     } else if (mode > 0) {
       state = startInMode(chain.n, mode, radians(value(AMPLITUDE)), down);
     } else if (value(SHAKE) > 0) {
@@ -323,7 +323,7 @@ function play({ canvas, gl }: Stage): void {
     hand = null;
     inMode = saved === null && mode > 0;
     meter = new PeriodTension(chain.n);
-    setBackwards(false);
+    setBackwards(saved?.backwards ?? false);
     trails.clear();
     spawnTwins();
     showStart();
@@ -407,7 +407,7 @@ function play({ canvas, gl }: Stage): void {
     wholeFrame = on;
     document.documentElement.dataset.light = on ? "frame" : "trails";
   }
-  setWholeFrame(false);
+  setWholeFrame(wholeFrame);
 
   /** The twins and the trails lit, or put out; the switch says which. */
   function setLit(on: boolean): void {
@@ -474,15 +474,31 @@ function play({ canvas, gl }: Stage): void {
     );
   }
 
+  /** Each switch, on or off, by its id in the address (decision 38). */
+  function switches(): Map<string, boolean> {
+    return new Map([
+      ["light", lit],
+      ["tension", tensionShown],
+      ["sketch", wholeFrame],
+    ]);
+  }
+
   /**
-   * The moment as it is now goes into the address, and the chain starts
-   * there from now on (decision 34): exactly as the address holds it, seven
-   * digits to a number, so that the address opened again starts the same.
+   * The moment as it is now goes into the address, with the screen around
+   * it, and the chain starts there from now on (decisions 34 and 38): exactly
+   * as the address holds it, seven digits to a number, so that the address
+   * opened again starts the same.
    */
   function save(): void {
-    const text = writeMoment(state);
-    saved = readMoment(text, chain.n);
-    keepInAddress(text);
+    const now: Saved = {
+      state,
+      paused,
+      backwards,
+      phase: shakePhase,
+      savedAt: Date.now(),
+    };
+    saved = openingOf("", addressOf(values, switches(), now, "")).saved;
+    keepAddress();
     showStart();
   }
 
@@ -490,16 +506,24 @@ function play({ canvas, gl }: Stage): void {
   function forget(): void {
     if (saved === null) return;
     saved = null;
-    keepInAddress(null);
+    keepAddress();
   }
 
-  /** The address after the "#" holds this moment, or none, and the button says whether one is kept. */
-  function keepInAddress(text: string | null): void {
-    history.replaceState(
-      null,
-      "",
-      `${location.pathname}${location.search}${hashWith(location.hash, text)}`,
-    );
+  /** The page's title names the screen (decision 38). */
+  function showTitle(): void {
+    document.title = titleOf(NAME, values, switches(), saved);
+  }
+
+  /**
+   * The address says what the screen is now: with a moment saved, its code
+   * after the "#"; without, the values and the switches that differ from the
+   * opening (decision 38). The title follows, and the button says whether a
+   * moment is kept.
+   */
+  function keepAddress(): void {
+    const part = addressOf(values, switches(), saved, location.search);
+    history.replaceState(null, "", `${location.pathname}${part}`);
+    showTitle();
     showSave();
   }
 
@@ -550,12 +574,15 @@ function play({ canvas, gl }: Stage): void {
     if (!lit && LIGHT_CONTROLS.has(parameter)) setLit(true);
     controls.showValue(parameter.id, next);
     showStart();
-    const search = writeAddress(PARAMETERS, values, location.search);
-    history.replaceState(
-      null,
-      "",
-      `${location.pathname}${search}${location.hash}`,
-    );
+    keepAddress();
+  }
+
+  /** A switch turned the other way, which the address and the title follow (decision 38). */
+  function toggle(id: "light" | "tension" | "sketch"): void {
+    if (id === "light") setLit(!lit);
+    else if (id === "tension") setTensionShown(!tensionShown);
+    else setWholeFrame(!wholeFrame);
+    keepAddress();
   }
 
   // The row of controls: the actions, then what moves the chain, then the
@@ -597,7 +624,7 @@ function play({ canvas, gl }: Stage): void {
           icon: "light",
           keys: ["l", "L"],
           keysShown: "L",
-          pressed: true,
+          pressed: lit,
         },
         {
           id: "tension",
@@ -605,7 +632,7 @@ function play({ canvas, gl }: Stage): void {
           icon: "balance",
           keys: ["t", "T"],
           keysShown: "T",
-          pressed: false,
+          pressed: tensionShown,
         },
       ],
       CHAIN,
@@ -616,8 +643,7 @@ function play({ canvas, gl }: Stage): void {
       act(id) {
         if (id === "pause") setPaused(!paused);
         else if (id === "reverse") reverseTime();
-        else if (id === "light") setLit(!lit);
-        else if (id === "tension") setTensionShown(!tensionShown);
+        else if (id === "light" || id === "tension") toggle(id);
         else if (id === "save") save();
         else start();
       },
@@ -626,7 +652,11 @@ function play({ canvas, gl }: Stage): void {
   for (const parameter of PARAMETERS) {
     controls.showValue(parameter.id, value(parameter));
   }
+  // the switches as the address asks for them
+  setLit(lit);
+  setTensionShown(tensionShown);
   showSave();
+  showTitle();
   // the button shows for a moment as the piece opens, so that it is found
   controls.wake();
 
@@ -720,11 +750,11 @@ function play({ canvas, gl }: Stage): void {
     } else if (event.key === "b" || event.key === "B") {
       reverseTime();
     } else if (event.key === "l" || event.key === "L") {
-      setLit(!lit);
+      toggle("light");
     } else if (event.key === "t" || event.key === "T") {
-      setTensionShown(!tensionShown);
+      toggle("tension");
     } else if (event.key === "g" || event.key === "G") {
-      setWholeFrame(!wholeFrame);
+      toggle("sketch");
     } else {
       return;
     }
@@ -1033,5 +1063,7 @@ function play({ canvas, gl }: Stage): void {
   }
 
   start();
+  // a moment saved paused opens paused, as it was
+  if (saved?.paused === true) setPaused(true);
   requestAnimationFrame(frame);
 }

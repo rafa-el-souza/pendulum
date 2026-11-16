@@ -85,15 +85,3 @@ export function momentInHash(hash: string, n: number): ChainState | null {
   const text = new URLSearchParams(hash.replace(/^#/, "")).get(KEY);
   return text === null ? null : readMoment(text, n);
 }
-
-/**
- * An address's part after the "#" holding the moment `text`, or none when
- * it is null, with whatever else was there; empty when nothing is left.
- */
-export function hashWith(hash: string, text: string | null): string {
-  const kept = new URLSearchParams(hash.replace(/^#/, ""));
-  if (text === null) kept.delete(KEY);
-  else kept.set(KEY, text);
-  const joined = kept.toString();
-  return joined === "" ? "" : `#${joined}`;
-}
