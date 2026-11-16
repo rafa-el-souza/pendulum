@@ -104,7 +104,7 @@ them with their system packages on Ubuntu, as CI does.
 | Path | What it holds |
 |---|---|
 | `physics/` | the check of the paper: the registry, the oracle, the oracle's answers that the browser's physics is tested against, and how to rebuild a local copy of the paper |
-| `web/` | the browser app: the registry of pieces, one page per piece, the shared core in `src/core/`, the physics in `src/physics/`, unit tests beside the code and browser tests in `e2e/` |
+| `web/` | the browser app: the registry of pieces, one page per piece, the shared core in `src/core/`, the physics in `src/physics/`, unit tests beside the code and browser tests in `e2e/`, and in `scripts/` the script that draws the site's icon, a frame of the first piece, with its physics |
 | `docs/decisions.md` | the decisions, their reasons and evidence, and the open questions |
 | `.github/` | CI and the pull request template |
 | `.githooks/` | the pre-commit secret scan |

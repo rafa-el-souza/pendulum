@@ -28,6 +28,30 @@ test(`the root opens ${piece.id} and draws with WebGL2`, async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
+test("the root links the site's icon, and every icon it links is there", async ({
+  page,
+  request,
+}) => {
+  await page.goto("./");
+  const links = page.locator('link[rel="icon"], link[rel="apple-touch-icon"]');
+  const icons: { href: string; type: string | null }[] = [];
+  for (const link of await links.all()) {
+    const href = await link.getAttribute("href");
+    expect(href).not.toBeNull();
+    icons.push({
+      href: new URL(href ?? "", page.url()).href,
+      type: await link.getAttribute("type"),
+    });
+  }
+  for (const { href } of icons) {
+    const response = await request.get(href);
+    expect(response.status(), href).toBe(200);
+    expect(response.headers()["content-type"], href).toMatch(
+      href.endsWith(".svg") ? /^image\/svg\+xml/ : /^image\/png/,
+    );
+  }
+});
+
 test(`${piece.id}'s own address forwards to the root with its settings`, async ({
   page,
   baseURL,

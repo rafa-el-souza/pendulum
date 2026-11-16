@@ -983,6 +983,39 @@ moment within seven significant digits and the shake's phase within a
 Moon, the three switches changed and the piece paused opens in a browser of
 its own with the same controls, switches, pause and title.
 
+## 39. The site's icon is a frame of the piece
+
+*2026-11-16.* The site has an icon, for the browser's tab, its bookmarks and
+a phone's home screen: a frame of the first piece, drawn by its own
+physics. Two masses let go from the piece's raised start, with 48 twins
+born a thousandth of a radian apart as the piece bears them, 4.983 s later,
+when their fan has opened into a wing: the chain as light, with a soft
+glow, over its twins in the first palette, from blue to amber, on the
+piece's ground, in a tile with rounded corners. `web/scripts/icon.ts` draws
+it (`npm run icon`) and writes it as SVG, with a PNG of 32 px for browsers
+that take no SVG icon, and one of 180 px for a phone's home screen, square,
+since the phone rounds it itself. The build copies the three as they are.
+
+The frame, the glow, the tile and the sizes are the session's choices,
+which the author settles by seeing them. Drawn from the same motion and
+looked at beside it, at 16 to 180 px and in light and dark tabs: other
+frames, before the fan opens much (at 4.6 s, a narrow sail) and after (from
+5.05 to 5.1 s, a wider one); a dozen thick twins in place of 48, to read
+better at 16 px; the chain alone, which at 16 px reads as a caret; a round
+tile; and a halo drawn as a wide faint stroke, which read as a grey
+outline.
+
+**Why.** The author asked for an icon worthy of the project. A frame of the
+piece shows what the piece is, a chain drawn as light and twins that show
+chaos, in its own colours, and drawing it from the physics keeps it true to
+the piece.
+
+**Evidence.** SVG icons are taken by Chrome and Edge from version 80,
+Firefox from 41 and Safari from 26 (caniuse, "SVG favicons", read on
+2026-11-16); the PNG covers older Safari. The script writes the same bytes
+again on a second run. A browser test checks that the root links the three
+icons and that each one is served.
+
 ## 40. The address can be shared, and shown as a QR code
 
 *2026-11-16.* Two buttons after "Save this moment", with the keys H and O,
