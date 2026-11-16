@@ -26,6 +26,8 @@ export type Icon =
   | "amplitude"
   | "save"
   | "saved"
+  | "balance"
+  | "weighing"
   | "left"
   | "right";
 
@@ -130,6 +132,17 @@ const ICONS: Record<Icon, { fill: string; stroke: string; faint?: string }> = {
   saved: {
     fill: "M7 3.5h10v17l-5-4.5-5 4.5z",
     stroke: "M7 3.5h10v17l-5-4.5-5 4.5z",
+  },
+  // a spring balance, its scale marked and its hook empty: the chain in its
+  // own colour; filled, its marks cut out, the chain painted by its tension
+  balance: {
+    fill: "",
+    stroke:
+      "M12 2v2M8.5 4h7v10h-7zM10.5 7h3M10.5 10h3M12 14v4M12 18a2 2 0 1 1 -2 2",
+  },
+  weighing: {
+    fill: "M7.5 3h9v12h-9zM10.5 6.25v1.5h3v-1.5zM10.5 9.75v1.5h3v-1.5z",
+    stroke: "M12 2v1M12 15v3M12 18a2 2 0 1 1 -2 2",
   },
   // chevrons: there is more of the row this way
   left: { fill: "", stroke: "M15 5l-7 7 7 7" },
