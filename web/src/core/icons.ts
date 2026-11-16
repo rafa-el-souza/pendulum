@@ -28,6 +28,7 @@ export type Icon =
   | "saved"
   | "balance"
   | "weighing"
+  | "shake"
   | "left"
   | "right";
 
@@ -143,6 +144,11 @@ const ICONS: Record<Icon, { fill: string; stroke: string; faint?: string }> = {
   weighing: {
     fill: "M7.5 3h9v12h-9zM10.5 6.25v1.5h3v-1.5zM10.5 9.75v1.5h3v-1.5z",
     stroke: "M12 2v1M12 15v3M12 18a2 2 0 1 1 -2 2",
+  },
+  // a pendulum standing on its head, on a pivot that buzzes
+  shake: {
+    fill: "M10.5 15a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0 -3 0M10 3.5a2 2 0 1 0 4 0a2 2 0 1 0 -4 0",
+    stroke: "M12 15V5.5M5 20.5l2.33-2 2.33 2 2.33-2 2.34 2 2.33-2 2.33 2",
   },
   // chevrons: there is more of the row this way
   left: { fill: "", stroke: "M15 5l-7 7 7 7" },
