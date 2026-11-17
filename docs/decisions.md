@@ -1440,6 +1440,83 @@ that draws about ten frames a second, did not show the fault: its first
 frame came after those quiet first moments, where a screen at 60 Hz or more
 hears within them.
 
+## 48. The music's hits, notes and bass line are heard
+
+*2026-11-17.* The hearing (decision 44) gives three new events and a new
+measure: a **hit**, something broad in frequency for a moment, as a drum or
+a cymbal; a **note**, the beginning of something that lasts, a note or a
+chord; and the **bass's note**, with its **change** to another. Each frame
+now gets the latest 8 192 samples, and the spectrum still hears the last
+2 048 of them. Nothing in the piece follows the new signals yet: the
+effects that use them come next, for the author to see.
+
+- **Hits and notes** are told apart by medians, a harmonic and percussive
+  separation. Of the frames of the last 0.15 s, the one in their middle is
+  judged: in each bin, the median of the bins 180 Hz either side is what is
+  broad there, the median of the span's frames is what lasts, and the bin
+  is shared between the two by their squares. A hit is an attack of the
+  broad part (its third-octave pieces rising against the habits of their
+  rise, as in decision 44) in the middle band or the treble, where the
+  broad part holds at least 0.3 of that band's energy. A note is an attack
+  of the lasting part between 150 Hz and 4 kHz, its pieces' rises summed,
+  each counted from no lower than 24 dB under the loudest piece. Both are
+  heard 75 ms late. Under 150 Hz, at this window, a kick and a bass note
+  cannot be told apart, so no hit is heard there, and the kick, heard at
+  once, stays what it was: any attack in the low band, which lights the
+  halo (decision 46).
+- **The bass's note** is the period of the sound under 300 Hz, low-passed
+  and taken at about 4 kHz, by YIN's difference function over the last
+  70 ms or so, from C1 to about D4. A period whose normalized difference
+  dips under 0.15 is a note. A change is a note of another name held for
+  40 ms; an octave apart is the same name.
+- **The demo beat** is heard a window at a time, working out only the
+  samples new since the window before.
+- **Routes** (decision 46) can take the three events as they take the
+  attacks.
+
+**Why.** The author chose these signals for the effects of the music: the
+twins born again on hits only, an event when a note begins, and the bass's
+note, which can colour the piece. On his four excerpts, any attack came two
+to five times a second, on notes as on drums, so the twins born again on
+every attack were born continuously and marked nothing.
+
+A single frame cannot tell a hit from a note at this window. Judged on one
+frame, without waiting, a piano's hammer is as broad as a snare: on the
+calm piano, the broad part rose at its attacks as much as at the drums'
+attacks of the other three excerpts, by each of the three measures tried.
+Judged over the frames around it, 75 ms later, the broad part held 0.3 or
+more of the middle band at 69 to 93 percent of the middle band's attacks in
+the three excerpts with drums, and at 12 percent of the piano's.
+
+**Evidence.** Tests first, on made-up sounds heard frame by frame as the
+page hears them. Chords changing every second under a hi-hat, a snare and a
+hi-hat, heard at 30, 60 and 144 frames a second, give one hit at every drum
+and none at the changes, and one note at every change and none at the
+drums. A bass line of known notes, half a second each, is followed note by
+note from 0.15 s into each, with one change for each. The demo beat's bass
+is followed under its kicks, bar by bar; more than nine in ten of its
+snares are hits, and no hit comes away from a kick or a snare. A first try
+heard a hi-hat's spill into an empty piece of the middle band as a note at
+30 frames a second; counting each piece from no lower than 24 dB under the
+loudest mended it.
+
+On the four excerpts, at sixty frames a second, over their 45 s of music:
+
+| Excerpt | Attacks | Hits | Notes | Bass changes | Bass note heard | Named as the reference |
+|---|---|---|---|---|---|---|
+| Electronic | 232 | 189 | 102 | 60 | 38% of frames | 80% |
+| Beat in 5/4 | 229 | 213 | 96 | 58 | 28% | 59% |
+| Metal percussion | 163 | 161 | 68 | 23 | 12% | 96%, on 1% of frames |
+| Calm piano | 100 | 8 | 76 | 70 | 77% | 75% |
+
+The reference is pYIN, offline, under 300 Hz, which hears a bass note in
+64, 48, 7 and 86 percent of the excerpts' frames; the last column counts
+the frames where both hear one. The hearing costs about 0.35 ms a frame on
+the demo beat and up to 0.9 ms on these excerpts, measured in Node, where
+it cost about 0.15 ms before; working out the demo beat's whole window of
+8 192 samples cost 2.65 ms a frame. At ten frames a second the span holds one or two frames; the tests
+check 30 frames a second and more.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.

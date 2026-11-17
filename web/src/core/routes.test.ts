@@ -32,6 +32,26 @@ const MODE: Mode = {
 const MIDDLE = 3;
 
 describe("Router", () => {
+  it("takes a drum's hit, a note's beginning and the bass's change of note as it takes any attack (decision 48)", () => {
+    const router = new Router({
+      id: "events",
+      name: "events",
+      routes: [
+        { from: "hit", to: "births", depth: 0.5, attack: 0, release: 0 },
+        { from: "note", to: "glow", depth: 1, attack: 0, release: 0 },
+        { from: "bassChange", to: "trail", depth: 0.25, attack: 0, release: 0 },
+      ],
+    });
+    expect(
+      router.look(heard({ hit: 1, note: 0.5, bassChange: 1 }), 1 / 60, MIDDLE),
+    ).toEqual({ glow: 0.5, trail: 0.25, births: 0.5 });
+    expect(router.look(heard({}), 1 / 60, MIDDLE)).toEqual({
+      glow: 0,
+      trail: 0,
+      births: 0,
+    });
+  });
+
   it("follows a signal at once with no attack, and lets it go over its release", () => {
     const router = new Router(MODE);
     expect(router.look(heard({ kick: 1 }), 1 / 60, MIDDLE).glow).toBe(1);

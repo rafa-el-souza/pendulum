@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { Hearing, WINDOW, type Signals } from "./signals.ts";
+import { demoSample } from "./demo.ts";
+import { HEARD, Hearing, SPAN, type Signals } from "./signals.ts";
 
-// What the piece hears in music (docs/decisions.md, decision 44): how loud it
-// is, in three bands, and the attacks of its beats and notes, each against
-// the music's own loudness of the last seconds. Checked on sounds made up
-// for the purpose, heard frame by frame as the page hears them.
+// What the piece hears in music (docs/decisions.md, decisions 44 and 48): how
+// loud it is, in three bands, and the attacks of its beats and notes, each
+// against the music's own loudness of the last seconds; the hits of its drums
+// told from the notes that begin; and the note its bass plays. Checked on
+// sounds made up for the purpose, heard frame by frame as the page hears them.
 
 const RATE = 48_000;
 
@@ -17,13 +19,13 @@ function listen(
   rate = RATE,
 ): Signals[] {
   const hearing = new Hearing(rate);
-  const window = new Float32Array(WINDOW);
+  const window = new Float32Array(HEARD);
   const heard: Signals[] = [];
   for (let frame = 1; frame <= Math.round(seconds * fps); frame++) {
     const at = frame / fps;
     const last = Math.round(at * rate);
-    for (let i = 0; i < WINDOW; i++) {
-      const t = (last - WINDOW + 1 + i) / rate;
+    for (let i = 0; i < HEARD; i++) {
+      const t = (last - HEARD + 1 + i) / rate;
       window[i] = t < 0 ? 0 : sound(t);
     }
     heard.push(hearing.hear(window, at));
@@ -62,8 +64,59 @@ const thump = (since: number): number =>
 const tick = (since: number): number =>
   0.3 * Math.exp(-since / 0.015) * Math.sin(2 * Math.PI * 9000 * since);
 
+/** A snare's crack: a burst of noise, its highs raised, falling fast. */
+function crack(t: number, since: number): number {
+  const i = Math.round(t * RATE);
+  return 0.4 * Math.exp(-since / 0.06) * (hiss(i) - hiss(i - 1));
+}
+
+/** A closed hi-hat of noise: only its highest part, gone in a few hundredths. */
+function chick(t: number, since: number): number {
+  const i = Math.round(t * RATE);
+  return (
+    0.15 * Math.exp(-since / 0.02) * (hiss(i) - 2 * hiss(i - 1) + hiss(i - 2))
+  );
+}
+
+/** Drums on the quarters of every second: a hat, a snare, a hat, and none on the whole second. */
+function drums(t: number): number {
+  const since = t % 0.25;
+  const quarter = Math.floor(t / 0.25) % 4;
+  if (quarter === 2) return crack(t, since);
+  if (quarter === 1 || quarter === 3) return chick(t, since);
+  return 0;
+}
+
+/** An organ's note at `hz`: its root and two overtones. */
+function organ(hz: number, t: number): number {
+  const phase = 2 * Math.PI * hz * t;
+  return (
+    Math.sin(phase) + 0.5 * Math.sin(2 * phase) + 0.33 * Math.sin(3 * phase)
+  );
+}
+
+/** Chords of three notes, held a second each, coming in and out softly: A minor, F, C, G, and round. */
+const CHORDS = [
+  [220, 261.63, 329.63],
+  [174.61, 220, 261.63],
+  [261.63, 329.63, 392],
+  [196, 246.94, 293.66],
+];
+function chords(t: number): number {
+  const since = t % 1;
+  const chord = CHORDS[Math.floor(t) % CHORDS.length] ?? [];
+  const edge = Math.min(1, since / 0.015, (1 - since) / 0.015);
+  return 0.06 * edge * chord.reduce((sum, hz) => sum + organ(hz, t), 0);
+}
+
+/** The frequency of MIDI note `note`, in Hz. */
+const hz = (note: number): number => 440 * 2 ** ((note - 69) / 12);
+
 /** The times of the frames whose `key` is an attack. */
-function attacks(heard: Signals[], key: "onset" | "kick" | "snare" | "hat") {
+function attacks(
+  heard: Signals[],
+  key: "onset" | "kick" | "snare" | "hat" | "hit" | "note" | "bassChange",
+) {
   return heard.filter((s) => s[key] > 0).map((s) => s.at);
 }
 
@@ -183,13 +236,114 @@ describe("Hearing", () => {
     expect(Math.abs(level(20, 22) - before)).toBeLessThan(0.1);
   });
 
-  it("calls silence silent, with nothing moving and no attacks", () => {
+  it("calls silence silent, with nothing moving, no attacks and no note", () => {
     for (const sound of [() => 0, (t: number) => 0.0001 * hiss(t * RATE)]) {
       const heard = listen(sound, 2);
       const last = heard.at(-1);
       expect(last?.silent).toBe(true);
       expect(last?.level).toBe(0);
-      expect(heard.every((s) => s.onset === 0)).toBe(true);
+      for (const s of heard) {
+        expect(s.onset).toBe(0);
+        expect(s.hit).toBe(0);
+        expect(s.note).toBe(0);
+        expect(s.bassNote).toBe(0);
+        expect(s.bassChange).toBe(0);
+      }
+    }
+  });
+
+  // A hit is broad in frequency for a moment; a note lasts. Telling them
+  // apart takes the frames on either side of one, so both are heard SPAN / 2
+  // late, at 60 frames a second and at fewer and more.
+  it("hears the drums' hits, and not the chords that change under them", () => {
+    for (const fps of [30, 60, 144]) {
+      const heard = listen((t) => chords(t) + drums(t) + room(t), 6, fps);
+      const hits = attacks(heard, "hit");
+      const late = SPAN / 2 + 2.5 / fps;
+      for (let second = 1; second < 6; second++) {
+        for (const struck of [0.25, 0.5, 0.75].map((q) => second + q)) {
+          const near = hits.filter((at) => at >= struck && at <= struck + late);
+          expect(
+            near,
+            `${String(fps)} fps, the hit at ${String(struck)} s`,
+          ).toHaveLength(1);
+        }
+        // the chord changes on every whole second, where no drum strikes
+        const change = hits.filter(
+          (at) => at > second - 0.02 && at < second + 0.2,
+        );
+        expect(
+          change,
+          `${String(fps)} fps, the chord at ${String(second)} s`,
+        ).toEqual([]);
+      }
+    }
+  });
+
+  it("hears a note begin where a chord changes, and not where a drum strikes", () => {
+    for (const fps of [30, 60, 144]) {
+      const heard = listen((t) => chords(t) + drums(t) + room(t), 6, fps);
+      const notes = attacks(heard, "note");
+      for (let second = 1; second < 6; second++) {
+        const begun = notes.filter(
+          (at) => at >= second && at <= second + SPAN / 2 + 0.1,
+        );
+        expect(
+          begun,
+          `${String(fps)} fps, the chord at ${String(second)} s`,
+        ).toHaveLength(1);
+        const drummed = notes.filter(
+          (at) => at > second + 0.3 && at < second + 0.95,
+        );
+        expect(
+          drummed,
+          `${String(fps)} fps, the drums of ${String(second)} s`,
+        ).toEqual([]);
+      }
+    }
+  });
+
+  it("follows a bass line note by note, and hears each change once", () => {
+    // A1, C2, D2, E2, G1, A1: half a second each, a root and two overtones
+    const line = [33, 36, 38, 40, 31, 33];
+    const bass = (t: number): number => {
+      const since = t % 0.5;
+      const note = line[Math.floor(t / 0.5)] ?? 33;
+      const edge = Math.min(1, since / 0.02, (0.5 - since) / 0.02);
+      return 0.3 * edge * organ(hz(note), t) + room(t);
+    };
+    const heard = listen(bass, 3);
+    line.forEach((note, k) => {
+      const held = heard.filter(
+        (s) => s.at >= 0.5 * k + 0.15 && s.at < 0.5 * k + 0.5,
+      );
+      for (const s of held)
+        expect(Math.round(s.bassNote), `${String(s.at)} s`).toBe(note);
+    });
+    const changes = attacks(heard, "bassChange");
+    expect(changes).toHaveLength(line.length);
+    changes.forEach((at, k) => {
+      expect(at - 0.5 * k).toBeGreaterThanOrEqual(0);
+      expect(at - 0.5 * k).toBeLessThan(0.2);
+    });
+  });
+
+  it("follows the demonstration beat's bass under its kicks, chord by chord", () => {
+    // its roots are A, F, C and G, a bar each; from the snare's tail on
+    // the bar's second beat to the next note, only the bass sounds
+    const roots = [9, 5, 0, 7];
+    const heard = listen(demoSample, 16);
+    for (let bar = 0; bar < 8; bar++) {
+      const middle = heard.filter(
+        (s) => s.at >= 2 * bar + 0.62 && s.at < 2 * bar + 0.75,
+      );
+      const right = middle.filter(
+        (s) => s.bassNote > 0 && Math.round(s.bassNote) % 12 === roots[bar % 4],
+      );
+      expect(
+        right.length / middle.length,
+        `bar ${String(bar + 1)}`,
+      ).toBeGreaterThan(0.8);
     }
   });
 
@@ -209,7 +363,7 @@ describe("Hearing", () => {
 
   it("does not hear the same window twice: a frame with no new sound changes nothing", () => {
     const hearing = new Hearing(RATE);
-    const window = Float32Array.from({ length: WINDOW }, (_, i) =>
+    const window = Float32Array.from({ length: HEARD }, (_, i) =>
       Math.sin(i / 3),
     );
     const first = hearing.hear(window, 1);

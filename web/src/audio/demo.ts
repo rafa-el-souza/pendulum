@@ -182,3 +182,39 @@ export function demoWindow(t: number, rate: number, out: Float32Array): void {
   const n = out.length;
   for (let i = 0; i < n; i++) out[i] = demoSample(t - (n - 1 - i) / rate);
 }
+
+/**
+ * The beat heard a window at a time, as frames hear it: each window's
+ * samples at `rate`, ending at the sample nearest its time, working out only
+ * those new since the window before. A frame's window is long (decision 48),
+ * and working it all out again cost more than the rest of the hearing.
+ */
+export class DemoTap {
+  private readonly rate: number;
+  private kept = new Float32Array(0);
+  /** The sample the window before ended at. */
+  private end = Number.NaN;
+
+  constructor(rate: number) {
+    this.rate = rate;
+  }
+
+  /** Fills `out` with the samples ending at `t` s. */
+  fill(t: number, out: Float32Array): void {
+    const n = out.length;
+    const end = Math.round(t * this.rate);
+    const moved = end - this.end;
+    let from = 0;
+    if (this.kept.length !== n) {
+      this.kept = new Float32Array(n);
+    } else if (moved >= 0 && moved < n) {
+      this.kept.copyWithin(0, moved);
+      from = n - moved;
+    }
+    for (let i = from; i < n; i++) {
+      this.kept[i] = demoSample((end - (n - 1 - i)) / this.rate);
+    }
+    this.end = end;
+    out.set(this.kept);
+  }
+}

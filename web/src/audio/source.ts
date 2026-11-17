@@ -1,6 +1,6 @@
-import { DEMO_SECONDS, demoWindow, renderDemoInto } from "./demo.ts";
+import { DEMO_SECONDS, DemoTap, renderDemoInto } from "./demo.ts";
 import { builtInMicrophone } from "./devices.ts";
-import { Hearing, WINDOW, type Signals } from "./signals.ts";
+import { HEARD, Hearing, type Signals } from "./signals.ts";
 
 // Where the piece's music comes from (docs/decisions.md, decisions 44 and
 // 45): the microphone, a file, the demonstration beat, or the sound of a
@@ -143,7 +143,7 @@ export class Listening {
   private take: ((out: Float32Array<ArrayBuffer>) => number | null) | null =
     null;
   private hearing: Hearing | null = null;
-  private readonly samples = new Float32Array(WINDOW);
+  private readonly samples = new Float32Array(HEARD);
   /** How many starts were asked for: a start that another has overtaken drops what it got. */
   private asked = 0;
 
@@ -239,7 +239,7 @@ export class Listening {
   /** The window of samples an analyser of `input` holds, taken through a branch that makes no sound. */
   private tap(context: AudioContext, input: AudioNode): AnalyserNode {
     const analyser = context.createAnalyser();
-    analyser.fftSize = WINDOW;
+    analyser.fftSize = HEARD;
     analyser.smoothingTimeConstant = 0;
     const silent = context.createGain();
     silent.gain.value = 0;
@@ -451,12 +451,14 @@ export class Listening {
     const now = (): number => performance.now() / 1000;
     if (context === null) {
       const origin = now();
+      const tap = new DemoTap(MUTED_RATE);
       this.listen(
         "demo",
         MUTED_RATE,
         (out) => {
-          demoWindow(now() - origin, MUTED_RATE, out);
-          return now() - origin;
+          const t = now() - origin;
+          tap.fill(t, out);
+          return t;
         },
         () => undefined,
       );
@@ -488,12 +490,13 @@ export class Listening {
     // heard at the page's time until the audio is found to play, and then
     // at the time of the sample being played
     let audible = false;
+    const tap = new DemoTap(rate);
     this.listen(
       "demo",
       rate,
       (out) => {
         const t = audible ? outputTime(context) - startsAt : now() - origin;
-        demoWindow(t, rate, out);
+        tap.fill(t, out);
         return t;
       },
       () => {

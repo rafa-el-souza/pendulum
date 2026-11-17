@@ -9,9 +9,19 @@ import type { Signals } from "../audio/signals.ts";
 // the controls. Only the light so far: forces come later, in their own
 // record.
 
-/** The signals a route can take. */
+/** The signals a route can take: each from 0 to 1. */
 export type Signal =
-  "level" | "bass" | "mid" | "treble" | "onset" | "kick" | "snare" | "hat";
+  | "level"
+  | "bass"
+  | "mid"
+  | "treble"
+  | "onset"
+  | "kick"
+  | "snare"
+  | "hat"
+  | "hit"
+  | "note"
+  | "bassChange";
 
 /** What the music adds to the light in a frame. */
 export interface Look {
