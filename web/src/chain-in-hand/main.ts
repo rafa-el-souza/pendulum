@@ -148,6 +148,13 @@ const GLOW_GAIN = 0.3;
 const TRAIL_MOST = 2;
 const NOTE_EASE = 0.08;
 const NOTE_EASE_SLOW = 1;
+// The trails of a strobe (decision 50): the whole chain stamped this many
+// times a second of simulated time, each copy this light. The twins as dust:
+// each tip a point this many pixels wide, which swells as the music lights
+// the halo.
+const STROBE_RATE = 12;
+const STROBE_LIGHT = 0.45;
+const DUST_RADIUS = 1.4;
 // How long the share button shows that the address was copied, in ms.
 const COPIED_MS = 2000;
 // The piece's name, which begins the page's title (decision 37).
@@ -215,6 +222,8 @@ function play({ canvas, gl }: Stage): void {
   // parts from the chain; those gone dark are born again on the chain.
   const fading = new Fading(mostTwins);
   const fan = new SegmentBatch(value(TWIN_COUNT) * chain.n);
+  // the twins as dust: their tips alone (decision 50)
+  const dust = new SegmentBatch(value(TWIN_COUNT));
   const dots = new SegmentBatch(chain.n + 2);
   // the hand's spring, drawn stronger the harder the hand pulls
   const spring = new SegmentBatch(1);
@@ -301,6 +310,8 @@ function play({ canvas, gl }: Stage): void {
   // the next twin a beat has born again, in turn round the fan, while the
   // twins stay
   let bornNext = 0;
+  // the simulated time since a strobe last stamped the chain (decision 50)
+  let strobeClock = 0;
 
   /** Where the tip of a chain at these angles is, written to tipAt. */
   function tip(theta: Float64Array): void {
@@ -349,6 +360,25 @@ function play({ canvas, gl }: Stage): void {
       // stronger as the music asks (decision 46)
       const music = 1 + Math.min(TRAIL_MOST, look.trail);
       trail.push(ax, ay, bx, by, color, light * music);
+    }
+  }
+
+  /**
+   * The whole chain as it is now, stamped into the trails, as a strobe's
+   * flash leaves it (decision 50): each rod in its colour, brighter as the
+   * music asks.
+   */
+  function stamp(color: Rgb): void {
+    const music = 1 + Math.min(TRAIL_MOST, look.trail);
+    let ax = 0;
+    let ay = 0;
+    for (let i = 0; i < chain.n; i++) {
+      const bx = x[i] ?? 0;
+      const by = y[i] ?? 0;
+      const rod = tensionShown ? (rodColors[i] ?? color) : color;
+      trail.push(ax, ay, bx, by, rod, STROBE_LIGHT * music);
+      ax = bx;
+      ay = by;
     }
   }
 
@@ -1031,16 +1061,26 @@ function play({ canvas, gl }: Stage): void {
     // only the fringes of the fan show colour; while they fade, each in its
     // own light, and those gone dark not at all.
     fan.clear();
+    dust.clear();
     const faint = Math.min(
       0.5,
       Math.max(0.05, 2.2 / Math.sqrt(Math.max(1, twins.length))),
     );
     const fades = value(FADE) === 1;
+    // as dust, each twin its tip alone, a point brighter than a line
+    const asDust = value(FADE) === 2;
+    const speck = Math.min(0.8, 6 / Math.sqrt(Math.max(1, twins.length)));
     twins.forEach((twin, j) => {
       const shine = fades ? (fading.light[j] ?? 1) : 1;
       if (shine < 1 / 64) return;
       chain.positions(twin.theta, twinX, twinY);
       const color = tinted(fanColors[j] ?? colors.chain, "twins");
+      if (asDust) {
+        const px = twinX[chain.n - 1] ?? 0;
+        const py = twinY[chain.n - 1] ?? 0;
+        dust.push(px, py, px, py, color, speck);
+        return;
+      }
       let tx = 0;
       let ty = 0;
       for (let i = 0; i < chain.n; i++) {
@@ -1141,6 +1181,15 @@ function play({ canvas, gl }: Stage): void {
       radius: 0.7 * ratio,
       roundEnds: chain.n <= 64,
     });
+    // the twins as dust, each point swelling as the music lights the halo
+    // (decision 50)
+    const pulse = Math.min(1, look.glow);
+    lines.draw(dust, scale, {
+      radius: DUST_RADIUS * (1 + pulse) * ratio,
+      roundEnds: true,
+      halo: 3 * ratio,
+      haloGain: 0.2 + 0.4 * pulse,
+    });
     // Past 64 rods the ends are cut flat, so that rods laid end to end make
     // one even line instead of beads where their round ends overlap.
     // the halo widens and brightens as the music lights it (decision 46)
@@ -1173,7 +1222,15 @@ function play({ canvas, gl }: Stage): void {
     last = now;
     // what the music says this frame, which the card's meter shows, paused
     // or not, and what it adds to the light, in real time (decision 46)
-    look = router.look(music.hear(), real, tune.strength);
+    const heard = music.hear();
+    look = router.look(heard, real, tune.strength);
+    // the music flashes a strobe on its kicks while it plays in a mode that
+    // does, and not with reduced motion asked for (decision 50)
+    const flashes =
+      heard !== null &&
+      !heard.silent &&
+      !still.matches &&
+      router.mode.routes.some(({ to }) => to === "flash");
     if (look.note >= 0) {
       const color = noteColor(look.note);
       const ease = still.matches ? NOTE_EASE_SLOW : NOTE_EASE;
@@ -1206,6 +1263,9 @@ function play({ canvas, gl }: Stage): void {
       // others fainter the more there are, so that the ribbon stays light.
       const firstDrawing = value(RIBBON) === 1 ? 0 : chain.n - 1;
       const chainColor = tinted(colors.chain, "chain");
+      // a strobe's trails stamp the whole chain instead (decision 50)
+      const strobe = lit && trailFade(value(TRAIL)).strobe;
+      let flashed = false;
       const ribbonLight = 0.55 * Math.min(1, 2.2 / Math.sqrt(chain.n));
       for (let piece = 0; piece < pieces; piece++) {
         const want = asked / pieces;
@@ -1232,7 +1292,7 @@ function play({ canvas, gl }: Stage): void {
         for (let i = 0; i < chain.n; i++) {
           const bx = x[i] ?? 0;
           const by = y[i] ?? 0;
-          if (i >= firstDrawing) {
+          if (i >= firstDrawing && !strobe) {
             const light = i === chain.n - 1 ? 0.55 : ribbonLight;
             const ax = ends[2 * i] ?? bx;
             const ay = ends[2 * i + 1] ?? by;
@@ -1245,8 +1305,22 @@ function play({ canvas, gl }: Stage): void {
           ends[2 * i] = bx;
           ends[2 * i + 1] = by;
         }
+        // at even times of the motion, unless the music flashes the strobe
+        if (strobe && !flashes) {
+          strobeClock += moved.simulated;
+          if (strobeClock >= 1 / STROBE_RATE) {
+            strobeClock %= 1 / STROBE_RATE;
+            stamp(chainColor);
+            flashed = true;
+          }
+        }
         // out of time: the rest of the frame is slow motion (decision 15)
         if (moved.simulated < want * 0.999) break;
+      }
+      // on a kick, while the music flashes the strobe
+      if (strobe && flashes && look.flash > 0) {
+        stamp(chainColor);
+        flashed = true;
       }
       const finite =
         state.theta.every(Number.isFinite) &&
@@ -1277,6 +1351,9 @@ function play({ canvas, gl }: Stage): void {
         // while they fade, each in its own light, which then falls with how
         // far it has gone from the chain (decision 43)
         const fades = value(FADE) === 1;
+        // their tips draw lines, save as dust, which draws none, and under a
+        // strobe, whose flashes stamp them as points (decision 50)
+        const tipLines = !strobe && value(FADE) !== 2;
         let done = 0;
         for (const twin of twins) {
           if ((done & 7) === 0 && performance.now() > giveUp) break;
@@ -1287,16 +1364,24 @@ function play({ canvas, gl }: Stage): void {
               shake: twinShakes[piece] ?? null,
             });
             tip(twin.theta);
-            trailPiece(
-              twinTips[2 * done] ?? 0,
-              twinTips[2 * done + 1] ?? 0,
-              tipAt[0] ?? 0,
-              tipAt[1] ?? 0,
-              color,
-              light * shine,
-            );
+            if (tipLines) {
+              trailPiece(
+                twinTips[2 * done] ?? 0,
+                twinTips[2 * done + 1] ?? 0,
+                tipAt[0] ?? 0,
+                tipAt[1] ?? 0,
+                color,
+                light * shine,
+              );
+            }
             twinTips[2 * done] = tipAt[0] ?? 0;
             twinTips[2 * done + 1] = tipAt[1] ?? 0;
+          }
+          if (flashed) {
+            const px = twinTips[2 * done] ?? 0;
+            const py = twinTips[2 * done + 1] ?? 0;
+            const music = 1 + Math.min(TRAIL_MOST, look.trail);
+            trail.push(px, py, px, py, color, 2 * light * shine * music);
           }
           if (fades) {
             chain.positions(twin.theta, twinX, twinY);
