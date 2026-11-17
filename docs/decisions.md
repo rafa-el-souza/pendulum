@@ -1288,10 +1288,50 @@ too, as they are in music. The same music played 30 dB apart reads alike
 after a while. In the browser the demo beat moves the meter in the three
 engines, muted where an engine gives no sound, a file plays and is heard,
 and the microphone path runs in Chromium and Firefox on their fake
-microphones. Of six icons drawn and looked at in the row, headphones
+microphones. CI runs them on a sound server with no speakers: without one,
+Firefox passed no samples from a file or a microphone to the page and
+WebKit's audio clock stood still; with one, their audio took over a second
+to start, which the page waits for, up to four seconds. Of six icons drawn and looked at in the row, headphones
 suggested listening in headphones, where a microphone hears nothing, a
 speaker suggested volume, and bars of levels a voice; the two beamed notes
 read as music at once.
+
+## 45. The music can come from a tab or the screen, and through a chosen microphone
+
+*2026-11-17.* Where the browser shares sound, desktop Chrome and Edge, the
+music card gets one more source, "tab": the browser's own dialog shares a
+tab, a window or the whole screen, and the piece hears its sound. And
+where there are several microphones, the card lists them while it listens
+through one, and listens through the one chosen.
+
+- **The share.** Browsers share a picture with the sound and refuse sound
+  alone, so the page asks for the picture at a frame a second, never shows
+  it, and keeps it while it listens, since whether a share whose picture
+  stops keeps its sound is not documented. The dialog lets the visitor
+  leave the sound out, and the card then says how to put it in. The whole
+  computer's sound is offered beside a screen, which Chrome gives on
+  Windows and ChromeOS, and on macOS 14.2 or later from Chrome 142; on
+  Linux, a tab's sound only. Stopping the share from the browser's own bar
+  stops the listening, and the card says so.
+- **Where it shows.** Only in a Chromium browser on a desktop, as the
+  browser's client hints tell it; Firefox and Safari share pictures without
+  sound, and phones share nothing.
+- **The microphones.** The list is the browser's, with the names it gives
+  once one microphone is allowed; choosing one listens through it by its
+  id, without the choice of the device's own over a headset (decision 44).
+
+**Why.** The author asked for this slice right after the first, in the
+design round: on a desktop the sound of a tab is the source that works with
+any output, headphones included, and with it ready he can try whether the
+protected sound of a music service's tab is shared or comes through silent,
+which no document answers.
+
+**Evidence.** Chromium's fake share, accepted without asking, gave a screen
+with sound, which the card heard; its two fake microphones were listed, and
+choosing the second listened through it. Firefox and WebKit show no button.
+Not checked: real shares on the author's machines, a streaming service's
+protected sound, whether stopping the picture keeps the sound, and the
+whole computer's sound on Windows and macOS.
 
 ## Open
 
