@@ -101,6 +101,23 @@ export const FAN_PALETTES: readonly Palette[] = [
   },
 ];
 
+/**
+ * The colour of a note, by its name from 0 for C to 11 for B (decision 49):
+ * the notes go round the wheel of hues by fifths, C, G, D, A and on, so that
+ * notes a fifth apart are neighbours and those of one key lie together. Each
+ * is bright, at seven tenths of full saturation.
+ */
+export function noteColor(name: number): Rgb {
+  const fifths = (((7 * Math.round(name)) % 12) + 12) % 12;
+  const hue = (fifths / 12) * 6;
+  const saturation = 0.7;
+  const channel = (n: number): number => {
+    const k = (n + hue) % 6;
+    return 1 - saturation * Math.max(0, Math.min(k, 4 - k, 1));
+  };
+  return [channel(5), channel(3), channel(1)];
+}
+
 /** The palette at `index` in FAN_PALETTES; any other index throws. */
 export function fanPalette(index: number): Palette {
   const palette = Number.isInteger(index) ? FAN_PALETTES[index] : undefined;
