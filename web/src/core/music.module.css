@@ -80,6 +80,41 @@
   margin-right: 0.25rem;
 }
 
+/* The mode, turned either way, and the strength's five pips. */
+.row {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.row .label {
+  min-width: 4.25rem;
+}
+
+.name {
+  min-width: 4rem;
+  color: var(--color-ink);
+  text-align: center;
+}
+
+.turn,
+.pip {
+  min-width: 2rem;
+  min-height: 2rem;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  background: none;
+  border: 0;
+  border-radius: 1rem;
+  cursor: pointer;
+}
+
+.pip {
+  min-width: 1.75rem;
+  color: var(--color-ink);
+}
+
 .source {
   min-width: 2.75rem;
   min-height: 2rem;
@@ -121,7 +156,9 @@
 
 .close:focus-visible,
 .source:focus-visible,
-.devices:focus-visible {
+.devices:focus-visible,
+.turn:focus-visible,
+.pip:focus-visible {
   outline: 2px solid var(--color-ink-muted);
 }
 

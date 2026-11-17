@@ -6,6 +6,13 @@ import { groundAt } from "../core/grounds.ts";
 import { Lines, SegmentBatch } from "../core/lines.ts";
 import { mountLinkCard, shareLink } from "../core/link.ts";
 import { mountMusicCard } from "../core/music.ts";
+import {
+  Router,
+  UNLIT,
+  readMusic,
+  writeMusic,
+  type Look,
+} from "../core/routes.ts";
 import { fanPalette } from "../core/palettes.ts";
 import { keyAction, stepValue, type Parameter } from "../core/parameters.ts";
 import { mountStage, type Stage } from "../core/stage.ts";
@@ -69,6 +76,7 @@ import {
   shakeOf,
   trailFade,
 } from "./parameters.ts";
+import { MODES, modeOf } from "./music.ts";
 import { titleOf } from "./title.ts";
 
 // The first piece (docs/decisions.md, decision 4): one chain pendulum to grab
@@ -94,8 +102,9 @@ import { titleOf } from "./title.ts";
 // ones, each with its chain's colours, and the tension's colours one of
 // several scales (decision 41). The twins can stay, or fade as chaos carries
 // them off from the chain and be born again on it, a plume (decision 43).
-// The piece can listen to music, from the microphone, a file or a beat of
-// its own, and a card shows what it hears (decision 44).
+// The piece can listen to music, from the microphone, a file, a tab's sound
+// or a beat of its own, and a card shows what it hears (decisions 44 and
+// 45); the music lights the chain, its trails and its twins (decision 46).
 
 // A frame longer than this (a hidden tab, a stall) moves the chain by this
 // much only, so that it never jumps.
@@ -128,6 +137,13 @@ const TENSION_EASE = 0.25;
 // along the shake, in m: a sign of the shake, which is a millimetre.
 const STANDING_LEAN = 0.1;
 const PIVOT_STREAK = 0.025;
+// What the music adds to the light (decision 46), at most: the chain's halo
+// grows to this many more pixels and this much more gain, never a flash over
+// a large area, and the trails' light to this many times its own.
+const GLOW_MOST = 1.5;
+const GLOW_RADIUS = 4;
+const GLOW_GAIN = 0.3;
+const TRAIL_MOST = 2;
 // How long the share button shows that the address was copied, in ms.
 const COPIED_MS = 2000;
 // The piece's name, which begins the page's title (decision 37).
@@ -258,6 +274,19 @@ function play({ canvas, gl }: Stage): void {
   // the speed time actually ran at lately, as a share of the speed asked for
   let reached = 1;
   const pointer = { id: -1, x: 0, y: 0, vx: 0, vy: 0, at: 0 };
+  // What the music does (decision 46): its mode and strength, from the
+  // address, the routes that follow it, and what they add to the light this
+  // frame. With reduced motion asked for, pulses become slow waves.
+  const tune = readMusic(
+    MODES.map(({ id }) => id),
+    location.search,
+  );
+  const still = matchMedia("(prefers-reduced-motion: reduce)");
+  let router = new Router(modeOf(tune.mode), { slow: still.matches });
+  let look: Look = UNLIT;
+  // the next twin a beat has born again, in turn round the fan, while the
+  // twins stay
+  let bornNext = 0;
 
   /** Where the tip of a chain at these angles is, written to tipAt. */
   function tip(theta: Float64Array): void {
@@ -303,7 +332,9 @@ function play({ canvas, gl }: Stage): void {
   ): void {
     if (!lit || value(TRAIL) === 0) return;
     if (Math.hypot(bx - ax, by - ay) < TRAIL_JUMP) {
-      trail.push(ax, ay, bx, by, color, light);
+      // stronger as the music asks (decision 46)
+      const music = 1 + Math.min(TRAIL_MOST, look.trail);
+      trail.push(ax, ay, bx, by, color, light * music);
     }
   }
 
@@ -352,6 +383,35 @@ function play({ canvas, gl }: Stage): void {
       const j = twins.length;
       const twin = bornTwin(state, j, value(SPREAD));
       twins.push(twin);
+      fading.light[j] = 1;
+      tipFrom(j, twin);
+    }
+  }
+
+  /**
+   * A share of the twins born again from the chain as it is, on a beat of
+   * the music (decision 46): while they fade, the dimmest first, a puff out
+   * of the chain; while they stay, in turn round the fan, so that every one
+   * comes back in its time.
+   */
+  function bornOnBeat(share: number): void {
+    const count = Math.min(twins.length, Math.round(share * twins.length));
+    if (count === 0) return;
+    let chosen: number[];
+    if (value(FADE) === 1) {
+      chosen = Array.from(twins.keys())
+        .sort((a, b) => (fading.light[a] ?? 1) - (fading.light[b] ?? 1))
+        .slice(0, count);
+    } else {
+      chosen = Array.from(
+        { length: count },
+        (_, k) => (bornNext + k) % twins.length,
+      );
+      bornNext = (bornNext + count) % twins.length;
+    }
+    for (const j of chosen) {
+      const twin = bornTwin(state, j, value(SPREAD));
+      twins[j] = twin;
       fading.light[j] = 1;
       tipFrom(j, twin);
     }
@@ -588,8 +648,14 @@ function play({ canvas, gl }: Stage): void {
    * moment is kept, and an open QR code shows the new address (decision 40).
    */
   function keepAddress(): void {
-    const part = addressOf(values, switches(), saved, location.search);
-    history.replaceState(null, "", `${location.pathname}${part}`);
+    // the music's mode and strength stay in the readable part, outside the
+    // saved moment's code (decision 46)
+    const ids = MODES.map(({ id }) => id);
+    const search = writeMusic(ids, location.search, tune.mode, tune.strength);
+    const part = addressOf(values, switches(), saved, search);
+    const tuned =
+      saved === null ? "" : writeMusic(ids, "", tune.mode, tune.strength);
+    history.replaceState(null, "", `${location.pathname}${tuned}${part}`);
     showTitle();
     showSave();
     card.update(location.href, document.title);
@@ -603,8 +669,18 @@ function play({ canvas, gl }: Stage): void {
   };
   const card = mountLinkCard(cardColors);
   // What the piece listens to, and the card that shows it hearing (decision
-  // 44); nothing it hears acts on the chain yet.
-  const music = mountMusicCard();
+  // 44), with what the music does and how strongly (decision 46).
+  const music = mountMusicCard({
+    modes: MODES,
+    mode: tune.mode,
+    strength: tune.strength,
+    changed(mode, strength) {
+      tune.mode = mode;
+      tune.strength = strength;
+      router = new Router(modeOf(mode), { slow: still.matches });
+      keepAddress();
+    },
+  });
 
   /**
    * Dresses the piece in the ground asked for (decision 41): the canvas, the
@@ -1049,11 +1125,13 @@ function play({ canvas, gl }: Stage): void {
     });
     // Past 64 rods the ends are cut flat, so that rods laid end to end make
     // one even line instead of beads where their round ends overlap.
+    // the halo widens and brightens as the music lights it (decision 46)
+    const glow = Math.min(GLOW_MOST, look.glow);
     lines.draw(rods, scale, {
       radius: (chain.n > 64 ? 1.0 : 1.3) * ratio,
       roundEnds: chain.n <= 64,
-      halo: 5 * ratio,
-      haloGain: 0.22,
+      halo: (5 + GLOW_RADIUS * glow) * ratio,
+      haloGain: 0.22 + GLOW_GAIN * glow,
     });
     lines.draw(spring, scale, {
       radius: (0.8 + 1.4 * strength) * ratio,
@@ -1073,10 +1151,11 @@ function play({ canvas, gl }: Stage): void {
   function frame(now: number): void {
     requestAnimationFrame(frame);
     const dt = Math.min(LONGEST_FRAME, Math.max(0, (now - last) / 1000));
+    const real = Math.min(0.25, Math.max(0, (now - last) / 1000));
     last = now;
     // what the music says this frame, which the card's meter shows, paused
-    // or not
-    music.hear();
+    // or not, and what it adds to the light, in real time (decision 46)
+    look = router.look(music.hear(), real, tune.strength);
     trail.clear();
     let simulated = 0;
     if (tensionShown) frameTension.fill(0);
@@ -1210,6 +1289,9 @@ function play({ canvas, gl }: Stage): void {
       }
       if (value(FADE) === 1 && lit && hand === null && simulated > 0) {
         bearAgain();
+      }
+      if (look.births > 0 && lit && hand === null && simulated > 0) {
+        bornOnBeat(look.births);
       }
       showTwins();
 
