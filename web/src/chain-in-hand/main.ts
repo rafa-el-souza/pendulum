@@ -5,6 +5,7 @@ import { mountControls } from "../core/controls.ts";
 import { groundAt } from "../core/grounds.ts";
 import { Lines, SegmentBatch } from "../core/lines.ts";
 import { mountLinkCard, shareLink } from "../core/link.ts";
+import { mountMusicCard } from "../core/music.ts";
 import { fanPalette } from "../core/palettes.ts";
 import { keyAction, stepValue, type Parameter } from "../core/parameters.ts";
 import { mountStage, type Stage } from "../core/stage.ts";
@@ -93,6 +94,8 @@ import { titleOf } from "./title.ts";
 // ones, each with its chain's colours, and the tension's colours one of
 // several scales (decision 41). The twins can stay, or fade as chaos carries
 // them off from the chain and be born again on it, a plume (decision 43).
+// The piece can listen to music, from the microphone, a file or a beat of
+// its own, and a card shows what it hears (decision 44).
 
 // A frame longer than this (a hidden tab, a stall) moves the chain by this
 // much only, so that it never jumps.
@@ -599,6 +602,9 @@ function play({ canvas, gl }: Stage): void {
     light: cssColor(colors.chain),
   };
   const card = mountLinkCard(cardColors);
+  // What the piece listens to, and the card that shows it hearing (decision
+  // 44); nothing it hears acts on the chain yet.
+  const music = mountMusicCard();
 
   /**
    * Dresses the piece in the ground asked for (decision 41): the canvas, the
@@ -776,6 +782,13 @@ function play({ canvas, gl }: Stage): void {
           keysShown: "T",
           pressed: tensionShown,
         },
+        {
+          id: "music",
+          label: "Music",
+          icon: "music",
+          keys: ["w", "W"],
+          keysShown: "W",
+        },
       ],
       CHAIN,
       LIGHT,
@@ -790,6 +803,7 @@ function play({ canvas, gl }: Stage): void {
         else if (id === "save") save();
         else if (id === "share") void share();
         else if (id === "qr") card.toggle(location.href, document.title);
+        else if (id === "music") music.toggle();
         else start();
       },
     },
@@ -904,6 +918,8 @@ function play({ canvas, gl }: Stage): void {
       toggle("tension");
     } else if (event.key === "g" || event.key === "G") {
       toggle("sketch");
+    } else if (event.key === "w" || event.key === "W") {
+      music.toggle();
     } else {
       return;
     }
@@ -1058,6 +1074,9 @@ function play({ canvas, gl }: Stage): void {
     requestAnimationFrame(frame);
     const dt = Math.min(LONGEST_FRAME, Math.max(0, (now - last) / 1000));
     last = now;
+    // what the music says this frame, which the card's meter shows, paused
+    // or not
+    music.hear();
     trail.clear();
     let simulated = 0;
     if (tensionShown) frameTension.fill(0);
