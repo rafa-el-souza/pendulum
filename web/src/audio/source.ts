@@ -2,8 +2,9 @@ import { DEMO_SECONDS, demoWindow, renderDemoInto } from "./demo.ts";
 import { builtInMicrophone } from "./devices.ts";
 import { Hearing, WINDOW, type Signals } from "./signals.ts";
 
-// Where the piece's music comes from (docs/decisions.md, decision 44): the
-// microphone, a file, or the demonstration beat. Each starts on a touch, as
+// Where the piece's music comes from (docs/decisions.md, decisions 44 and
+// 45): the microphone, a file, the demonstration beat, or the sound of a
+// browser tab or of the whole computer. Each starts on a touch, as
 // browsers ask, and stops when another starts or the visitor turns it off,
 // which lets the microphone go. Nothing heard leaves the page: nothing is
 // recorded and nothing is sent. Every frame takes the latest samples and
@@ -15,13 +16,15 @@ import { Hearing, WINDOW, type Signals } from "./signals.ts";
 // mode. Safari keeps the last two whatever it is asked.
 
 /** A source of music. */
-export type Source = "microphone" | "file" | "demo";
+export type Source = "microphone" | "file" | "tab" | "demo";
 
 /**
- * What starting a source came to: listening, with the name of what is
- * listened to; the beat muted; a source started whose sound the browser
- * passes nowhere, its audio not running; the microphone not allowed or not
- * there; or a failure.
+ * What starting a source came to: listening, with what is listened to (the
+ * microphone's name, the file's, or what was shared: "browser" for a tab,
+ * "window", "monitor" for the whole screen); the beat muted; a source
+ * started whose sound the browser passes nowhere, its audio not running;
+ * the microphone not allowed or not there; a share declined, or without
+ * sound; or a failure.
  */
 export type Outcome =
   | {
@@ -33,7 +36,43 @@ export type Outcome =
   | { readonly kind: "unheard" }
   | { readonly kind: "refused" }
   | { readonly kind: "missing" }
+  | { readonly kind: "declined" }
+  | { readonly kind: "soundless" }
   | { readonly kind: "failed" };
+
+/** What a source is started with: the file to play, or the microphone to listen through. */
+export interface Choice {
+  readonly file?: File;
+  readonly device?: string;
+}
+
+/**
+ * The options of a share that the browser's types do not name yet: the
+ * whole computer's sound offered beside a screen (Chrome 105), and the
+ * page's own tab left out of the choices (Chrome 112).
+ */
+interface ShareOptions extends DisplayMediaStreamOptions {
+  readonly systemAudio?: "include" | "exclude";
+  readonly selfBrowserSurface?: "include" | "exclude";
+}
+
+/**
+ * Whether the browser can share the sound of a tab or of the screen: a
+ * Chromium browser on a desktop, as Chrome and Edge are (decision 45).
+ * Firefox and Safari share pictures without sound, and phones share
+ * nothing.
+ */
+export function sharesSound(): boolean {
+  const data = (
+    navigator as Navigator & { userAgentData?: { readonly mobile: boolean } }
+  ).userAgentData;
+  return (
+    data !== undefined &&
+    !data.mobile &&
+    "mediaDevices" in navigator &&
+    typeof navigator.mediaDevices.getDisplayMedia === "function"
+  );
+}
 
 /** How loud the demonstration beat plays, as a share of full scale. */
 const DEMO_VOLUME = 0.5;
@@ -93,6 +132,10 @@ function outputTime(context: AudioContext): number {
 export class Listening {
   /** The source listened to, or null. */
   source: Source | null = null;
+  /** The id of the microphone listened through, while it is the source. */
+  device = "";
+  /** Told when a source ends by itself, as a share stopped from the browser's own bar does. */
+  onEnd: (() => void) | null = null;
   private context: AudioContext | null = null;
   /** Lets the source go. */
   private release: (() => void) | null = null;
@@ -105,18 +148,38 @@ export class Listening {
   private asked = 0;
 
   /**
-   * Starts listening to `source`, `file` for a file, from a touch: what came
-   * of it, or null when another start or a stop overtook it.
+   * Starts listening to `source` from a touch, a file with the file chosen,
+   * the microphone with the one chosen if one was: what came of it, or null
+   * when another start or a stop overtook it.
    */
-  async start(source: Source, file?: File): Promise<Outcome | null> {
+  async start(source: Source, choice: Choice = {}): Promise<Outcome | null> {
     this.letGo();
     const mine = ++this.asked;
     const context = this.audio();
     if (source === "demo") return this.demo(context, mine);
     if (context === null) return { kind: "failed" };
-    if (source === "microphone") return this.microphone(context, mine);
-    if (file === undefined) return { kind: "failed" };
-    return this.file(context, file, mine);
+    // asked for at once, within the touch, as the browser requires
+    if (source === "tab") return this.tab(context, mine);
+    if (source === "microphone") {
+      return this.microphone(context, mine, choice.device);
+    }
+    if (choice.file === undefined) return { kind: "failed" };
+    return this.file(context, choice.file, mine);
+  }
+
+  /** The microphones the browser lists, with their names once one has been allowed. */
+  async microphones(): Promise<{ deviceId: string; label: string }[]> {
+    if (!("mediaDevices" in navigator)) return [];
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    return devices
+      .filter(
+        ({ kind, deviceId }) =>
+          kind === "audioinput" &&
+          deviceId !== "" &&
+          deviceId !== "default" &&
+          deviceId !== "communications",
+      )
+      .map(({ deviceId, label }) => ({ deviceId, label }));
   }
 
   /** Stops listening, and lets the microphone go. */
@@ -139,6 +202,7 @@ export class Listening {
     this.take = null;
     this.hearing = null;
     this.source = null;
+    this.device = "";
   }
 
   /** The page's audio, made and woken within the touch, as browsers ask; null where there is none. */
@@ -198,12 +262,18 @@ export class Listening {
   private async microphone(
     context: AudioContext,
     mine: number,
+    device?: string,
   ): Promise<Outcome | null> {
     if (!("mediaDevices" in navigator)) return { kind: "missing" };
     const media = navigator.mediaDevices;
     let stream: MediaStream;
     try {
-      stream = await media.getUserMedia({ audio: PROCESSING });
+      stream = await media.getUserMedia({
+        audio:
+          device === undefined
+            ? PROCESSING
+            : { ...PROCESSING, deviceId: { exact: device } },
+      });
     } catch (error) {
       if (mine !== this.asked) return null;
       const name = error instanceof DOMException ? error.name : "";
@@ -211,9 +281,13 @@ export class Listening {
         ? { kind: "refused" }
         : { kind: "missing" };
     }
-    // the device's own microphone, where the default is a headset's
+    // the device's own microphone, where the default is a headset's and
+    // none was chosen
     const current = stream.getAudioTracks()[0]?.getSettings().deviceId ?? "";
-    const own = builtInMicrophone(await media.enumerateDevices(), current);
+    const own =
+      device === undefined
+        ? builtInMicrophone(await media.enumerateDevices(), current)
+        : null;
     if (own !== null && mine === this.asked) {
       try {
         const other = await media.getUserMedia({
@@ -244,12 +318,80 @@ export class Listening {
         analyser.disconnect();
       },
     );
-    const label = stream.getAudioTracks()[0]?.label ?? "";
+    const [track] = stream.getAudioTracks();
+    this.device = track?.getSettings().deviceId ?? "";
     if (!(await this.plays(context))) {
       return mine === this.asked ? { kind: "unheard" } : null;
     }
     return mine === this.asked
-      ? { kind: "listening", source: "microphone", name: label }
+      ? { kind: "listening", source: "microphone", name: track?.label ?? "" }
+      : null;
+  }
+
+  /**
+   * The sound of a browser tab, a window or the whole screen, which the
+   * visitor picks in the browser's own dialog (decision 45). Browsers share
+   * a picture with it, and refuse sound alone; the page asks for the picture
+   * at a frame a second, never shows it, and keeps it while it listens,
+   * since a share whose picture stops may stop its sound. The visitor may
+   * leave the sound out of the share, and the card then says how to put it
+   * in; stopping the share from the browser's own bar stops the listening.
+   */
+  private async tab(
+    context: AudioContext,
+    mine: number,
+  ): Promise<Outcome | null> {
+    if (!sharesSound()) return { kind: "failed" };
+    let stream: MediaStream;
+    try {
+      const options: ShareOptions = {
+        video: { frameRate: 1 },
+        audio: PROCESSING,
+        systemAudio: "include",
+        selfBrowserSurface: "exclude",
+      };
+      stream = await navigator.mediaDevices.getDisplayMedia(options);
+    } catch {
+      return mine === this.asked ? { kind: "declined" } : null;
+    }
+    if (mine !== this.asked) {
+      stopTracks(stream);
+      return null;
+    }
+    const [track] = stream.getAudioTracks();
+    if (track === undefined) {
+      stopTracks(stream);
+      return { kind: "soundless" };
+    }
+    const surface =
+      stream.getVideoTracks()[0]?.getSettings().displaySurface ?? "";
+    const input = context.createMediaStreamSource(stream);
+    const analyser = this.tap(context, input);
+    const ended = (): void => {
+      if (mine !== this.asked) return;
+      this.letGo();
+      this.onEnd?.();
+    };
+    track.addEventListener("ended", ended);
+    this.listen(
+      "tab",
+      context.sampleRate,
+      (out) => {
+        analyser.getFloatTimeDomainData(out);
+        return context.currentTime;
+      },
+      () => {
+        track.removeEventListener("ended", ended);
+        stopTracks(stream);
+        input.disconnect();
+        analyser.disconnect();
+      },
+    );
+    if (!(await this.plays(context))) {
+      return mine === this.asked ? { kind: "unheard" } : null;
+    }
+    return mine === this.asked
+      ? { kind: "listening", source: "tab", name: surface }
       : null;
   }
 

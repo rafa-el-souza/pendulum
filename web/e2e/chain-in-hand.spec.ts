@@ -1467,3 +1467,58 @@ test("the music card listens through the microphone, and lets it go", async ({
   await expect(status).toHaveText("Not listening.");
   expect(errors).toEqual([]);
 });
+
+test("where the browser shares a tab's sound, the music card listens to a share, and elsewhere offers none", async ({
+  page,
+  browserName,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("./");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await page.keyboard.press("w");
+  const { status, source } = musicCard(page);
+  const tab = source("Sound of a tab or the screen");
+  if (browserName !== "chromium") {
+    // Firefox and Safari share pictures without sound (decision 45)
+    await expect(tab).toHaveCount(0);
+    expect(errors).toEqual([]);
+    return;
+  }
+  // Chromium's fake share, accepted without asking (playwright.config.ts),
+  // is a screen with sound
+  await tab.click();
+  await expect(status).toHaveText("Listening to the sound of this computer.");
+  await expect(tab).toHaveAttribute("aria-pressed", "true");
+  await source("Off").click();
+  await expect(status).toHaveText("Not listening.");
+  expect(errors).toEqual([]);
+});
+
+test("where there are several microphones, the music card lists them and listens through the one chosen", async ({
+  page,
+  browserName,
+}) => {
+  test.skip(
+    browserName !== "chromium",
+    "only Chromium's fake devices have two microphones here (playwright.config.ts)",
+  );
+  const errors = collectErrors(page);
+  await page.goto("./");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await page.keyboard.press("w");
+  const { card, status, source } = musicCard(page);
+  const list = card.getByRole("combobox", { name: "microphone" });
+  await expect(list).toBeHidden();
+  await source("Microphone").click();
+  await expect(status).toHaveText(/^Listening through /);
+  await expect(list).toBeVisible();
+  const names = await list.locator("option").allTextContents();
+  expect(names.length).toBeGreaterThanOrEqual(2);
+  const last = names.at(-1) ?? "";
+  await list.selectOption({ label: last });
+  await expect(status).toHaveText(`Listening through ${last}.`);
+  await hearsSound(page, errors);
+  await source("Off").click();
+  await expect(list).toBeHidden();
+  expect(errors).toEqual([]);
+});

@@ -1,16 +1,24 @@
 import type { Signals } from "../audio/signals.ts";
-import { Listening, type Outcome, type Source } from "../audio/source.ts";
+import {
+  Listening,
+  sharesSound,
+  type Choice,
+  type Outcome,
+  type Source,
+} from "../audio/source.ts";
 import { cls } from "./css.ts";
 import styles from "./music.module.css";
 
-// The music card (docs/decisions.md, decision 44): a small card over the
-// controls' corner, opened by the row's music button or the W key, where the
-// piece is told what to listen to and shows what it hears. A meter draws the
-// last seconds of loudness with the attacks marked, and the three bands
-// beside it; the sources are the microphone, a file, and the demonstration
-// beat, each started by a touch; and the card says that the sound stays on
-// the device. Nothing it hears acts on the piece yet. How it looks, where it
-// sits and its words are placeholders, which the author settles by trying.
+// The music card (docs/decisions.md, decisions 44 and 45): a small card over
+// the controls' corner, opened by the row's music button or the W key, where
+// the piece is told what to listen to and shows what it hears. A meter draws
+// the last seconds of loudness with the attacks marked, and the three bands
+// beside it; the sources are the microphone, which one chosen where there
+// are several, a file, the sound of a tab or of the computer where the
+// browser shares it, and the demonstration beat, each started by a touch;
+// and the card says that the sound stays on the device. Nothing it hears
+// acts on the piece yet. How it looks, where it sits and its words are
+// placeholders, which the author settles by trying.
 
 /** How many seconds the meter shows, and in how many columns. */
 const METER_SECONDS = 3;
@@ -45,9 +53,21 @@ function said(outcome: Outcome): string {
           ? "Listening through the microphone."
           : `Listening through ${outcome.name}.`;
       }
+      if (outcome.source === "tab") {
+        if (outcome.name === "browser") return "Listening to the shared tab.";
+        if (outcome.name === "window") return "Listening to the shared window.";
+        if (outcome.name === "monitor") {
+          return "Listening to the sound of this computer.";
+        }
+        return "Listening to what is shared.";
+      }
       return outcome.source === "file"
         ? `Playing ${outcome.name}.`
         : "Playing the demo beat.";
+    case "declined":
+      return "Nothing was shared.";
+    case "soundless":
+      return "No sound came with the share. In the browser's dialog, pick the tab playing the music and tick the box that shares its audio.";
     case "muted":
       return "The demo beat, muted: this browser plays no sound here.";
     case "unheard":
@@ -112,10 +132,20 @@ export function mountMusicCard(): MusicCard {
   picker.accept = "audio/*";
   picker.hidden = true;
   const buttons = new Map<Source | "off", HTMLButtonElement>();
+  // the sound of a tab where the browser shares it (decision 45)
   const choices: [Source | "off", string, string][] = [
     ["off", "off", "Off"],
     ["microphone", "mic", "Microphone"],
     ["file", "file", "File"],
+    ...(sharesSound()
+      ? [
+          ["tab", "tab", "Sound of a tab or the screen"] as [
+            Source,
+            string,
+            string,
+          ],
+        ]
+      : []),
     ["demo", "demo", "Demo beat"],
   ];
   for (const [id, word, name] of choices) {
@@ -135,9 +165,38 @@ export function mountMusicCard(): MusicCard {
   }
   picker.addEventListener("change", () => {
     const file = picker.files?.[0];
-    if (file !== undefined) void begin("file", file);
+    if (file !== undefined) void begin("file", { file });
     picker.value = "";
   });
+
+  // which microphone, where there are several (decision 45)
+  const microphone = document.createElement("label");
+  microphone.className = cls(styles, "choice");
+  microphone.hidden = true;
+  const microphoneWord = document.createElement("span");
+  microphoneWord.textContent = "microphone";
+  const devices = document.createElement("select");
+  devices.className = cls(styles, "devices");
+  microphone.append(microphoneWord, devices);
+  devices.addEventListener("change", () => {
+    void begin("microphone", { device: devices.value });
+  });
+  /** Lists the microphones, the one listened through chosen, where there are several. */
+  async function listMicrophones(): Promise<void> {
+    const found = await listening.microphones();
+    if (listening.source !== "microphone" || found.length < 2) return;
+    devices.replaceChildren(
+      ...found.map(({ deviceId, label }, i) => {
+        const option = document.createElement("option");
+        option.value = deviceId;
+        option.textContent =
+          label === "" ? `Microphone ${String(i + 1)}` : label;
+        option.selected = deviceId === listening.device;
+        return option;
+      }),
+    );
+    microphone.hidden = false;
+  }
 
   const status = document.createElement("p");
   status.className = cls(styles, "status");
@@ -160,6 +219,7 @@ export function mountMusicCard(): MusicCard {
     close,
     meter,
     sources,
+    microphone,
     status,
     ...notes,
     privacy,
@@ -186,23 +246,38 @@ export function mountMusicCard(): MusicCard {
 
   // what the card says now, and the source it says it of
   let words = "Not listening.";
-  async function begin(source: Source, file?: File): Promise<void> {
+  async function begin(source: Source, choice: Choice = {}): Promise<void> {
     press(source);
     forget();
+    if (source !== "microphone") microphone.hidden = true;
     words = "Starting…";
     status.textContent = words;
-    const outcome = await listening.start(source, file);
+    const outcome = await listening.start(source, choice);
     if (outcome === null) return;
     words = said(outcome);
     status.textContent = words;
     if (outcome.kind !== "listening" && outcome.kind !== "muted") {
       press("off");
+      microphone.hidden = true;
       if (outcome.kind === "unheard") listening.stop();
     }
+    if (outcome.kind === "listening" && source === "microphone") {
+      await listMicrophones();
+    }
   }
+  // a share stopped from the browser's own bar
+  listening.onEnd = () => {
+    forget();
+    press("off");
+    words = "The share was stopped.";
+    status.textContent = words;
+    loudness.textContent = "";
+    meter.setAttribute("aria-valuenow", "0");
+  };
   function stop(): void {
     listening.stop();
     forget();
+    microphone.hidden = true;
     press("off");
     words = "Not listening.";
     status.textContent = words;
