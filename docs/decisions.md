@@ -1394,9 +1394,10 @@ which the author settles by seeing.
 
 **Why.** The author found that in some music the signals seemed not to move.
 Measured on four excerpts of 45 s that he chose (an electronic track, a beat
-in 5/4, metal percussion, and a calm piano without drums), the first frame
-heard came 28 to 30 dB under the rest of each, as a song's first moments are
-quiet, and the hearing took it for how loud the music was. The loudness and the bands
+in 5/4, metal percussion, and a calm piano without drums), heard at sixty
+frames a second, the first frame heard came 28 to 30 dB under the rest of
+each, as a song's first moments are quiet, and the hearing took it for how
+loud the music was. The loudness and the bands
 then stayed at their top for the first 12 to 20 s of each, while that was
 unlearned, and the trails, which follow the loudness, stayed near their
 strongest.
@@ -1434,6 +1435,10 @@ What remains at the top after the change is the peaks of kicks and notes.
 How long the past is remembered mattered far less than how it begins: with
 4, 6 and 8 s the excerpts read within a few hundredths of each other, and only
 the beat in 5/4, which gets about 10 dB louder at 19 s, told them apart.
+The published page, playing the electronic excerpt in a headless browser
+that draws about ten frames a second, did not show the fault: its first
+frame came after those quiet first moments, where a screen at 60 Hz or more
+hears within them.
 
 ## Open
 
