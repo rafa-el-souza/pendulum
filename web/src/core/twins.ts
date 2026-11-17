@@ -141,8 +141,11 @@ export class Fading {
 
 /** How many twins a frame carries, from what they were measured to cost. */
 export class TwinBudget {
-  /** The time the twins may take in a frame, in ms. */
-  readonly budget: number;
+  /**
+   * The time the twins may take in a frame, in ms: fixed on the main line
+   * (decision 20), the frame's free time in a worker (decision 51).
+   */
+  budget: number;
   /** What one twin costs in a frame, in ms, as measured lately. */
   cost: number;
   #framesOver = 0;
