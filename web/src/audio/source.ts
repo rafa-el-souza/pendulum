@@ -42,10 +42,9 @@ const MUTED_RATE = 48_000;
 /** How much of the beat is rendered before it plays, its first bar, and then before the page breathes, in s. */
 const DEMO_OPENING = 2;
 const DEMO_CHUNK = 1;
-/** How long a browser may take to let sound play, in ms, before the beat goes on muted. */
-const RESUME_MS = 1000;
-/** How long the audio's clock is watched for moving, in ms: a browser can say its audio runs while no sound goes anywhere. */
-const CLOCK_MS = 300;
+/** How long a browser may take to start its sound, in ms, before the page says it passes none, and how often it looks. */
+const PLAY_WAIT_MS = 4000;
+const PLAY_LOOK_MS = 100;
 
 const PROCESSING = {
   echoCancellation: false,
@@ -154,19 +153,23 @@ export class Listening {
   }
 
   /**
-   * Whether `context` plays, once it has had a moment to start: running,
-   * and its clock moving, which a browser with nowhere to send sound may
-   * not do though it says it runs.
+   * Whether `context` plays: running, and its clock moving, which a browser
+   * may take a second or more to reach as its sound starts, and which one
+   * with nowhere to send sound may never reach though it says it runs.
+   * Watched for PLAY_WAIT_MS at most, and true as soon as the clock moves.
    */
   private async plays(context: AudioContext): Promise<boolean> {
-    await Promise.race([
-      context.resume().catch(() => undefined),
-      wait(RESUME_MS),
-    ]);
-    if (context.state !== "running") return false;
-    const before = context.currentTime;
-    await wait(CLOCK_MS);
-    return context.currentTime > before;
+    void context.resume().catch(() => undefined);
+    const until = performance.now() + PLAY_WAIT_MS;
+    let before: number | null = null;
+    while (performance.now() < until) {
+      if (context.state === "running") {
+        if (before === null) before = context.currentTime;
+        else if (context.currentTime > before) return true;
+      }
+      await wait(PLAY_LOOK_MS);
+    }
+    return false;
   }
 
   /** The window of samples an analyser of `input` holds, taken through a branch that makes no sound. */

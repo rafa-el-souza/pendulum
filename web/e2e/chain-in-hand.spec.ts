@@ -1404,6 +1404,7 @@ test("the W key and its button open the music card, whose demo beat moves the me
   await expect(source("Demo beat")).toHaveAttribute("aria-pressed", "true");
   await expect(status).toHaveText(
     /^(Playing the demo beat\.|The demo beat, muted)/,
+    { timeout: 10_000 },
   );
   await hearsSound(page, errors);
 
@@ -1436,7 +1437,8 @@ test("the music card plays a file of music chosen from the device, and hears it"
     mimeType: "audio/wav",
     buffer: toneFile(),
   });
-  await expect(status).toHaveText("Playing tone.wav.");
+  // a browser may take a few seconds to start its sound
+  await expect(status).toHaveText("Playing tone.wav.", { timeout: 10_000 });
   await expect(source("File")).toHaveAttribute("aria-pressed", "true");
   await hearsSound(page, errors);
   await source("Off").click();
@@ -1458,7 +1460,7 @@ test("the music card listens through the microphone, and lets it go", async ({
   await page.keyboard.press("w");
   const { status, source } = musicCard(page);
   await source("Microphone").click();
-  await expect(status).toHaveText(/^Listening through /);
+  await expect(status).toHaveText(/^Listening through /, { timeout: 10_000 });
   await expect(source("Microphone")).toHaveAttribute("aria-pressed", "true");
   await hearsSound(page, errors);
   await source("Off").click();
