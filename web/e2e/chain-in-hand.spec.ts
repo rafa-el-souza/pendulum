@@ -1538,18 +1538,24 @@ test("the music card's mode and strength are kept in the address, beside a saved
   await expect(
     strength.getByRole("button", { name: "Strength 3 of 5" }),
   ).toHaveAttribute("aria-pressed", "true");
+  // the candidates come next (decision 49), and "none" last, round from the
+  // first
   await mode.getByRole("button", { name: "Next mode" }).click();
+  await expect(mode).toHaveText(/glow/);
+  await expect(page).toHaveURL(/[?&]music=glow(&|$)/);
+  await mode.getByRole("button", { name: "Previous mode" }).click();
+  await mode.getByRole("button", { name: "Previous mode" }).click();
   await expect(mode).toHaveText(/none/);
   await expect(page).toHaveURL(/[?&]music=none(&|$)/);
   await strength.getByRole("button", { name: "Strength 5 of 5" }).click();
   await expect(page).toHaveURL(/[?&]strength=5(&|$)/);
   // round again to the light, which leaves the address
-  await mode.getByRole("button", { name: "Previous mode" }).click();
+  await mode.getByRole("button", { name: "Next mode" }).click();
   await expect(mode).toHaveText(/light/);
   await expect(page).not.toHaveURL(/music=/);
 
   // a saved moment's code goes after the "#", and the music stays before it
-  await mode.getByRole("button", { name: "Next mode" }).click();
+  await mode.getByRole("button", { name: "Previous mode" }).click();
   await page.keyboard.press("s");
   await expect(page).toHaveURL(/\?music=none&strength=5#.+/);
 
