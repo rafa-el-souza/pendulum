@@ -37,7 +37,7 @@ export type Outcome =
   | { readonly kind: "refused" }
   | { readonly kind: "missing" }
   | { readonly kind: "declined" }
-  | { readonly kind: "soundless" }
+  | { readonly kind: "soundless"; readonly surface: string }
   | { readonly kind: "failed" };
 
 /** What a source is started with: the file to play, or the microphone to listen through. */
@@ -358,13 +358,15 @@ export class Listening {
       stopTracks(stream);
       return null;
     }
+    // what was shared: a tab, a window or a screen ("browser", "window",
+    // "monitor"), or "" where the browser does not tell
+    const surface =
+      stream.getVideoTracks()[0]?.getSettings().displaySurface ?? "";
     const [track] = stream.getAudioTracks();
     if (track === undefined) {
       stopTracks(stream);
-      return { kind: "soundless" };
+      return { kind: "soundless", surface };
     }
-    const surface =
-      stream.getVideoTracks()[0]?.getSettings().displaySurface ?? "";
     const input = context.createMediaStreamSource(stream);
     const analyser = this.tap(context, input);
     const ended = (): void => {

@@ -47,7 +47,8 @@ export interface MusicCard {
 }
 
 /** What the card says while a source plays, or what came of starting it. */
-function said(outcome: Outcome): string {
+/** What the card says of how a start came out. */
+export function said(outcome: Outcome): string {
   switch (outcome.kind) {
     case "listening":
       if (outcome.source === "microphone") {
@@ -69,6 +70,17 @@ function said(outcome: Outcome): string {
     case "declined":
       return "Nothing was shared.";
     case "soundless":
+      // a browser shares a tab's sound everywhere, a screen's on some
+      // systems, and a window's nowhere (decision 49)
+      if (outcome.surface === "browser") {
+        return "The tab was shared without its sound. In the browser's dialog, tick the box that shares the tab's audio.";
+      }
+      if (outcome.surface === "window") {
+        return "A window is shared without its sound. In the browser's dialog, pick the tab playing the music and tick the box that shares its audio.";
+      }
+      if (outcome.surface === "monitor") {
+        return "The screen was shared without its sound. Where the browser offers it, tick the box that shares it; elsewhere, pick the tab playing the music and tick the box that shares its audio.";
+      }
       return "No sound came with the share. In the browser's dialog, pick the tab playing the music and tick the box that shares its audio.";
     case "muted":
       return "The demo beat, muted: this browser plays no sound here.";
