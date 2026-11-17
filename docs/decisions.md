@@ -1517,6 +1517,81 @@ it cost about 0.15 ms before; working out the demo beat's whole window of
 8 192 samples cost 2.65 ms a frame. At ten frames a second the span holds one or two frames; the tests
 check 30 frames a second and more.
 
+## 49. The music's effects come as candidates, side by side
+
+*2026-11-17.* What the music does to the first piece's light comes as
+candidates, each a mode of the music card, so that the author can compare
+them while music plays and keep what he likes. "light" (decision 46) stays
+first, as the piece opens, and "none" last; each candidate between them is
+light with one thing changed. The depths, floors and times are the
+session's placeholders.
+
+| Mode | What changes from light |
+|---|---|
+| glow | The kicks light the halo three times as strongly, and it goes over 0.35 s instead of 0.25 |
+| hits | The twins are born again on the hits of drums only (decision 48), not on every attack |
+| kicks | An eighth of the twins are born again on the strongest kicks only, those above 0.75 |
+| linger | The trails last longer the louder the music is than its middle, up to four times as long, instead of brighter |
+| dashes | The trails brighten on the kicks, up to three times, instead of with the loudness |
+| fan | The fan opens wider for the twins born again the louder the music is than its middle, up to a hundred times |
+| hue | The note the bass holds colours the chain and its halo |
+| twin hue | The note the bass holds colours the twins |
+
+- **Routes** (decision 46) may count a signal only above a floor, what is
+  above stretched from 0 to 1. Two targets join the light: how much longer
+  the trails last, as a share of the time their control gives, and how much
+  wider the fan opens at a birth, in powers of ten, as its control steps.
+- **The halo** may grow twice as far as before, for the glow candidate:
+  light reaches past its old limit only at the highest strength.
+- **A note's colour.** A mode may colour the chain or the twins with the
+  note the bass holds, kept until another is held. The colour comes in
+  while the bass has played in the last second and goes over a second of
+  silence, and eases from one note to the next over 0.08 s. The twelve
+  notes go round the wheel of hues by fifths, so that notes a fifth apart
+  are neighbours and those of a key lie together, each bright.
+- **The card's words** for a share that came without sound depend on what
+  was shared, where they used to ask for a tab whatever it was: for a tab,
+  tick its audio; for a window, which shares no sound, pick the tab; for a
+  screen, tick its sound where the browser offers it, or else pick the tab.
+
+**Why.** The author found the effects of decision 46 hard to see, save the
+halo, which he wanted stronger, and asked for experiments and measurements
+to choose from. Measured on his four excerpts, at sixty frames a second and
+the middle strength, as the page computes the light from what it hears:
+light's halo grows from 5 px to 6.4 to 6.9 px at its 90th percentile, a
+pulse; its trails stay 1.4 to 1.9 times as bright from the 10th to the 90th
+percentile, nearly constant, since the loudness, read against the music's
+own, moves little once eased; and its twins are born again 2.2 to 5.2 times
+a second, a tenth to a fifth of the fan each second, on notes as on drums,
+so that the fan is born again continuously. Each candidate answers one of
+these, and the measures below show how much more each moves.
+
+**Evidence.** Unit tests: a floor counts the strongest kicks only; the new
+targets add as the others do; the bass's colour comes in with its note,
+stays through a frame without one, changes with the next note held, goes in
+silence, and stops whole at the highest strength; the twelve colours differ
+and are bright, a fifth apart as neighbours; the card's words follow what
+was shared. The browser test of the modes in the address goes through the
+candidates. In a headless browser playing the electronic excerpt through
+the file source, every candidate drew without an error: glow's halo wider
+on the kicks, hue's chain and twin hue's fan in the bass's colours. Pulses
+cannot be judged in stills; the author judges them playing music.
+
+On the four excerpts, at sixty frames a second and the middle strength:
+
+| Measure | Electronic | Beat in 5/4 | Metal percussion | Calm piano |
+|---|---|---|---|---|
+| light, the halo at its 90th percentile and at most, in px | 6.8, 8.1 | 6.9, 8.2 | 6.5, 7.9 | 6.4, 8.1 |
+| glow, the same | 10.7, 14.3 | 11.2, 14.5 | 9.9, 13.8 | 9.7, 14.3 |
+| light, births a second | 5.2 | 5.1 | 3.6 | 2.2 |
+| hits, the same | 4.2 | 4.7 | 3.6 | 0.18 |
+| kicks, the same | 0.58 | 0.80 | 0.20 | 0.22 |
+| light, the trails' light from the 10th to the 90th percentile | ×1.67 to 1.85 | ×1.63 to 1.92 | ×1.58 to 1.65 | ×1.43 to 1.79 |
+| dashes, the same | ×1.00 to 1.90 | ×1.00 to 1.96 | ×1.00 to 1.73 | ×1.00 to 1.62 |
+| linger, the trails' time, the same | ×2.2 to 2.9 | ×1.9 to 3.4 | ×1.5 to 1.9 | ×1.1 to 2.6 |
+| fan, the width at birth, the same | ×5.6 to 26 | ×3.6 to 48 | ×2.1 to 3.9 | ×1.1 to 14 |
+| hue, changes of colour a second | 1.33 | 1.31 | 0.51 | 1.58 |
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
