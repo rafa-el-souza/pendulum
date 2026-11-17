@@ -1364,14 +1364,25 @@ function musicCard(page: Page) {
   };
 }
 
-/** Waits until the card's meter shows sound arriving. */
-async function hearsSound(page: Page): Promise<void> {
-  const { meter } = musicCard(page);
-  await expect
-    .poll(async () => Number(await meter.getAttribute("aria-valuenow")), {
-      timeout: 15_000,
-    })
-    .toBeGreaterThan(0);
+/**
+ * Waits until the card's meter shows sound arriving; failing, says what the
+ * card said, and the page's errors.
+ */
+async function hearsSound(page: Page, errors: string[]): Promise<void> {
+  const { meter, status } = musicCard(page);
+  try {
+    await expect
+      .poll(async () => Number(await meter.getAttribute("aria-valuenow")), {
+        timeout: 15_000,
+      })
+      .toBeGreaterThan(0);
+  } catch (error) {
+    const said = (await status.textContent()) ?? "";
+    throw new Error(
+      `the meter stayed at 0; the card said "${said}"; the page's errors: ${JSON.stringify(errors)}`,
+      { cause: error },
+    );
+  }
 }
 
 test("the W key and its button open the music card, whose demo beat moves the meter, and off stops it", async ({
@@ -1394,7 +1405,7 @@ test("the W key and its button open the music card, whose demo beat moves the me
   await expect(status).toHaveText(
     /^(Playing the demo beat\.|The demo beat, muted)/,
   );
-  await hearsSound(page);
+  await hearsSound(page, errors);
 
   await source("Off").click();
   await expect(status).toHaveText("Not listening.");
@@ -1427,7 +1438,7 @@ test("the music card plays a file of music chosen from the device, and hears it"
   });
   await expect(status).toHaveText("Playing tone.wav.");
   await expect(source("File")).toHaveAttribute("aria-pressed", "true");
-  await hearsSound(page);
+  await hearsSound(page, errors);
   await source("Off").click();
   await expect(status).toHaveText("Not listening.");
   expect(errors).toEqual([]);
@@ -1449,7 +1460,7 @@ test("the music card listens through the microphone, and lets it go", async ({
   await source("Microphone").click();
   await expect(status).toHaveText(/^Listening through /);
   await expect(source("Microphone")).toHaveAttribute("aria-pressed", "true");
-  await hearsSound(page);
+  await hearsSound(page, errors);
   await source("Off").click();
   await expect(status).toHaveText("Not listening.");
   expect(errors).toEqual([]);

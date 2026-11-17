@@ -97,6 +97,16 @@ jobs:
       - name: Install Chromium, Firefox and WebKit
         run: npm run e2e:browsers
 
+      # A browser's audio runs only where there is somewhere to send sound:
+      # a sound server with no speakers, for the music card's tests
+      # (docs/decisions.md, decision 44). Its package lists were just
+      # refreshed by the step above.
+      - name: Start a sound server with no speakers
+        run: |
+          sudo apt-get install --yes --no-install-recommends pulseaudio
+          pulseaudio --start --exit-idle-time=-1
+          pactl info
+
       # Firefox runs headed here, on the virtual display, to get WebGL2
       # (web/playwright.config.ts); Chromium and WebKit stay headless.
       - name: Every page in the three engines
