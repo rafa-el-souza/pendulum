@@ -97,6 +97,9 @@ describe("Router", () => {
     });
     expect(router.look(heard({ kick: 0.7 }), 1 / 60, MIDDLE).flash).toBe(0.7);
     expect(router.look(heard({}), 1 / 60, MIDDLE).flash).toBe(0);
+    // with reduced motion asked for, the strobe keeps its even times
+    const still = new Router(router.mode, { slow: true });
+    expect(still.look(heard({ kick: 1 }), 1 / 60, MIDDLE).flash).toBe(0);
   });
 
   it("makes the trails last longer and the fan open wider by routes, as it lights them", () => {
