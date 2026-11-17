@@ -50,6 +50,8 @@ function said(outcome: Outcome): string {
         : "Playing the demo beat.";
     case "muted":
       return "The demo beat, muted: this browser plays no sound here.";
+    case "unheard":
+      return "This browser passes no sound to the page here.";
     case "refused":
       return "The microphone was not allowed. The browser's settings for this site can allow it.";
     case "missing":
@@ -193,7 +195,10 @@ export function mountMusicCard(): MusicCard {
     if (outcome === null) return;
     words = said(outcome);
     status.textContent = words;
-    if (outcome.kind !== "listening" && outcome.kind !== "muted") press("off");
+    if (outcome.kind !== "listening" && outcome.kind !== "muted") {
+      press("off");
+      if (outcome.kind === "unheard") listening.stop();
+    }
   }
   function stop(): void {
     listening.stop();

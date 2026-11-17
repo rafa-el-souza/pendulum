@@ -249,7 +249,9 @@ export class Hearing {
     }
     const first = this.before.length === 0;
     if (!first && at <= this.last.at) return this.last;
-    const dt = first ? 0 : Math.min(LONGEST_GAP, at - this.last.at);
+    // the first frame counts as one of sixty to the second, so that it moves
+    // the levels too
+    const dt = first ? 1 / 60 : Math.min(LONGEST_GAP, at - this.last.at);
 
     let square = 0;
     for (let i = 0; i < WINDOW; i++) {

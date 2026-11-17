@@ -17,7 +17,12 @@ import { Hearing, WINDOW, type Signals } from "./signals.ts";
 /** A source of music. */
 export type Source = "microphone" | "file" | "demo";
 
-/** What starting a source came to. */
+/**
+ * What starting a source came to: listening, with the name of what is
+ * listened to; the beat muted; a source started whose sound the browser
+ * passes nowhere, its audio not running; the microphone not allowed or not
+ * there; or a failure.
+ */
 export type Outcome =
   | {
       readonly kind: "listening";
@@ -25,6 +30,7 @@ export type Outcome =
       readonly name: string;
     }
   | { readonly kind: "muted" }
+  | { readonly kind: "unheard" }
   | { readonly kind: "refused" }
   | { readonly kind: "missing" }
   | { readonly kind: "failed" };
@@ -38,6 +44,8 @@ const DEMO_OPENING = 2;
 const DEMO_CHUNK = 1;
 /** How long a browser may take to let sound play, in ms, before the beat goes on muted. */
 const RESUME_MS = 1000;
+/** How long the audio's clock is watched for moving, in ms: a browser can say its audio runs while no sound goes anywhere. */
+const CLOCK_MS = 300;
 
 const PROCESSING = {
   echoCancellation: false,
@@ -54,17 +62,32 @@ function breathe(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-/** The time on `context`'s clock of the sample being heard now, in s, or null while its clock has not run. */
-function outputTime(context: AudioContext): number | null {
-  const { contextTime, performanceTime } = context.getOutputTimestamp();
-  if (
-    contextTime === undefined ||
-    performanceTime === undefined ||
-    contextTime <= 0
-  ) {
-    return null;
+/** A wait of `ms` ms. */
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * The time on `context`'s clock of the sample being heard now, in s: from
+ * the output's own stamp where the browser gives one, else the clock less
+ * the latencies it tells.
+ */
+function outputTime(context: AudioContext): number {
+  if (typeof context.getOutputTimestamp === "function") {
+    const { contextTime, performanceTime } = context.getOutputTimestamp();
+    if (
+      contextTime !== undefined &&
+      performanceTime !== undefined &&
+      contextTime > 0 &&
+      performanceTime > 0
+    ) {
+      return contextTime + (performance.now() - performanceTime) / 1000;
+    }
   }
-  return contextTime + (performance.now() - performanceTime) / 1000;
+  const lag =
+    ("outputLatency" in context ? context.outputLatency : 0) +
+    context.baseLatency;
+  return context.currentTime - (Number.isFinite(lag) ? lag : 0);
 }
 
 /** Listens to one source at a time, and hears it a frame at a time. */
@@ -130,13 +153,20 @@ export class Listening {
     return this.context;
   }
 
-  /** Whether `context` plays sound, once it has had a moment to start. */
+  /**
+   * Whether `context` plays, once it has had a moment to start: running,
+   * and its clock moving, which a browser with nowhere to send sound may
+   * not do though it says it runs.
+   */
   private async plays(context: AudioContext): Promise<boolean> {
     await Promise.race([
       context.resume().catch(() => undefined),
-      new Promise((resolve) => setTimeout(resolve, RESUME_MS)),
+      wait(RESUME_MS),
     ]);
-    return context.state === "running";
+    if (context.state !== "running") return false;
+    const before = context.currentTime;
+    await wait(CLOCK_MS);
+    return context.currentTime > before;
   }
 
   /** The window of samples an analyser of `input` holds, taken through a branch that makes no sound. */
@@ -212,7 +242,12 @@ export class Listening {
       },
     );
     const label = stream.getAudioTracks()[0]?.label ?? "";
-    return { kind: "listening", source: "microphone", name: label };
+    if (!(await this.plays(context))) {
+      return mine === this.asked ? { kind: "unheard" } : null;
+    }
+    return mine === this.asked
+      ? { kind: "listening", source: "microphone", name: label }
+      : null;
   }
 
   private async file(
@@ -248,6 +283,9 @@ export class Listening {
     } catch {
       if (mine === this.asked) this.letGo();
       return mine === this.asked ? { kind: "failed" } : null;
+    }
+    if (!(await this.plays(context))) {
+      return mine === this.asked ? { kind: "unheard" } : null;
     }
     return mine === this.asked
       ? { kind: "listening", source: "file", name: file.name }
@@ -302,12 +340,14 @@ export class Listening {
     const startsAt = context.currentTime + lead;
     const origin = now() + lead;
     player.start(startsAt);
+    // heard at the page's time until the audio is found to play, and then
+    // at the time of the sample being played
+    let audible = false;
     this.listen(
       "demo",
       rate,
       (out) => {
-        const heard = outputTime(context);
-        const t = heard === null ? now() - origin : heard - startsAt;
+        const t = audible ? outputTime(context) - startsAt : now() - origin;
         demoWindow(t, rate, out);
         return t;
       },
@@ -332,9 +372,9 @@ export class Listening {
       volume,
       mine,
     );
-    const sounds = await this.plays(context);
+    audible = await this.plays(context);
     if (mine !== this.asked) return null;
-    return sounds
+    return audible
       ? { kind: "listening", source: "demo", name: "" }
       : { kind: "muted" };
   }
