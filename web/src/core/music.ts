@@ -8,6 +8,7 @@ import {
 } from "../audio/source.ts";
 import { cls } from "./css.ts";
 import styles from "./music.module.css";
+import { STRENGTHS } from "./routes.ts";
 
 // The music card (docs/decisions.md, decisions 44 and 45): a small card over
 // the controls' corner, opened by the row's music button or the W key, where
@@ -16,9 +17,10 @@ import styles from "./music.module.css";
 // beside it; the sources are the microphone, which one chosen where there
 // are several, a file, the sound of a tab or of the computer where the
 // browser shares it, and the demonstration beat, each started by a touch;
-// and the card says that the sound stays on the device. Nothing it hears
-// acts on the piece yet. How it looks, where it sits and its words are
-// placeholders, which the author settles by trying.
+// what the music does, its mode, and how strongly, in five steps (decision
+// 46); and the card says that the sound stays on the device. How it looks,
+// where it sits and its words are placeholders, which the author settles by
+// trying.
 
 /** How many seconds the meter shows, and in how many columns. */
 const METER_SECONDS = 3;
@@ -81,7 +83,15 @@ function said(outcome: Outcome): string {
   }
 }
 
-export function mountMusicCard(): MusicCard {
+/** What the card offers of what the music does: the piece's modes, the one and the strength it opens at, and what to tell when either changes. */
+export interface MusicChoices {
+  readonly modes: readonly { readonly id: string; readonly name: string }[];
+  readonly mode: string;
+  readonly strength: number;
+  changed(mode: string, strength: number): void;
+}
+
+export function mountMusicCard(choices: MusicChoices): MusicCard {
   const listening = new Listening();
 
   const card = document.createElement("div");
@@ -133,7 +143,7 @@ export function mountMusicCard(): MusicCard {
   picker.hidden = true;
   const buttons = new Map<Source | "off", HTMLButtonElement>();
   // the sound of a tab where the browser shares it (decision 45)
-  const choices: [Source | "off", string, string][] = [
+  const kinds: [Source | "off", string, string][] = [
     ["off", "off", "Off"],
     ["microphone", "mic", "Microphone"],
     ["file", "file", "File"],
@@ -148,7 +158,7 @@ export function mountMusicCard(): MusicCard {
       : []),
     ["demo", "demo", "Demo beat"],
   ];
-  for (const [id, word, name] of choices) {
+  for (const [id, word, name] of kinds) {
     const b = document.createElement("button");
     b.type = "button";
     b.className = cls(styles, "source");
@@ -198,6 +208,83 @@ export function mountMusicCard(): MusicCard {
     microphone.hidden = false;
   }
 
+  // what the music does, and how strongly (decision 46)
+  let modeAt = Math.max(
+    0,
+    choices.modes.findIndex(({ id }) => id === choices.mode),
+  );
+  let strength = choices.strength;
+  const mode = document.createElement("div");
+  mode.className = cls(styles, "row");
+  mode.setAttribute("role", "group");
+  mode.setAttribute("aria-label", "Mode");
+  const modeWord = document.createElement("span");
+  modeWord.className = cls(styles, "label");
+  modeWord.textContent = "mode";
+  modeWord.setAttribute("aria-hidden", "true");
+  // the mode's name, said again when it changes; not a status, which the
+  // card's words are
+  const modeName = document.createElement("span");
+  modeName.className = cls(styles, "name");
+  modeName.setAttribute("aria-live", "polite");
+  const turn = (word: string, label: string, by: number): HTMLButtonElement => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = cls(styles, "turn");
+    b.textContent = word;
+    b.setAttribute("aria-label", label);
+    b.addEventListener("click", () => {
+      const count = choices.modes.length;
+      modeAt = (modeAt + by + count) % count;
+      showMode();
+      tell();
+    });
+    return b;
+  };
+  mode.append(
+    modeWord,
+    turn("‹", "Previous mode", -1),
+    modeName,
+    turn("›", "Next mode", 1),
+  );
+  const strong = document.createElement("div");
+  strong.className = cls(styles, "row");
+  strong.setAttribute("role", "group");
+  strong.setAttribute("aria-label", "Strength");
+  const strongWord = document.createElement("span");
+  strongWord.className = cls(styles, "label");
+  strongWord.textContent = "strength";
+  strongWord.setAttribute("aria-hidden", "true");
+  strong.append(strongWord);
+  const pips = STRENGTHS.map((_, i) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = cls(styles, "pip");
+    b.setAttribute(
+      "aria-label",
+      `Strength ${String(i + 1)} of ${String(STRENGTHS.length)}`,
+    );
+    b.addEventListener("click", () => {
+      strength = i + 1;
+      showMode();
+      tell();
+    });
+    strong.append(b);
+    return b;
+  });
+  /** The mode and the strength as they are. */
+  function showMode(): void {
+    modeName.textContent = choices.modes[modeAt]?.name ?? "";
+    pips.forEach((b, i) => {
+      b.textContent = i < strength ? "●" : "○";
+      b.setAttribute("aria-pressed", String(i + 1 === strength));
+    });
+  }
+  function tell(): void {
+    choices.changed(choices.modes[modeAt]?.id ?? "", strength);
+  }
+  showMode();
+
   const status = document.createElement("p");
   status.className = cls(styles, "status");
   status.setAttribute("role", "status");
@@ -220,6 +307,8 @@ export function mountMusicCard(): MusicCard {
     meter,
     sources,
     microphone,
+    mode,
+    strong,
     status,
     ...notes,
     privacy,

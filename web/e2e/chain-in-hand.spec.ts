@@ -1522,3 +1522,43 @@ test("where there are several microphones, the music card lists them and listens
   await expect(list).toBeHidden();
   expect(errors).toEqual([]);
 });
+
+test("the music card's mode and strength are kept in the address, beside a saved moment too, and an address opens with them", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("./");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await page.keyboard.press("w");
+  const { card } = musicCard(page);
+  const mode = card.getByRole("group", { name: "Mode" });
+  const strength = card.getByRole("group", { name: "Strength" });
+  // the piece opens in the light, at the middle strength
+  await expect(mode).toHaveText(/light/);
+  await expect(
+    strength.getByRole("button", { name: "Strength 3 of 5" }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await mode.getByRole("button", { name: "Next mode" }).click();
+  await expect(mode).toHaveText(/none/);
+  await expect(page).toHaveURL(/[?&]music=none(&|$)/);
+  await strength.getByRole("button", { name: "Strength 5 of 5" }).click();
+  await expect(page).toHaveURL(/[?&]strength=5(&|$)/);
+  // round again to the light, which leaves the address
+  await mode.getByRole("button", { name: "Previous mode" }).click();
+  await expect(mode).toHaveText(/light/);
+  await expect(page).not.toHaveURL(/music=/);
+
+  // a saved moment's code goes after the "#", and the music stays before it
+  await mode.getByRole("button", { name: "Next mode" }).click();
+  await page.keyboard.press("s");
+  await expect(page).toHaveURL(/\?music=none&strength=5#.+/);
+
+  // an address opens with its mode and strength
+  await page.goto("./?music=none&strength=2");
+  await page.keyboard.press("w");
+  await expect(mode).toHaveText(/none/);
+  await expect(
+    strength.getByRole("button", { name: "Strength 2 of 5" }),
+  ).toHaveAttribute("aria-pressed", "true");
+  expect(errors).toEqual([]);
+});

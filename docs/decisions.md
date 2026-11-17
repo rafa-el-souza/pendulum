@@ -1333,6 +1333,55 @@ Not checked: real shares on the author's machines, a streaming service's
 protected sound, whether stopping the picture keeps the sound, and the
 whole computer's sound on Windows and macOS.
 
+## 46. The music lights the chain, its trails and its twins
+
+*2026-11-17.* The music card gets a mode and a strength, and the first
+mode, the one the piece opens in, is light only: the physics does not hear.
+Each frame, the routes of the mode take what the music says to what it
+lights, each with an attack and a release, and the strength, in five steps,
+multiplies them all.
+
+- **Light.** A kick widens the chain's halo and brightens it, and lets it
+  go over a quarter of a second; the loudness gives the trails up to twice
+  their light; and every attack has a sixteenth of the twins born again from
+  the chain as it is: while they fade, the dimmest first, a puff out of the
+  chain; while they stay, in turn round the fan. Nothing lights an area:
+  the halo stays a few pixels round the chain's line.
+- **None.** The music does nothing, and the card only shows what the piece
+  hears.
+- **Routes as data.** A route names a signal, a target, a depth, an attack
+  and a release, and a mode is a list of routes. What they give is a record
+  a frame of what the music adds to the light, which the drawing reads; it
+  never writes the values of the controls. Paused, the halo still answers
+  the music, and nothing is born.
+- **Reduced motion.** Where the system asks for it, no route follows faster
+  than 0.4 s up and 1 s down, and nothing is born on a beat.
+- **The address.** The mode and the strength go in the readable part where
+  they differ from how the piece opens (`?music=none&strength=5`), and stay
+  there, before the "#", beside a saved moment's code, which does not carry
+  them until the modes are settled. A link with a mode never starts
+  listening: the visitor starts a source.
+
+The depths, the times, the strength's steps, the names and the card's two
+new rows are the session's, which the author settles by seeing and
+hearing.
+
+**Why.** The second step of the music in the order the author chose: light
+first, before the physics takes forces from it. His choices in the design
+round: music acting as force and as light, the chain always in the paper's
+equations, the music's routes never writing the controls, and no flash over
+a large area.
+
+**Evidence.** The routes follow a step at once without an attack, fall to
+1/e over their release, add up on one target and scale with the strength;
+an attack gives births in its own frame only; with reduced motion a kick's
+first frame lights less than a tenth and nothing is born. In the browser,
+the mode and the strength go into the address, stay beside a saved moment,
+and open again from it. Captured in Chromium with eight masses and the demo
+beat, frames a tenth of a second apart: the halo widens on the kicks and the
+twins born again light the chain, then fan out; with "none" the chain stays
+as it was.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
