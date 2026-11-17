@@ -1,6 +1,6 @@
 import { DEMO_SECONDS, DemoTap, renderDemoInto } from "./demo.ts";
 import { builtInMicrophone } from "./devices.ts";
-import { Hearing, WINDOW, type Signals } from "./signals.ts";
+import { HEARD, Hearing, type Signals } from "./signals.ts";
 
 // Where the piece's music comes from (docs/decisions.md, decisions 44 and
 // 45): the microphone, a file, the demonstration beat, or the sound of a
@@ -143,7 +143,7 @@ export class Listening {
   private take: ((out: Float32Array<ArrayBuffer>) => number | null) | null =
     null;
   private hearing: Hearing | null = null;
-  private readonly samples = new Float32Array(WINDOW);
+  private readonly samples = new Float32Array(HEARD);
   /** How many starts were asked for: a start that another has overtaken drops what it got. */
   private asked = 0;
 
@@ -239,7 +239,7 @@ export class Listening {
   /** The window of samples an analyser of `input` holds, taken through a branch that makes no sound. */
   private tap(context: AudioContext, input: AudioNode): AnalyserNode {
     const analyser = context.createAnalyser();
-    analyser.fftSize = WINDOW;
+    analyser.fftSize = HEARD;
     analyser.smoothingTimeConstant = 0;
     const silent = context.createGain();
     silent.gain.value = 0;

@@ -8,7 +8,7 @@ import {
   demoWindow,
   renderDemo,
 } from "./demo.ts";
-import { Hearing, WINDOW, type Signals } from "./signals.ts";
+import { HEARD, Hearing, SPAN, WINDOW, type Signals } from "./signals.ts";
 
 // The demonstration beat (docs/decisions.md, decision 44): a kick drum, a
 // snare and a bass the page makes itself, the same every time, which plays
@@ -47,21 +47,20 @@ describe("the demonstration beat", () => {
   it("is tapped a window at a time as it is worked out whole, however far the next window is", () => {
     const rate = 48_000;
     const tap = new DemoTap(rate);
-    const tapped = new Float32Array(4 * WINDOW);
-    const whole = new Float32Array(4 * WINDOW);
-    const last = tapped.length - 1;
+    const tapped = new Float32Array(HEARD);
+    const whole = new Float32Array(HEARD);
     // on by a frame, by none, back, and on by more than a window
     for (const t of [1, 1 + 1 / 60, 1 + 1 / 60, 0.5, 2, 2 + 1 / 144, 9]) {
       tap.fill(t, tapped);
       // a tap's window ends at the sample nearest its time
       demoWindow(Math.round(t * rate) / rate, rate, whole);
-      for (let i = 0; i < tapped.length; i += 97) {
+      for (let i = 0; i < HEARD; i += 97) {
         expect(tapped[i], `${String(t)} s, sample ${String(i)}`).toBeCloseTo(
           whole[i] ?? 0,
           5,
         );
       }
-      expect(tapped[last]).toBeCloseTo(whole[last] ?? 0, 5);
+      expect(tapped[HEARD - 1]).toBeCloseTo(whole[HEARD - 1] ?? 0, 5);
     }
   });
 
@@ -78,11 +77,12 @@ describe("the demonstration beat", () => {
   it("is heard as it is made: the hearing finds its kicks and snares, as the page will", () => {
     const rate = 48_000;
     const hearing = new Hearing(rate);
-    const window = new Float32Array(WINDOW);
+    const window = new Float32Array(HEARD);
+    const tap = new DemoTap(rate);
     const heard: Signals[] = [];
     // twice round, at sixty frames a second
     for (let frame = 1; frame <= 2 * DEMO_SECONDS * 60; frame++) {
-      demoWindow(frame / 60, rate, window);
+      tap.fill(frame / 60, window);
       heard.push(hearing.hear(window, frame / 60));
     }
     // after the hearing's first half second, twice round
@@ -107,5 +107,17 @@ describe("the demonstration beat", () => {
       expect(attacks(key).filter((at) => !follows(starts, at))).toEqual([]);
     }
     expect(heard.some((s) => s.silent && s.at > 0.5)).toBe(false);
+    // every snare is a hit too, heard SPAN / 2 late, and no hit comes where
+    // only the bass begins a note (decision 48)
+    const hits = heard.filter((s) => s.hit > 0 && s.at >= 0.5).map((s) => s.at);
+    const late = (times: readonly number[], at: number) =>
+      times.some((t) => at >= t && at - t < SPAN / 2 + 0.04);
+    expect(
+      twice(snares).filter((t) => hits.some((at) => late([t], at))).length /
+        twice(snares).length,
+    ).toBeGreaterThan(0.9);
+    expect(
+      hits.filter((at) => !late(twice([...kicks, ...snares]), at)),
+    ).toEqual([]);
   });
 });
