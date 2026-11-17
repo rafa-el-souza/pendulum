@@ -35,6 +35,8 @@ export interface Look {
   readonly linger: number;
   /** How much wider the fan opens for the twins born now, in powers of ten, from 0. */
   readonly spread: number;
+  /** Whether a strobe flashes this frame, stamping the chain into its trails, where the strobe is on: above 0 when it does. */
+  readonly flash: number;
   /** The name of the note the bass holds, from 0 for C to 11 for B, or −1 before any. */
   readonly note: number;
   /** How much of that note's colour the piece takes, from 0 to 1. */
@@ -42,7 +44,8 @@ export interface Look {
 }
 
 /** What a route can add to. */
-export type Target = "glow" | "trail" | "births" | "linger" | "spread";
+export type Target =
+  "glow" | "trail" | "births" | "linger" | "spread" | "flash";
 
 export interface Route {
   readonly from: Signal;
@@ -79,6 +82,7 @@ export const UNLIT: Look = {
   births: 0,
   linger: 0,
   spread: 0,
+  flash: 0,
   note: -1,
   tint: 0,
 };
@@ -88,7 +92,7 @@ export const STRENGTHS: readonly number[] = [0.25, 0.5, 1, 1.5, 2.25];
 /** The step the piece opens at, from 1. */
 export const STRENGTH_INITIAL = 3;
 
-/** With reduced motion asked for, no route follows faster than this, in s, and nothing is born on a beat. */
+/** With reduced motion asked for, no route follows faster than this, in s, and nothing is born or flashes on a beat. */
 const SLOW_ATTACK = 0.4;
 const SLOW_RELEASE = 1;
 /**
@@ -122,9 +126,18 @@ export class Router {
    */
   look(heard: Signals | null, dt: number, strength: number): Look {
     const times = STRENGTHS[strength - 1] ?? 1;
-    const sum = { glow: 0, trail: 0, births: 0, linger: 0, spread: 0 };
+    const sum = {
+      glow: 0,
+      trail: 0,
+      births: 0,
+      linger: 0,
+      spread: 0,
+      flash: 0,
+    };
     this.mode.routes.forEach((route, i) => {
-      if (this.slow && route.to === "births") return;
+      if (this.slow && (route.to === "births" || route.to === "flash")) {
+        return;
+      }
       const signal = heard === null ? 0 : heard[route.from];
       const above = route.above ?? 0;
       const target = Math.max(0, (signal - above) / (1 - above));
