@@ -1382,6 +1382,64 @@ beat, frames a tenth of a second apart: the halo widens on the kicks and the
 twins born again light the chain, then fan out; with "none" the chain stays
 as it was.
 
+## 47. The music is measured against all of it heard, then its last six seconds
+
+*2026-11-17.* The loudness and the three bands are each read against the
+music's own past (decision 44). That past began as the first frame heard and
+then followed the music over fifteen seconds or so. It is now the mean of all
+the music heard until there have been six seconds of it, and from then on it
+forgets at that pace. This replaces the fifteen seconds of decision 44;
+nothing else in it changes. The six seconds are the session's placeholder,
+which the author settles by seeing.
+
+**Why.** The author found that in some music the signals seemed not to move.
+Measured on four excerpts of 45 s that he chose (an electronic track, a beat
+in 5/4, metal percussion, and a calm piano without drums), heard at sixty
+frames a second, the first frame heard came 28 to 30 dB under the rest of
+each, as a song's first moments are quiet, and the hearing took it for how
+loud the music was. The loudness and the bands
+then stayed at their top for the first 12 to 20 s of each, while that was
+unlearned, and the trails, which follow the loudness, stayed near their
+strongest.
+
+Before the piece's own arithmetic was changed, the author asked whether a
+library could give these signals instead. Of the libraries for the browser,
+one listens live, is maintained, and has a licence that fits this
+repository's: realtime-bpm-analyzer (Apache-2.0), which reports each kick
+drum and the tempo. The fuller ones are under the GPL or the AGPL
+(Essentia.js, aubio), or analyse a whole file at once, and none gives the
+loudness or the bands. On the electronic excerpt, against its 83 kicks, the
+library found 64 percent, 95 percent of its reports on a kick, and went
+silent for 3.2 s over five kicks like the others; the piece's own found 70
+percent, and a third of its reports fell off a kick. The author chose to
+keep the piece's own kick, and to weigh the library's tempo again with the
+beat's clock.
+
+**Evidence.** Two tests, red before the change: music whose first tenth of a
+second is 40 dB quieter reads as normal within two seconds (its loudness's
+mean between 0.2 and 0.8, where it stayed at 1); and a part 10 dB louder
+reads at least 0.15 higher in its first second, and within 0.1 of before a
+dozen seconds on (with fifteen seconds it was 0.16 off). On the four
+excerpts, the share of the music's time each measure spent at its top (0.98
+or more) is shown below, for the loudness, the bass, the middle, the treble
+and the trails' strength:
+
+| Excerpt | Before | After |
+|---|---|---|
+| Electronic | 0.39, 0.41, 0.35, 0.51, 0.36 | 0.00, 0.11, 0.00, 0.07, 0.00 |
+| Beat in 5/4 | 0.46, 0.72, 0.64, 0.67, 0.52 | 0.04, 0.25, 0.06, 0.17, 0.02 |
+| Metal percussion | 0.33, 0.51, 0.39, 0.43, 0.36 | 0.00, 0.00, 0.00, 0.01, 0.00 |
+| Calm piano | 0.37, 0.61, 0.64, 0.17, 0.39 | 0.00, 0.11, 0.01, 0.10, 0.00 |
+
+What remains at the top after the change is the peaks of kicks and notes.
+How long the past is remembered mattered far less than how it begins: with
+4, 6 and 8 s the excerpts read within a few hundredths of each other, and only
+the beat in 5/4, which gets about 10 dB louder at 19 s, told them apart.
+The published page, playing the electronic excerpt in a headless browser
+that draws about ten frames a second, did not show the fault: its first
+frame came after those quiet first moments, where a screen at 60 Hz or more
+hears within them.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.

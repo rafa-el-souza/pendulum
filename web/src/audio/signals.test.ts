@@ -151,6 +151,38 @@ describe("Hearing", () => {
     ).toBeCloseTo(30.5, 0);
   });
 
+  it("takes music that begins quietly as its normal within two seconds", () => {
+    // a song's first moments are often far quieter than the rest of it, and
+    // they must not stand for how loud the music is: measured on music, the
+    // first frame heard was 28 to 30 dB under the rest, which held the
+    // levels at their top for the next 12 to 20 s
+    const music = (t: number) =>
+      (t < 0.1 ? 0.01 : 1) *
+      (hits(0.5, 0, thump)(t) + 0.2 * Math.sin(2 * Math.PI * 440 * t));
+    const lastHalfSecond = listen(music, 2).slice(-30);
+    for (const key of ["level", "bass", "mid"] as const) {
+      const mean =
+        lastHalfSecond.reduce((sum, s) => sum + s[key], 0) /
+        lastHalfSecond.length;
+      expect(mean, key).toBeGreaterThan(0.2);
+      expect(mean, key).toBeLessThan(0.8);
+    }
+  });
+
+  it("hears a part 10 dB louder as louder at first, and as the music's normal a dozen seconds on", () => {
+    const music = (t: number) =>
+      (t < 8 ? 0.3 : 1) *
+      (hits(0.5, 0, thump)(t) + 0.2 * Math.sin(2 * Math.PI * 440 * t));
+    const heard = listen(music, 22);
+    const level = (from: number, to: number) => {
+      const part = heard.filter((s) => s.at > from && s.at <= to);
+      return part.reduce((sum, s) => sum + s.level, 0) / part.length;
+    };
+    const before = level(6, 8);
+    expect(level(8, 9) - before).toBeGreaterThan(0.15);
+    expect(Math.abs(level(20, 22) - before)).toBeLessThan(0.1);
+  });
+
   it("calls silence silent, with nothing moving and no attacks", () => {
     for (const sound of [() => 0, (t: number) => 0.0001 * hiss(t * RATE)]) {
       const heard = listen(sound, 2);

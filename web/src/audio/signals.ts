@@ -5,9 +5,9 @@ import { Fourier, hann } from "./fft.ts";
 // latest WINDOW samples: how loud they are, the energy in three bands, and
 // whether a beat or a note began since the frame before, in each band, from
 // how much the spectrum rose (its flux). Each measure is read against the
-// music's own past, the last fifteen seconds or so, so that music played
-// quietly and loudly moves the piece alike, and a microphone of unknown gain
-// serves. It is all arithmetic on the samples, so the tests hear made-up
+// music's own past, the last six seconds or so (decision 47), so that music
+// played quietly and loudly moves the piece alike, and a microphone of
+// unknown gain serves. It is all arithmetic on the samples, so the tests hear made-up
 // sounds with the same code the page runs.
 
 /** How many samples a frame hears: 43 ms at 48 kHz, 46 at 44.1. */
@@ -52,8 +52,13 @@ export interface Signals {
 
 /** The lowest a power reads, in dB from full scale: silence. */
 const FLOOR_DB = -120;
-/** How long the music's past is remembered, in s: the time constant of its loudness. */
-const GAIN_TIME = 15;
+/**
+ * How long the music's past is remembered, in s: the time constant of its
+ * loudness. A placeholder of the session's, which the author settles by
+ * seeing: on four pieces of music, 4, 6 and 8 s read alike within a few
+ * hundredths, and only a part that got louder told them apart.
+ */
+const GAIN_TIME = 6;
 /** How many dB the levels span, a half of it either side of the music's own loudness. */
 const RANGE_DB = 24;
 /** How fast a level follows a rise and a fall, in s. */
@@ -113,18 +118,27 @@ function share(dt: number, tau: number): number {
   return 1 - Math.exp(-dt / tau);
 }
 
-/** A measure in dB, read against its own past, from 0 to 1, and eased. */
+/**
+ * A measure in dB, read against its own past, from 0 to 1, and eased. The
+ * past is the mean of all the music heard until there has been GAIN_TIME of
+ * it, and forgets at that pace from then on: so the first moments of a song,
+ * often far quieter than the rest, weigh as little as any other.
+ */
 class Gauge {
   /** The music's own loudness in this measure, once there has been some. */
   private past: number | null = null;
+  /** How long the music has been heard, in s. */
+  private heard = 0;
   value = 0;
 
   /** Hears `db` after `dt` s; silence lets the value fall and leaves the past as it was. */
   hear(db: number, dt: number, silent: boolean): number {
     let target = 0;
     if (!silent) {
+      this.heard += dt;
       this.past ??= db;
-      this.past += share(dt, GAIN_TIME) * (db - this.past);
+      const weight = Math.max(share(dt, GAIN_TIME), dt / this.heard);
+      this.past += weight * (db - this.past);
       target = Math.min(1, Math.max(0, 0.5 + (db - this.past) / RANGE_DB));
     }
     this.value +=
