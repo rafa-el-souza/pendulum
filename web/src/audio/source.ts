@@ -1,4 +1,4 @@
-import { DEMO_SECONDS, demoWindow, renderDemoInto } from "./demo.ts";
+import { DEMO_SECONDS, DemoTap, renderDemoInto } from "./demo.ts";
 import { builtInMicrophone } from "./devices.ts";
 import { Hearing, WINDOW, type Signals } from "./signals.ts";
 
@@ -451,12 +451,14 @@ export class Listening {
     const now = (): number => performance.now() / 1000;
     if (context === null) {
       const origin = now();
+      const tap = new DemoTap(MUTED_RATE);
       this.listen(
         "demo",
         MUTED_RATE,
         (out) => {
-          demoWindow(now() - origin, MUTED_RATE, out);
-          return now() - origin;
+          const t = now() - origin;
+          tap.fill(t, out);
+          return t;
         },
         () => undefined,
       );
@@ -488,12 +490,13 @@ export class Listening {
     // heard at the page's time until the audio is found to play, and then
     // at the time of the sample being played
     let audible = false;
+    const tap = new DemoTap(rate);
     this.listen(
       "demo",
       rate,
       (out) => {
         const t = audible ? outputTime(context) - startsAt : now() - origin;
-        demoWindow(t, rate, out);
+        tap.fill(t, out);
         return t;
       },
       () => {

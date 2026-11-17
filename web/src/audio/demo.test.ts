@@ -4,6 +4,7 @@ import {
   DEMO_SECONDS,
   demoHits,
   demoSample,
+  DemoTap,
   demoWindow,
   renderDemo,
 } from "./demo.ts";
@@ -41,6 +42,27 @@ describe("the demonstration beat", () => {
     demoWindow(3.2, rate, window);
     expect(window[WINDOW - 1]).toBeCloseTo(demoSample(3.2), 6);
     expect(window[0]).toBeCloseTo(demoSample(3.2 - (WINDOW - 1) / rate), 6);
+  });
+
+  it("is tapped a window at a time as it is worked out whole, however far the next window is", () => {
+    const rate = 48_000;
+    const tap = new DemoTap(rate);
+    const tapped = new Float32Array(4 * WINDOW);
+    const whole = new Float32Array(4 * WINDOW);
+    const last = tapped.length - 1;
+    // on by a frame, by none, back, and on by more than a window
+    for (const t of [1, 1 + 1 / 60, 1 + 1 / 60, 0.5, 2, 2 + 1 / 144, 9]) {
+      tap.fill(t, tapped);
+      // a tap's window ends at the sample nearest its time
+      demoWindow(Math.round(t * rate) / rate, rate, whole);
+      for (let i = 0; i < tapped.length; i += 97) {
+        expect(tapped[i], `${String(t)} s, sample ${String(i)}`).toBeCloseTo(
+          whole[i] ?? 0,
+          5,
+        );
+      }
+      expect(tapped[last]).toBeCloseTo(whole[last] ?? 0, 5);
+    }
   });
 
   it("has its kicks, its snares and a quieter part in the middle", () => {
