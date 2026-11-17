@@ -30,6 +30,7 @@ import {
   gravityOf,
   handDamping,
   MARK_STEP,
+  STROBE_STEP,
   shakeOf,
   trailFade,
 } from "./parameters.ts";
@@ -100,25 +101,51 @@ describe("the first piece's parameters", () => {
     expect(TRAIL.icon).toBe("comet");
   });
 
-  it("have a step before the one that stays which fades as the first piece's trails do and leaves a mark (decision 42)", () => {
-    expect(TRAIL.values).toEqual([0, 0.5, 1, 2.5, 10, MARK_STEP, 600]);
-    expect(trailFade(MARK_STEP)).toEqual({ halfLife: 2.5, mark: true });
+  it("have a step before the one that stays which fades as the first piece's trails do and leaves a mark (decision 42), and before it a strobe's (decision 50)", () => {
+    expect(TRAIL.values).toEqual([
+      0,
+      0.5,
+      1,
+      2.5,
+      10,
+      STROBE_STEP,
+      MARK_STEP,
+      600,
+    ]);
+    expect(trailFade(MARK_STEP)).toEqual({
+      halfLife: 2.5,
+      mark: true,
+      strobe: false,
+    });
     expect(trailFade(600)).toEqual({
       halfLife: Number.POSITIVE_INFINITY,
       mark: false,
+      strobe: false,
     });
     for (const value of [0.5, 1, 2.5, 10]) {
-      expect(trailFade(value)).toEqual({ halfLife: value, mark: false });
+      expect(trailFade(value)).toEqual({
+        halfLife: value,
+        mark: false,
+        strobe: false,
+      });
     }
+    // the strobe's copies of the chain fade over a second
+    expect(trailFade(STROBE_STEP)).toEqual({
+      halfLife: 1,
+      mark: false,
+      strobe: true,
+    });
   });
 
   it("show the trails' length as pips, none when off, and say it in seconds", () => {
-    expect(TRAIL.show(0)).toBe("○○○○○○");
-    expect(TRAIL.show(2.5)).toBe("●●●○○○");
-    expect(TRAIL.show(MARK_STEP)).toBe("●●●●●○");
-    expect(TRAIL.show(600)).toBe("●●●●●●");
+    expect(TRAIL.show(0)).toBe("○○○○○○○");
+    expect(TRAIL.show(2.5)).toBe("●●●○○○○");
+    expect(TRAIL.show(STROBE_STEP)).toBe("●●●●●○○");
+    expect(TRAIL.show(MARK_STEP)).toBe("●●●●●●○");
+    expect(TRAIL.show(600)).toBe("●●●●●●●");
     expect(TRAIL.speak?.(0)).toBe("off");
     expect(TRAIL.speak?.(2.5)).toBe("2.5 s");
+    expect(TRAIL.speak?.(STROBE_STEP)).toBe("a strobe");
     expect(TRAIL.speak?.(MARK_STEP)).toBe("leaves a mark");
     expect(TRAIL.speak?.(600)).toBe("stays");
   });
@@ -229,15 +256,17 @@ describe("the first piece's parameters", () => {
     expect(PARAMETERS).toEqual([...CHAIN, ...LIGHT, ...COLOURS]);
   });
 
-  it("let the twins stay, as they have until now and as the piece opens, or fade as chaos carries them off, on one key (decision 43)", () => {
-    expect(FADE.values).toEqual([0, 1]);
+  it("let the twins stay, as they have until now and as the piece opens, fade as chaos carries them off (decision 43), or stay as dust, their tips alone (decision 50), on one key", () => {
+    expect(FADE.values).toEqual([0, 1, 2]);
     expect(FADE.initial).toBe(0);
     expect(FADE.keys).toEqual({ down: [], up: ["p", "P"] });
     expect(FADE.cyclic).toBe(true);
     expect(stepValue(FADE, 0, 1)).toBe(1);
-    expect(stepValue(FADE, 1, 1)).toBe(0);
+    expect(stepValue(FADE, 1, 1)).toBe(2);
+    expect(stepValue(FADE, 2, 1)).toBe(0);
     expect(FADE.show(0)).toBe("stay");
     expect(FADE.show(1)).toBe("fade");
+    expect(FADE.show(2)).toBe("dust");
   });
 
   it("fade a twin to a third of its light three tenths of the chain's length from it, the session's reach, which the author settles by looking (decision 43)", () => {

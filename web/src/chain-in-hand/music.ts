@@ -3,7 +3,8 @@ import type { Mode, Route } from "../core/routes.ts";
 // The first piece's ways for the music to act (docs/decisions.md, decisions
 // 46 and 49): candidates, which the author settles by seeing and hearing
 // them. "light" is the first; each of the others changes one thing of it,
-// so that they can be told apart side by side.
+// so that they can be told apart side by side. In every one, where the
+// trails are a strobe's, a kick flashes it (decision 50).
 
 /** A kick lights the chain's halo. */
 const HALO: Route = {
@@ -29,6 +30,14 @@ const ON_ATTACKS: Route = {
   attack: 0,
   release: 0,
 };
+/** A kick flashes the strobe, where the trails are a strobe's. */
+const FLASH: Route = {
+  from: "kick",
+  to: "flash",
+  depth: 1,
+  attack: 0,
+  release: 0,
+};
 
 /**
  * Light only: the physics does not hear. A kick lights the chain's halo, the
@@ -39,21 +48,21 @@ const ON_ATTACKS: Route = {
 export const LIGHT: Mode = {
   id: "light",
   name: "light",
-  routes: [HALO, BRIGHTER, ON_ATTACKS],
+  routes: [HALO, BRIGHTER, ON_ATTACKS, FLASH],
 };
 
 /** As light, with a halo three times as strong on the kicks, and a little slower to go. */
 export const GLOW: Mode = {
   id: "glow",
   name: "glow",
-  routes: [{ ...HALO, depth: 2.4, release: 0.35 }, BRIGHTER, ON_ATTACKS],
+  routes: [{ ...HALO, depth: 2.4, release: 0.35 }, BRIGHTER, ON_ATTACKS, FLASH],
 };
 
 /** As light, with the twins born again on the hits of drums only, not on notes. */
 export const HITS: Mode = {
   id: "hits",
   name: "hits",
-  routes: [HALO, BRIGHTER, { ...ON_ATTACKS, from: "hit" }],
+  routes: [HALO, BRIGHTER, { ...ON_ATTACKS, from: "hit" }, FLASH],
 };
 
 /** As light, with an eighth of the twins born again on the strongest kicks only. */
@@ -64,6 +73,7 @@ export const KICKS: Mode = {
     HALO,
     BRIGHTER,
     { ...ON_ATTACKS, from: "kick", depth: 0.125, above: 0.75 },
+    FLASH,
   ],
 };
 
@@ -85,6 +95,7 @@ export const LINGER: Mode = {
       above: 0.5,
     },
     ON_ATTACKS,
+    FLASH,
   ],
 };
 
@@ -99,6 +110,7 @@ export const DASHES: Mode = {
     HALO,
     { from: "kick", to: "trail", depth: 2, attack: 0.005, release: 0.12 },
     ON_ATTACKS,
+    FLASH,
   ],
 };
 
@@ -121,6 +133,7 @@ export const FAN: Mode = {
       release: 0.4,
       above: 0.5,
     },
+    FLASH,
   ],
 };
 

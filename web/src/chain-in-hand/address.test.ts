@@ -123,13 +123,37 @@ describe("the first piece's address (decision 38)", () => {
     expect(opened.saved?.state.theta).toHaveLength(3);
   });
 
-  it("writes codes of version 4, which hold whether the twins fade (decision 43)", () => {
-    expect(CODE.version).toBe(4);
+  it("writes codes of version 5, which hold the strobe's trails and the twins as dust (decision 50)", () => {
+    expect(CODE.version).toBe(5);
     const { values, switches } = opening();
     values.set("n", 3);
-    values.set("fade", 1);
+    values.set("fade", 2);
+    values.set("trail", 50);
     const opened = openingOf("", addressOf(values, switches, moment(3), ""));
     expect(opened.values).toEqual(values);
+  });
+
+  it("opens a code of version 4 as it was published", () => {
+    // 3 masses on the Moon, the twins that fade, the trails that leave a
+    // mark, paused
+    const opened = openingOf("", `#${VERSION_4}`);
+    expect(opened.values.get("n")).toBe(3);
+    expect(opened.values.get("g")).toBe(1.62);
+    expect(opened.values.get("fade")).toBe(1);
+    expect(opened.values.get("trail")).toBe(100);
+    expect(opened.saved?.paused).toBe(true);
+    expect(opened.saved?.state.theta).toHaveLength(3);
+  });
+
+  it("carries the strobe's trails and the twins as dust readable, without a moment", () => {
+    const { values, switches } = opening();
+    values.set("fade", 2);
+    values.set("trail", 50);
+    const address = addressOf(values, switches, null, "");
+    expect(address).toBe("?fade=2&trail=50");
+    const opened = openingOf(address, "");
+    expect(opened.values.get("fade")).toBe(2);
+    expect(opened.values.get("trail")).toBe(50);
   });
 
   it("carries the twins that fade readable, without a moment", () => {
@@ -245,6 +269,9 @@ const VERSION_2 = "AgnIsCTME2gAByHEpEiOEsDCZw7AJPE3wBujYEA";
 
 /** A code of version 3, as the published page wrote it on saving a moment. */
 const VERSION_3 = "AxHIsCKUwmgAByHFiATCnz4oTQ6-UJerPiHLdMFrTWFBttOcQQ";
+
+/** A code of version 4, as the published page wrote it on saving a moment. */
+const VERSION_4 = "BBHEsCTaACQAA5D1rl85_T9vHydAXHM8QGwbu79PbKs-p5RlPg";
 
 const VERSION_1 =
   "ASnEsCTMNAADkOEMAAAAPwAAAD8AAAA_AAAAPwAAAD8AAAA_AAAAPwAAAD8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";

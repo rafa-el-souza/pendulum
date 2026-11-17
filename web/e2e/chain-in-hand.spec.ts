@@ -293,8 +293,13 @@ test("the twins' and the trails' keys change their number and length, and the ad
   await page.keyboard.press("7");
   await expect(trail).toHaveAccessibleDescription("off");
   await expect(page).toHaveURL(/[?&]trail=0(&|$)/);
-  // up past ten seconds, the step that leaves a mark, then the one that stays
+  // up past ten seconds, a strobe's (decision 50), the step that leaves a
+  // mark, then the one that stays
   for (let press = 0; press < 5; press++) await page.keyboard.press("8");
+  await expect(trail).toHaveAccessibleDescription("a strobe");
+  await expect(page).toHaveURL(/[?&]trail=50(&|$)/);
+  await frames(page, 10);
+  await page.keyboard.press("8");
   await expect(trail).toHaveAccessibleDescription("leaves a mark");
   await expect(page).toHaveURL(/[?&]trail=100(&|$)/);
   await frames(page, 10);
@@ -542,7 +547,7 @@ test("the spread's keys bring the twins closer or farther at birth, and the addr
   expect(errors).toEqual([]);
 });
 
-test("the P key lets the twins fade as chaos carries them off and stay again, and the address and the title follow", async ({
+test("the P key lets the twins fade as chaos carries them off, stay as dust, and stay again, and the address and the title follow", async ({
   page,
 }) => {
   const errors = collectErrors(page);
@@ -557,6 +562,12 @@ test("the P key lets the twins fade as chaos carries them off and stay again, an
   await expect(page).toHaveURL(/[?&]fade=1(&|$)/);
   await expect(page).toHaveTitle(/twins that fade/);
   await frames(page, 90);
+  // their tips alone, a cloud of points (decision 50)
+  await page.keyboard.press("p");
+  await expect(fade).toHaveAccessibleDescription("dust");
+  await expect(page).toHaveURL(/[?&]fade=2(&|$)/);
+  await expect(page).toHaveTitle(/twins as dust/);
+  await frames(page, 30);
   await page.keyboard.press("P");
   await expect(fade).toHaveAccessibleDescription("stay");
   await expect(page).not.toHaveURL(/fade=/);

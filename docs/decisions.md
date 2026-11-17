@@ -1592,6 +1592,54 @@ On the four excerpts, at sixty frames a second and the middle strength:
 | fan, the width at birth, the same | ×5.6 to 26 | ×3.6 to 48 | ×2.1 to 3.9 | ×1.1 to 14 |
 | hue, changes of colour a second | 1.33 | 1.31 | 0.51 | 1.58 |
 
+## 50. The trails can be a strobe's, and the twins dust
+
+*2026-11-17.* Two modes of the first piece's light, controls of the piece
+on which the music acts, for the author to see:
+
+- **A strobe's trails.** The trails' control (decision 22) has a step after
+  ten seconds and before the one that leaves a mark, written 50: the whole
+  chain is stamped into the trails twelve times a second of simulated time,
+  instead of its masses drawing lines, and each twin's tip as a point on
+  the same flash; the copies fade over a second. While the music plays in
+  a mode that flashes it, as every mode of decision 49 but "none" does, the
+  flashes come on the kicks instead; with reduced motion asked for, at even
+  times.
+- **The twins as dust.** The twins' P key (decision 43) goes round stay,
+  fade and dust, written 2: each twin is drawn as its tip alone, a point of
+  light, and leaves no trail, so that the fan is a cloud of sparks. The
+  points swell as the music lights the halo.
+- Both are kept in the readable address and named in the page's title, and
+  the saved moment's code takes a fifth version for them; codes of the
+  fourth keep opening.
+
+The rate, the lights and the sizes are the session's placeholders. Each is
+a step of a control that was there; whether either becomes a control of
+its own, beside the trails' length and the twins' staying or fading, the
+author decides by seeing.
+
+**Why.** The author found the trails and the twins hard to notice under the
+music, and asked for other modes of them, thought through, and perhaps
+apart from the music. Of three drawn for the trails (a strobe; embers, a
+trail whose colour changes as it ages; a comet, a tail of fixed length) and
+three for the twins (dust; heat, each twin's colour by how far it has gone
+from the chain; a cloud, the twins born apart in every direction), he chose
+the strobe and the dust to see first. A strobe is how a pendulum is
+photographed with a flash that fires again and again; under music, its
+copies mark the kicks.
+
+**Evidence.** Unit tests: the trails' steps and their words, and the
+strobe's half-life; the P key's three steps; the title's words; the fifth
+code carrying both, and a code of the fourth, as the published page wrote
+it, still opening; a route that flashes on a kick, and none with reduced
+motion asked for. The browser tests of the trails' keys and of the P key
+step through both. In a headless browser, with two masses and with four,
+with and without the electronic excerpt playing, the strobe drew a fan of
+copies of the chain, fewer and on the kicks with the music, and the dust
+points of light round the chain, swelling on the kicks. In the first
+captures the twins' own trails, drawn as lines, hid both; they now follow
+the mode, points on the strobe's flashes and none as dust.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.

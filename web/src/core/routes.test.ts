@@ -38,6 +38,7 @@ const NOTHING = {
   births: 0,
   linger: 0,
   spread: 0,
+  flash: 0,
   note: -1,
   tint: 0,
 };
@@ -86,6 +87,19 @@ describe("Router", () => {
       0.125,
       12,
     );
+  });
+
+  it("gives a strobe's flash in the frame of a kick only (decision 50)", () => {
+    const router = new Router({
+      id: "flash",
+      name: "flash",
+      routes: [{ from: "kick", to: "flash", depth: 1, attack: 0, release: 0 }],
+    });
+    expect(router.look(heard({ kick: 0.7 }), 1 / 60, MIDDLE).flash).toBe(0.7);
+    expect(router.look(heard({}), 1 / 60, MIDDLE).flash).toBe(0);
+    // with reduced motion asked for, the strobe keeps its even times
+    const still = new Router(router.mode, { slow: true });
+    expect(still.look(heard({ kick: 1 }), 1 / 60, MIDDLE).flash).toBe(0);
   });
 
   it("makes the trails last longer and the fan open wider by routes, as it lights them", () => {
