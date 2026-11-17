@@ -257,19 +257,28 @@ export const TWIN_COUNT: Parameter = {
  * light in seconds of simulated time, from none to one that stays, written
  * 600. Before it, the step written 100 fades as the trails open, with a
  * half-life of 2.5 s, and leaves a mark: the brightest piece of trail drawn
- * at every point stays, under the trails that fade (decision 42).
+ * at every point stays, under the trails that fade (decision 42). Before
+ * that, the step written 50 is a strobe's (decision 50): the whole chain
+ * is stamped into the trails at even times, or on the kicks of the music,
+ * instead of its masses drawing lines, and the copies fade over a second.
  */
 export const MARK_STEP = 100;
+export const STROBE_STEP = 50;
 const STAYS = 600;
-const STEPS = [0, 0.5, 1, 2.5, 10, MARK_STEP, STAYS];
+const STEPS = [0, 0.5, 1, 2.5, 10, STROBE_STEP, MARK_STEP, STAYS];
 
-/** How a step of the trails fades: its half-life, without end for the one that stays, and whether it leaves a mark. */
-export function trailFade(value: number): { halfLife: number; mark: boolean } {
-  if (value === MARK_STEP) return { halfLife: 2.5, mark: true };
+/** How a step of the trails fades: its half-life, without end for the one that stays; whether it leaves a mark; and whether it is a strobe's. */
+export function trailFade(value: number): {
+  halfLife: number;
+  mark: boolean;
+  strobe: boolean;
+} {
+  if (value === MARK_STEP) return { halfLife: 2.5, mark: true, strobe: false };
+  if (value === STROBE_STEP) return { halfLife: 1, mark: false, strobe: true };
   if (value === STAYS) {
-    return { halfLife: Number.POSITIVE_INFINITY, mark: false };
+    return { halfLife: Number.POSITIVE_INFINITY, mark: false, strobe: false };
   }
-  return { halfLife: value, mark: false };
+  return { halfLife: value, mark: false, strobe: false };
 }
 
 export const TRAIL: Parameter = {
@@ -285,6 +294,7 @@ export const TRAIL: Parameter = {
   },
   speak: (value) => {
     if (value === 0) return "off";
+    if (value === STROBE_STEP) return "a strobe";
     if (value === MARK_STEP) return "leaves a mark";
     if (value === STAYS) return "stays";
     return `${String(value)} s`;
@@ -337,16 +347,18 @@ export const SPREAD: Parameter = {
  * chain, its light falling with how far it looks from it and never rising
  * again, and once dark it is born again on the chain, at its place in the
  * fan, a few a frame, so that the twins come out of the chain as a plume
- * and come apart in the chaos. One key switches, coming round.
+ * and come apart in the chaos. Or they stay as dust (decision 50): each
+ * twin drawn as its tip alone, a point of light, so that the fan is a cloud
+ * of sparks. One key goes round the three.
  */
 export const FADE: Parameter = {
   id: "fade",
   label: "Twins carried off by chaos",
-  values: [0, 1],
+  values: [0, 1, 2],
   initial: 0,
   keys: { down: [], up: ["p", "P"] },
   cyclic: true,
-  show: (value) => (value === 1 ? "fade" : "stay"),
+  show: (value) => (value === 1 ? "fade" : value === 2 ? "dust" : "stay"),
   icon: "snuffed",
 };
 
