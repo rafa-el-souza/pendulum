@@ -69,7 +69,9 @@ hanging rope it becomes as n grows.
   music, through the microphone, from a file, from the sound of a browser
   tab or of the whole screen in desktop Chrome and Edge, or from a beat it
   makes itself, with a card that shows what it hears; the sound stays on
-  the device, and for now it moves nothing.
+  the device. The music lights the chain's halo on the kicks, gives its
+  trails strength with the loudness, and has twins born again from it on
+  every attack; it does not move the chain yet.
 
 Every piece is meant to run fullscreen in the major browsers.
 
