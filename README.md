@@ -65,7 +65,10 @@ hanging rope it becomes as n grows.
   The controls wait behind one small button in a corner, which opens a thin
   row of icons; each control has a key too, and the address carries every
   value and switch, so a view can be shared: through the device's own sheet
-  for sharing, or as a QR code to open it on a phone.
+  for sharing, or as a QR code to open it on a phone. And it can listen to
+  music, through the microphone, from a file or from a beat it makes
+  itself, with a card that shows what it hears; the sound stays on the
+  device, and for now it moves nothing.
 
 Every piece is meant to run fullscreen in the major browsers.
 

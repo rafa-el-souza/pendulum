@@ -16,7 +16,20 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
   },
   projects: [
-    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
+    {
+      name: "chromium",
+      use: {
+        ...devices["Desktop Chrome"],
+        // a microphone that the page may use without asking, which hears a
+        // beep the browser makes, for the music card's test (decision 44)
+        launchOptions: {
+          args: [
+            "--use-fake-ui-for-media-stream",
+            "--use-fake-device-for-media-stream",
+          ],
+        },
+      },
+    },
     {
       name: "firefox",
       use: {
@@ -27,7 +40,14 @@ export default defineConfig({
         // renderer, which Firefox refuses by default. A visitor's Firefox
         // draws on a GPU and needs neither.
         headless: !process.env.CI,
-        launchOptions: { firefoxUserPrefs: { "webgl.force-enabled": true } },
+        // The same fake microphone, without asking, for the music card.
+        launchOptions: {
+          firefoxUserPrefs: {
+            "webgl.force-enabled": true,
+            "media.navigator.streams.fake": true,
+            "media.navigator.permission.disabled": true,
+          },
+        },
       },
     },
     { name: "webkit", use: { ...devices["Desktop Safari"] } },

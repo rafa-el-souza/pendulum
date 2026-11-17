@@ -1219,6 +1219,80 @@ the disc nearly as the cloud does. Of eighteen icons drawn and looked at in
 the row at its size, the fan's variants read as the twins' own control
 beside them, and the candle put out read at once.
 
+## 44. The piece listens to music
+
+*2026-11-17.* The first piece can listen to music, and a card shows what it
+hears. Nothing it hears acts on the chain yet: light comes next, then
+forces, each in its own entry.
+
+- **Where it is.** A button at the end of the row's actions, two beamed
+  eighth notes, and the W key open a small card over the controls' corner:
+  a meter of the last three seconds of loudness with the attacks marked and
+  the three bands beside it, the loudness in decibels, the source (off, the
+  microphone, a file, the demo beat), what it is doing in words, and the
+  line "Sound stays on this device." Shutting the card leaves the music
+  playing; Escape shuts it.
+- **The sources.** Each starts on a touch, as browsers ask. The microphone
+  is asked for with the browser's treatment of voice off (echo cancelling,
+  noise suppression, automatic gain), which is made for calls, spoils music,
+  and on Android puts the device in call mode; where the input in use is
+  worn on the head, a headset wired or Bluetooth, the device's own
+  microphone is asked for by its id. A file plays round and round. The demo
+  beat is a kick, a snare and a bass that the page makes itself as a
+  function of time: eight bars at 120 beats a minute, two of them quieter.
+  It plays aloud, its first bar at once and the rest once rendered, and the
+  page hears it straight from the function at the time of the sample being
+  played, so that, muted where a browser gives no sound, it is the same
+  beat. On an iPhone or an iPad the card says that the microphone stops
+  music playing on the device itself.
+- **What is heard.** Each frame takes the latest 2048 samples and hears
+  them with the piece's own arithmetic, the same in the page and in the
+  tests: a radix-2 Fourier transform; the loudness, and the power in three
+  bands (30 to 150 Hz, 150 to 4 000 Hz, 4 to 16 kHz), each read against its
+  own last fifteen seconds or so, so that music played quietly and loudly
+  moves the piece alike; and the attacks in each band, the rise of its
+  third-octave pieces since 30 ms before (the spectral flux), against the
+  flux's own habits. A band that holds 30 dB less than the whole sound, or
+  is quieter than −68 dB, strikes no attack; below −60 dB for 0.3 s the
+  music is silent.
+- **The sound stays on the device.** Nothing is recorded or sent, and the
+  microphone is let go when the card is turned off or another source
+  starts.
+
+The analysis runs on the page's main thread; the slice of the beat's clock
+moves it to the browser's audio thread. The card's look, place and words,
+the icon and how the beat sounds are the session's choices, which the
+author settles by trying and listening.
+
+**Why.** The author asked for a music visualizer and settled its design in
+a round of questions: a layer over the piece as it is first, and an
+ambient mode later; music acting as force and as light, the chain always in
+the paper's equations; a card on an icon and the W key; a demo beat with
+sound, which serves the tests muted; the analysis on the main thread first.
+This slice, the piece hearing, comes first so that he can check on his own
+devices that the sound arrives. Research for the design found that no
+source covers every case: a microphone hears what plays aloud, in any
+browser, but nothing in headphones, and on an iPhone opening it interrupts
+the music playing on the phone itself; the sound of a tab, the next slice,
+serves desktop Chrome and Edge with any output; and Spotify gives new apps
+no beat data.
+
+**Evidence.** The transform puts a sine in its bin, keeps Parseval's sum,
+and matches the transform summed term by term. The hearing found every
+attack of a kick drum's thumps and of a hi-hat's ticks, with none in the
+other band, from 24 to 165 frames a second at 44.1 and 48 kHz; at 10 frames
+a second its window of 43 ms misses the ticks that fall between frames.
+Over the demo beat it hears more than nine in ten kicks and snares, and no
+attack where nothing starts; the bass's notes are attacks in the low band
+too, as they are in music. The same music played 30 dB apart reads alike
+after a while. In the browser the demo beat moves the meter in the three
+engines, muted where an engine gives no sound, a file plays and is heard,
+and the microphone path runs in Chromium and Firefox on their fake
+microphones. Of six icons drawn and looked at in the row, headphones
+suggested listening in headphones, where a microphone hears nothing, a
+speaker suggested volume, and bars of levels a voice; the two beamed notes
+read as music at once.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.

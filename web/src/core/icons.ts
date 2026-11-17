@@ -35,6 +35,7 @@ export type Icon =
   | "share"
   | "copied"
   | "qr"
+  | "music"
   | "left"
   | "right";
 
@@ -187,6 +188,11 @@ const ICONS: Record<Icon, { fill: string; stroke: string; faint?: string }> = {
   qr: {
     fill: "M6 6h2v2H6zM16 6h2v2h-2zM6 16h2v2H6zM14 14h2v2h-2zM18 14h2v2h-2zM16 16h2v2h-2zM14 18h2v2h-2zM18 18h2v2h-2z",
     stroke: "M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4z",
+  },
+  // two eighth notes joined by their beam, their heads slanted: music
+  music: {
+    fill: "M4.6 18.6c0-1.3 1.3-2.4 2.9-2.4c1.1 0 1.9.6 1.9 1.5c0 1.3-1.3 2.4-2.9 2.4c-1.1 0-1.9-.6-1.9-1.5zM14.6 16.6c0-1.3 1.3-2.4 2.9-2.4c1.1 0 1.9.6 1.9 1.5c0 1.3-1.3 2.4-2.9 2.4c-1.1 0-1.9-.6-1.9-1.5zM9.4 5l10-2v3l-10 2z",
+    stroke: "M9.4 17.5V6M19.4 15.5V4",
   },
   left: { fill: "", stroke: "M15 5l-7 7 7 7" },
   right: { fill: "", stroke: "M9 5l7 7-7 7" },

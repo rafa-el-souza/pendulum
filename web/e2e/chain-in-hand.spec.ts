@@ -1328,3 +1328,142 @@ test.describe("on a narrow screen", () => {
     expect(errors).toEqual([]);
   });
 });
+
+/** A second of a tone at 440 Hz, as a WAV file of 16-bit samples at 8 kHz, for the music card to play. */
+function toneFile(): Buffer {
+  const rate = 8000;
+  const samples = rate;
+  const data = Buffer.alloc(44 + 2 * samples);
+  data.write("RIFF", 0);
+  data.writeUInt32LE(36 + 2 * samples, 4);
+  data.write("WAVEfmt ", 8);
+  data.writeUInt32LE(16, 16);
+  data.writeUInt16LE(1, 20);
+  data.writeUInt16LE(1, 22);
+  data.writeUInt32LE(rate, 24);
+  data.writeUInt32LE(2 * rate, 28);
+  data.writeUInt16LE(2, 32);
+  data.writeUInt16LE(16, 34);
+  data.write("data", 36);
+  data.writeUInt32LE(2 * samples, 40);
+  for (let i = 0; i < samples; i++) {
+    const value = 0.5 * Math.sin((2 * Math.PI * 440 * i) / rate);
+    data.writeInt16LE(Math.round(32767 * value), 44 + 2 * i);
+  }
+  return data;
+}
+
+/** The music card (decision 44), and its parts. */
+function musicCard(page: Page) {
+  const card = page.getByRole("dialog", { name: "Music" });
+  return {
+    card,
+    status: card.getByRole("status"),
+    meter: card.getByRole("meter", { name: "Sound arriving" }),
+    source: (name: string) => card.getByRole("button", { name, exact: true }),
+  };
+}
+
+/**
+ * Waits until the card's meter shows sound arriving; failing, says what the
+ * card said, and the page's errors.
+ */
+async function hearsSound(page: Page, errors: string[]): Promise<void> {
+  const { meter, status } = musicCard(page);
+  try {
+    await expect
+      .poll(async () => Number(await meter.getAttribute("aria-valuenow")), {
+        timeout: 15_000,
+      })
+      .toBeGreaterThan(0);
+  } catch (error) {
+    const said = (await status.textContent()) ?? "";
+    throw new Error(
+      `the meter stayed at 0; the card said "${said}"; the page's errors: ${JSON.stringify(errors)}`,
+      { cause: error },
+    );
+  }
+}
+
+test("the W key and its button open the music card, whose demo beat moves the meter, and off stops it", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("./");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  const { card, status, meter, source } = musicCard(page);
+  await expect(card).toBeHidden();
+  await page.keyboard.press("w");
+  await expect(card).toBeVisible();
+  await expect(status).toHaveText("Not listening.");
+  await expect(card).toContainText("Sound stays on this device.");
+  await expect(source("Off")).toHaveAttribute("aria-pressed", "true");
+
+  // the beat plays aloud, or muted where the browser gives no sound
+  await source("Demo beat").click();
+  await expect(source("Demo beat")).toHaveAttribute("aria-pressed", "true");
+  await expect(status).toHaveText(
+    /^(Playing the demo beat\.|The demo beat, muted)/,
+    { timeout: 10_000 },
+  );
+  await hearsSound(page, errors);
+
+  await source("Off").click();
+  await expect(status).toHaveText("Not listening.");
+  await expect(meter).toHaveAttribute("aria-valuenow", "0");
+
+  // Escape shuts the card; the row's button opens it again, and its own
+  // button shuts it
+  await page.keyboard.press("Escape");
+  await expect(card).toBeHidden();
+  await openControls(page);
+  await icon(page, "Music").click();
+  await expect(card).toBeVisible();
+  await card.getByRole("button", { name: "Close" }).click();
+  await expect(card).toBeHidden();
+  expect(errors).toEqual([]);
+});
+
+test("the music card plays a file of music chosen from the device, and hears it", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("./");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await page.keyboard.press("w");
+  const { card, status, source } = musicCard(page);
+  await card.locator('input[type="file"]').setInputFiles({
+    name: "tone.wav",
+    mimeType: "audio/wav",
+    buffer: toneFile(),
+  });
+  // a browser may take a few seconds to start its sound
+  await expect(status).toHaveText("Playing tone.wav.", { timeout: 10_000 });
+  await expect(source("File")).toHaveAttribute("aria-pressed", "true");
+  await hearsSound(page, errors);
+  await source("Off").click();
+  await expect(status).toHaveText("Not listening.");
+  expect(errors).toEqual([]);
+});
+
+test("the music card listens through the microphone, and lets it go", async ({
+  page,
+  browserName,
+}) => {
+  test.skip(
+    browserName === "webkit",
+    "no fake microphone is set up for WebKit here (playwright.config.ts)",
+  );
+  const errors = collectErrors(page);
+  await page.goto("./");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await page.keyboard.press("w");
+  const { status, source } = musicCard(page);
+  await source("Microphone").click();
+  await expect(status).toHaveText(/^Listening through /, { timeout: 10_000 });
+  await expect(source("Microphone")).toHaveAttribute("aria-pressed", "true");
+  await hearsSound(page, errors);
+  await source("Off").click();
+  await expect(status).toHaveText("Not listening.");
+  expect(errors).toEqual([]);
+});
