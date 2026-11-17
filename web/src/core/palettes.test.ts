@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { FAN_PALETTES, fanPalette, throughColors } from "./palettes.ts";
+import type { Rgb } from "./color.ts";
+import {
+  FAN_PALETTES,
+  fanPalette,
+  noteColor,
+  throughColors,
+} from "./palettes.ts";
 
 /** The sketch's ramp, as it was written for the sketch the author approved. */
 function sketchRamp(place: number): [number, number, number] {
@@ -85,5 +91,30 @@ describe("a palette through colours", () => {
   it("needs two colours or more, each written as #rrggbb", () => {
     expect(() => throughColors("#ffffff")).toThrow();
     expect(() => throughColors("#fff", "#000")).toThrow();
+  });
+});
+
+describe("the colours of the twelve notes", () => {
+  const distance = (a: Rgb, b: Rgb) =>
+    Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+
+  it("give each note its own bright colour round the wheel, a fifth apart as neighbours (decision 49)", () => {
+    const colors = Array.from({ length: 12 }, (_, name) => noteColor(name));
+    colors.forEach((color, a) => {
+      expect(Math.max(...color)).toBeCloseTo(1, 12);
+      for (const channel of color) {
+        expect(channel).toBeGreaterThanOrEqual(0);
+        expect(channel).toBeLessThanOrEqual(1);
+      }
+      colors.slice(a + 1).forEach((other) => {
+        expect(distance(color, other)).toBeGreaterThan(0.1);
+      });
+    });
+    // C and G are a fifth apart, and neighbours; C and C sharp are not
+    expect(distance(noteColor(0), noteColor(7))).toBeLessThan(
+      distance(noteColor(0), noteColor(1)),
+    );
+    // a name past B is the same note
+    expect(noteColor(12)).toEqual(noteColor(0));
   });
 });

@@ -2,7 +2,7 @@ import "../styles/base.css";
 
 import { cssColor, type Rgb } from "../core/color.ts";
 import { mountControls } from "../core/controls.ts";
-import { groundAt } from "../core/grounds.ts";
+import { groundAt, mixColors } from "../core/grounds.ts";
 import { Lines, SegmentBatch } from "../core/lines.ts";
 import { mountLinkCard, shareLink } from "../core/link.ts";
 import { mountMusicCard } from "../core/music.ts";
@@ -13,7 +13,7 @@ import {
   writeMusic,
   type Look,
 } from "../core/routes.ts";
-import { fanPalette } from "../core/palettes.ts";
+import { fanPalette, noteColor } from "../core/palettes.ts";
 import { keyAction, stepValue, type Parameter } from "../core/parameters.ts";
 import { mountStage, type Stage } from "../core/stage.ts";
 import {
@@ -137,13 +137,17 @@ const TENSION_EASE = 0.25;
 // along the shake, in m: a sign of the shake, which is a millimetre.
 const STANDING_LEAN = 0.1;
 const PIVOT_STREAK = 0.025;
-// What the music adds to the light (decision 46), at most: the chain's halo
-// grows to this many more pixels and this much more gain, never a flash over
-// a large area, and the trails' light to this many times its own.
-const GLOW_MOST = 1.5;
+// What the music adds to the light (decisions 46 and 49), at most: the
+// chain's halo grows to this many more pixels and this much more gain, never
+// a flash over a large area, and the trails' light to this many times its
+// own. A note's colour comes in over NOTE_EASE, in s, or NOTE_EASE_SLOW with
+// reduced motion asked for.
+const GLOW_MOST = 3;
 const GLOW_RADIUS = 4;
 const GLOW_GAIN = 0.3;
 const TRAIL_MOST = 2;
+const NOTE_EASE = 0.08;
+const NOTE_EASE_SLOW = 1;
 // How long the share button shows that the address was copied, in ms.
 const COPIED_MS = 2000;
 // The piece's name, which begins the page's title (decision 37).
@@ -284,6 +288,16 @@ function play({ canvas, gl }: Stage): void {
   const still = matchMedia("(prefers-reduced-motion: reduce)");
   let router = new Router(modeOf(tune.mode), { slow: still.matches });
   let look: Look = UNLIT;
+  // the colour of the note the bass holds, as it eases from the note before
+  let noteShown: Rgb | null = null;
+
+  /** `color` with as much of the bass's note as the music's mode gives to `to`. */
+  function tinted(color: Rgb, to: "chain" | "twins"): Rgb {
+    if (router.mode.tint?.to !== to || noteShown === null || look.tint <= 0) {
+      return color;
+    }
+    return mixColors(color, noteShown, look.tint);
+  }
   // the next twin a beat has born again, in turn round the fan, while the
   // twins stay
   let bornNext = 0;
@@ -370,8 +384,10 @@ function play({ canvas, gl }: Stage): void {
     const carried = Math.min(value(TWIN_COUNT), twinBudget.affordable());
     const most = bornPerFrame(carried);
     const gone = fading.gone(Math.min(twins.length, carried), most);
+    // the fan opens wider as the music asks (decision 49)
+    const spread = value(SPREAD) * 10 ** look.spread;
     for (const j of gone) {
-      const twin = bornTwin(state, j, value(SPREAD));
+      const twin = bornTwin(state, j, spread);
       twins[j] = twin;
       tipFrom(j, twin);
     }
@@ -381,7 +397,7 @@ function play({ canvas, gl }: Stage): void {
       born++
     ) {
       const j = twins.length;
-      const twin = bornTwin(state, j, value(SPREAD));
+      const twin = bornTwin(state, j, spread);
       twins.push(twin);
       fading.light[j] = 1;
       tipFrom(j, twin);
@@ -397,6 +413,8 @@ function play({ canvas, gl }: Stage): void {
   function bornOnBeat(share: number): void {
     const count = Math.min(twins.length, Math.round(share * twins.length));
     if (count === 0) return;
+    // the fan opens wider as the music asks (decision 49)
+    const spread = value(SPREAD) * 10 ** look.spread;
     let chosen: number[];
     if (value(FADE) === 1) {
       chosen = Array.from(twins.keys())
@@ -410,7 +428,7 @@ function play({ canvas, gl }: Stage): void {
       bornNext = (bornNext + count) % twins.length;
     }
     for (const j of chosen) {
-      const twin = bornTwin(state, j, value(SPREAD));
+      const twin = bornTwin(state, j, spread);
       twins[j] = twin;
       fading.light[j] = 1;
       tipFrom(j, twin);
@@ -1022,7 +1040,7 @@ function play({ canvas, gl }: Stage): void {
       const shine = fades ? (fading.light[j] ?? 1) : 1;
       if (shine < 1 / 64) return;
       chain.positions(twin.theta, twinX, twinY);
-      const color = fanColors[j] ?? colors.chain;
+      const color = tinted(fanColors[j] ?? colors.chain, "twins");
       let tx = 0;
       let ty = 0;
       for (let i = 0; i < chain.n; i++) {
@@ -1038,14 +1056,13 @@ function play({ canvas, gl }: Stage): void {
     rods.clear();
     dots.clear();
     spring.clear();
+    const chainColor = tinted(colors.chain, "chain");
     let ax = 0;
     let ay = 0;
     for (let i = 0; i < chain.n; i++) {
       const bx = x[i] ?? 0;
       const by = y[i] ?? 0;
-      const color = tensionShown
-        ? (rodColors[i] ?? colors.chain)
-        : colors.chain;
+      const color = tensionShown ? (rodColors[i] ?? colors.chain) : chainColor;
       rods.push(ax, ay, bx, by, color, 0.9);
       // the masses, while the rods are long enough to tell them apart, each
       // in the colour of the rod it hangs from
@@ -1089,7 +1106,8 @@ function play({ canvas, gl }: Stage): void {
     const trailStep = lit ? value(TRAIL) : 0;
     const { halfLife, mark } = trailFade(trailStep);
     if (simulated > 0 && trailStep > 0) {
-      trails.begin(fadeAfter(simulated, halfLife));
+      // they last longer as the music asks (decision 49)
+      trails.begin(fadeAfter(simulated, halfLife * (1 + look.linger)));
       lines.draw(trail, scale, { radius: 0.9 * ratio, roundEnds: false });
       trails.end();
       if (mark) {
@@ -1156,6 +1174,14 @@ function play({ canvas, gl }: Stage): void {
     // what the music says this frame, which the card's meter shows, paused
     // or not, and what it adds to the light, in real time (decision 46)
     look = router.look(music.hear(), real, tune.strength);
+    if (look.note >= 0) {
+      const color = noteColor(look.note);
+      const ease = still.matches ? NOTE_EASE_SLOW : NOTE_EASE;
+      noteShown =
+        noteShown === null
+          ? color
+          : mixColors(noteShown, color, 1 - Math.exp(-real / ease));
+    }
     trail.clear();
     let simulated = 0;
     if (tensionShown) frameTension.fill(0);
@@ -1179,6 +1205,7 @@ function play({ canvas, gl }: Stage): void {
       // The tip draws, and with the ribbon every mass does (decision 26), the
       // others fainter the more there are, so that the ribbon stays light.
       const firstDrawing = value(RIBBON) === 1 ? 0 : chain.n - 1;
+      const chainColor = tinted(colors.chain, "chain");
       const ribbonLight = 0.55 * Math.min(1, 2.2 / Math.sqrt(chain.n));
       for (let piece = 0; piece < pieces; piece++) {
         const want = asked / pieces;
@@ -1212,7 +1239,7 @@ function play({ canvas, gl }: Stage): void {
             // with the tension's colours, in the colour of the rod it hangs from
             const color = tensionShown
               ? (rodColors[i] ?? colors.chain)
-              : colors.chain;
+              : chainColor;
             trailPiece(ax, ay, bx, by, color, light);
           }
           ends[2 * i] = bx;
@@ -1253,7 +1280,7 @@ function play({ canvas, gl }: Stage): void {
         let done = 0;
         for (const twin of twins) {
           if ((done & 7) === 0 && performance.now() > giveUp) break;
-          const color = fanColors[done] ?? colors.chain;
+          const color = tinted(fanColors[done] ?? colors.chain, "twins");
           const shine = fades ? (fading.light[done] ?? 1) : 1;
           for (let piece = 0; piece < twinPieces; piece++) {
             twinStepper.advance(twin, simulated / twinPieces, g, {
