@@ -1821,6 +1821,63 @@ addresses, opening as the same screen; the title's words. The browser tests
 step through the trails' keys, the P key and the tension's control with
 their new keys.
 
+## 54. The controls in two levels: the pause, the light and six groups
+
+*2026-11-18.* The first piece's row of controls has two levels. This
+replaces the one row of decision 31, in which every control sat in sets;
+the button in the corner, the value right above its icon, and the keys
+stay as they were.
+
+- **The first level** holds eight icons: the pause and the light switch,
+  which act on the whole piece, then six groups. On a phone up to 400 px
+  wide its icons sit 36 px apart instead of 40, so that the eight fit
+  beside the button without scrolling, down to 360 px.
+- **A group's icon** opens the group's own row right above it, centred on it
+  and kept on the screen, and shuts it. Time and the start: start again,
+  save the moment, where the chain starts and the amplitude of a mode, time
+  backwards, and how fast time runs. The chain: its masses, the hand,
+  gravity's strength and direction, the shake, and the tension's colours.
+  The twins: how many, how far apart they are born, whether they stay or
+  fade, how they are drawn, and their palette. The trails: how long they
+  last, their style, and which masses draw them. The screen: the ground,
+  the sketch's light, which now has a button (decision 24), sharing the
+  address, and its QR code. The music's icon opens its card, as before.
+- **What was open comes back.** The row, its open group and the value open
+  in it stay as the visitor leaves them while the controls fade. Shut by
+  the button and opened again, the row opens the group and the value that
+  were open, and each group keeps the value last open in it. With the row
+  open, a key opens its control's group and shows the value there; with the
+  row shut, it shows the value alone above the button, as before. Escape
+  shuts the open group, then the row.
+- The groups' icons are placeholders until the author chooses among
+  candidates drawn for them: an hourglass for time, the corners of a frame
+  for the screen, and for the chain, the twins and the trails the icons of
+  their first controls.
+
+**Why.** The author asked how the controls could be grouped for a visitor,
+which should always be on the screen, which mix functions and which can be
+misread (decision 53). Of three layouts drawn for him (one row regrouped,
+two levels, or a few controls and a card with words) he leaned to two
+levels, and asked first to keep the twins apart from the trails, to say
+where the strobe and the dust go, and to give the colours a place by what
+they colour; then that a visitor should not have to click again to reopen
+what he was using when the row fades. The strobe went to the trails and the
+dust to the twins; the palette to the twins, the tension's colours to the
+chain, and the ground and the sketch's light, which belong to the whole
+picture, to a group of the screen, where a zoom, full screen and a
+wallpaper can go later. He chose the light switch on the first level, since
+it acts on two groups, and that everything comes back as it was left. While
+the row is shut, only the button in the corner shows, as before.
+
+**Evidence.** Before this, a phone 390 px wide showed 7 of the row's 25
+icons, all actions, with the music and every control of the chain about
+three screens of scrolling away. In headless Chromium at 1280 × 800: the
+first level; a group's row above its icon, and a value above that; a key
+that leads the row to its group and shows its value; the row shut and
+opened again with its group and its value; Escape shutting the group. At
+390 and 360 px wide the eight icons of the first level fit beside the
+button without scrolling.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
