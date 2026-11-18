@@ -4,9 +4,10 @@ import { describe, expect, it } from "vitest";
 import { QUIET, qrModules, qrPath } from "./qr.ts";
 
 // The QR code of a page's address (docs/decisions.md, decision 40): drawn as
-// the card draws it, it reads back as the address.
+// the card draws it, it reads back as the address. The site's own address,
+// decision 55.
 
-const SITE = "https://rafa-el-souza.github.io/pendulum/#";
+const SITE = "https://pendulum.rafasouza.dev.br/#";
 
 /** An address whose code holds a chain of n masses: fourteen bytes (decision 53) and eight to a mass, in base64url. */
 function address(n: number): string {
