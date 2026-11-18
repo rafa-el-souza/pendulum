@@ -1983,6 +1983,30 @@ tests find the light switch and the spread by their new names. Screenshots
 of the first level and of each group's row, 1280 and 390 px wide, in
 headless Chromium.
 
+## 59. The button is a pendulum, and it swings where it hangs
+
+*2026-11-18.* The button that opens the first piece's row is drawn as a
+pendulum: a bar, a string and a heavy bob, swung to one side over the faint
+arc of its swing. As the row opens or shuts, the string and the bob swing
+out to the other side about the pivot and back, losing their swing, to hang
+where they were, while the bar and the arc keep still; with reduced motion
+asked for, the button does not move. This replaces, in decision 57, the
+little chain swung from its pivot, and its turn to lie along the row.
+
+**Why.** On the site, the author found that the little chain did not read
+as a pendulum: without a support, and with masses of about one size, it
+read as a line of beads. He chose this pendulum from four drawn side by
+side at 18 px, closed and beside the row: with the arc, a bar, string and
+bob read as something that swings rather than as a "T". Turned 90° to lie
+along the row, none of the four read as a pendulum; raised to the side, the
+pendulum read as a pin, and swung to rest on the other side, as a musical
+note beside the music's icon. He chose that it hang and swing.
+
+**Evidence.** Frames of the swing on the built page, every 75 ms of its
+900, and a recording of the row opening and shutting at 640 and 390 px
+wide, in headless Chromium. The browser tests open and shut the row as
+before.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
