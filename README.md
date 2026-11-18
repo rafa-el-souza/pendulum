@@ -1,12 +1,12 @@
 # Pendulum
 
 [![CI](https://img.shields.io/github/actions/workflow/status/rafa-el-souza/pendulum/ci.yml?branch=main&label=CI)](https://github.com/rafa-el-souza/pendulum/actions/workflows/ci.yml?query=branch%3Amain)
-[![Site](https://img.shields.io/website?url=https%3A%2F%2Frafa-el-souza.github.io%2Fpendulum%2F&label=site&up_message=live&down_message=down)](https://rafa-el-souza.github.io/pendulum/)
+[![Site](https://img.shields.io/website?url=https%3A%2F%2Fpendulum.rafasouza.dev.br%2F&label=site&up_message=live&down_message=down)](https://pendulum.rafasouza.dev.br/)
 [![Licence: MIT](https://img.shields.io/github/license/rafa-el-souza/pendulum?label=licence)](LICENSE)
 [![arXiv:1910.12610](https://img.shields.io/badge/arXiv-1910.12610-b31b1b)](https://arxiv.org/abs/1910.12610v2)
 [![Tested in Chromium, Firefox and WebKit](https://img.shields.io/badge/browsers-Chromium%20%C2%B7%20Firefox%20%C2%B7%20WebKit-blue)](web/e2e/)
 
-<a href="https://rafa-el-souza.github.io/pendulum/"><img src="docs/media/swing.webp" width="800" alt="A chain of four masses, drawn as light on a dark ground, let go from one side, swings out and back in slow motion, at first a tenth of real time, then faster, smoothly, up to real time, while the twins born with it fan out in pink, gold and blue and fade. The top left corner says how fast time runs."></a>
+<a href="https://pendulum.rafasouza.dev.br/"><img src="docs/media/swing.webp" width="800" alt="A chain of four masses, drawn as light on a dark ground, let go from one side, swings out and back in slow motion, at first a tenth of real time, then faster, smoothly, up to real time, while the twins born with it fan out in pink, gold and blue and fade. The top left corner says how fast time runs."></a>
 
 Interactive browser pieces built on one physics paper. Before any of it
 reached a screen, the paper was checked equation by equation.
