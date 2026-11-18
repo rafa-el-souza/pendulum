@@ -2035,6 +2035,34 @@ note beside the music's icon. He chose that it hang and swing.
 wide, in headless Chromium. The browser tests open and shut the row as
 before.
 
+## 60. The browser tests run in Playwright's own image
+
+*2026-11-18.* In CI, the web job runs in Playwright's image of the version
+the tests use (`mcr.microsoft.com/playwright`, on Ubuntu 24.04, pinned by
+its digest), which carries Chromium, Firefox and WebKit, their system
+packages, and Xvfb for Firefox's virtual display. The step that installed
+the three browsers and their system packages through apt goes. The sound
+server of decision 44 is still installed through apt, since the image lacks
+it: nine packages, 2.2 MB, after 34 MB of package lists. The image runs as
+root, so Firefox is given root's home, and Chromium shares the host's
+memory, as Playwright advises. A unit test holds the image's version to the
+one in `web/package.json`, so a bump of Playwright that forgets the image
+fails before the browser tests do.
+
+**Why.** Ubuntu's package mirror has slowed several times to tens of kB/s.
+Installing the browsers' system packages, 185 of them, 125 MB, then took
+from 21 to more than 33 minutes, and the web job hit its 40-minute limit
+before any browser test ran: twice in a row on the pull requests of
+decisions 58 and 59. The image comes from Microsoft's registry instead.
+The author chose this over retrying until the mirror recovered, or leaving
+the pull requests for a later session.
+
+**Evidence.** The whole browser suite in the three engines, run on this
+machine in the same image, with the sound server started as the step
+starts it: 174 tests passed and 3 skipped, as in CI, in 15.2 minutes, on
+the code of decisions 58 and 59. The unit test of the image's version, red
+before the workflow named the image.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
