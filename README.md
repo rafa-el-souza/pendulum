@@ -68,7 +68,9 @@ hanging rope it becomes as n grows.
   which the chain stands on its head, as Kapitza's pendulum does: up to
   twelve masses; from sixteen, the shake takes the chain apart.
   The controls wait behind one small button in a corner, which opens a thin
-  row of icons; each control has a key too, and the address carries every
+  row of icons: the pause, the light, and six groups, time and the start,
+  the chain, the twins, the trails, the music and the screen, each opening
+  its own row of icons above it. Each control has a key too, and the address carries every
   value and switch, so a view can be shared: through the device's own sheet
   for sharing, or as a QR code to open it on a phone. And it can listen to
   music, through the microphone, from a file, from the sound of a browser

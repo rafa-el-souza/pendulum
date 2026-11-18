@@ -39,7 +39,11 @@ export type Icon =
   | "qr"
   | "music"
   | "left"
-  | "right";
+  | "right"
+  | "hourglass"
+  | "frame"
+  | "sketch"
+  | "sketched";
 
 const SVG = "http://www.w3.org/2000/svg";
 
@@ -208,6 +212,27 @@ const ICONS: Record<Icon, { fill: string; stroke: string; faint?: string }> = {
   music: {
     fill: "M4.6 18.6c0-1.3 1.3-2.4 2.9-2.4c1.1 0 1.9.6 1.9 1.5c0 1.3-1.3 2.4-2.9 2.4c-1.1 0-1.9-.6-1.9-1.5zM14.6 16.6c0-1.3 1.3-2.4 2.9-2.4c1.1 0 1.9.6 1.9 1.5c0 1.3-1.3 2.4-2.9 2.4c-1.1 0-1.9-.6-1.9-1.5zM9.4 5l10-2v3l-10 2z",
     stroke: "M9.4 17.5V6M19.4 15.5V4",
+  },
+  // Two of the groups of the row (decision 54), placeholders until the
+  // author chooses among candidates drawn for them; the chain's, the twins'
+  // and the trails' groups take the icons of their first controls. An
+  // hourglass: time and the start.
+  hourglass: {
+    fill: "M9.5 19.5h5L12 16z",
+    stroke:
+      "M6.5 3h11M6.5 21h11M8 3v2.5L12 12l4-6.5V3M8 21v-2.5L12 12l4 6.5V21",
+  },
+  // the four corners of a frame: the screen
+  frame: {
+    fill: "",
+    stroke: "M3.5 8.5v-5h5M15.5 3.5h5v5M20.5 15.5v5h-5M8.5 20.5h-5v-5",
+  },
+  // a pencil, outlined while the sketch's light is off and filled while it is
+  // on the whole frame (decision 24)
+  sketch: { fill: "", stroke: "M4 20l1-4.5L15.5 5l3.5 3.5L8.5 19z" },
+  sketched: {
+    fill: "M4 20l1-4.5L15.5 5l3.5 3.5L8.5 19z",
+    stroke: "M4 20l1-4.5L15.5 5l3.5 3.5L8.5 19z",
   },
   left: { fill: "", stroke: "M15 5l-7 7 7 7" },
   right: { fill: "", stroke: "M9 5l7 7-7 7" },
