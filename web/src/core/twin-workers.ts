@@ -63,6 +63,8 @@ export function sharesFor(cores: number | undefined): number {
 const PAUSE_MS = 1000;
 // How many of the last frames' gaps the screen's period is read from.
 const GAPS = 60;
+// Frames whose period, eased, is this many times the screen's come late.
+const LATE = 1.25;
 
 /**
  * The frames' rhythm, for the time each worker may take in a frame
@@ -95,6 +97,15 @@ export class FrameRhythm {
     return this.#period;
   }
 
+  /**
+   * Whether the frames come late: a quarter or more slower than the
+   * screen's own, over the last frames, and not for a frame dropped now and
+   * then.
+   */
+  get late(): boolean {
+    return this.#period > LATE * this.#screen;
+  }
+
   /** A frame came `gap` ms after the one before. */
   frame(gap: number): void {
     if (!(gap >= 0) || gap > PAUSE_MS) return;
@@ -116,6 +127,38 @@ export class FrameRhythm {
     const late = Math.max(0, this.#period - this.#screen);
     return this.#screen - elapsed - margin - late;
   }
+}
+
+/** The bounds of the time a worker may take in a frame, in ms. */
+export interface BudgetLimits {
+  /** The least a worker takes, and the most. */
+  readonly least: number;
+  readonly most: number;
+  /**
+   * The time the main line gave all the twins before the workers (decision
+   * 20), which the workers together keep at least while the frames come
+   * late.
+   */
+  readonly floor: number;
+}
+
+/**
+ * The time each of `shares` workers may take in a frame, in ms (decisions 51
+ * and 52): the frame's free time, from the least to the most; and while the
+ * frames come late, at least its share of the main line's time before the
+ * workers, so that a device with few cores carries no fewer twins than it
+ * did then.
+ */
+export function workerBudget(
+  free: number,
+  shares: number,
+  late: boolean,
+  limits: BudgetLimits,
+): number {
+  const least = late
+    ? Math.max(limits.least, limits.floor / shares)
+    : limits.least;
+  return Math.min(limits.most, Math.max(least, free));
 }
 
 /** A share opened in a worker of its own (twins.worker.ts). */

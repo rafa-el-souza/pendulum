@@ -29,6 +29,7 @@ import {
   TwinWorkers,
   inWorker,
   sharesFor,
+  workerBudget,
 } from "../core/twin-workers.ts";
 import { Fading, bornPerFrame, fanPlace } from "../core/twins.ts";
 import { fitScale, toWorld } from "../core/view.ts";
@@ -116,8 +117,10 @@ const PHYSICS_BUDGET_MS = 6;
 // are dropped, and time never slows for them. In the workers that carry them
 // (decision 51), each may take the frame's free time, until TWIN_MARGIN_MS
 // before the screen's next frame, none while the frames come late, at least
-// TWIN_LEAST_MS and at most TWIN_MOST_MS; on the main line, where no worker
-// can run, TWIN_LOCAL_MS.
+// TWIN_LEAST_MS and at most TWIN_MOST_MS; while the frames come late, the
+// workers together keep at least TWIN_LOCAL_MS, the main line's, so that a
+// device with few cores carries no fewer twins than before them (decision
+// 52). On the main line, where no worker can run, TWIN_LOCAL_MS.
 const TWIN_MOST_MS = 10;
 const TWIN_LEAST_MS = 1;
 const TWIN_MARGIN_MS = 2;
@@ -1390,9 +1393,10 @@ function play({ canvas, gl }: Stage): void {
    * from where the shake stood as it began (decision 36); where the chain is
    * at its end, for the light of twins that fade (decision 43); and the time
    * each worker may take: the frame's free time until a little before the
-   * screen's next frame, none while the frames come late, eased over the
-   * frames so that one slow frame cuts no twins, or the main line's own
-   * budget. No time sends what happened to the twins alone.
+   * screen's next frame, none while the frames come late, and then at
+   * least a share of the main line's own budget among the workers, eased
+   * over the frames so that one slow frame cuts no twins; or the main
+   * line's own budget. No time sends what happened to the twins alone.
    */
   function sendTwins(simulated: number, phase: number, now: number): void {
     // in one piece when there are no trails to draw
@@ -1413,12 +1417,11 @@ function play({ canvas, gl }: Stage): void {
       at.set(x);
       at.set(y, chain.n);
     }
-    const free = Math.min(
-      TWIN_MOST_MS,
-      Math.max(
-        TWIN_LEAST_MS,
-        rhythm.free(performance.now() - now, TWIN_MARGIN_MS),
-      ),
+    const free = workerBudget(
+      rhythm.free(performance.now() - now, TWIN_MARGIN_MS),
+      twins.shares,
+      rhythm.late,
+      { least: TWIN_LEAST_MS, most: TWIN_MOST_MS, floor: TWIN_LOCAL_MS },
     );
     twinBudget += 0.1 * (free - twinBudget);
     twins.setBudget(twins.local ? TWIN_LOCAL_MS : twinBudget);

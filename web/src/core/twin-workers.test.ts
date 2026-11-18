@@ -7,6 +7,7 @@ import {
   FrameRhythm,
   TwinWorkers,
   sharesFor,
+  workerBudget,
   type OpenShare,
   type SharePort,
 } from "./twin-workers.ts";
@@ -379,5 +380,49 @@ describe("the frames' rhythm", () => {
     const rhythm = after(SIXTY);
     rhythm.frame(5000);
     expect(rhythm.free(3, 2)).toBeCloseTo(SIXTY - 5, 6);
+    expect(rhythm.late).toBe(false);
+  });
+
+  it("says the frames come late once they come a quarter slower than the screen's, and not for a frame dropped now and then", () => {
+    expect(new FrameRhythm().late).toBe(false);
+    expect(after(SIXTY).late).toBe(false);
+    expect(after(1000 / 120, 400).late).toBe(false);
+    // one frame in ten dropped at 60 Hz
+    const dropped = new FrameRhythm();
+    for (let i = 0; i < 200; i++)
+      dropped.frame(i % 10 === 0 ? 2 * SIXTY : SIXTY);
+    expect(dropped.late).toBe(false);
+    expect(after(20, 200).late).toBe(false);
+    expect(after(1000 / 30, 200).late).toBe(true);
+    expect(after(100).late).toBe(true);
+  });
+});
+
+// The time each worker takes (decisions 20 and 51): the frame's free time,
+// from 1 ms to 10 ms; and while the frames come late, the workers together
+// keep at least the 4 ms the main line gave all the twins before them, so
+// that a device with few cores carries no fewer twins than it did then.
+describe("a worker's budget", () => {
+  const limits = { least: 1, most: 10, floor: 4 };
+
+  it("is the frame's free time, at most the most", () => {
+    expect(workerBudget(5, 3, false, limits)).toBe(5);
+    expect(workerBudget(12, 3, false, limits)).toBe(10);
+    expect(workerBudget(5, 1, true, limits)).toBe(5);
+  });
+
+  it("is the least in a frame with no time free whose frames come on time, however few the workers", () => {
+    expect(workerBudget(-3, 1, false, limits)).toBe(1);
+    expect(workerBudget(0.5, 3, false, limits)).toBe(1);
+  });
+
+  it("while the frames come late, shares out at least the main line's time among the workers, never less than the least each", () => {
+    expect(workerBudget(-20, 1, true, limits)).toBe(4);
+    expect(workerBudget(-20, 2, true, limits)).toBe(2);
+    expect(workerBudget(-20, 3, true, limits)).toBeCloseTo(4 / 3, 12);
+    expect(workerBudget(-20, 4, true, limits)).toBe(1);
+    expect(workerBudget(-20, 7, true, limits)).toBe(1);
+    // the frame's free time where it is more
+    expect(workerBudget(6, 1, true, limits)).toBe(6);
   });
 });
