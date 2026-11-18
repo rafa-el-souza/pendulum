@@ -1765,6 +1765,62 @@ were before the workers. With more masses they stay fewer: on this
 machine's two cores, which the worker shares with the browser's drawing,
 the same 4 ms carry fewer twins in a worker than they did on the main line.
 
+## 53. Controls that did two things are split, and the trails' control is how long they last
+
+*2026-11-18.* Three of the first piece's controls each did more than one
+thing, and are split. This replaces the steps that decision 50 added to two
+controls, the pips of decision 22, and how the switch of decision 35 and the
+scale of decision 41 show in the row.
+
+- **The trails** (keys 7 and 8, until now "Length of the trails") are how
+  long the trails last: the half-life of their light in seconds of
+  simulated time, off, 0.5, 1, 2.5 and 10 s, then the step that leaves a
+  mark (decision 42) and the one that stays. The control shows the seconds,
+  and the last two steps in words, rather than pips, which showed the
+  strobe's step as longer than ten seconds when its copies faded in one. A
+  new control, the trails' style, draws them as lines, as before and as the
+  piece opens, or as a strobe's (decision 50), on Shift with 7 and 8. A
+  strobe's copies now fade as the trails' half-life says, and with the step
+  that leaves a mark they leave one.
+- **The twins' P,** which went round stay, fade and dust, says whether they
+  stay or fade. A new control, the twins' look, draws them as chains or as
+  dust, on Shift and P. Twins that fade can now fade as dust, a plume of
+  sparks.
+- **The tension's colours,** a switch among the actions (T) and a scale
+  among the colours (Y), are one control in the row: off, then each scale,
+  coming round. The T and the Y work as before, and the address keeps the
+  switch and the scale apart, as it did.
+
+A key held with Shift is read by where it is on the keyboard rather than by
+what it types, so that it is the same key on any layout; a key with nothing
+of its own held with Shift does what it types, as before. A saved moment's
+code gets its sixth version, a byte longer. A code of the fifth, saved on
+the published page, opens as the same screen, its strobe's trails as trails
+of a second drawn by a strobe and its dust as twins that stay drawn as
+dust, and so do readable addresses with `trail=50` or `fade=2`. The two new
+controls' icons are placeholders until the author chooses among candidates
+drawn for them.
+
+**Why.** The author asked for a map of the controls: how to group them,
+which ones mix functions and how to separate them, and which can be misread.
+He named one case: the trails' "length" is about how long they last, and it
+hid the strobe, which did not belong there. Of the separations proposed
+(the trails' duration and style; duration, style and mark; or a new name
+alone; for the twins, life and look, or a new name alone), he chose the
+first of each, and Shift with the same key for the new controls, since the
+only free letters were F, kept for full screen, and Z and X, kept for a
+zoom. The tension as one control belongs to the grouping he chose to try
+next, where it sits with the chain it paints.
+
+**Evidence.** Unit tests: the trails' steps and their words, the style, the
+twins' life and look, the tension's control with its keys and its colours
+off; a key held with Shift found by where it is, and Shift and P told apart
+from P with caps lock on; the sixth code holding both new controls; a code
+of the fifth saved on the published page, and the published page's readable
+addresses, opening as the same screen; the title's words. The browser tests
+step through the trails' keys, the P key and the tension's control with
+their new keys.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
