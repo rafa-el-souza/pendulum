@@ -253,53 +253,64 @@ export const TWIN_COUNT: Parameter = {
 };
 
 /**
- * How long the trails last (decisions 21 and 22): the half-life of their
+ * How long the trails last (decisions 21, 22 and 53): the half-life of their
  * light in seconds of simulated time, from none to one that stays, written
  * 600. Before it, the step written 100 fades as the trails open, with a
  * half-life of 2.5 s, and leaves a mark: the brightest piece of trail drawn
- * at every point stays, under the trails that fade (decision 42). Before
- * that, the step written 50 is a strobe's (decision 50): the whole chain
- * is stamped into the trails at even times, or on the kicks of the music,
- * instead of its masses drawing lines, and the copies fade over a second.
+ * at every point stays, under the trails that fade (decision 42). The
+ * control shows the seconds, and the last two steps in words.
  */
 export const MARK_STEP = 100;
-export const STROBE_STEP = 50;
 const STAYS = 600;
-const STEPS = [0, 0.5, 1, 2.5, 10, STROBE_STEP, MARK_STEP, STAYS];
+const STEPS = [0, 0.5, 1, 2.5, 10, MARK_STEP, STAYS];
 
-/** How a step of the trails fades: its half-life, without end for the one that stays; whether it leaves a mark; and whether it is a strobe's. */
+/** How a step of the trails fades: its half-life, without end for the one that stays, and whether it leaves a mark. */
 export function trailFade(value: number): {
   halfLife: number;
   mark: boolean;
-  strobe: boolean;
 } {
-  if (value === MARK_STEP) return { halfLife: 2.5, mark: true, strobe: false };
-  if (value === STROBE_STEP) return { halfLife: 1, mark: false, strobe: true };
+  if (value === MARK_STEP) return { halfLife: 2.5, mark: true };
   if (value === STAYS) {
-    return { halfLife: Number.POSITIVE_INFINITY, mark: false, strobe: false };
+    return { halfLife: Number.POSITIVE_INFINITY, mark: false };
   }
-  return { halfLife: value, mark: false, strobe: false };
+  return { halfLife: value, mark: false };
 }
 
 export const TRAIL: Parameter = {
   id: "trail",
-  label: "Length of the trails",
+  label: "How long the trails last",
   values: STEPS,
   initial: 2.5,
   keys: { down: ["7"], up: ["8"] },
-  // one pip per step, none when the trails are off
   show: (value) => {
-    const filled = STEPS.indexOf(value);
-    return "●".repeat(filled) + "○".repeat(STEPS.length - 1 - filled);
-  },
-  speak: (value) => {
     if (value === 0) return "off";
-    if (value === STROBE_STEP) return "a strobe";
-    if (value === MARK_STEP) return "leaves a mark";
+    if (value === MARK_STEP) return "mark";
     if (value === STAYS) return "stays";
     return `${String(value)} s`;
   },
+  speak: (value) => {
+    if (value === MARK_STEP) return "leaves a mark";
+    return TRAIL.show(value);
+  },
   icon: "comet",
+};
+
+/**
+ * How the trails are drawn (decisions 50 and 53): as lines behind the
+ * masses, as they have been and as the piece opens, or as a strobe's, the
+ * whole chain stamped into the trails at even times, or on the kicks of the
+ * music, and each twin's tip as a point on the same flash. The copies fade
+ * as the trails' half-life says. The keys are the trails' own, with Shift.
+ */
+export const STYLE: Parameter = {
+  id: "style",
+  label: "Style of the trails",
+  values: [0, 1],
+  initial: 0,
+  keys: { down: ["Shift+Digit7"], up: ["Shift+Digit8"] },
+  show: (value) => (value === 1 ? "strobe" : "lines"),
+  speak: (value) => (value === 1 ? "a strobe" : "lines"),
+  icon: "strobe",
 };
 
 /**
@@ -341,25 +352,41 @@ export const SPREAD: Parameter = {
 };
 
 /**
- * Whether the twins stay or fade (decision 43). They stay, as they have until
- * now and as the piece opens: once the fan has opened they fill the disc, a
- * cloud that does not go. Or each fades as chaos carries it off from the
- * chain, its light falling with how far it looks from it and never rising
- * again, and once dark it is born again on the chain, at its place in the
- * fan, a few a frame, so that the twins come out of the chain as a plume
- * and come apart in the chaos. Or they stay as dust (decision 50): each
- * twin drawn as its tip alone, a point of light, so that the fan is a cloud
- * of sparks. One key goes round the three.
+ * Whether the twins stay or fade (decisions 43 and 53). They stay, as they
+ * have until now and as the piece opens: once the fan has opened they fill
+ * the disc, a cloud that does not go. Or each fades as chaos carries it off
+ * from the chain, its light falling with how far it looks from it and never
+ * rising again, and once dark it is born again on the chain, at its place
+ * in the fan, a few a frame, so that the twins come out of the chain as a
+ * plume and come apart in the chaos. One key goes round the two.
  */
 export const FADE: Parameter = {
   id: "fade",
-  label: "Twins carried off by chaos",
-  values: [0, 1, 2],
+  label: "Twins stay or fade",
+  values: [0, 1],
   initial: 0,
   keys: { down: [], up: ["p", "P"] },
   cyclic: true,
-  show: (value) => (value === 1 ? "fade" : value === 2 ? "dust" : "stay"),
+  show: (value) => (value === 1 ? "fade" : "stay"),
   icon: "snuffed",
+};
+
+/**
+ * How the twins are drawn (decisions 50 and 53): as chains, as they have been
+ * and as the piece opens, or as dust, each twin its tip alone, a point of
+ * light that leaves no trail, so that the fan is a cloud of sparks; twins
+ * that fade fade as dust too, a plume of sparks. The key is the twins' P,
+ * with Shift.
+ */
+export const LOOK: Parameter = {
+  id: "look",
+  label: "Look of the twins",
+  values: [0, 1],
+  initial: 0,
+  keys: { down: [], up: ["Shift+KeyP"] },
+  cyclic: true,
+  show: (value) => (value === 1 ? "dust" : "chains"),
+  icon: "dust",
 };
 
 /**
@@ -429,6 +456,26 @@ export const SCALE: Parameter = {
 };
 
 /**
+ * The tension's colours as the row shows them, one control (decision 53):
+ * off, then each scale, coming round. It is not in the address, which keeps
+ * the switch that turns them on (decision 35) and the scale apart: the T
+ * turns them on and off and the Y steps the scale, as before, and the
+ * control's − and + step through both.
+ */
+export const TENSION: Parameter = {
+  id: "tension",
+  label: "Colours of the tension",
+  values: [-1, ...SCALE.values],
+  initial: -1,
+  keys: { down: [], up: [] },
+  keysShown: "T Y",
+  cyclic: true,
+  show: (value) => (value < 0 ? "off" : SCALE.show(value)),
+  swatches: (value) => (value < 0 ? [] : (SCALE.swatches?.(value) ?? [])),
+  icon: "balance",
+};
+
+/**
  * The ground the piece is drawn on (decision 41), with the chain's colour,
  * the hand's and the row's that go with it: the ground the piece has had
  * first, then the others once round the colours, coming round from either
@@ -457,12 +504,14 @@ export const CHAIN: readonly Parameter[] = [
   AMPLITUDE,
 ];
 
-/** The light: the twins and whether they fade, their trails and the chain's, and their colours. */
+/** The light: the twins, whether they fade and how they are drawn, their trails and the chain's, and their colours. */
 export const LIGHT: readonly Parameter[] = [
   TWIN_COUNT,
   SPREAD,
   FADE,
+  LOOK,
   TRAIL,
+  STYLE,
   RIBBON,
   PALETTE,
 ];

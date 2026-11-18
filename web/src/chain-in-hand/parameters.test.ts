@@ -14,6 +14,7 @@ import {
   GROUND,
   HAND,
   LIGHT,
+  LOOK,
   MASSES,
   MODE,
   PALETTE,
@@ -23,6 +24,8 @@ import {
   SHAKE,
   SHAKE_AMPLITUDE,
   SPREAD,
+  STYLE,
+  TENSION,
   TILT,
   TIME,
   TRAIL,
@@ -30,7 +33,6 @@ import {
   gravityOf,
   handDamping,
   MARK_STEP,
-  STROBE_STEP,
   shakeOf,
   trailFade,
 } from "./parameters.ts";
@@ -101,53 +103,49 @@ describe("the first piece's parameters", () => {
     expect(TRAIL.icon).toBe("comet");
   });
 
-  it("have a step before the one that stays which fades as the first piece's trails do and leaves a mark (decision 42), and before it a strobe's (decision 50)", () => {
-    expect(TRAIL.values).toEqual([
-      0,
-      0.5,
-      1,
-      2.5,
-      10,
-      STROBE_STEP,
-      MARK_STEP,
-      600,
-    ]);
-    expect(trailFade(MARK_STEP)).toEqual({
-      halfLife: 2.5,
-      mark: true,
-      strobe: false,
-    });
+  it("have a step before the one that stays which fades as the first piece's trails do and leaves a mark (decision 42), and no strobe's among them, which is a style of its own (decision 53)", () => {
+    expect(TRAIL.values).toEqual([0, 0.5, 1, 2.5, 10, MARK_STEP, 600]);
+    expect(trailFade(MARK_STEP)).toEqual({ halfLife: 2.5, mark: true });
     expect(trailFade(600)).toEqual({
       halfLife: Number.POSITIVE_INFINITY,
       mark: false,
-      strobe: false,
     });
     for (const value of [0.5, 1, 2.5, 10]) {
-      expect(trailFade(value)).toEqual({
-        halfLife: value,
-        mark: false,
-        strobe: false,
-      });
+      expect(trailFade(value)).toEqual({ halfLife: value, mark: false });
     }
-    // the strobe's copies of the chain fade over a second
-    expect(trailFade(STROBE_STEP)).toEqual({
-      halfLife: 1,
-      mark: false,
-      strobe: true,
-    });
   });
 
-  it("show the trails' length as pips, none when off, and say it in seconds", () => {
-    expect(TRAIL.show(0)).toBe("○○○○○○○");
-    expect(TRAIL.show(2.5)).toBe("●●●○○○○");
-    expect(TRAIL.show(STROBE_STEP)).toBe("●●●●●○○");
-    expect(TRAIL.show(MARK_STEP)).toBe("●●●●●●○");
-    expect(TRAIL.show(600)).toBe("●●●●●●●");
+  it("are how long the trails last, shown in seconds and words, not pips (decision 53)", () => {
+    expect(TRAIL.label).toBe("How long the trails last");
+    expect(TRAIL.keys).toEqual({ down: ["7"], up: ["8"] });
+    expect(TRAIL.values.map((value) => TRAIL.show(value))).toEqual([
+      "off",
+      "0.5 s",
+      "1 s",
+      "2.5 s",
+      "10 s",
+      "mark",
+      "stays",
+    ]);
     expect(TRAIL.speak?.(0)).toBe("off");
     expect(TRAIL.speak?.(2.5)).toBe("2.5 s");
-    expect(TRAIL.speak?.(STROBE_STEP)).toBe("a strobe");
     expect(TRAIL.speak?.(MARK_STEP)).toBe("leaves a mark");
     expect(TRAIL.speak?.(600)).toBe("stays");
+  });
+
+  it("draw the trails as lines, as they have until now and as the piece opens, or as a strobe's, on Shift with the trails' own keys (decisions 50 and 53)", () => {
+    expect(STYLE.id).toBe("style");
+    expect(STYLE.label).toBe("Style of the trails");
+    expect(STYLE.values).toEqual([0, 1]);
+    expect(STYLE.initial).toBe(0);
+    expect(STYLE.keys).toEqual({
+      down: ["Shift+Digit7"],
+      up: ["Shift+Digit8"],
+    });
+    expect(STYLE.show(0)).toBe("lines");
+    expect(STYLE.show(1)).toBe("strobe");
+    expect(STYLE.speak?.(1)).toBe("a strobe");
+    expect(STYLE.icon).toBe("strobe");
   });
 
   it("step through the twins' palettes, opening with the sketch's, which the author keeps (decision 23)", () => {
@@ -251,22 +249,60 @@ describe("the first piece's parameters", () => {
       MODE,
       AMPLITUDE,
     ]);
-    expect(LIGHT).toEqual([TWIN_COUNT, SPREAD, FADE, TRAIL, RIBBON, PALETTE]);
+    expect(LIGHT).toEqual([
+      TWIN_COUNT,
+      SPREAD,
+      FADE,
+      LOOK,
+      TRAIL,
+      STYLE,
+      RIBBON,
+      PALETTE,
+    ]);
     expect(COLOURS).toEqual([SCALE, GROUND]);
     expect(PARAMETERS).toEqual([...CHAIN, ...LIGHT, ...COLOURS]);
   });
 
-  it("let the twins stay, as they have until now and as the piece opens, fade as chaos carries them off (decision 43), or stay as dust, their tips alone (decision 50), on one key", () => {
-    expect(FADE.values).toEqual([0, 1, 2]);
+  it("let the twins stay, as they have until now and as the piece opens, or fade as chaos carries them off (decision 43), on one key (decision 53)", () => {
+    expect(FADE.label).toBe("Twins stay or fade");
+    expect(FADE.values).toEqual([0, 1]);
     expect(FADE.initial).toBe(0);
     expect(FADE.keys).toEqual({ down: [], up: ["p", "P"] });
     expect(FADE.cyclic).toBe(true);
     expect(stepValue(FADE, 0, 1)).toBe(1);
-    expect(stepValue(FADE, 1, 1)).toBe(2);
-    expect(stepValue(FADE, 2, 1)).toBe(0);
+    expect(stepValue(FADE, 1, 1)).toBe(0);
     expect(FADE.show(0)).toBe("stay");
     expect(FADE.show(1)).toBe("fade");
-    expect(FADE.show(2)).toBe("dust");
+  });
+
+  it("draw the twins as chains, as they have until now and as the piece opens, or as dust, their tips alone (decision 50), on Shift with the twins' P, whether they stay or fade (decision 53)", () => {
+    expect(LOOK.id).toBe("look");
+    expect(LOOK.label).toBe("Look of the twins");
+    expect(LOOK.values).toEqual([0, 1]);
+    expect(LOOK.initial).toBe(0);
+    expect(LOOK.keys).toEqual({ down: [], up: ["Shift+KeyP"] });
+    expect(LOOK.cyclic).toBe(true);
+    expect(stepValue(LOOK, 1, 1)).toBe(0);
+    expect(LOOK.show(0)).toBe("chains");
+    expect(LOOK.show(1)).toBe("dust");
+    expect(LOOK.icon).toBe("dust");
+  });
+
+  it("show the tension's colours in the row as one control, off and then each scale, on the T that turns them on and the Y that steps the scale; the address keeps the switch and the scale (decision 53)", () => {
+    expect(TENSION.id).toBe("tension");
+    expect(PARAMETERS).not.toContain(TENSION);
+    expect(TENSION.values).toEqual([-1, ...SCALE.values]);
+    expect(TENSION.initial).toBe(-1);
+    expect(TENSION.keys).toEqual({ down: [], up: [] });
+    expect(TENSION.keysShown).toBe("T Y");
+    expect(TENSION.cyclic).toBe(true);
+    expect(TENSION.show(-1)).toBe("off");
+    expect(TENSION.swatches?.(-1)).toEqual([]);
+    for (const value of SCALE.values) {
+      expect(TENSION.show(value)).toBe(SCALE.show(value));
+      expect(TENSION.swatches?.(value)).toEqual(SCALE.swatches?.(value));
+    }
+    expect(TENSION.icon).toBe("balance");
   });
 
   it("fade a twin to a third of its light three tenths of the chain's length from it, the session's reach, which the author settles by looking (decision 43)", () => {

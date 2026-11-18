@@ -142,6 +142,31 @@ const VERSION_5: CodeTable = {
   switches: ["light", "tension", "sketch"],
 };
 
+/**
+ * The code's sixth version (decision 53), frozen once published: the
+ * trails' style apart from how long they last, and the twins' look apart
+ * from whether they fade, each after the other.
+ */
+const VERSION_6: CodeTable = {
+  version: 6,
+  controls: VERSION_5.controls.flatMap((control) => {
+    if (control.id === "trail") {
+      return [
+        { id: "trail", values: [0, 0.5, 1, 2.5, 10, 100, 600] },
+        { id: "style", values: [0, 1] },
+      ];
+    }
+    if (control.id === "fade") {
+      return [
+        { id: "fade", values: [0, 1] },
+        { id: "look", values: [0, 1] },
+      ];
+    }
+    return [control];
+  }),
+  switches: ["light", "tension", "sketch"],
+};
+
 /** Every version of the code the piece reads, oldest first. */
 export const CODES: readonly CodeTable[] = [
   VERSION_1,
@@ -149,10 +174,38 @@ export const CODES: readonly CodeTable[] = [
   VERSION_3,
   VERSION_4,
   VERSION_5,
+  VERSION_6,
 ];
 
 /** The version the piece writes: the newest. */
-export const CODE: CodeTable = VERSION_5;
+export const CODE: CodeTable = VERSION_6;
+
+/**
+ * The trails' step of a strobe and the twins as dust, as the fifth code and
+ * the readable addresses before decision 53 wrote them: a strobe's trails
+ * then faded over a second.
+ */
+const STROBE_STEP = "50";
+const STROBE_HALF_LIFE = "1";
+const DUST_STEP = "2";
+
+/**
+ * Values written before decision 53, as the controls are now: the strobe's
+ * step of the trails becomes trails of a second drawn by a strobe, and the
+ * twins as dust become twins that stay, drawn as dust.
+ */
+function asNow(written: ReadonlyMap<string, string>): Map<string, string> {
+  const now = new Map(written);
+  if (now.get("trail") === STROBE_STEP) {
+    now.set("trail", STROBE_HALF_LIFE);
+    if (!now.has("style")) now.set("style", "1");
+  }
+  if (now.get("fade") === DUST_STEP) {
+    now.set("fade", "0");
+    if (!now.has("look")) now.set("look", "1");
+  }
+  return now;
+}
 
 /** What an address opens: the controls, the switches, and the moment saved, if any. */
 export interface Opening {
@@ -171,9 +224,15 @@ export interface Opening {
 export function openingOf(search: string, hash: string): Opening {
   const screen = readCode(CODES, hash.replace(/^#/, ""));
   if (screen !== null) {
+    const written = asNow(
+      new Map(
+        [...screen.values].map(([id, value]) => [id, String(value)] as const),
+      ),
+    );
     const values = initialValues(PARAMETERS);
     for (const p of PARAMETERS) {
-      const value = screen.values.get(p.id);
+      const text = written.get(p.id);
+      const value = text === undefined ? undefined : Number(text);
       if (value !== undefined && p.values.includes(value)) {
         values.set(p.id, value);
       }
@@ -193,7 +252,12 @@ export function openingOf(search: string, hash: string): Opening {
       };
     }
   }
-  const values = readAddress(PARAMETERS, search);
+  // the first of a name written twice counts, as the readable address reads it
+  const query = new Map([...new URLSearchParams(search)].reverse());
+  const values = readAddress(
+    PARAMETERS,
+    `?${new URLSearchParams([...asNow(query)]).toString()}`,
+  );
   const switches = readSwitches(SWITCHES, search);
   const state = momentInHash(hash, values.get(MASSES.id) ?? MASSES.initial);
   const saved =
