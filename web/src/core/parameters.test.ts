@@ -70,12 +70,70 @@ describe("the registry of parameters (decision 10)", () => {
   });
 
   it("finds what a key does, and nothing for other keys", () => {
-    expect(keyAction(both, "ArrowUp")).toEqual({
+    expect(keyAction(both, { key: "ArrowUp" })).toEqual({
       parameter: count,
       direction: 1,
     });
-    expect(keyAction(both, "[")).toEqual({ parameter: speed, direction: -1 });
-    expect(keyAction(both, "x")).toBeNull();
+    expect(keyAction(both, { key: "[" })).toEqual({
+      parameter: speed,
+      direction: -1,
+    });
+    expect(keyAction(both, { key: "x" })).toBeNull();
+  });
+
+  it("finds what a key held with Shift does by where the key is, so that it is the same on any layout, and what the key does alone otherwise (decision 53)", () => {
+    const life: Parameter = {
+      id: "fade",
+      label: "Life",
+      values: [0, 1],
+      initial: 0,
+      keys: { down: [], up: ["p", "P"] },
+      show: String,
+      cyclic: true,
+    };
+    const look: Parameter = {
+      id: "look",
+      label: "Look",
+      values: [0, 1],
+      initial: 0,
+      keys: { down: [], up: ["Shift+KeyP"] },
+      show: String,
+      cyclic: true,
+    };
+    const style: Parameter = {
+      id: "style",
+      label: "Style",
+      values: [0, 1],
+      initial: 0,
+      keys: { down: ["Shift+Digit7"], up: ["Shift+Digit8"] },
+      show: String,
+    };
+    const all = [life, look, style, count];
+    // Shift and P steps the look; P alone, or with caps lock on, the life
+    expect(keyAction(all, { key: "P", code: "KeyP", shiftKey: true })).toEqual({
+      parameter: look,
+      direction: 1,
+    });
+    expect(keyAction(all, { key: "p", code: "KeyP", shiftKey: false })).toEqual(
+      { parameter: life, direction: 1 },
+    );
+    expect(keyAction(all, { key: "P", code: "KeyP", shiftKey: false })).toEqual(
+      { parameter: life, direction: 1 },
+    );
+    // Shift and 7 or 8, whichever symbol the layout puts on them
+    expect(
+      keyAction(all, { key: "&", code: "Digit7", shiftKey: true }),
+    ).toEqual({ parameter: style, direction: -1 });
+    expect(
+      keyAction(all, { key: "*", code: "Digit8", shiftKey: true }),
+    ).toEqual({ parameter: style, direction: 1 });
+    // a key held with Shift that has nothing of its own does what it types
+    expect(
+      keyAction(all, { key: "ArrowUp", code: "ArrowUp", shiftKey: true }),
+    ).toEqual({ parameter: count, direction: 1 });
+    expect(
+      keyAction(all, { key: "*", code: "NumpadMultiply", shiftKey: false }),
+    ).toBeNull();
   });
 
   it("accepts parameters with distinct ids and keys and an initial value among their values", () => {

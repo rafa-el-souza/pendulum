@@ -1032,7 +1032,12 @@ function play({ canvas, gl }: Stage): void {
     // A focused button takes its own Space and Enter.
     const onButton = event.target instanceof HTMLButtonElement;
     if (onButton && (event.key === " " || event.key === "Enter")) return;
-    const action = keyAction(PARAMETERS, event.key);
+    // a key held with Shift by where it is, or what a key types (decision 53)
+    const action = keyAction(PARAMETERS, {
+      key: event.key,
+      code: event.code,
+      shiftKey: event.shiftKey,
+    });
     if (action !== null) {
       event.preventDefault();
       step(action.parameter, action.direction);

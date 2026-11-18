@@ -17,11 +17,18 @@ export interface Parameter {
   readonly values: readonly number[];
   /** The value a visit starts with, one of `values`. */
   readonly initial: number;
-  /** The keys (KeyboardEvent.key) that step it down and up. */
+  /**
+   * The keys that step it down and up: what a key types (KeyboardEvent.key),
+   * or a key held with Shift by where it is on the keyboard, as
+   * "Shift+KeyP" (KeyboardEvent.code), so that it is the same key on any
+   * layout (decision 53).
+   */
   readonly keys: {
     readonly down: readonly string[];
     readonly up: readonly string[];
   };
+  /** How the keys are shown beside the control, where they are not `keys`, as for a control the piece steps itself. */
+  readonly keysShown?: string;
   /** How the control shows a value. */
   readonly show: (value: number) => string;
   /** What a screen reader says for a value, when what is shown does not read aloud. */
@@ -127,8 +134,15 @@ export function stepValue(
   return (direction > 0 ? values[0] : values.at(-1)) ?? value;
 }
 
+/** A key pressed: what it types, and where it is and whether Shift is held, when known. */
+export interface KeyPress {
+  readonly key: string;
+  readonly code?: string;
+  readonly shiftKey?: boolean;
+}
+
 /** The parameter a key steps, and which way, or null. */
-export function keyAction(
+function stepped(
   parameters: readonly Parameter[],
   key: string,
 ): { parameter: Parameter; direction: 1 | -1 } | null {
@@ -137,6 +151,22 @@ export function keyAction(
     if (parameter.keys.down.includes(key)) return { parameter, direction: -1 };
   }
   return null;
+}
+
+/**
+ * The parameter a key steps, and which way, or null: a key held with Shift
+ * by where it is, when a parameter has it so (decision 53), and otherwise
+ * by what it types.
+ */
+export function keyAction(
+  parameters: readonly Parameter[],
+  press: KeyPress,
+): { parameter: Parameter; direction: 1 | -1 } | null {
+  if (press.shiftKey === true && press.code !== undefined) {
+    const held = stepped(parameters, `Shift+${press.code}`);
+    if (held !== null) return held;
+  }
+  return stepped(parameters, press.key);
 }
 
 /** The values an address carries (a location's search, "?n=8"); anything else takes its initial value. */
