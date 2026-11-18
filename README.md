@@ -139,7 +139,8 @@ npm run dev                           # the app, at http://127.0.0.1:5173/
 ```
 
 `npm run e2e` needs Playwright's browsers; `npm run e2e:browsers` installs
-them with their system packages on Ubuntu, as CI does.
+them with their system packages on Ubuntu. CI runs the browser tests in
+Playwright's own image of the same version, which has them.
 
 `npm run media` takes the pictures at the top of this README again, from the
 published site, into `docs/media/`; `npm run media -- fan` takes one.

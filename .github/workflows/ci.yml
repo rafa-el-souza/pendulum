@@ -58,6 +58,17 @@ jobs:
       contents: read
     runs-on: ubuntu-24.04
     timeout-minutes: 40
+    # Playwright's own image, of the version in web/package.json (a unit test
+    # holds the two together), carries the three browsers and their system
+    # packages, so that no step waits on Ubuntu's package mirror for them
+    # (docs/decisions.md, decision 60). Shared memory as the host's, which
+    # Chromium needs; an init process for the browsers' children. It runs as
+    # root, and Firefox wants a home of its own user.
+    container:
+      image: mcr.microsoft.com/playwright:v1.65.0-noble@sha256:9beb546099e11f52d62e505537914870e01a67e0e6b00ae41da4775324e73dbe
+      options: --ipc=host --init
+    env:
+      HOME: /root
     defaults:
       run:
         working-directory: web
@@ -93,17 +104,15 @@ jobs:
       - name: Build
         run: npm run build
 
-      # Their system packages include Xvfb, the virtual display below.
-      - name: Install Chromium, Firefox and WebKit
-        run: npm run e2e:browsers
-
       # A browser's audio runs only where there is somewhere to send sound:
       # a sound server with no speakers, for the music card's tests
-      # (docs/decisions.md, decision 44). Its package lists were just
-      # refreshed by the step above.
+      # (docs/decisions.md, decision 44). The image has the browsers and Xvfb,
+      # the virtual display below, but not this server: nine packages, from
+      # Ubuntu's universe.
       - name: Start a sound server with no speakers
         run: |
-          sudo apt-get install --yes --no-install-recommends pulseaudio
+          apt-get update
+          apt-get install --yes --no-install-recommends pulseaudio
           pulseaudio --start --exit-idle-time=-1
           pactl info
 
