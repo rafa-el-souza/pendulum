@@ -1899,6 +1899,41 @@ readable settings (`?twins=4096&n=8`), with a saved moment's code, and by
 way of the first piece's own address (`chain-in-hand/`, decision 30);
 `http://` led to `https://`. The page raised no errors.
 
+## 56. The start says when it is a saved moment, and a value with nothing to do shows faint
+
+*2026-11-18.* Two changes to how the first piece's row shows where the
+chain starts and what has no effect. This replaces, in decisions 33 and 34,
+the start and the amplitude shown held back in the hand's blue, and
+choosing another start as a way to forget a saved moment.
+
+- **The start** (keys N and M, until now "Normal mode") is named Start and
+  shows side, mode 1 to mode 4 and, while a moment is saved, saved: where R
+  starts the chain again. With a moment saved, the start's − or + forgets
+  it and goes back to the start the control had before, rather than on to
+  the next. Another number of masses, or the amplitude of a mode, still
+  forgets it. The address and a saved moment's code are as they were.
+- **A value with nothing to do now** shows faint, its icon in the row and
+  the value above it, and can still be chosen: the amplitude while the
+  chain starts raised or from a saved moment, and which masses draw the
+  trails while a strobe's stamp the whole chain. The hand's blue is left to
+  a value held below the one asked for, as the number of twins and the
+  speed of time are when the machine cannot keep up (decision 20).
+
+**Why.** Mapping the controls (decisions 53 and 54) showed two things the
+row did not say: R started again from the start chosen or from a saved
+moment, without showing which, and the blue meant both "fewer than asked
+for" and "no effect now". After an explanation of R beside the rewind
+planned for later, the author chose that the start shows "saved" and that
+its first step returns to the start before; he chose the words and the
+faint tone from candidates drawn side by side.
+
+**Evidence.** Unit tests: the start's name and words, and "saved" kept
+outside its steps. Browser tests: the amplitude faint with the chain raised
+and not in a mode; after S, the start saying "the moment saved" and the
+amplitude faint; the start's first step forgetting the moment, the address
+losing its code, and the start raised to one side; the next step choosing
+mode 1; which masses faint with a strobe's trails and not with lines.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
