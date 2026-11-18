@@ -1878,6 +1878,27 @@ opened again with its group and its value; Escape shutting the group. At
 390 and 360 px wide the eight icons of the first level fit beside the
 button without scrolling.
 
+## 55. Published at the author's subdomain
+
+*2026-11-18.* The site is published at <https://pendulum.rafasouza.dev.br/>,
+the subdomain decision 12 chose, over HTTPS only. This replaces the address
+of decision 14; the rest of decision 14 stands. The old address,
+<https://rafa-el-souza.github.io/pendulum/>, forwards to the new one with the
+settings and the saved moment it carries, so links shared before keep
+working.
+
+**Why.** Decision 14 kept the GitHub address only until the subdomain's DNS
+records were in place; they now are.
+
+**What follows.** Nothing in the build changes: every URL in it is relative
+(decision 7), and sharing and the QR code take the page's own address
+(decision 40).
+
+**Evidence.** In headless Chromium, the old address led to the new one with
+readable settings (`?twins=4096&n=8`), with a saved moment's code, and by
+way of the first piece's own address (`chain-in-hand/`, decision 30);
+`http://` led to `https://`. The page raised no errors.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.

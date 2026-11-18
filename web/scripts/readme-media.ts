@@ -16,7 +16,7 @@ import { chromium, type Browser, type Page } from "@playwright/test";
 const ARGS = process.argv.slice(2);
 const SITE =
   ARGS.find((arg) => arg.startsWith("http")) ??
-  "https://rafa-el-souza.github.io/pendulum/";
+  "https://pendulum.rafasouza.dev.br/";
 /** The pictures asked for by name, or every one. */
 const NAMES = ARGS.filter((arg) => !arg.startsWith("http"));
 const OUT = new URL("../../docs/media/", import.meta.url);

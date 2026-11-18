@@ -1,28 +1,28 @@
 # Pendulum
 
 [![CI](https://img.shields.io/github/actions/workflow/status/rafa-el-souza/pendulum/ci.yml?branch=main&label=CI)](https://github.com/rafa-el-souza/pendulum/actions/workflows/ci.yml?query=branch%3Amain)
-[![Site](https://img.shields.io/website?url=https%3A%2F%2Frafa-el-souza.github.io%2Fpendulum%2F&label=site&up_message=live&down_message=down)](https://rafa-el-souza.github.io/pendulum/)
+[![Site](https://img.shields.io/website?url=https%3A%2F%2Fpendulum.rafasouza.dev.br%2F&label=site&up_message=live&down_message=down)](https://pendulum.rafasouza.dev.br/)
 [![Licence: MIT](https://img.shields.io/github/license/rafa-el-souza/pendulum?label=licence)](LICENSE)
 [![arXiv:1910.12610](https://img.shields.io/badge/arXiv-1910.12610-b31b1b)](https://arxiv.org/abs/1910.12610v2)
 [![Tested in Chromium, Firefox and WebKit](https://img.shields.io/badge/browsers-Chromium%20%C2%B7%20Firefox%20%C2%B7%20WebKit-blue)](web/e2e/)
 
-<a href="https://rafa-el-souza.github.io/pendulum/"><img src="docs/media/swing.webp" width="800" alt="A chain of four masses, drawn as light on a dark ground, let go from one side, swings out and back in slow motion, at first a tenth of real time, then faster, smoothly, up to real time, while the twins born with it fan out in pink, gold and blue and fade. The top left corner says how fast time runs."></a>
+<a href="https://pendulum.rafasouza.dev.br/"><img src="docs/media/swing.webp" width="800" alt="A chain of four masses, drawn as light on a dark ground, let go from one side, swings out and back in slow motion, at first a tenth of real time, then faster, smoothly, up to real time, while the twins born with it fan out in pink, gold and blue and fade. The top left corner says how fast time runs."></a>
 
 Interactive browser pieces built on one physics paper. Before any of it
 reached a screen, the paper was checked equation by equation.
 
 <table>
   <tr>
-    <td width="33%" valign="top"><a href="https://rafa-el-souza.github.io/pendulum/?twins=4096"><img src="docs/media/fan.webp" alt="A double pendulum's 4 096 twins, six seconds after the start, fanning out in pink, gold and blue over the paths of their tips."></a><br>4 096 twins, born a hair apart, part in colour.</td>
-    <td width="33%" valign="top"><a href="https://rafa-el-souza.github.io/pendulum/?twins=0&amp;trail=10"><img src="docs/media/trails.webp" alt="A double pendulum alone, with the path of its tip over the last seconds drawn as fine white loops."></a><br>The tip's path, kept ten seconds.</td>
-    <td width="33%" valign="top"><a href="https://rafa-el-souza.github.io/pendulum/?twins=0&amp;tension=1&amp;n=3&amp;trail=10"><img src="docs/media/tension.webp" alt="A chain of three masses, each rod coloured by its tension from blue to orange, over its tip's path in the same colours."></a><br>Each rod in the colour of its tension.</td>
+    <td width="33%" valign="top"><a href="https://pendulum.rafasouza.dev.br/?twins=4096"><img src="docs/media/fan.webp" alt="A double pendulum's 4 096 twins, six seconds after the start, fanning out in pink, gold and blue over the paths of their tips."></a><br>4 096 twins, born a hair apart, part in colour.</td>
+    <td width="33%" valign="top"><a href="https://pendulum.rafasouza.dev.br/?twins=0&amp;trail=10"><img src="docs/media/trails.webp" alt="A double pendulum alone, with the path of its tip over the last seconds drawn as fine white loops."></a><br>The tip's path, kept ten seconds.</td>
+    <td width="33%" valign="top"><a href="https://pendulum.rafasouza.dev.br/?twins=0&amp;tension=1&amp;n=3&amp;trail=10"><img src="docs/media/tension.webp" alt="A chain of three masses, each rod coloured by its tension from blue to orange, over its tip's path in the same colours."></a><br>Each rod in the colour of its tension.</td>
   </tr>
 </table>
 
 Each picture opens the site at the address it was taken from; the
 animation opens the site as it starts.
 
-The site: <https://rafa-el-souza.github.io/pendulum/>, published from `main`
+The site: <https://pendulum.rafasouza.dev.br/>, published from `main`
 after every check passes.
 
 The paper is Boran Yeşilyurt's *Equations of Motion Formulation of a Pendulum
@@ -49,7 +49,7 @@ hanging rope it becomes as n grows.
   chain of equal masses come from the zeros of Laguerre polynomials, and are
   tested against the modes the oracle finds by another route.
 - **The first piece, begun,** called
-  [Pendulum](https://rafa-el-souza.github.io/pendulum/) for now, which opens
+  [Pendulum](https://pendulum.rafasouza.dev.br/) for now, which opens
   at the site's root while it is the only piece. A chain drawn as light, to
   grab anywhere and throw. Its number of masses runs from 1 to 512
   while it moves, its time from a tenth of real time to four times it, its
