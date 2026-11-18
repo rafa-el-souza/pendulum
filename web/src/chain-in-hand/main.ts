@@ -25,14 +25,12 @@ import {
 } from "../core/tension.ts";
 import { LightTarget, Trails, fadeAfter } from "../core/trails.ts";
 import {
-  Fading,
-  TwinBudget,
-  apart,
-  bornPerFrame,
-  bornTwin,
-  bornTwins,
-  fanPlace,
-} from "../core/twins.ts";
+  FrameRhythm,
+  TwinWorkers,
+  inWorker,
+  sharesFor,
+} from "../core/twin-workers.ts";
+import { Fading, bornPerFrame, fanPlace } from "../core/twins.ts";
 import { fitScale, toWorld } from "../core/view.ts";
 import { Chain, createHand, type Hand } from "../physics/chain.ts";
 import { startInMode } from "../physics/modes.ts";
@@ -42,7 +40,6 @@ import {
   Stepper,
   restingState,
   reverseMotion,
-  type ChainState,
   type Shake,
 } from "../physics/step.ts";
 import { PIECES } from "../pieces.ts";
@@ -114,12 +111,17 @@ const STILL_AFTER_MS = 60;
 // The physics of one frame may take this long; past it, time runs slower
 // than asked, and the time control shows how much (decision 15).
 const PHYSICS_BUDGET_MS = 6;
-// The twins (decision 20): the time they may take in a frame, and their
-// longest substep, coarser than the chain's. How many are wanted, and how far
-// apart they are born, are controls (decisions 22 and 25); those the budget
-// cannot carry are dropped, and time never slows for them.
-const TWIN_BUDGET_MS = 4;
-const TWIN_STEP = 1 / 240;
+// The twins (decision 20): how many are wanted, and how far apart they are
+// born, are controls (decisions 22 and 25); those their budget cannot carry
+// are dropped, and time never slows for them. In the workers that carry them
+// (decision 51), each may take the frame's free time, until TWIN_MARGIN_MS
+// before the screen's next frame, none while the frames come late, at least
+// TWIN_LEAST_MS and at most TWIN_MOST_MS; on the main line, where no worker
+// can run, TWIN_LOCAL_MS.
+const TWIN_MOST_MS = 10;
+const TWIN_LEAST_MS = 1;
+const TWIN_MARGIN_MS = 2;
+const TWIN_LOCAL_MS = 4;
 // The trails (decision 21): a frame's motion is drawn in this many pieces to
 // the simulated second, so that a fast tip draws a curve. A tip that moves
 // farther than TRAIL_JUMP metres in one piece has jumped (raised again, or
@@ -200,14 +202,25 @@ function play({ canvas, gl }: Stage): void {
     pivot: opening.pivot,
   };
   const rods = new SegmentBatch(chain.n);
-  // the twins, and the colour of each by its place in the fan
-  let twins: ChainState[] = [];
-  let twinStepper = new Stepper(chain, { maxStep: TWIN_STEP });
-  // a first guess of a twin's cost, which the measured cost replaces in a few frames
-  const twinBudget = new TwinBudget(
-    TWIN_BUDGET_MS,
-    0.002 * (chain.n / 2) ** 1.5,
-  );
+  // The twins, dealt out to workers on all the device's cores but one
+  // (decision 51), with a first guess of a twin's cost that the measured
+  // cost replaces in a few frames; and whether new twins are asked for, to
+  // be born once the frame is drawn. Should the workers fail, the twins go
+  // back to the main line, lost, and are born again.
+  let spawnPending = false;
+  const twins = new TwinWorkers({
+    shares: sharesFor(navigator.hardwareConcurrency),
+    n: chain.n,
+    budget: TWIN_MOST_MS,
+    cost: 0.002 * (chain.n / 2) ** 1.5,
+    open: inWorker,
+    lost: () => {
+      spawnPending = true;
+    },
+  });
+  // the time each worker may take in a frame, eased over the frames
+  let twinBudget = TWIN_MOST_MS;
+  // the colour of each twin by its place in the fan
   const mostTwins = Math.max(...TWIN_COUNT.values);
   let fanColors: Rgb[] = [];
   /** Each twin's colour, by its place in the fan, from the palette asked for. */
@@ -231,8 +244,6 @@ function play({ canvas, gl }: Stage): void {
   let strength = 0;
   let x = new Float64Array(chain.n);
   let y = new Float64Array(chain.n);
-  let twinX = new Float64Array(chain.n);
-  let twinY = new Float64Array(chain.n);
   // the trails, the pieces drawn into them this frame, and where each ends
   const trails = new Trails(gl);
   // With the sketch's light on the whole frame, the frame's lines are drawn
@@ -244,11 +255,8 @@ function play({ canvas, gl }: Stage): void {
   let lit = opened.switches.get("light") ?? true;
   const LIGHT_CONTROLS: ReadonlySet<Parameter> = new Set(LIGHT);
   const trail = new SegmentBatch(4096);
-  const tipAt = new Float64Array(2);
-  // where each mass of the chain, and each twin's tip, was at the end of the
-  // last piece of trail
+  // where each mass of the chain was at the end of the last piece of trail
   let ends = new Float64Array(2 * chain.n);
-  const twinTips = new Float64Array(2 * mostTwins);
   // The colour of the tension (decision 35), off until it is switched on:
   // each rod's tension averaged over the motion of the frame, or of the
   // instant when no time went by, in Earth weights of what the rod holds.
@@ -286,6 +294,19 @@ function play({ canvas, gl }: Stage): void {
   let backwards = false;
   // the speed time actually ran at lately, as a share of the speed asked for
   let reached = 1;
+  // The frame computed a frame ahead while there are twins (decision 51):
+  // the time it simulated, and whether a strobe flashed in it. It is shown at
+  // the next frame, with the twins its workers bring back meanwhile; the
+  // chain as the screen shows it until then is kept, for a moment saved.
+  let ahead: { simulated: number; flashed: boolean } | null = null;
+  const shown = {
+    theta: new Float64Array(chain.n),
+    omega: new Float64Array(chain.n),
+    phase: 0,
+  };
+  // the screen's rhythm, and how late the frames come against it, for the
+  // time the twins' workers may take (decision 51)
+  const rhythm = new FrameRhythm();
   const pointer = { id: -1, x: 0, y: 0, vx: 0, vy: 0, at: 0 };
   // What the music does (decision 46): its mode and strength, from the
   // address, the routes that follow it, and what they add to the light this
@@ -313,20 +334,7 @@ function play({ canvas, gl }: Stage): void {
   // the simulated time since a strobe last stamped the chain (decision 50)
   let strobeClock = 0;
 
-  /** Where the tip of a chain at these angles is, written to tipAt. */
-  function tip(theta: Float64Array): void {
-    let px = 0;
-    let py = 0;
-    for (let i = 0; i < chain.n; i++) {
-      const l = chain.lengths[i] ?? 0;
-      px += l * Math.sin(theta[i] ?? 0);
-      py -= l * Math.cos(theta[i] ?? 0);
-    }
-    tipAt[0] = px;
-    tipAt[1] = py;
-  }
-
-  /** The trails go on from where the masses and the twins' tips are now. */
+  /** The chain's trails go on from where its masses are now; each twin's goes on from where its worker says it is (decision 51). */
   function resetTrailEnds(): void {
     chain.positions(state.theta, x, y);
     ends = new Float64Array(2 * chain.n);
@@ -334,16 +342,17 @@ function play({ canvas, gl }: Stage): void {
       ends[2 * i] = x[i] ?? 0;
       ends[2 * i + 1] = y[i] ?? 0;
     }
-    twins.forEach((twin, j) => {
-      tipFrom(j, twin);
-    });
   }
 
-  /** Twin j's trail goes on from where its tip is now. */
-  function tipFrom(j: number, twin: ChainState): void {
-    tip(twin.theta);
-    twinTips[2 * j] = tipAt[0] ?? 0;
-    twinTips[2 * j + 1] = tipAt[1] ?? 0;
+  /** The chain as the screen shows it now, kept while the next frame is computed ahead (decision 51). */
+  function keepShown(): void {
+    if (shown.theta.length !== chain.n) {
+      shown.theta = new Float64Array(chain.n);
+      shown.omega = new Float64Array(chain.n);
+    }
+    shown.theta.set(state.theta);
+    shown.omega.set(state.omega);
+    shown.phase = shakePhase;
   }
 
   /** A piece of trail from (ax, ay) to (bx, by), unless the point jumped. */
@@ -385,22 +394,33 @@ function play({ canvas, gl }: Stage): void {
   /** The twins' control: the number asked for, or the fewer the budget carries, in the tone of a value held back. */
   function showTwins(): void {
     const asked = value(TWIN_COUNT);
-    if (lit && hand === null && twins.length < asked) {
-      controls.showValue(TWIN_COUNT.id, asked, twins.length);
+    if (lit && hand === null && twins.count < asked) {
+      controls.showValue(TWIN_COUNT.id, asked, twins.count);
     } else {
       controls.showValue(TWIN_COUNT.id, asked);
     }
   }
 
-  /** Twins of the chain as it is now, as many as their budget carries, while the light is on. */
+  /**
+   * New twins are asked for: they are born once the frame has been drawn,
+   * of the chain as it is then, so that the chain and its twins are always
+   * drawn at one instant (decision 51).
+   */
   function spawnTwins(): void {
-    twins = bornTwins(
+    spawnPending = true;
+  }
+
+  /** Twins of the chain as it is now, as many as their budget carries, while the light is on. */
+  function bearTwins(): void {
+    spawnPending = false;
+    twins.clear();
+    const count = lit ? Math.min(value(TWIN_COUNT), twins.affordable()) : 0;
+    twins.born(
+      Array.from({ length: count }, (_, j) => j),
       state,
-      lit ? Math.min(value(TWIN_COUNT), twinBudget.affordable()) : 0,
       value(SPREAD),
     );
     fading.relight();
-    resetTrailEnds();
   }
 
   /**
@@ -411,27 +431,15 @@ function play({ canvas, gl }: Stage): void {
    * plume.
    */
   function bearAgain(): void {
-    const carried = Math.min(value(TWIN_COUNT), twinBudget.affordable());
+    const carried = Math.min(value(TWIN_COUNT), twins.affordable());
     const most = bornPerFrame(carried);
-    const gone = fading.gone(Math.min(twins.length, carried), most);
-    // the fan opens wider as the music asks (decision 49)
-    const spread = value(SPREAD) * 10 ** look.spread;
-    for (const j of gone) {
-      const twin = bornTwin(state, j, spread);
-      twins[j] = twin;
-      tipFrom(j, twin);
-    }
-    for (
-      let born = gone.length;
-      born < most && twins.length < carried;
-      born++
-    ) {
-      const j = twins.length;
-      const twin = bornTwin(state, j, spread);
-      twins.push(twin);
+    const born = fading.gone(Math.min(twins.count, carried), most);
+    for (let j = twins.count; born.length < most && j < carried; j++) {
+      born.push(j);
       fading.light[j] = 1;
-      tipFrom(j, twin);
     }
+    // the fan opens wider as the music asks (decision 49)
+    twins.born(born, state, value(SPREAD) * 10 ** look.spread);
   }
 
   /**
@@ -441,28 +449,21 @@ function play({ canvas, gl }: Stage): void {
    * comes back in its time.
    */
   function bornOnBeat(share: number): void {
-    const count = Math.min(twins.length, Math.round(share * twins.length));
+    const alive = twins.count;
+    const count = Math.min(alive, Math.round(share * alive));
     if (count === 0) return;
-    // the fan opens wider as the music asks (decision 49)
-    const spread = value(SPREAD) * 10 ** look.spread;
     let chosen: number[];
     if (value(FADE) === 1) {
-      chosen = Array.from(twins.keys())
+      chosen = Array.from({ length: alive }, (_, j) => j)
         .sort((a, b) => (fading.light[a] ?? 1) - (fading.light[b] ?? 1))
         .slice(0, count);
     } else {
-      chosen = Array.from(
-        { length: count },
-        (_, k) => (bornNext + k) % twins.length,
-      );
-      bornNext = (bornNext + count) % twins.length;
+      chosen = Array.from({ length: count }, (_, k) => (bornNext + k) % alive);
+      bornNext = (bornNext + count) % alive;
     }
-    for (const j of chosen) {
-      const twin = bornTwin(state, j, spread);
-      twins[j] = twin;
-      fading.light[j] = 1;
-      tipFrom(j, twin);
-    }
+    for (const j of chosen) fading.light[j] = 1;
+    // the fan opens wider as the music asks (decision 49)
+    twins.born(chosen, state, value(SPREAD) * 10 ** look.spread);
   }
 
   /**
@@ -500,6 +501,11 @@ function play({ canvas, gl }: Stage): void {
     meter = new PeriodTension(chain.n);
     setBackwards(saved?.backwards ?? false);
     trails.clear();
+    // the frame computed ahead, and the twins, belong to the motion before
+    ahead = null;
+    trail.clear();
+    twins.clear();
+    resetTrailEnds();
     spawnTwins();
     showStart();
   }
@@ -548,8 +554,6 @@ function play({ canvas, gl }: Stage): void {
     stepper = new Stepper(chain);
     x = new Float64Array(n);
     y = new Float64Array(n);
-    twinX = new Float64Array(n);
-    twinY = new Float64Array(n);
     weights = earthWeights(chain);
     shades = new TensionShades(n);
     rodColors = Array.from({ length: n }, () => colors.chain);
@@ -562,15 +566,14 @@ function play({ canvas, gl }: Stage): void {
       const index = Math.min(n - 1, Math.max(0, Math.round(along * n) - 1));
       hand = holding(index, hand);
     }
-    // The twins move to the new number too, as many as it carries; back at a
-    // number that carries many more than are left, they are born again.
-    twinStepper = new Stepper(chain, { maxStep: TWIN_STEP });
-    twinBudget.rescale(before.n, n);
-    twins = twins
-      .slice(0, twinBudget.affordable())
-      .map((twin) => resample(before, twin, n).state);
-    const carried = Math.min(value(TWIN_COUNT), twinBudget.affordable());
-    if (hand === null && twins.length < 0.5 * carried) spawnTwins();
+    // The twins move to the new number too, in their workers, as many as it
+    // carries; back at a number that carries many more than are left, they
+    // are born again.
+    twins.rescale(before.n, n);
+    twins.keep(twins.affordable());
+    twins.resample(n);
+    const carried = Math.min(value(TWIN_COUNT), twins.affordable());
+    if (hand === null && twins.count < 0.5 * carried) spawnTwins();
     resetTrailEnds();
     // a chain still swinging in the mode it started in starts again in that
     // mode of the new chain (decision 33)
@@ -590,8 +593,9 @@ function play({ canvas, gl }: Stage): void {
     if (on) {
       if (hand === null) spawnTwins();
     } else {
-      twins = [];
+      twins.clear();
       trails.clear();
+      trail.clear();
     }
     controls.showAction("light", on ? "light" : "dark", "Light", on);
     showTwins();
@@ -632,10 +636,14 @@ function play({ canvas, gl }: Stage): void {
   function reverseTime(): void {
     if (hand !== null) return;
     reverseMotion(state);
-    for (const twin of twins) reverseMotion(twin);
+    twins.reverse();
     // the shake runs back too: its pivot keeps its place and moves the other
     // way, which is its phase turned over
     shakePhase = -shakePhase;
+    // and so does the chain the screen shows while the next frame is
+    // computed ahead (decision 51)
+    reverseMotion(shown);
+    shown.phase = -shown.phase;
     meter = new PeriodTension(chain.n);
     setBackwards(!backwards);
   }
@@ -665,11 +673,14 @@ function play({ canvas, gl }: Stage): void {
    * opened again starts the same.
    */
   function save(): void {
+    // the chain the screen shows, while the next frame is computed ahead
+    // (decision 51)
+    const screen = ahead !== null && shown.theta.length === chain.n;
     const now: Saved = {
-      state,
+      state: screen ? shown : state,
       paused,
       backwards,
-      phase: shakePhase,
+      phase: screen ? shown.phase : shakePhase,
       savedAt: Date.now(),
     };
     saved = openingOf("", addressOf(values, switches(), now, "")).saved;
@@ -807,7 +818,10 @@ function play({ canvas, gl }: Stage): void {
     const twinsAgain =
       parameter === TWIN_COUNT || parameter === SPREAD || parameter === FADE;
     if (twinsAgain && hand === null) spawnTwins();
-    if (parameter === TRAIL && next === 0) trails.clear();
+    if (parameter === TRAIL && next === 0) {
+      trails.clear();
+      trail.clear();
+    }
     // leaving the step that leaves a mark puts the mark out (decision 42)
     if (parameter === TRAIL && before === MARK_STEP) trails.clearMark();
     // another mode, or another amplitude of one, starts the chain again in it
@@ -964,7 +978,7 @@ function play({ canvas, gl }: Stage): void {
     if (paused) setPaused(false);
     if (backwards) setBackwards(false);
     inMode = false;
-    twins = [];
+    twins.clear();
     // the nearest mass, wherever the press lands
     hand = holding(chain.nearestMass(state.theta, px, py), {
       x: px,
@@ -1064,28 +1078,33 @@ function play({ canvas, gl }: Stage): void {
     dust.clear();
     const faint = Math.min(
       0.5,
-      Math.max(0.05, 2.2 / Math.sqrt(Math.max(1, twins.length))),
+      Math.max(0.05, 2.2 / Math.sqrt(Math.max(1, twins.count))),
     );
     const fades = value(FADE) === 1;
     // as dust, each twin its tip alone, a point brighter than a line
     const asDust = value(FADE) === 2;
-    const speck = Math.min(0.8, 6 / Math.sqrt(Math.max(1, twins.length)));
-    twins.forEach((twin, j) => {
+    const speck = Math.min(0.8, 6 / Math.sqrt(Math.max(1, twins.count)));
+    // each twin where its worker last said it is, at the chain's instant
+    // (decision 51)
+    twins.each((j, report, k) => {
       const shine = fades ? (fading.light[j] ?? 1) : 1;
       if (shine < 1 / 64) return;
-      chain.positions(twin.theta, twinX, twinY);
       const color = tinted(fanColors[j] ?? colors.chain, "twins");
       if (asDust) {
-        const px = twinX[chain.n - 1] ?? 0;
-        const py = twinY[chain.n - 1] ?? 0;
+        const end = 2 * (report.pieces + 1) * (k + 1) - 2;
+        const px = report.tips[end] ?? 0;
+        const py = report.tips[end + 1] ?? 0;
         dust.push(px, py, px, py, color, speck);
         return;
       }
+      const { n, positions } = report;
+      const base = 2 * n * k;
+      if (positions.length < base + 2 * n) return;
       let tx = 0;
       let ty = 0;
-      for (let i = 0; i < chain.n; i++) {
-        const bx = twinX[i] ?? 0;
-        const by = twinY[i] ?? 0;
+      for (let i = 0; i < n; i++) {
+        const bx = positions[base + 2 * i] ?? 0;
+        const by = positions[base + 2 * i + 1] ?? 0;
         fan.push(tx, ty, bx, by, color, faint * shine);
         tx = bx;
         ty = by;
@@ -1214,11 +1233,261 @@ function play({ canvas, gl }: Stage): void {
     });
   }
 
+  /**
+   * The chain's motion over a frame of dt seconds, in pieces that each end
+   * in a point of its trails (decision 21), with a strobe's flashes
+   * (decision 50), the valve that shows time slowed (decision 15) and the
+   * colour of its tension (decision 35): the time it simulated, and whether
+   * a strobe flashed. The music flashes the strobe on its kicks when
+   * `flashes`.
+   */
+  function advanceChain(
+    dt: number,
+    now: number,
+    flashes: boolean,
+  ): { simulated: number; flashed: boolean } {
+    let simulated = 0;
+    if (tensionShown) frameTension.fill(0);
+    if (hand !== null) {
+      if (now - pointer.at > STILL_AFTER_MS) {
+        pointer.vx = 0;
+        pointer.vy = 0;
+      }
+      hand.x = pointer.x;
+      hand.y = pointer.y;
+      hand.vx = pointer.vx;
+      hand.vy = pointer.vy;
+    }
+    // The chain moves in pieces, each ending in a point of its trail.
+    const asked = dt * value(TIME);
+    const deadline = performance.now() + PHYSICS_BUDGET_MS;
+    const pieces = Math.min(16, Math.max(4, Math.ceil(asked * TRAIL_RATE)));
+    // The tip draws, and with the ribbon every mass does (decision 26), the
+    // others fainter the more there are, so that the ribbon stays light.
+    const firstDrawing = value(RIBBON) === 1 ? 0 : chain.n - 1;
+    const chainColor = tinted(colors.chain, "chain");
+    // a strobe's trails stamp the whole chain instead (decision 50)
+    const strobe = lit && trailFade(value(TRAIL)).strobe;
+    let flashed = false;
+    const ribbonLight = 0.55 * Math.min(1, 2.2 / Math.sqrt(chain.n));
+    for (let piece = 0; piece < pieces; piece++) {
+      const want = asked / pieces;
+      const shake = shakeAt(shakePhase);
+      const moved = stepper.advance(state, want, g, {
+        hand,
+        deadline,
+        meanTension: tensionShown && shake === null ? pieceTension : null,
+        shake,
+        periodTension: tensionShown ? meter : null,
+      });
+      simulated += moved.simulated;
+      if (shake !== null) {
+        shakePhase =
+          (shakePhase + shake.rate * moved.simulated) % (2 * Math.PI);
+      }
+      if (tensionShown && shake === null) {
+        for (let i = 0; i < chain.n; i++) {
+          frameTension[i] =
+            (frameTension[i] ?? 0) + moved.simulated * (pieceTension[i] ?? 0);
+        }
+      }
+      chain.positions(state.theta, x, y);
+      for (let i = 0; i < chain.n; i++) {
+        const bx = x[i] ?? 0;
+        const by = y[i] ?? 0;
+        if (i >= firstDrawing && !strobe) {
+          const light = i === chain.n - 1 ? 0.55 : ribbonLight;
+          const ax = ends[2 * i] ?? bx;
+          const ay = ends[2 * i + 1] ?? by;
+          // with the tension's colours, in the colour of the rod it hangs from
+          const color = tensionShown
+            ? (rodColors[i] ?? colors.chain)
+            : chainColor;
+          trailPiece(ax, ay, bx, by, color, light);
+        }
+        ends[2 * i] = bx;
+        ends[2 * i + 1] = by;
+      }
+      // at even times of the motion, unless the music flashes the strobe
+      if (strobe && !flashes) {
+        strobeClock += moved.simulated;
+        if (strobeClock >= 1 / STROBE_RATE) {
+          strobeClock %= 1 / STROBE_RATE;
+          stamp(chainColor);
+          flashed = true;
+        }
+      }
+      // out of time: the rest of the frame is slow motion (decision 15)
+      if (moved.simulated < want * 0.999) break;
+    }
+    // on a kick, while the music flashes the strobe
+    if (strobe && flashes && look.flash > 0) {
+      stamp(chainColor);
+      flashed = true;
+    }
+    const finite =
+      state.theta.every(Number.isFinite) && state.omega.every(Number.isFinite);
+    if (!finite) start();
+
+    // The valve: when the machine keeps time below the speed asked for,
+    // the time control shows the speed reached, and comes into sight
+    // unless the visitor is reading another value in the open row.
+    const wasHeld = reached < 0.97;
+    reached += 0.1 * (simulated / asked - reached);
+    const held = reached < 0.97;
+    const speed = value(TIME);
+    if (held) {
+      controls.showValue(
+        TIME.id,
+        speed,
+        Math.round(speed * reached * 100) / 100,
+      );
+      if (!wasHeld) controls.notice(TIME.id);
+    } else if (wasHeld) {
+      controls.showValue(TIME.id, speed);
+    }
+    easeTension(simulated);
+    return { simulated, flashed };
+  }
+
+  /**
+   * Each rod's colour eases toward its tension (decision 35): over whole
+   * periods of a shaking pivot, over the motion of `simulated` seconds, or
+   * of the instant when none went by.
+   */
+  function easeTension(simulated: number): void {
+    if (!tensionShown) return;
+    if (value(SHAKE) > 0) {
+      // over whole periods of the shake, where its swing averages out; until
+      // one has closed, the colours wait
+      if (meter.closed) shades.ease(meter.mean, weights, TENSION_EASE);
+    } else {
+      // the tension over the frame's motion, or of the instant when none
+      if (simulated > 0) {
+        for (let i = 0; i < chain.n; i++) {
+          frameTension[i] = (frameTension[i] ?? 0) / simulated;
+        }
+      } else {
+        chain.solve(
+          state.theta,
+          state.omega,
+          g,
+          tensionScratch,
+          frameTension,
+          hand,
+        );
+      }
+      shades.ease(frameTension, weights, TENSION_EASE);
+    }
+    for (let i = 0; i < chain.n; i++) {
+      rodColors[i] = tensionColor(shades.places[i] ?? 0);
+    }
+  }
+
+  /**
+   * Sends the twins' workers the frame just computed (decision 51): the
+   * time it simulated, in pieces for their trails, shaken as the chain was
+   * from where the shake stood as it began (decision 36); where the chain is
+   * at its end, for the light of twins that fade (decision 43); and the time
+   * each worker may take: the frame's free time until a little before the
+   * screen's next frame, none while the frames come late, eased over the
+   * frames so that one slow frame cuts no twins, or the main line's own
+   * budget. No time sends what happened to the twins alone.
+   */
+  function sendTwins(simulated: number, phase: number, now: number): void {
+    // in one piece when there are no trails to draw
+    const pieces =
+      simulated <= 0
+        ? 0
+        : value(TRAIL) === 0
+          ? 1
+          : Math.min(8, Math.max(1, Math.ceil(simulated * TWIN_TRAIL_RATE)));
+    const rate = 2 * Math.PI * value(SHAKE);
+    const shakes = Array.from({ length: pieces }, (_, piece) =>
+      shakeAt(phase + (rate * piece * simulated) / pieces),
+    );
+    let at: Float64Array | null = null;
+    if (value(FADE) === 1) {
+      chain.positions(state.theta, x, y);
+      at = new Float64Array(2 * chain.n);
+      at.set(x);
+      at.set(y, chain.n);
+    }
+    const free = Math.min(
+      TWIN_MOST_MS,
+      Math.max(
+        TWIN_LEAST_MS,
+        rhythm.free(performance.now() - now, TWIN_MARGIN_MS),
+      ),
+    );
+    twinBudget += 0.1 * (free - twinBudget);
+    twins.setBudget(twins.local ? TWIN_LOCAL_MS : twinBudget);
+    twins.send({
+      time: simulated,
+      pieces,
+      g,
+      shakes,
+      chain: at,
+      whole: value(FADE) !== 2,
+      budget: twins.local ? TWIN_LOCAL_MS : twinBudget,
+    });
+  }
+
+  /**
+   * What the twins' workers sent back since the last frame (decision 51):
+   * each twin's tip along the frame draws its trail, a strobe's flash
+   * stamps it as a point (decision 50), and a twin that fades takes the
+   * light of how far it has gone from the chain (decision 43).
+   */
+  function takeTwins(flashed: boolean): void {
+    // faint, so that where many twins' trails run together they read as one
+    const light = Math.min(
+      0.35,
+      Math.max(0.03, 1.2 / Math.sqrt(Math.max(1, twins.count))),
+    );
+    // while they fade, each in its own light, which then falls with how far
+    // it has gone from the chain
+    const fades = value(FADE) === 1;
+    // their tips draw lines, save as dust, which draws none, and under a
+    // strobe, whose flashes stamp them as points
+    const strobe = lit && trailFade(value(TRAIL)).strobe;
+    const tipLines = !strobe && value(FADE) !== 2;
+    const music = 1 + Math.min(TRAIL_MOST, look.trail);
+    twins.take((j, report, k) => {
+      const color = tinted(fanColors[j] ?? colors.chain, "twins");
+      const shine = fades ? (fading.light[j] ?? 1) : 1;
+      const { pieces, tips } = report;
+      const at = 2 * (pieces + 1) * k;
+      if (tipLines) {
+        for (let piece = 0; piece < pieces; piece++) {
+          const from = at + 2 * piece;
+          trailPiece(
+            tips[from] ?? 0,
+            tips[from + 1] ?? 0,
+            tips[from + 2] ?? 0,
+            tips[from + 3] ?? 0,
+            color,
+            light * shine,
+          );
+        }
+      }
+      if (flashed && pieces > 0) {
+        const px = tips[at + 2 * pieces] ?? 0;
+        const py = tips[at + 2 * pieces + 1] ?? 0;
+        trail.push(px, py, px, py, color, 2 * light * shine * music);
+      }
+      if (fades && k < report.apart.length) {
+        fading.see(j, report.apart[k] ?? 0, FADE_REACH);
+      }
+    });
+  }
+
   let last = performance.now();
   function frame(now: number): void {
     requestAnimationFrame(frame);
     const dt = Math.min(LONGEST_FRAME, Math.max(0, (now - last) / 1000));
     const real = Math.min(0.25, Math.max(0, (now - last) / 1000));
+    rhythm.frame(now - last);
     last = now;
     // what the music says this frame, which the card's meter shows, paused
     // or not, and what it adds to the light, in real time (decision 46)
@@ -1239,220 +1508,52 @@ function play({ canvas, gl }: Stage): void {
           ? color
           : mixColors(noteShown, color, 1 - Math.exp(-real / ease));
     }
-    trail.clear();
+    const running = !paused && dt > 0;
     let simulated = 0;
-    if (tensionShown) frameTension.fill(0);
-    if (!paused && dt > 0) {
-      if (hand !== null) {
-        if (now - pointer.at > STILL_AFTER_MS) {
-          pointer.vx = 0;
-          pointer.vy = 0;
-        }
-        hand.x = pointer.x;
-        hand.y = pointer.y;
-        hand.vx = pointer.vx;
-        hand.vy = pointer.vy;
-      }
-      // The chain moves in pieces, each ending in a point of its trail.
-      const asked = dt * value(TIME);
-      const deadline = performance.now() + PHYSICS_BUDGET_MS;
-      // the twins go through the frame's time from the same point of the shake
-      const frameStartPhase = shakePhase;
-      const pieces = Math.min(16, Math.max(4, Math.ceil(asked * TRAIL_RATE)));
-      // The tip draws, and with the ribbon every mass does (decision 26), the
-      // others fainter the more there are, so that the ribbon stays light.
-      const firstDrawing = value(RIBBON) === 1 ? 0 : chain.n - 1;
-      const chainColor = tinted(colors.chain, "chain");
-      // a strobe's trails stamp the whole chain instead (decision 50)
-      const strobe = lit && trailFade(value(TRAIL)).strobe;
-      let flashed = false;
-      const ribbonLight = 0.55 * Math.min(1, 2.2 / Math.sqrt(chain.n));
-      for (let piece = 0; piece < pieces; piece++) {
-        const want = asked / pieces;
-        const shake = shakeAt(shakePhase);
-        const moved = stepper.advance(state, want, g, {
-          hand,
-          deadline,
-          meanTension: tensionShown && shake === null ? pieceTension : null,
-          shake,
-          periodTension: tensionShown ? meter : null,
-        });
-        simulated += moved.simulated;
-        if (shake !== null) {
-          shakePhase =
-            (shakePhase + shake.rate * moved.simulated) % (2 * Math.PI);
-        }
-        if (tensionShown && shake === null) {
-          for (let i = 0; i < chain.n; i++) {
-            frameTension[i] =
-              (frameTension[i] ?? 0) + moved.simulated * (pieceTension[i] ?? 0);
-          }
-        }
-        chain.positions(state.theta, x, y);
-        for (let i = 0; i < chain.n; i++) {
-          const bx = x[i] ?? 0;
-          const by = y[i] ?? 0;
-          if (i >= firstDrawing && !strobe) {
-            const light = i === chain.n - 1 ? 0.55 : ribbonLight;
-            const ax = ends[2 * i] ?? bx;
-            const ay = ends[2 * i + 1] ?? by;
-            // with the tension's colours, in the colour of the rod it hangs from
-            const color = tensionShown
-              ? (rodColors[i] ?? colors.chain)
-              : chainColor;
-            trailPiece(ax, ay, bx, by, color, light);
-          }
-          ends[2 * i] = bx;
-          ends[2 * i + 1] = by;
-        }
-        // at even times of the motion, unless the music flashes the strobe
-        if (strobe && !flashes) {
-          strobeClock += moved.simulated;
-          if (strobeClock >= 1 / STROBE_RATE) {
-            strobeClock %= 1 / STROBE_RATE;
-            stamp(chainColor);
-            flashed = true;
-          }
-        }
-        // out of time: the rest of the frame is slow motion (decision 15)
-        if (moved.simulated < want * 0.999) break;
-      }
-      // on a kick, while the music flashes the strobe
-      if (strobe && flashes && look.flash > 0) {
-        stamp(chainColor);
-        flashed = true;
-      }
-      const finite =
-        state.theta.every(Number.isFinite) &&
-        state.omega.every(Number.isFinite);
-      if (!finite) start();
-
-      // The twins live the same simulated time, within their own budget: the
-      // ones a frame does not reach, or that the budget cannot carry, are
-      // dropped, and time never slows for them (decision 20).
-      if (twins.length > 0 && simulated > 0) {
-        const start = performance.now();
-        const giveUp = start + 4 * TWIN_BUDGET_MS;
-        // faint, so that where many twins' trails run together they read as one
-        const light = Math.min(
-          0.35,
-          Math.max(0.03, 1.2 / Math.sqrt(twins.length)),
-        );
-        // in one piece when there are no trails to draw
-        const twinPieces =
-          value(TRAIL) === 0
-            ? 1
-            : Math.min(8, Math.max(1, Math.ceil(simulated * TWIN_TRAIL_RATE)));
-        // shaken as the chain was, piece by piece
-        const rate = 2 * Math.PI * value(SHAKE);
-        const twinShakes = Array.from({ length: twinPieces }, (_, piece) =>
-          shakeAt(frameStartPhase + (rate * piece * simulated) / twinPieces),
-        );
-        // while they fade, each in its own light, which then falls with how
-        // far it has gone from the chain (decision 43)
-        const fades = value(FADE) === 1;
-        // their tips draw lines, save as dust, which draws none, and under a
-        // strobe, whose flashes stamp them as points (decision 50)
-        const tipLines = !strobe && value(FADE) !== 2;
-        let done = 0;
-        for (const twin of twins) {
-          if ((done & 7) === 0 && performance.now() > giveUp) break;
-          const color = tinted(fanColors[done] ?? colors.chain, "twins");
-          const shine = fades ? (fading.light[done] ?? 1) : 1;
-          for (let piece = 0; piece < twinPieces; piece++) {
-            twinStepper.advance(twin, simulated / twinPieces, g, {
-              shake: twinShakes[piece] ?? null,
-            });
-            tip(twin.theta);
-            if (tipLines) {
-              trailPiece(
-                twinTips[2 * done] ?? 0,
-                twinTips[2 * done + 1] ?? 0,
-                tipAt[0] ?? 0,
-                tipAt[1] ?? 0,
-                color,
-                light * shine,
-              );
-            }
-            twinTips[2 * done] = tipAt[0] ?? 0;
-            twinTips[2 * done + 1] = tipAt[1] ?? 0;
-          }
-          if (flashed) {
-            const px = twinTips[2 * done] ?? 0;
-            const py = twinTips[2 * done + 1] ?? 0;
-            const music = 1 + Math.min(TRAIL_MOST, look.trail);
-            trail.push(px, py, px, py, color, 2 * light * shine * music);
-          }
-          if (fades) {
-            chain.positions(twin.theta, twinX, twinY);
-            fading.see(
-              done,
-              apart(x, y, twinX, twinY, chain.totalLength),
-              FADE_REACH,
-            );
-          }
-          done++;
-        }
-        twins.length = twinBudget.measured(
-          done,
-          twins.length,
-          performance.now() - start,
-        );
-      }
-      if (value(FADE) === 1 && lit && hand === null && simulated > 0) {
-        bearAgain();
-      }
-      if (look.births > 0 && lit && hand === null && simulated > 0) {
-        bornOnBeat(look.births);
-      }
-      showTwins();
-
-      // The valve: when the machine keeps time below the speed asked for,
-      // the time control shows the speed reached, and comes into sight
-      // unless the visitor is reading another value in the open row.
-      const wasHeld = reached < 0.97;
-      reached += 0.1 * (simulated / asked - reached);
-      const held = reached < 0.97;
-      const speed = value(TIME);
-      if (held) {
-        controls.showValue(
-          TIME.id,
-          speed,
-          Math.round(speed * reached * 100) / 100,
-        );
-        if (!wasHeld) controls.notice(TIME.id);
-      } else if (wasHeld) {
-        controls.showValue(TIME.id, speed);
-      }
-    }
-    if (tensionShown) {
-      if (value(SHAKE) > 0) {
-        // over whole periods of the shake, where its swing averages out; until
-        // one has closed, the colours wait
-        if (meter.closed) shades.ease(meter.mean, weights, TENSION_EASE);
+    let flashed = false;
+    if (ahead !== null) {
+      // the frame computed at the last one, its twins back from the workers
+      ({ simulated, flashed } = ahead);
+      ahead = null;
+    } else {
+      trail.clear();
+      // The chain alone, now: the hand holds it, or no twins move with it.
+      // Twins that do wait a frame, and the chain with them (decision 51).
+      if (running && twins.count === 0) {
+        ({ simulated, flashed } = advanceChain(dt, now, flashes));
       } else {
-        // the tension over the frame's motion, or of the instant when none
-        if (simulated > 0) {
-          for (let i = 0; i < chain.n; i++) {
-            frameTension[i] = (frameTension[i] ?? 0) / simulated;
-          }
-        } else {
-          chain.solve(
-            state.theta,
-            state.omega,
-            g,
-            tensionScratch,
-            frameTension,
-            hand,
-          );
-        }
-        shades.ease(frameTension, weights, TENSION_EASE);
-      }
-      for (let i = 0; i < chain.n; i++) {
-        rodColors[i] = tensionColor(shades.places[i] ?? 0);
+        easeTension(0);
       }
     }
+    takeTwins(flashed);
     draw(simulated);
+
+    // Twins are born once the frame is drawn, of the chain as it is then:
+    // those asked for, those gone dark, and the music's (decisions 43, 46).
+    if (spawnPending) {
+      if (hand === null) bearTwins();
+    } else if (simulated > 0 && lit && hand === null) {
+      if (value(FADE) === 1) bearAgain();
+      if (look.births > 0) bornOnBeat(look.births);
+    }
+    showTwins();
+
+    // The next frame is computed now while there are twins: their workers
+    // bring them back by then, and the two are drawn at one instant
+    // (decision 51).
+    if (running && twins.count > 0 && hand === null) {
+      keepShown();
+      const phase = shakePhase;
+      trail.clear();
+      const next = advanceChain(dt, now, flashes);
+      // unless the motion broke down, and the chain started again
+      if (twins.count > 0) {
+        sendTwins(next.simulated, phase, now);
+        ahead = next;
+      }
+    }
+    // what happened to the twins while time stands, sent alone
+    if (twins.pending) sendTwins(0, shakePhase, now);
   }
 
   start();

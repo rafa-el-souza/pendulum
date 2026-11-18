@@ -340,6 +340,42 @@ test("an address asks for 4 096 twins and trails that stay, and the budget carri
   expect(errors).toEqual([]);
 });
 
+test("the twins are carried by workers, one for each of the machine's cores but one, which carry more of 4 096 as the masses are fewer", async ({
+  page,
+  browserName,
+}) => {
+  const errors = collectErrors(page);
+  const workers: string[] = [];
+  page.on("worker", (worker) => workers.push(worker.url()));
+  await page.goto("./?twins=4096");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await frames(page, 30);
+  const cores = Number(await page.evaluate("navigator.hardwareConcurrency"));
+  const opened = workers.length;
+  expect(opened).toBe(Math.min(7, Math.max(1, cores - 1)));
+  for (const url of workers) expect(url).toMatch(/twins\.worker/);
+  // How many they carry, as the twins' control says, in the test's output
+  // (decision 51): fewer as the masses are more.
+  const carried: string[] = [];
+  for (const n of [2, 8, 16]) {
+    if (n !== 2) {
+      await page.goto(`./?n=${String(n)}&twins=4096`);
+      await frames(page, 30);
+    }
+    // what the twins' control says to a screen reader
+    const said = String(
+      await page.evaluate(
+        `document.getElementById("control-twins-value")?.textContent ?? ""`,
+      ),
+    );
+    carried.push(`${String(n)} masses: ${said.trim()}`);
+  }
+  console.log(
+    `${browserName}, ${String(cores)} cores, ${String(opened)} worker${opened === 1 ? "" : "s"}, of 4 096 twins carries ${carried.join(", ")}`,
+  );
+  expect(errors).toEqual([]);
+});
+
 test("the palette's keys change the twins' colours, the control paints them, and the address follows", async ({
   page,
 }) => {
