@@ -24,7 +24,12 @@ import {
   tensionScaleAt,
 } from "../core/tension.ts";
 import { LightTarget, Trails, fadeAfter } from "../core/trails.ts";
-import { TwinWorkers, inWorker, sharesFor } from "../core/twin-workers.ts";
+import {
+  FrameRhythm,
+  TwinWorkers,
+  inWorker,
+  sharesFor,
+} from "../core/twin-workers.ts";
 import { Fading, bornPerFrame, fanPlace } from "../core/twins.ts";
 import { fitScale, toWorld } from "../core/view.ts";
 import { Chain, createHand, type Hand } from "../physics/chain.ts";
@@ -110,8 +115,9 @@ const PHYSICS_BUDGET_MS = 6;
 // born, are controls (decisions 22 and 25); those their budget cannot carry
 // are dropped, and time never slows for them. In the workers that carry them
 // (decision 51), each may take the frame's free time, until TWIN_MARGIN_MS
-// before the next frame, at least TWIN_LEAST_MS and at most TWIN_MOST_MS; on
-// the main line, where no worker can run, TWIN_LOCAL_MS.
+// before the screen's next frame, none while the frames come late, at least
+// TWIN_LEAST_MS and at most TWIN_MOST_MS; on the main line, where no worker
+// can run, TWIN_LOCAL_MS.
 const TWIN_MOST_MS = 10;
 const TWIN_LEAST_MS = 1;
 const TWIN_MARGIN_MS = 2;
@@ -298,8 +304,9 @@ function play({ canvas, gl }: Stage): void {
     omega: new Float64Array(chain.n),
     phase: 0,
   };
-  // the frames' period, as they come, in ms
-  let period = 1000 / 60;
+  // the screen's rhythm, and how late the frames come against it, for the
+  // time the twins' workers may take (decision 51)
+  const rhythm = new FrameRhythm();
   const pointer = { id: -1, x: 0, y: 0, vx: 0, vy: 0, at: 0 };
   // What the music does (decision 46): its mode and strength, from the
   // address, the routes that follow it, and what they add to the light this
@@ -1383,9 +1390,9 @@ function play({ canvas, gl }: Stage): void {
    * from where the shake stood as it began (decision 36); where the chain is
    * at its end, for the light of twins that fade (decision 43); and the time
    * each worker may take: the frame's free time until a little before the
-   * next frame, eased over the frames so that one slow frame cuts no twins,
-   * or the main line's own budget. No time sends what happened to the twins
-   * alone.
+   * screen's next frame, none while the frames come late, eased over the
+   * frames so that one slow frame cuts no twins, or the main line's own
+   * budget. No time sends what happened to the twins alone.
    */
   function sendTwins(simulated: number, phase: number, now: number): void {
     // in one piece when there are no trails to draw
@@ -1410,7 +1417,7 @@ function play({ canvas, gl }: Stage): void {
       TWIN_MOST_MS,
       Math.max(
         TWIN_LEAST_MS,
-        now + period - performance.now() - TWIN_MARGIN_MS,
+        rhythm.free(performance.now() - now, TWIN_MARGIN_MS),
       ),
     );
     twinBudget += 0.1 * (free - twinBudget);
@@ -1480,7 +1487,7 @@ function play({ canvas, gl }: Stage): void {
     requestAnimationFrame(frame);
     const dt = Math.min(LONGEST_FRAME, Math.max(0, (now - last) / 1000));
     const real = Math.min(0.25, Math.max(0, (now - last) / 1000));
-    period += 0.1 * (Math.min(100, Math.max(4, now - last)) - period);
+    rhythm.frame(now - last);
     last = now;
     // what the music says this frame, which the card's meter shows, paused
     // or not, and what it adds to the light, in real time (decision 46)
