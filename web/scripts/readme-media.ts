@@ -1,10 +1,11 @@
 // The README's pictures of the first piece: an animation, the chain thrown by
-// the hand and let go, and the fan of twins it leaves; and three stills, each
-// the screen an address opens after so many seconds, which the README links
-// to that address. They are taken from the published site in Chromium, a
-// frame at a time on the page's own clock, so that a slow machine draws them
-// as smoothly as a fast one, and written as WebP by the browser's own encoder.
-// The page is told it has eight cores, so that its workers carry the twins a
+// the hand in slow motion and let go, then time sped up to real time, with its
+// speed written in a corner, and the fan of twins it leaves; and three stills,
+// each the screen an address opens after so many seconds, which the README
+// links to that address. They are taken from the published site in Chromium, a
+// frame at a time on the page's own clock, so that a slow machine draws them as
+// smoothly as a fast one, and written as WebP by the browser's own encoder. The
+// page is told it has eight cores, so that its workers carry the twins a
 // desktop's would. Writes the pictures to ../docs/media/.
 // Run: npm run media [-- <site>] [-- <names>], as "npm run media -- throw fan".
 
@@ -223,33 +224,76 @@ function animated(
   return concat([riff, body]);
 }
 
+/** The speed of the piece's time, as its own control steps it, and what the animation's corner calls it. */
+const PACES: readonly { readonly time: number; readonly words: string }[] = [
+  { time: 0.25, words: "slow motion" },
+  { time: 0.5, words: "speeding up" },
+  { time: 0.8, words: "speeding up" },
+  { time: 0.9, words: "speeding up" },
+  { time: 1, words: "real time" },
+];
+
+/** Writes in the page's top left corner how fast its time runs, in the page's own face and ink, or nothing. */
+async function label(page: Page, text: string): Promise<void> {
+  await page.evaluate((text) => {
+    let corner = document.getElementById("readme-pace");
+    if (corner === null) {
+      corner = document.createElement("div");
+      corner.id = "readme-pace";
+      Object.assign(corner.style, {
+        position: "fixed",
+        top: "18px",
+        left: "22px",
+        font: "500 17px var(--font-text)",
+        color: "var(--color-ink)",
+        fontVariantNumeric: "tabular-nums",
+        letterSpacing: "0.02em",
+        pointerEvents: "none",
+      });
+      document.body.append(corner);
+    }
+    corner.textContent = text;
+  }, text);
+}
+
 /**
- * The animation: the chain falls from the piece's raised start, the hand
- * takes it and swings it round, and lets go; then the twins born at the
- * letting go fan out in colour.
+ * The animation: the chain of four falls from the piece's raised start in
+ * slow motion, a quarter of real time; the hand takes it, swings it round at
+ * an even pace and lets go; the piece's time is sped up to real time, a step
+ * of its own control at a time; and the twins born at the letting go fan
+ * out in colour and fade. The top left corner says how fast time runs.
  */
 async function hero(browser: Browser, encoder: Page): Promise<void> {
-  const page = await open(browser, "?n=3", HERO);
+  const page = await open(browser, "?n=4&fade=1&time=0.25", HERO);
   const cx = HERO.width / 2;
   const cy = HERO.height / 2;
   const reach = 0.42 * HERO.height;
-  // the chain falls 0.8 s, the hand holds it 0.8 s, and its twins fan out
-  // 3.8 s, until their colours have parted and as they fill the screen
-  const falls = 50;
-  const held = 50;
-  const fans = 240;
-  const total = falls + held + fans;
+  // in frames of the page: the fall, the hand, each step of the speeding
+  // up, and real time to the end
+  const falls = 90;
+  const held = 70;
+  const step = 14;
+  const ends = 180;
+  const total = falls + held + step * (PACES.length - 1) + ends;
   const frames: Uint8Array[] = [];
-  const keep = async (frame: number): Promise<void> => {
-    if (frame % KEEP_EVERY !== 0) return;
-    const left = (total - frame) / KEEP_EVERY;
-    const veil = Math.max(0, 1 - left / FADE_FRAMES);
-    frames.push(await webp(encoder, await page.screenshot(), veil));
+  let frame = 0;
+  const keep = async (): Promise<void> => {
+    if (frame % KEEP_EVERY === 0) {
+      const left = (total - frame) / KEEP_EVERY;
+      const veil = Math.max(0, 1 - left / FADE_FRAMES);
+      frames.push(await webp(encoder, await page.screenshot(), veil));
+    }
+    frame++;
   };
+  const pace = async (at: number): Promise<void> => {
+    const { time, words } = PACES[at] ?? { time: 1, words: "" };
+    await label(page, `×${String(time)}  ${words}`);
+  };
+  await pace(0);
   await run(page, falls, keep);
   // the hand: below and to the right of the pivot, then three quarters of a
-  // turn round it, faster as it goes. The page measures the hand's speed by
-  // the pointer's events, which keep real time, not the page's clock; so the
+  // turn round it at an even pace. The page measures the hand's speed by the
+  // pointer's events, which keep real time, not the page's clock; so the
   // events come a fixed real time apart, and every run throws alike.
   const paced = async (move: () => Promise<void>): Promise<void> => {
     const next = Date.now() + HAND_PACE_MS;
@@ -258,18 +302,24 @@ async function hero(browser: Browser, encoder: Page): Promise<void> {
   };
   await page.mouse.move(cx + 0.6 * reach, cy + 0.7 * reach);
   await paced(() => page.mouse.down());
-  for (let step = 0; step < held; step++) {
-    const angle = Math.PI / 4 - 1.5 * Math.PI * (step / held) ** 1.6;
+  for (let moved = 0; moved < held; moved++) {
+    const angle = Math.PI / 4 - 1.5 * Math.PI * (moved / held);
     await paced(async () => {
       await page.mouse.move(
         cx + 0.9 * reach * Math.cos(angle),
         cy - 0.9 * reach * Math.sin(angle),
       );
-      await run(page, 1, () => keep(falls + step));
+      await run(page, 1, keep);
     });
   }
   await page.mouse.up();
-  await run(page, fans, (frame) => keep(falls + held + frame));
+  // the piece's time, sped up by its own key, a step at a time
+  for (let at = 1; at < PACES.length; at++) {
+    await page.keyboard.press("ArrowRight");
+    await pace(at);
+    await run(page, step, keep);
+  }
+  await run(page, ends, keep);
   writeFileSync(
     new URL("throw.webp", OUT),
     animated(frames, HERO, KEEP_EVERY * FRAME_MS),
