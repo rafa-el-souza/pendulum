@@ -306,6 +306,7 @@ test("the twins' and the trails' keys change their number, how long the trails l
   const twins = icon(page, "Number of twins");
   const trail = icon(page, "How long the trails last");
   const style = icon(page, "Style of the trails");
+  const ribbon = icon(page, "Trails from every mass");
 
   // fewer twins, then none; any machine carries 64 of two masses
   await page.keyboard.press("9");
@@ -332,13 +333,17 @@ test("the twins' and the trails' keys change their number, how long the trails l
   // one that stays
   for (let press = 0; press < 4; press++) await page.keyboard.press("8");
   await expect(trail).toHaveAccessibleDescription("10 s");
+  await expect(ribbon).not.toHaveClass(/_idle_/);
   await page.keyboard.press("Shift+Digit8");
   await expect(style).toHaveAccessibleDescription("a strobe");
   await expect(page).toHaveURL(/[?&]style=1(&|$)/);
+  // a strobe stamps the whole chain, and which masses draw has nothing to do
+  await expect(ribbon).toHaveClass(/_idle_/);
   await frames(page, 10);
   await page.keyboard.press("Shift+Digit7");
   await expect(style).toHaveAccessibleDescription("lines");
   await expect(page).not.toHaveURL(/style=/);
+  await expect(ribbon).not.toHaveClass(/_idle_/);
   await page.keyboard.press("8");
   await expect(trail).toHaveAccessibleDescription("leaves a mark");
   await expect(page).toHaveURL(/[?&]trail=100(&|$)/);
@@ -957,19 +962,20 @@ test("the mode's keys start the chain in a normal mode and back, the amplitude's
   await page.goto("./");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   await openControls(page);
-  const mode = icon(page, "Normal mode");
+  const mode = icon(page, "Start");
   const amplitude = icon(page, "Amplitude of the mode");
   await expect(mode).toHaveAccessibleDescription("raised to one side");
   await expect(amplitude).toHaveAccessibleDescription(
     "30 degrees either way at most",
   );
-  // with the chain raised, the amplitude has nothing to do, and says so
-  await expect(amplitude).toHaveClass(/_held_/);
+  // with the chain raised, the amplitude has nothing to do, and shows faint
+  await expect(amplitude).toHaveClass(/_idle_/);
+  await expect(amplitude).not.toHaveClass(/_held_/);
 
   await page.keyboard.press("m");
   await expect(mode).toHaveAccessibleDescription("normal mode 1");
   await expect(page).toHaveURL(/[?&]mode=1(&|$)/);
-  await expect(amplitude).not.toHaveClass(/_held_/);
+  await expect(amplitude).not.toHaveClass(/_idle_/);
   await frames(page, 5);
   await page.keyboard.press("K");
   await expect(amplitude).toHaveAccessibleDescription(
@@ -983,7 +989,7 @@ test("the mode's keys start the chain in a normal mode and back, the amplitude's
   await page.keyboard.press("n");
   await expect(mode).toHaveAccessibleDescription("raised to one side");
   await expect(page).not.toHaveURL(/[?&]mode=/);
-  await expect(amplitude).toHaveClass(/_held_/);
+  await expect(amplitude).toHaveClass(/_idle_/);
   await frames(page, 5);
   expect(errors).toEqual([]);
 });
@@ -995,7 +1001,7 @@ test("an address starts the chain in a mode; with fewer masses it starts in its 
   await page.goto("./?mode=4&amplitude=5");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   await openControls(page);
-  const mode = icon(page, "Normal mode");
+  const mode = icon(page, "Start");
   await expect(icon(page, "Amplitude of the mode")).toHaveAccessibleDescription(
     "5 degrees either way at most",
   );
@@ -1030,7 +1036,7 @@ async function shownSave(page: Page): Promise<Locator> {
 const SAVED_TITLE =
   /^Pendulum( · .+)? · \d{1,2} [A-Z][a-z]{2}( \d{4})? \d{2}:\d{2} · [0-9A-HJKMNP-TV-Z]{4}$/;
 
-test("the S key saves the moment and the screen into the address, R starts the chain there, and choosing a mode forgets it", async ({
+test("the S key saves the moment and the screen into the address, the start says so, and R starts the chain there", async ({
   page,
 }) => {
   const errors = collectErrors(page);
@@ -1038,7 +1044,7 @@ test("the S key saves the moment and the screen into the address, R starts the c
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   await expect(page).toHaveTitle("Pendulum");
   await openControls(page);
-  const mode = icon(page, "Normal mode");
+  const mode = icon(page, "Start");
   await expect(await shownSave(page)).toHaveAccessibleName("Save this moment");
   await frames(page, 10);
 
@@ -1050,7 +1056,9 @@ test("the S key saves the moment and the screen into the address, R starts the c
   await expect(await shownSave(page)).toHaveAccessibleName(
     "Save this moment over the one saved",
   );
-  await expect(mode).toHaveClass(/_held_/);
+  await expect(mode).toHaveAccessibleDescription("the moment saved");
+  await expect(mode).not.toHaveClass(/_held_/);
+  await expect(icon(page, "Amplitude of the mode")).toHaveClass(/_idle_/);
   const saved = page.url();
   const mark = (await page.title()).slice(-4);
   await frames(page, 10);
@@ -1064,15 +1072,40 @@ test("the S key saves the moment and the screen into the address, R starts the c
   await expect(page).toHaveTitle(
     new RegExp(`^Pendulum · Jupiter · .+ · ${mark}$`),
   );
+  await frames(page, 5);
+  expect(errors).toEqual([]);
+});
 
-  // a mode chosen is where the chain starts now, and the moment leaves
+test("the start's first step forgets a saved moment and goes back to the start it had, and the next steps from there (decision 56)", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("./");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await openControls(page);
+  const mode = icon(page, "Start");
+  await frames(page, 5);
+  await page.keyboard.press("s");
+  await expect(page).toHaveURL(/\/#[A-Za-z0-9_-]{40}$/);
+  await expect(mode).toHaveAccessibleDescription("the moment saved");
+
+  // the + forgets the moment and goes back to the chain raised to one side;
+  // the next chooses mode 1
+  await page.keyboard.press("m");
+  await expect(mode).toHaveAccessibleDescription("raised to one side");
+  await expect(page).not.toHaveURL(/#/);
+  await expect(await shownSave(page)).toHaveAccessibleName("Save this moment");
   await page.keyboard.press("m");
   await expect(mode).toHaveAccessibleDescription("normal mode 1");
-  await expect(page).not.toHaveURL(/#/);
-  await expect(page).toHaveURL(/\?g=24\.79&mode=1$/);
-  await expect(page).toHaveTitle("Pendulum · Jupiter, mode 1");
-  await expect(await shownSave(page)).toHaveAccessibleName("Save this moment");
-  await expect(mode).not.toHaveClass(/_held_/);
+  await expect(page).toHaveURL(/\?mode=1$/);
+
+  // saved in mode 1, the − goes back to mode 1, not on to the side
+  await page.keyboard.press("s");
+  await expect(mode).toHaveAccessibleDescription("the moment saved");
+  await page.keyboard.press("n");
+  await expect(mode).toHaveAccessibleDescription("normal mode 1");
+  await expect(page).toHaveURL(/\?mode=1$/);
+  await expect(icon(page, "Amplitude of the mode")).not.toHaveClass(/_idle_/);
   await frames(page, 5);
   expect(errors).toEqual([]);
 });
@@ -1262,7 +1295,7 @@ test("an address with a moment starts the chain there, and another number of mas
   await expect(await shownSave(page)).toHaveAccessibleName(
     "Save this moment over the one saved",
   );
-  await expect(icon(page, "Amplitude of the mode")).toHaveClass(/_held_/);
+  await expect(icon(page, "Amplitude of the mode")).toHaveClass(/_idle_/);
   await frames(page, 10);
   await page.keyboard.press("r");
   await frames(page, 5);

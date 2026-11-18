@@ -142,22 +142,39 @@ export const TILT: Parameter = {
 };
 
 /**
+ * What the start's control shows while a moment is saved, where the chain
+ * starts again then: not one of its steps, which stay as they were for when
+ * the moment is forgotten.
+ */
+export const SAVED_START = -1;
+
+/**
  * Where the chain starts, and starts again (decision 33): raised to one side
  * and let go, as it has until now, or at rest in one of the lowest normal
  * modes of the paper's equal chain (PH-6, PH-7), the shapes in which the
  * chain swings without changing its form for as long as it swings small. A
  * chain with fewer masses than the mode asked for starts in its highest,
- * and the control shows that one, held back.
+ * and the control shows that one, held back. While a moment is saved, the
+ * chain starts there, and the control says so (`SAVED_START`).
  */
 export const MODE: Parameter = {
   id: "mode",
-  label: "Normal mode",
+  label: "Start",
   values: [0, 1, 2, 3, 4],
   initial: 0,
   keys: { down: ["n", "N"], up: ["m", "M"] },
-  show: (value) => (value === 0 ? "—" : String(value)),
+  show: (value) =>
+    value === SAVED_START
+      ? "saved"
+      : value === 0
+        ? "side"
+        : `mode ${String(value)}`,
   speak: (value) =>
-    value === 0 ? "raised to one side" : `normal mode ${String(value)}`,
+    value === SAVED_START
+      ? "the moment saved"
+      : value === 0
+        ? "raised to one side"
+        : `normal mode ${String(value)}`,
   icon: "mode",
 };
 
