@@ -208,6 +208,11 @@
   margin: auto;
 }
 
+/* The button's pendulum swings past the edge of its glyph (decision 59). */
+.launcher svg {
+  overflow: visible;
+}
+
 .tool:focus-visible,
 .launcher:focus-visible,
 .button:focus-visible {

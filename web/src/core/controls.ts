@@ -18,7 +18,7 @@
 import { cssColor } from "./color.ts";
 import { cls } from "./css.ts";
 import styles from "./controls.module.css";
-import { drawIcon, type Icon } from "./icons.ts";
+import { drawIcon, swingingPart, type Icon } from "./icons.ts";
 import type { Parameter } from "./parameters.ts";
 
 /** A button that does one thing, such as pausing. */
@@ -85,10 +85,13 @@ const TOUCH_MARGIN = 12;
 /** How far the value chosen keeps from the screen's sides, in CSS px. */
 const EDGE = 8;
 
-/** The button's little chain swinging open and shut, in degrees, settling as a pendulum does. */
-const SWING_OPEN = [0, 104, 82, 94, 88, 90];
-const SWING_SHUT = [90, -14, 8, -4, 2, 0];
-const SWING_AT = [0, 0.28, 0.5, 0.68, 0.84, 1];
+/**
+ * The button's pendulum swinging as the row opens or shuts, in degrees from
+ * where it hangs: out to the other side, and back, losing its swing, to hang
+ * where it was (decision 59).
+ */
+const SWING = [0, 56, -22, 10, -4, 0];
+const SWING_AT = [0, 0.3, 0.55, 0.74, 0.88, 1];
 const SWING_MS = 900;
 
 /** Which side of the row has more of it out of sight, or "" when it fits. Within a pixel of an end counts as at it. */
@@ -225,6 +228,7 @@ export function mountControls(
   launcher.type = "button";
   launcher.className = cls(styles, "launcher");
   const glyph = drawIcon("controls");
+  const swinging = swingingPart(glyph);
   launcher.append(glyph);
   launcher.setAttribute("aria-label", "Controls");
   launcher.setAttribute("aria-expanded", "false");
@@ -686,13 +690,11 @@ export function mountControls(
     { passive: false },
   );
 
-  /** The button's chain swings to lie along the row when it opens, and back to hang when it shuts. */
-  function swing(opening: boolean): void {
-    const turns = opening ? SWING_OPEN : SWING_SHUT;
-    glyph.style.transform = `rotate(${String(turns.at(-1))}deg)`;
-    if (still.matches) return;
-    glyph.animate(
-      turns.map((turn, i) => ({
+  /** The button's pendulum swings out and back as the row opens or shuts. */
+  function swing(): void {
+    if (still.matches || swinging === null) return;
+    swinging.animate(
+      SWING.map((turn, i) => ({
         transform: `rotate(${String(turn)}deg)`,
         offset: SWING_AT[i] ?? null,
         easing: "ease-in-out",
@@ -708,7 +710,7 @@ export function mountControls(
     // opened, as it was left: its group, and the value open in it (decision
     // 54); shut, it keeps them for the next time
     setGroup(on ? lastGroup : null);
-    swing(on);
+    swing();
     settle();
     wake();
   }

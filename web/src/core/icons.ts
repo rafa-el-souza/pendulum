@@ -48,11 +48,22 @@ export type Icon =
 
 const SVG = "http://www.w3.org/2000/svg";
 
+/** The part of an icon that swings about a pivot on the grid: filled shapes and strokes, drawn last, in a group of their own that turns there. */
+interface Swinging {
+  readonly fill: string;
+  readonly stroke: string;
+  readonly pivot: readonly [number, number];
+}
+
 /**
  * Each icon as SVG path data on a 24 by 24 grid: strokes drawn faint, behind
- * the rest, for a position the drawing only recalls; filled shapes; strokes.
+ * the rest, for a position the drawing only recalls; filled shapes; strokes;
+ * and a part that swings, if any.
  */
-const ICONS: Record<Icon, { fill: string; stroke: string; faint?: string }> = {
+const ICONS: Record<
+  Icon,
+  { fill: string; stroke: string; faint?: string; swings?: Swinging }
+> = {
   pause: { fill: "M6 5h4v14H6zM14 5h4v14h-4z", stroke: "" },
   play: { fill: "M8 5l11 7-11 7z", stroke: "" },
   // a bar and a triangle pointing back to it, as on a player that goes back
@@ -108,11 +119,18 @@ const ICONS: Record<Icon, { fill: string; stroke: string; faint?: string }> = {
   },
   // an arrow pointing straight down, which a direction turns
   arrow: { fill: "", stroke: "M12 3.5v16M6 13.5l6 6 6-6" },
-  // the button that opens the controls: a little chain hanging from its
-  // pivot, swung a little, its rods drawn and its tip the heaviest
+  // the button that opens the controls: a pendulum, its bar, its string and
+  // its heavy bob, swung to one side over the faint arc of its swing; the
+  // string and the bob swing about the pivot (decision 59)
   controls: {
-    fill: "M8.2 3a1.4 1.4 0 1 0 2.8 0a1.4 1.4 0 1 0 -2.8 0M9.3 8.8a1.9 1.9 0 1 0 3.8 0a1.9 1.9 0 1 0 -3.8 0M10.9 14.4a1.9 1.9 0 1 0 3.8 0a1.9 1.9 0 1 0 -3.8 0M11.9 20.2a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0 -5 0",
-    stroke: "M9.6 3L14.4 20.2",
+    fill: "",
+    stroke: "M7.5 3.5h9",
+    faint: "M4.5 16.49A15 15 0 0 0 16.13 17.92",
+    swings: {
+      fill: "M15.64 16.74a3.4 3.4 0 1 0 6.8 0a3.4 3.4 0 1 0 -6.8 0",
+      stroke: "M12 3.5L19.04 16.74",
+      pivot: [12, 3.5],
+    },
   },
   // a chain of beads hanging in a curve, as it does on its way to a rope
   masses: {
@@ -248,7 +266,7 @@ export function drawIcon(name: Icon): SVGSVGElement {
   svg.setAttribute("width", "20");
   svg.setAttribute("height", "20");
   svg.setAttribute("aria-hidden", "true");
-  const { fill, stroke, faint } = ICONS[name];
+  const { fill, stroke, faint, swings } = ICONS[name];
   if (faint !== undefined) svg.append(strokes(faint, 0.4));
   if (fill !== "") {
     const path = document.createElementNS(SVG, "path");
@@ -257,7 +275,24 @@ export function drawIcon(name: Icon): SVGSVGElement {
     svg.append(path);
   }
   if (stroke !== "") svg.append(strokes(stroke, 1));
+  if (swings !== undefined) {
+    const group = document.createElementNS(SVG, "g");
+    group.dataset.swings = "";
+    const [x, y] = swings.pivot;
+    // in the grid's units, as an SVG element's own lengths are
+    group.style.transformOrigin = `${String(x)}px ${String(y)}px`;
+    const path = document.createElementNS(SVG, "path");
+    path.setAttribute("d", swings.fill);
+    path.setAttribute("fill", "currentColor");
+    group.append(path, strokes(swings.stroke, 1));
+    svg.append(group);
+  }
   return svg;
+}
+
+/** The part of an icon drawn by `drawIcon` that swings about its pivot, if it has one. */
+export function swingingPart(svg: SVGSVGElement): SVGGElement | null {
+  return svg.querySelector<SVGGElement>("g[data-swings]");
 }
 
 /** Path data drawn as round-ended strokes, at the given opacity. */
