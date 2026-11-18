@@ -263,7 +263,7 @@ test("the tips leave trails, kept in half floats or eight bits as the engine all
   expect(errors).toEqual([]);
 });
 
-test("the twins' and the trails' keys change their number and length, and the address follows", async ({
+test("the twins' and the trails' keys change their number, how long the trails last and their style, and the address follows", async ({
   page,
 }) => {
   const errors = collectErrors(page);
@@ -271,7 +271,8 @@ test("the twins' and the trails' keys change their number and length, and the ad
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   await openControls(page);
   const twins = icon(page, "Number of twins");
-  const trail = icon(page, "Length of the trails");
+  const trail = icon(page, "How long the trails last");
+  const style = icon(page, "Style of the trails");
 
   // fewer twins, then none; any machine carries 64 of two masses
   await page.keyboard.press("9");
@@ -293,12 +294,18 @@ test("the twins' and the trails' keys change their number and length, and the ad
   await page.keyboard.press("7");
   await expect(trail).toHaveAccessibleDescription("off");
   await expect(page).toHaveURL(/[?&]trail=0(&|$)/);
-  // up past ten seconds, a strobe's (decision 50), the step that leaves a
-  // mark, then the one that stays
-  for (let press = 0; press < 5; press++) await page.keyboard.press("8");
-  await expect(trail).toHaveAccessibleDescription("a strobe");
-  await expect(page).toHaveURL(/[?&]trail=50(&|$)/);
+  // up to ten seconds, drawn by a strobe on Shift and 8 and as lines again on
+  // Shift and 7 (decision 53), then the step that leaves a mark, then the
+  // one that stays
+  for (let press = 0; press < 4; press++) await page.keyboard.press("8");
+  await expect(trail).toHaveAccessibleDescription("10 s");
+  await page.keyboard.press("Shift+Digit8");
+  await expect(style).toHaveAccessibleDescription("a strobe");
+  await expect(page).toHaveURL(/[?&]style=1(&|$)/);
   await frames(page, 10);
+  await page.keyboard.press("Shift+Digit7");
+  await expect(style).toHaveAccessibleDescription("lines");
+  await expect(page).not.toHaveURL(/style=/);
   await page.keyboard.press("8");
   await expect(trail).toHaveAccessibleDescription("leaves a mark");
   await expect(page).toHaveURL(/[?&]trail=100(&|$)/);
@@ -317,9 +324,9 @@ test("an address asks for trails that leave a mark, which draw with the sketch's
   await page.goto("./?trail=100&ribbon=1");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   await openControls(page);
-  await expect(icon(page, "Length of the trails")).toHaveAccessibleDescription(
-    "leaves a mark",
-  );
+  await expect(
+    icon(page, "How long the trails last"),
+  ).toHaveAccessibleDescription("leaves a mark");
   await frames(page, 30);
   await page.keyboard.press("g");
   await frames(page, 30);
@@ -333,9 +340,9 @@ test("an address asks for 4 096 twins and trails that stay, and the budget carri
   await page.goto("./?twins=4096&trail=600");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   await openControls(page);
-  await expect(icon(page, "Length of the trails")).toHaveAccessibleDescription(
-    "stays",
-  );
+  await expect(
+    icon(page, "How long the trails last"),
+  ).toHaveAccessibleDescription("stays");
   await frames(page, 10);
   expect(errors).toEqual([]);
 });
@@ -483,14 +490,12 @@ test("the Y key steps the tension's scale, coming round, and turns the tension's
   await page.goto("./?n=8");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   await openControls(page);
+  // one control in the row, off and then each scale (decision 53)
   const tension = icon(page, "Colours of the tension");
-  const scale = icon(page, "Scale of the tension's colours");
-  await expect(tension).toHaveAttribute("aria-pressed", "false");
-  await expect(scale).toHaveAccessibleDescription("heat");
+  await expect(tension).toHaveAccessibleDescription("off");
 
   await page.keyboard.press("y");
-  await expect(scale).toHaveAccessibleDescription("incandescent");
-  await expect(tension).toHaveAttribute("aria-pressed", "true");
+  await expect(tension).toHaveAccessibleDescription("incandescent");
   await expect(page).toHaveURL(/\?n=8&scale=1&tension=1$/);
   await frames(page, 5);
 
@@ -498,7 +503,7 @@ test("the Y key steps the tension's scale, coming round, and turns the tension's
   await page.keyboard.press("Y");
   await page.keyboard.press("y");
   await page.keyboard.press("y");
-  await expect(scale).toHaveAccessibleDescription("heat");
+  await expect(tension).toHaveAccessibleDescription("heat");
   await expect(page).toHaveURL(/\?n=8&tension=1$/);
   await frames(page, 5);
   expect(errors).toEqual([]);
@@ -515,12 +520,8 @@ test("an address carries the ground and the tension's scale", async ({
     "wine",
   );
   await expect(
-    icon(page, "Scale of the tension's colours"),
+    icon(page, "Colours of the tension"),
   ).toHaveAccessibleDescription("neon");
-  await expect(icon(page, "Colours of the tension")).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
   expect(
     await page.evaluate("getComputedStyle(document.body).backgroundColor"),
   ).toBe("rgb(42, 9, 18)");
@@ -583,7 +584,7 @@ test("the spread's keys bring the twins closer or farther at birth, and the addr
   expect(errors).toEqual([]);
 });
 
-test("the P key lets the twins fade as chaos carries them off, stay as dust, and stay again, and the address and the title follow", async ({
+test("the P key lets the twins fade as chaos carries them off and stay again, Shift and P draws them as dust, fading too, and the address and the title follow", async ({
   page,
 }) => {
   const errors = collectErrors(page);
@@ -591,22 +592,31 @@ test("the P key lets the twins fade as chaos carries them off, stay as dust, and
   await page.goto("./?time=4");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   await openControls(page);
-  const fade = icon(page, "Twins carried off by chaos");
+  const fade = icon(page, "Twins stay or fade");
+  const look = icon(page, "Look of the twins");
   await expect(fade).toHaveAccessibleDescription("stay");
+  await expect(look).toHaveAccessibleDescription("chains");
   await page.keyboard.press("p");
   await expect(fade).toHaveAccessibleDescription("fade");
   await expect(page).toHaveURL(/[?&]fade=1(&|$)/);
   await expect(page).toHaveTitle(/twins that fade/);
   await frames(page, 90);
-  // their tips alone, a cloud of points (decision 50)
-  await page.keyboard.press("p");
-  await expect(fade).toHaveAccessibleDescription("dust");
-  await expect(page).toHaveURL(/[?&]fade=2(&|$)/);
-  await expect(page).toHaveTitle(/twins as dust/);
+  // their tips alone, a plume of points while they fade (decisions 50, 53)
+  await page.keyboard.press("Shift+KeyP");
+  await expect(look).toHaveAccessibleDescription("dust");
+  await expect(fade).toHaveAccessibleDescription("fade");
+  await expect(page).toHaveURL(/[?&]fade=1&look=1(&|$)/);
+  await expect(page).toHaveTitle(/twins that fade, twins as dust/);
   await frames(page, 30);
+  // P alone, with caps lock on, still goes round whether they fade
   await page.keyboard.press("P");
   await expect(fade).toHaveAccessibleDescription("stay");
+  await expect(look).toHaveAccessibleDescription("dust");
   await expect(page).not.toHaveURL(/fade=/);
+  await frames(page, 30);
+  await page.keyboard.press("Shift+KeyP");
+  await expect(look).toHaveAccessibleDescription("chains");
+  await expect(page).not.toHaveURL(/look=/);
   await frames(page, 10);
   expect(errors).toEqual([]);
 });
@@ -628,9 +638,9 @@ test("an address asks for 4 096 twins that fade, which are born again from the c
   await page.mouse.up();
   await frames(page, 30);
   await openControls(page);
-  await expect(
-    icon(page, "Twins carried off by chaos"),
-  ).toHaveAccessibleDescription("fade");
+  await expect(icon(page, "Twins stay or fade")).toHaveAccessibleDescription(
+    "fade",
+  );
   expect(errors).toEqual([]);
 });
 
@@ -666,7 +676,7 @@ test("the light switch puts out the twins and the trails and lights them again, 
   await openControls(page);
   const light = icon(page, "Light");
   const twins = icon(page, "Number of twins");
-  const trail = icon(page, "Length of the trails");
+  const trail = icon(page, "How long the trails last");
   await expect(light).toHaveAttribute("aria-pressed", "true");
   const stage = page.locator("#stage");
   const mask = controlsBox(page);
@@ -697,33 +707,42 @@ test("the light switch puts out the twins and the trails and lights them again, 
   expect(errors).toEqual([]);
 });
 
-test("the T key and its switch paint the chain by its tension and back, and the address follows", async ({
+test("the T key and the control's − paint the chain by its tension and back, and the address follows", async ({
   page,
 }) => {
   const errors = collectErrors(page);
   await page.goto("./?n=8");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   await openControls(page);
+  // one control in the row, off and then each scale (decision 53)
   const tension = icon(page, "Colours of the tension");
-  await expect(tension).toHaveAttribute("aria-pressed", "false");
+  await expect(tension).toHaveAccessibleDescription("off");
   const stage = page.locator("#stage");
   const mask = controlsBox(page);
 
-  // paused, every frame draws the same, so only the colours can change it
+  // paused, every frame draws the same, so only the colours can change it;
+  // the control's value open above the row, as the T and the − leave it,
+  // and the pointer on its icon, so that each capture shows them alike
   await frames(page, 10);
   await icon(page, "Pause").click();
+  await tension.click();
   await frames(page, 3);
   const plain = await stage.screenshot({ mask });
 
+  // the T turns them on in the scale they had
   await page.keyboard.press("t");
-  await expect(tension).toHaveAttribute("aria-pressed", "true");
+  await expect(tension).toHaveAccessibleDescription("heat");
   await frames(page, 3);
   expect((await stage.screenshot({ mask })).equals(plain)).toBe(false);
   await expect(page).toHaveURL(/\?n=8&tension=1$/);
 
-  await tension.click();
-  await expect(tension).toHaveAttribute("aria-pressed", "false");
+  // below the first scale, off
+  await page
+    .getByRole("button", { name: "Less: Colours of the tension", exact: true })
+    .click();
+  await expect(tension).toHaveAccessibleDescription("off");
   await expect(page).toHaveURL(/\?n=8$/);
+  await tension.hover();
   await frames(page, 3);
   expect((await stage.screenshot({ mask })).equals(plain)).toBe(true);
 
@@ -733,7 +752,7 @@ test("the T key and its switch paint the chain by its tension and back, and the 
   await frames(page, 10);
   await page.keyboard.press("ArrowUp");
   await frames(page, 10);
-  await expect(tension).toHaveAttribute("aria-pressed", "true");
+  await expect(tension).toHaveAccessibleDescription("heat");
   expect(errors).toEqual([]);
 });
 
@@ -982,9 +1001,10 @@ test("the S key saves the moment and the screen into the address, R starts the c
   await expect(saveButton(page)).toHaveAccessibleName("Save this moment");
   await frames(page, 10);
 
-  // two masses: the screen in thirteen bytes and the moment in sixteen, 39 letters
+  // two masses: the screen in fourteen bytes since the sixth code (decision
+  // 53) and the moment in sixteen, 40 letters
   await page.keyboard.press("s");
-  await expect(page).toHaveURL(/\/#[A-Za-z0-9_-]{39}$/);
+  await expect(page).toHaveURL(/\/#[A-Za-z0-9_-]{40}$/);
   await expect(page).toHaveTitle(SAVED_TITLE);
   await expect(saveButton(page)).toHaveAccessibleName(
     "Save this moment over the one saved",
@@ -997,7 +1017,7 @@ test("the S key saves the moment and the screen into the address, R starts the c
   await frames(page, 5);
   // another value goes into the code, beside the same moment, and the title names it
   await page.keyboard.press("e");
-  await expect(page).toHaveURL(/\/#[A-Za-z0-9_-]{39}$/);
+  await expect(page).toHaveURL(/\/#[A-Za-z0-9_-]{40}$/);
   expect(page.url()).not.toBe(saved);
   await expect(page).toHaveTitle(SAVED_TITLE);
   await expect(page).toHaveTitle(
@@ -1047,10 +1067,9 @@ test("a saved moment opens elsewhere as the screen it was: the controls, the swi
   await expect(other).toHaveTitle(title);
   await openControls(other);
   await expect(icon(other, "Light")).toHaveAttribute("aria-pressed", "false");
-  await expect(icon(other, "Colours of the tension")).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
+  await expect(
+    icon(other, "Colours of the tension"),
+  ).toHaveAccessibleDescription("heat");
   await expect(icon(other, "Resume")).toBeVisible();
   await expect(icon(other, "Number of masses")).toHaveAccessibleDescription(
     "n = 8",
@@ -1177,9 +1196,9 @@ test("an address longer than a QR code holds says so in place of the code", asyn
   await page.goto("./?n=384&twins=0&trail=0");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   await page.keyboard.press(" ");
-  // the screen in thirteen bytes and 384 masses in eight each: 4 114 letters
+  // the screen in fourteen bytes and 384 masses in eight each: 4 115 letters
   await page.keyboard.press("s");
-  await expect(page).toHaveURL(/\/#[A-Za-z0-9_-]{4114}$/);
+  await expect(page).toHaveURL(/\/#[A-Za-z0-9_-]{4115}$/);
   await page.keyboard.press("o");
   const card = page.getByRole("dialog", {
     name: "This page's address as a QR code",

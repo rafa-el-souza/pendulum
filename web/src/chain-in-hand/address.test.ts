@@ -123,14 +123,48 @@ describe("the first piece's address (decision 38)", () => {
     expect(opened.saved?.state.theta).toHaveLength(3);
   });
 
-  it("writes codes of version 5, which hold the strobe's trails and the twins as dust (decision 50)", () => {
-    expect(CODE.version).toBe(5);
+  it("writes codes of version 6, which hold the trails' style apart from how long they last, and the twins' look apart from whether they fade (decision 53)", () => {
+    expect(CODE.version).toBe(6);
     const { values, switches } = opening();
     values.set("n", 3);
-    values.set("fade", 2);
-    values.set("trail", 50);
+    values.set("fade", 1);
+    values.set("look", 1);
+    values.set("trail", 100);
+    values.set("style", 1);
     const opened = openingOf("", addressOf(values, switches, moment(3), ""));
     expect(opened.values).toEqual(values);
+  });
+
+  it("opens a code of version 5 as the published page wrote it, its strobe's trails and its dust as the same screen: a strobe's trails of a second, and twins that stay, as dust (decision 53)", () => {
+    // 3 masses on the Moon, the twins as dust, the trails of a strobe, paused
+    const opened = openingOf("", `#${VERSION_5}`);
+    expect(opened.values.get("n")).toBe(3);
+    expect(opened.values.get("g")).toBe(1.62);
+    expect(opened.values.get("fade")).toBe(0);
+    expect(opened.values.get("look")).toBe(1);
+    expect(opened.values.get("trail")).toBe(1);
+    expect(opened.values.get("style")).toBe(1);
+    expect(opened.saved?.paused).toBe(true);
+    expect(opened.saved?.savedAt).toBe(Date.UTC(2026, 10, 18, 13, 51));
+    expect(opened.saved?.state.theta).toHaveLength(3);
+  });
+
+  it("opens a readable address of the published page with the strobe's trails or the twins as dust as the same screen (decision 53)", () => {
+    const both = openingOf("?fade=2&trail=50", "").values;
+    expect(both.get("fade")).toBe(0);
+    expect(both.get("look")).toBe(1);
+    expect(both.get("trail")).toBe(1);
+    expect(both.get("style")).toBe(1);
+    const strobe = openingOf("?trail=50&n=4", "").values;
+    expect(strobe.get("trail")).toBe(1);
+    expect(strobe.get("style")).toBe(1);
+    expect(strobe.get("look")).toBe(0);
+    expect(strobe.get("n")).toBe(4);
+    const dust = openingOf("?fade=2", "").values;
+    expect(dust.get("fade")).toBe(0);
+    expect(dust.get("look")).toBe(1);
+    expect(dust.get("trail")).toBe(2.5);
+    expect(dust.get("style")).toBe(0);
   });
 
   it("opens a code of version 4 as it was published", () => {
@@ -145,15 +179,17 @@ describe("the first piece's address (decision 38)", () => {
     expect(opened.saved?.state.theta).toHaveLength(3);
   });
 
-  it("carries the strobe's trails and the twins as dust readable, without a moment", () => {
+  it("carries the trails' style and the twins' look readable, without a moment", () => {
     const { values, switches } = opening();
-    values.set("fade", 2);
-    values.set("trail", 50);
+    values.set("fade", 1);
+    values.set("look", 1);
+    values.set("style", 1);
     const address = addressOf(values, switches, null, "");
-    expect(address).toBe("?fade=2&trail=50");
+    expect(address).toBe("?fade=1&look=1&style=1");
     const opened = openingOf(address, "");
-    expect(opened.values.get("fade")).toBe(2);
-    expect(opened.values.get("trail")).toBe(50);
+    expect(opened.values.get("fade")).toBe(1);
+    expect(opened.values.get("look")).toBe(1);
+    expect(opened.values.get("style")).toBe(1);
   });
 
   it("carries the twins that fade readable, without a moment", () => {
@@ -210,8 +246,8 @@ describe("the first piece's address (decision 38)", () => {
     const saved = moment(3);
     const address = addressOf(values, switches, saved, "?n=3&shake=800");
     expect(address).toMatch(/^#[A-Za-z0-9_-]+$/);
-    // thirteen bytes and eight to a mass
-    expect(address).toHaveLength(1 + Math.ceil((4 * (13 + 8 * 3)) / 3));
+    // fourteen bytes since the sixth version (decision 53), and eight to a mass
+    expect(address).toHaveLength(1 + Math.ceil((4 * (14 + 8 * 3)) / 3));
     const opened = openingOf("", address);
     expect(opened.values).toEqual(values);
     expect(opened.switches).toEqual(switches);
@@ -272,6 +308,9 @@ const VERSION_3 = "AxHIsCKUwmgAByHFiATCnz4oTQ6-UJerPiHLdMFrTWFBttOcQQ";
 
 /** A code of version 4, as the published page wrote it on saving a moment. */
 const VERSION_4 = "BBHEsCTaACQAA5D1rl85_T9vHydAXHM8QGwbu79PbKs-p5RlPg";
+
+/** A code of version 5, as the published page wrote it on saving a moment. */
+const VERSION_5 = "BRHEsCTVABIAAch-n9B-sj47Axi8BY8UPx-o-L5kaAdAL1QvwQ";
 
 const VERSION_1 =
   "ASnEsCTMNAADkOEMAAAAPwAAAD8AAAA_AAAAPwAAAD8AAAA_AAAAPwAAAD8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";

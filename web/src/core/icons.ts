@@ -9,6 +9,8 @@ export type Icon =
   | "raise"
   | "fan"
   | "comet"
+  | "strobe"
+  | "dust"
   | "spread"
   | "ribbon"
   | "light"
@@ -62,6 +64,19 @@ const ICONS: Record<Icon, { fill: string; stroke: string; faint?: string }> = {
   comet: {
     fill: "M14 8a3 3 0 1 0 6 0a3 3 0 1 0 -6 0",
     stroke: "M14.5 10.5L4 21M12.5 8.5L6 13.5M16.5 12L12 19",
+  },
+  // the comet's head with its trail broken into stamps: the trails' style,
+  // a strobe's (a placeholder until the author chooses, decision 53)
+  strobe: {
+    fill: "M14 8a3 3 0 1 0 6 0a3 3 0 1 0 -6 0",
+    stroke: "M13.5 11.5L11 14M9 16L6.5 18.5M4.5 20.5L3.5 21.5",
+  },
+  // the fan of chains recalled faint, and only their tips lit: the twins as
+  // dust (a placeholder until the author chooses, decision 53)
+  dust: {
+    fill: "M10.8 4a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0M3.8 19a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0M7.3 20.5a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0M10.8 21a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0M14.3 20.5a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0M17.8 19a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0",
+    stroke: "",
+    faint: "M12 4L5 19M12 4L8.5 20.5M12 4L12 21M12 4L15.5 20.5M12 4L19 19",
   },
   // two chains from one pivot, a narrow angle apart, each with its mass
   spread: {

@@ -39,13 +39,14 @@ hanging rope it becomes as n grows.
   Let go, it leaves 512 twins born a hair apart, which fan out in colour to
   show chaos, as many as the device's cores carry side by side, and its tip
   and theirs leave trails of light that fade. The
-  twins can stay, a cloud over the whole disc once the fan has opened,
+  twins can stay, a cloud over the whole disc once the fan has opened, or
   fade as chaos carries them off and be born again on the chain, so that
-  they come out of it as a plume, or stay as dust, each its tip alone, a
-  point of light. How many twins there are, how far apart they are born,
-  whether they fade, how long the trails last, whether they leave a mark
-  that stays or are a strobe's, the whole chain stamped at even times,
-  whether every mass of the chain leaves one
+  they come out of it as a plume, and either way be drawn as chains or as
+  dust, each its tip alone, a point of light. How many twins there are, how
+  far apart they are born, whether they fade and how they are drawn, how
+  long the trails last and whether they leave a mark that stays, whether
+  they are drawn as lines or by a strobe, the whole chain stamped at even
+  times, whether every mass of the chain leaves one
   and which of ten palettes colours the twins are controls too, and so is
   the ground, one of eleven dark colours, each with a chain's colour to go
   with it. One switch puts out the twins and the
@@ -57,8 +58,9 @@ hanging rope it becomes as n grows.
   keeps the mode's shape and its twins stay together; large, the shape
   breaks up and the fan opens. Any moment of it can be saved in the address,
   with the whole screen around it in a short code, and opens again as it
-  was, under a title that names it and the minute it was saved. A switch paints each rod by how hard it
-  pulls against the weight it holds: in the first of four scales, warm where
+  was, under a title that names it and the minute it was saved. A control paints each rod by how hard
+  it pulls against the weight it holds, in one of four scales: in the
+  first, warm where
   the chain is pulled hard, at the bottom of a swing or in a whip's crack,
   blue where it goes slack, and violet where a rod pushes, which a chain of
   links could not do. And the

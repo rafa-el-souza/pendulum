@@ -55,6 +55,7 @@ import {
   GROUND,
   HAND,
   LIGHT,
+  LOOK,
   MASSES,
   MODE,
   PALETTE,
@@ -63,6 +64,8 @@ import {
   SCALE,
   SHAKE,
   SPREAD,
+  STYLE,
+  TENSION,
   TILT,
   TIME,
   TRAIL,
@@ -604,6 +607,11 @@ function play({ canvas, gl }: Stage): void {
     showTwins();
   }
 
+  /** The tension's colours as the row shows them, one control (decision 53): off, or the scale. */
+  function tensionAt(): number {
+    return tensionShown ? value(SCALE) : TENSION.initial;
+  }
+
   /** Each rod painted by its tension, or the chain in its own colour; the switch says which. */
   function setTensionShown(on: boolean): void {
     tensionShown = on;
@@ -613,12 +621,7 @@ function play({ canvas, gl }: Stage): void {
       rodColors = Array.from({ length: chain.n }, () => colors.chain);
       meter = new PeriodTension(chain.n);
     }
-    controls.showAction(
-      "tension",
-      on ? "weighing" : "balance",
-      "Colours of the tension",
-      on,
-    );
+    controls.showValue(TENSION.id, tensionAt());
   }
 
   /** The time button says which way a press would take time. */
@@ -800,6 +803,19 @@ function play({ canvas, gl }: Stage): void {
   }
 
   function step(parameter: Parameter, direction: 1 | -1): void {
+    // the tension's colours, one control in the row, step the switch and the
+    // scale the address keeps apart: off, then each scale (decision 53)
+    if (parameter === TENSION) {
+      const next = stepValue(TENSION, tensionAt(), direction);
+      if (next !== TENSION.initial) {
+        values.set(SCALE.id, next);
+        tensionColor = tensionScale(colors.chain, tensionScaleAt(next));
+      }
+      setTensionShown(next !== TENSION.initial);
+      showStart();
+      keepAddress();
+      return;
+    }
     const before = value(parameter);
     const next = stepValue(parameter, before, direction);
     values.set(parameter.id, next);
@@ -847,7 +863,9 @@ function play({ canvas, gl }: Stage): void {
       if (!tensionShown) setTensionShown(true);
     }
     if (!lit && LIGHT_CONTROLS.has(parameter)) setLit(true);
-    controls.showValue(parameter.id, next);
+    // the scale shows in the tension's colours, one control (decision 53)
+    if (parameter === SCALE) controls.showValue(TENSION.id, tensionAt());
+    else controls.showValue(parameter.id, next);
     showStart();
     keepAddress();
   }
@@ -916,14 +934,6 @@ function play({ canvas, gl }: Stage): void {
           pressed: lit,
         },
         {
-          id: "tension",
-          label: "Colours of the tension",
-          icon: "balance",
-          keys: ["t", "T"],
-          keysShown: "T",
-          pressed: tensionShown,
-        },
-        {
           id: "music",
           label: "Music",
           icon: "music",
@@ -933,14 +943,16 @@ function play({ canvas, gl }: Stage): void {
       ],
       CHAIN,
       LIGHT,
-      COLOURS,
+      // the tension's colours, one control in place of the switch and the
+      // scale (decision 53), and the ground
+      COLOURS.map((parameter) => (parameter === SCALE ? TENSION : parameter)),
     ],
     {
       step,
       act(id) {
         if (id === "pause") setPaused(!paused);
         else if (id === "reverse") reverseTime();
-        else if (id === "light" || id === "tension") toggle(id);
+        else if (id === "light") toggle(id);
         else if (id === "save") save();
         else if (id === "share") void share();
         else if (id === "qr") card.toggle(location.href, document.title);
@@ -950,7 +962,8 @@ function play({ canvas, gl }: Stage): void {
     },
   );
   for (const parameter of PARAMETERS) {
-    controls.showValue(parameter.id, value(parameter));
+    // the scale shows in the tension's colours, which the switch's turn shows
+    if (parameter !== SCALE) controls.showValue(parameter.id, value(parameter));
   }
   // the switches as the address asks for them
   setLit(lit);
@@ -1032,12 +1045,20 @@ function play({ canvas, gl }: Stage): void {
     // A focused button takes its own Space and Enter.
     const onButton = event.target instanceof HTMLButtonElement;
     if (onButton && (event.key === " " || event.key === "Enter")) return;
-    const action = keyAction(PARAMETERS, event.key);
+    // a key held with Shift by where it is, or what a key types (decision 53)
+    const action = keyAction(PARAMETERS, {
+      key: event.key,
+      code: event.code,
+      shiftKey: event.shiftKey,
+    });
     if (action !== null) {
       event.preventDefault();
       step(action.parameter, action.direction);
-      // the value the key changed comes into sight, alone
-      controls.choose(action.parameter.id);
+      // the value the key changed comes into sight, alone; the scale's in
+      // the tension's colours
+      controls.choose(
+        action.parameter === SCALE ? TENSION.id : action.parameter.id,
+      );
       return;
     }
     if (event.key === " ") {
@@ -1057,6 +1078,7 @@ function play({ canvas, gl }: Stage): void {
       toggle("light");
     } else if (event.key === "t" || event.key === "T") {
       toggle("tension");
+      controls.choose(TENSION.id);
     } else if (event.key === "g" || event.key === "G") {
       toggle("sketch");
     } else if (event.key === "w" || event.key === "W") {
@@ -1084,8 +1106,9 @@ function play({ canvas, gl }: Stage): void {
       Math.max(0.05, 2.2 / Math.sqrt(Math.max(1, twins.count))),
     );
     const fades = value(FADE) === 1;
-    // as dust, each twin its tip alone, a point brighter than a line
-    const asDust = value(FADE) === 2;
+    // as dust, each twin its tip alone, a point brighter than a line, and
+    // in its own light while the twins fade (decision 53)
+    const asDust = value(LOOK) === 1;
     const speck = Math.min(0.8, 6 / Math.sqrt(Math.max(1, twins.count)));
     // each twin where its worker last said it is, at the chain's instant
     // (decision 51)
@@ -1097,7 +1120,7 @@ function play({ canvas, gl }: Stage): void {
         const end = 2 * (report.pieces + 1) * (k + 1) - 2;
         const px = report.tips[end] ?? 0;
         const py = report.tips[end + 1] ?? 0;
-        dust.push(px, py, px, py, color, speck);
+        dust.push(px, py, px, py, color, speck * shine);
         return;
       }
       const { n, positions } = report;
@@ -1270,7 +1293,7 @@ function play({ canvas, gl }: Stage): void {
     const firstDrawing = value(RIBBON) === 1 ? 0 : chain.n - 1;
     const chainColor = tinted(colors.chain, "chain");
     // a strobe's trails stamp the whole chain instead (decision 50)
-    const strobe = lit && trailFade(value(TRAIL)).strobe;
+    const strobe = lit && value(TRAIL) > 0 && value(STYLE) === 1;
     let flashed = false;
     const ribbonLight = 0.55 * Math.min(1, 2.2 / Math.sqrt(chain.n));
     for (let piece = 0; piece < pieces; piece++) {
@@ -1431,7 +1454,7 @@ function play({ canvas, gl }: Stage): void {
       g,
       shakes,
       chain: at,
-      whole: value(FADE) !== 2,
+      whole: value(LOOK) !== 1,
       budget: twins.local ? TWIN_LOCAL_MS : twinBudget,
     });
   }
@@ -1453,8 +1476,8 @@ function play({ canvas, gl }: Stage): void {
     const fades = value(FADE) === 1;
     // their tips draw lines, save as dust, which draws none, and under a
     // strobe, whose flashes stamp them as points
-    const strobe = lit && trailFade(value(TRAIL)).strobe;
-    const tipLines = !strobe && value(FADE) !== 2;
+    const strobe = lit && value(TRAIL) > 0 && value(STYLE) === 1;
+    const tipLines = !strobe && value(LOOK) !== 1;
     const music = 1 + Math.min(TRAIL_MOST, look.trail);
     twins.take((j, report, k) => {
       const color = tinted(fanColors[j] ?? colors.chain, "twins");

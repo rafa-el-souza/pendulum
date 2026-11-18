@@ -12,7 +12,6 @@ import {
   MODE,
   PARAMETERS,
   SPREAD,
-  STROBE_STEP,
   TRAIL,
 } from "./parameters.ts";
 
@@ -49,13 +48,16 @@ function words(parameter: Parameter, value: number): string {
     case "spread":
       return `born ${SPREAD.show(value)} apart`;
     case "fade":
-      return value === 2 ? "twins as dust" : "twins that fade";
+      return "twins that fade";
+    case "look":
+      return "twins as dust";
     case "trail":
       if (value === 0) return "no trails";
       if (value === TRAIL.values.at(-1)) return "trails that stay";
       if (value === MARK_STEP) return "trails that leave a mark";
-      if (value === STROBE_STEP) return "trails of a strobe";
       return `trails ${String(value)} s`;
+    case "style":
+      return "trails of a strobe";
     case "ribbon":
       return "trails from every mass";
     case "palette":

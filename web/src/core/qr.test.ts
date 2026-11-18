@@ -8,13 +8,13 @@ import { QUIET, qrModules, qrPath } from "./qr.ts";
 
 const SITE = "https://rafa-el-souza.github.io/pendulum/#";
 
-/** An address whose code holds a chain of n masses: thirteen bytes (decision 41) and eight to a mass, in base64url. */
+/** An address whose code holds a chain of n masses: fourteen bytes (decision 53) and eight to a mass, in base64url. */
 function address(n: number): string {
   return (
     SITE +
     "Ab-_9"
-      .repeat(Math.ceil((4 * (13 + 8 * n)) / 15))
-      .slice(0, Math.ceil((4 * (13 + 8 * n)) / 3))
+      .repeat(Math.ceil((4 * (14 + 8 * n)) / 15))
+      .slice(0, Math.ceil((4 * (14 + 8 * n)) / 3))
   );
 }
 
