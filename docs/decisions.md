@@ -1729,6 +1729,42 @@ showed the fan born on the chain. The browser tests of the twins run through the
 Chromium, Firefox and WebKit, and a new one checks that the page opens a
 worker for each core but one and writes how many of 4 096 twins they carry.
 
+## 52. While the frames come late, the twins' workers keep the main line's 4 ms between them
+
+*2026-11-18.* Replaces, in decision 51, the 1 ms each worker took while the
+frames come late: each now takes at least its share of the 4 ms the main
+line gave all the twins before the workers (decision 20), so one worker
+4 ms, two 2 ms, three 1.33 ms, and from four on 1 ms, as before. The
+frames come late, for this, when their period, eased over the frames, is a
+quarter or more longer than the screen's own; a frame dropped now and then
+does not count. Where the frames come on time, nothing changes.
+
+**Why.** The author asked, once decision 51 was published, to treat what it
+did to a device with few cores whose frames come late, such as one that
+draws without a GPU: with one worker taking 1 ms, a quarter of the main
+line's time, the published page on this machine carried 67 to 174 twins in
+the default view, against 256 to 365 before the workers. A device with
+four cores or more already gave the twins at least 4 ms in all, and is
+left as it was.
+
+**Evidence.** Unit tests: the frames come late at 30 and at 10 frames a
+second on a 60 Hz screen, and not on time at 60 or 120 Hz, at 50 a second,
+or with one frame in ten dropped; a worker's budget is the frame's free
+time from 1 ms to 10 ms, the least in a busy frame whose frames come on
+time, and, while they come late, at least 4 ms shared by the workers and
+never less than 1 ms each. In headless Chromium on the machine of decision
+5 (two cores, drawing on the CPU, so one worker), at 1280 × 720, two runs
+each, the page before the workers, as published with decision 51, and with
+this one: in the default view 256 to 365 twins at 8.6 to 10.6 frames a
+second, 67 to 143 at 13.2 to 13.4, and 311 to 370 at 8.3 to 9.1; with
+4 096 asked, 206 to 440 at 7.5 to 11.4, 73 to 194 at 11.7 to 13.8, and 155
+to 340 at 9.0 to 10.4; with 8 masses, 102 to 108 at about 12.6, 10 to 28 at
+about 18, and 29 to 41 at about 15; with 16 masses, 19 to 33, 5 to 6, and
+9 to 19. With two masses the twins and the frames are back to what they
+were before the workers. With more masses they stay fewer: on this
+machine's two cores, which the worker shares with the browser's drawing,
+the same 4 ms carry fewer twins in a worker than they did on the main line.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
