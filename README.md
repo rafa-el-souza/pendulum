@@ -1,7 +1,28 @@
 # Pendulum
 
+[![CI](https://img.shields.io/github/actions/workflow/status/rafa-el-souza/pendulum/ci.yml?branch=main&label=CI&labelColor=07080b)](https://github.com/rafa-el-souza/pendulum/actions/workflows/ci.yml?query=branch%3Amain)
+[![Site](https://img.shields.io/website?url=https%3A%2F%2Frafa-el-souza.github.io%2Fpendulum%2F&label=site&up_message=live&down_message=down&labelColor=07080b)](https://rafa-el-souza.github.io/pendulum/)
+[![Licence: MIT](https://img.shields.io/github/license/rafa-el-souza/pendulum?label=licence&labelColor=07080b)](LICENSE)
+[![arXiv:1910.12610](https://img.shields.io/badge/arXiv-1910.12610-b31b1b?labelColor=07080b)](https://arxiv.org/abs/1910.12610v2)
+[![The paper, checked: 73 equations right as printed, 14 with a misprint, 5 under a stated reading](https://img.shields.io/badge/paper%20checked-73%20right%20%C2%B7%2014%20misprints%20%C2%B7%205%20by%20reading-fff0d1?labelColor=07080b)](physics/README.md)
+[![Tested in Chromium, Firefox and WebKit](https://img.shields.io/badge/browsers-Chromium%20%C2%B7%20Firefox%20%C2%B7%20WebKit-fff0d1?labelColor=07080b)](web/e2e/)
+[![The physics agrees with the oracle within 1e-12](https://img.shields.io/badge/oracle-within%201e--12-fff0d1?labelColor=07080b)](physics/oracle/)
+
+<a href="https://rafa-el-souza.github.io/pendulum/"><img src="docs/media/throw.webp" width="800" alt="A chain of three masses, drawn as light on a dark ground, falls from one side; a hand takes it, swings it round and lets go, and the twins born at the letting go fan out in pink, gold and blue."></a>
+
 Interactive browser pieces built on one physics paper. Before any of it
 reached a screen, the paper was checked equation by equation.
+
+<table>
+  <tr>
+    <td width="33%" valign="top"><a href="https://rafa-el-souza.github.io/pendulum/?twins=4096"><img src="docs/media/fan.webp" alt="A double pendulum's 4 096 twins, six seconds after the start, fanning out in pink, gold and blue over the paths of their tips."></a><br>4 096 twins, born a hair apart, part in colour.</td>
+    <td width="33%" valign="top"><a href="https://rafa-el-souza.github.io/pendulum/?twins=0&amp;trail=10"><img src="docs/media/trails.webp" alt="A double pendulum alone, with the path of its tip over the last seconds drawn as fine white loops."></a><br>The tip's path, kept ten seconds.</td>
+    <td width="33%" valign="top"><a href="https://rafa-el-souza.github.io/pendulum/?twins=0&amp;tension=1&amp;n=3&amp;trail=10"><img src="docs/media/tension.webp" alt="A chain of three masses, each rod coloured by its tension from blue to orange, over its tip's path in the same colours."></a><br>Each rod in the colour of its tension.</td>
+  </tr>
+</table>
+
+Each picture opens the site at the address it was taken from; the
+animation opens the site as it starts.
 
 The site: <https://rafa-el-souza.github.io/pendulum/>, published from `main`
 after every check passes.
@@ -122,12 +143,16 @@ npm run dev                           # the app, at http://127.0.0.1:5173/
 `npm run e2e` needs Playwright's browsers; `npm run e2e:browsers` installs
 them with their system packages on Ubuntu, as CI does.
 
+`npm run media` takes the pictures at the top of this README again, from the
+published site, into `docs/media/`; `npm run media -- fan` takes one.
+
 ## Layout
 
 | Path | What it holds |
 |---|---|
 | `physics/` | the check of the paper: the registry, the oracle, the oracle's answers that the browser's physics is tested against, and how to rebuild a local copy of the paper |
-| `web/` | the browser app: the registry of pieces, one page per piece, the shared core in `src/core/`, the physics in `src/physics/`, unit tests beside the code and browser tests in `e2e/`, and in `scripts/` the script that draws the site's icon, a frame of the first piece, with its physics |
+| `web/` | the browser app: the registry of pieces, one page per piece, the shared core in `src/core/`, the physics in `src/physics/`, unit tests beside the code and browser tests in `e2e/`, and in `scripts/` the script that draws the site's icon, a frame of the first piece, with its physics, and the one that takes the README's pictures |
+| `docs/media/` | the README's pictures, taken from the site by `web/scripts/readme-media.ts` |
 | `docs/decisions.md` | the decisions, their reasons and evidence, and the open questions |
 | `.github/` | CI and the pull request template |
 | `.githooks/` | the pre-commit secret scan |
