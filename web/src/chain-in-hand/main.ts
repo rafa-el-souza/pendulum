@@ -100,8 +100,9 @@ import { titleOf } from "./title.ts";
 // whole screen, which the page's title names (decision 38); it can be shared,
 // and shown as a QR code (decision 40). The ground is one of several dark
 // ones, each with its chain's colours, and the tension's colours one of
-// several scales (decision 41). The twins can stay, or fade as chaos carries
-// them off from the chain and be born again on it, a plume (decision 43).
+// several scales (decision 41). The twins fade as chaos carries them off
+// from the chain and are born again on it, a plume, as the piece opens, or
+// they can stay (decisions 43 and 58).
 // The piece can listen to music, from the microphone, a file, a tab's sound
 // or a beat of its own, and a card shows what it hears (decisions 44 and
 // 45); the music lights the chain, its trails and its twins (decision 46).

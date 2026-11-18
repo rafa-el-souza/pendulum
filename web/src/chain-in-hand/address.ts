@@ -14,7 +14,7 @@ import {
   type Switch,
   type Values,
 } from "../core/parameters.ts";
-import { MASSES, PARAMETERS } from "./parameters.ts";
+import { FADE, MASSES, PARAMETERS } from "./parameters.ts";
 
 // What the first piece's address carries (docs/decisions.md, decision 38).
 // Without a saved moment, the values of its controls and its switches that
@@ -229,6 +229,10 @@ export function openingOf(search: string, hash: string): Opening {
         [...screen.values].map(([id, value]) => [id, String(value)] as const),
       ),
     );
+    // codes written before the twins could fade (versions 1 to 3) open with
+    // the twins that stay, as they were published, though the piece now opens
+    // with the twins that fade (decision 58)
+    if (!written.has(FADE.id)) written.set(FADE.id, "0");
     const values = initialValues(PARAMETERS);
     for (const p of PARAMETERS) {
       const text = written.get(p.id);

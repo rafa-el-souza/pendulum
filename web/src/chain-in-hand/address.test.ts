@@ -181,22 +181,36 @@ describe("the first piece's address (decision 38)", () => {
 
   it("carries the trails' style and the twins' look readable, without a moment", () => {
     const { values, switches } = opening();
-    values.set("fade", 1);
+    values.set("fade", 0);
     values.set("look", 1);
     values.set("style", 1);
     const address = addressOf(values, switches, null, "");
-    expect(address).toBe("?fade=1&look=1&style=1");
+    expect(address).toBe("?fade=0&look=1&style=1");
     const opened = openingOf(address, "");
-    expect(opened.values.get("fade")).toBe(1);
+    expect(opened.values.get("fade")).toBe(0);
     expect(opened.values.get("look")).toBe(1);
     expect(opened.values.get("style")).toBe(1);
   });
 
-  it("carries the twins that fade readable, without a moment", () => {
+  it("opens with the twins that fade, and carries the twins that stay readable, without a moment (decision 58)", () => {
     const { values, switches } = opening();
-    values.set("fade", 1);
-    expect(addressOf(values, switches, null, "")).toBe("?fade=1");
+    expect(openingOf("", "").values.get("fade")).toBe(1);
+    expect(addressOf(values, switches, null, "")).toBe("");
+    values.set("fade", 0);
+    expect(addressOf(values, switches, null, "")).toBe("?fade=0");
+    expect(openingOf("?fade=0", "").values.get("fade")).toBe(0);
     expect(openingOf("?fade=1", "").values.get("fade")).toBe(1);
+  });
+
+  it("opens the codes written before the twins could fade with the twins that stay, as they were published (decision 58)", () => {
+    for (const table of CODES.filter(
+      ({ controls }) => !controls.some(({ id }) => id === "fade"),
+    )) {
+      const { values, switches } = opening();
+      values.set("n", 3);
+      const code = writeCode(table, { values, switches, ...moment(3) });
+      expect(openingOf("", `#${code}`).values.get("fade")).toBe(0);
+    }
   });
 
   it("writes codes that hold the ground, the scale and the palettes added (decision 41)", () => {
