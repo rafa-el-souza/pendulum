@@ -120,7 +120,10 @@ function attacks(
   return heard.filter((s) => s[key] > 0).map((s) => s.at);
 }
 
-describe("Hearing", () => {
+// Several of these listen to up to a minute of music, frame by frame, and
+// take 2 to 4 s on CI's runners, close to the 5 s a test has by default: one
+// took 5.07 s on main (2026-11-18). Each has 20 s.
+describe("Hearing", { timeout: 20_000 }, () => {
   it("hears a low sine in the bass, a middle one in the middle and a high one in the treble", () => {
     const tone = (hz: number) => (t: number) =>
       0.3 * Math.sin(2 * Math.PI * hz * t);
