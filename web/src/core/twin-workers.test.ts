@@ -4,6 +4,7 @@ import { gravity } from "../physics/chain.ts";
 import { restingState, type ChainState } from "../physics/step.ts";
 import { TwinShare, type TwinCommand } from "./twin-share.ts";
 import {
+  FrameRhythm,
   TwinWorkers,
   sharesFor,
   type OpenShare,
@@ -314,5 +315,69 @@ describe("the twins' workers", () => {
     twins.take(() => {
       throw new Error("a failed worker's report was seen");
     });
+  });
+});
+
+// The time each worker may take in a frame (decision 51): the frame's free
+// time, until 2 ms before the screen's next frame. A page whose frames come
+// late, such as one drawn without a GPU, has none, so that the twins it
+// draws are not more than the frames can carry.
+describe("the frames' rhythm", () => {
+  const SIXTY = 1000 / 60;
+
+  /** A rhythm that has seen `count` frames `gap` ms apart. */
+  function after(gap: number, count = 60, rhythm = new FrameRhythm()) {
+    for (let i = 0; i < count; i++) rhythm.frame(gap);
+    return rhythm;
+  }
+
+  it("starts as a screen at 60 Hz whose frames come on time", () => {
+    const rhythm = new FrameRhythm();
+    expect(rhythm.screen).toBeCloseTo(SIXTY, 9);
+    // 3 ms into the frame, 2 ms kept before the next one
+    expect(rhythm.free(3, 2)).toBeCloseTo(SIXTY - 5, 9);
+  });
+
+  it("gives a frame on time at 60 Hz the time until a little before the next one", () => {
+    const rhythm = after(SIXTY);
+    expect(rhythm.free(3, 2)).toBeCloseTo(SIXTY - 5, 6);
+    expect(rhythm.free(8, 2)).toBeCloseTo(SIXTY - 10, 6);
+  });
+
+  it("follows a faster screen's own rhythm, which leaves less time", () => {
+    const rhythm = after(1000 / 120, 400);
+    expect(rhythm.screen).toBeCloseTo(1000 / 120, 6);
+    expect(rhythm.free(3, 2)).toBeCloseTo(1000 / 120 - 5, 6);
+  });
+
+  it("leaves no free time while the frames come late, where the page cannot draw as fast as the screen", () => {
+    // ten frames a second on a screen of sixty: the frames are late, and the
+    // time until the next one is no time the page has to spare
+    const rhythm = after(100);
+    expect(rhythm.screen).toBeCloseTo(SIXTY, 9);
+    expect(rhythm.free(1, 2)).toBeLessThan(0);
+  });
+
+  it("takes a little lateness off the free time, and gives it back as the frames catch up", () => {
+    const late = after(20, 200);
+    expect(late.free(3, 2)).toBeCloseTo(SIXTY - 5 - (20 - SIXTY), 3);
+    const caught = after(SIXTY, 200, late);
+    expect(caught.free(3, 2)).toBeCloseTo(SIXTY - 5, 3);
+  });
+
+  it("takes a browser that holds the frames to 30 a second as late against 60 Hz", () => {
+    expect(after(1000 / 30, 200).free(3, 2)).toBeLessThan(0);
+  });
+
+  it("is not taken for a faster screen by a few short gaps", () => {
+    const rhythm = new FrameRhythm();
+    for (let i = 0; i < 60; i++) rhythm.frame(i % 20 === 0 ? 5 : SIXTY);
+    expect(rhythm.screen).toBeCloseTo(SIXTY, 9);
+  });
+
+  it("leaves out a pause of the page, such as a hidden tab, which is no frame", () => {
+    const rhythm = after(SIXTY);
+    rhythm.frame(5000);
+    expect(rhythm.free(3, 2)).toBeCloseTo(SIXTY - 5, 6);
   });
 });

@@ -58,6 +58,66 @@ export function sharesFor(cores: number | undefined): number {
   return Math.min(7, Math.max(1, Math.floor(cores) - 1));
 }
 
+// A gap between frames longer than this is a pause of the page (a hidden
+// tab, a debugger), not a frame.
+const PAUSE_MS = 1000;
+// How many of the last frames' gaps the screen's period is read from.
+const GAPS = 60;
+
+/**
+ * The frames' rhythm, for the time each worker may take in a frame
+ * (decision 51): the screen's own period, read from the last frames, never
+ * slower than 60 Hz's, and the frames' period as they come, eased over the
+ * frames. Frames that come later than the screen's rhythm leave no time
+ * free: the page is already late, as where it draws without a GPU, and the
+ * workers then take the least, so that the twins they carry are no more
+ * than the page can draw.
+ */
+export class FrameRhythm {
+  // the last frames' gaps, in ms, in turn
+  readonly #gaps = new Float64Array(GAPS);
+  #seen = 0;
+  #screen = 1000 / 60;
+  #period = 1000 / 60;
+
+  /**
+   * The screen's own period, in ms: the gap that a tenth of the last
+   * frames' gaps are shorter than, so that a few short ones do not count,
+   * and at most 60 Hz's, so that frames that all come late are not taken
+   * for a slow screen.
+   */
+  get screen(): number {
+    return this.#screen;
+  }
+
+  /** The frames' period as they come, eased over the frames, in ms. */
+  get period(): number {
+    return this.#period;
+  }
+
+  /** A frame came `gap` ms after the one before. */
+  frame(gap: number): void {
+    if (!(gap >= 0) || gap > PAUSE_MS) return;
+    const ms = Math.min(100, Math.max(4, gap));
+    this.#period += 0.1 * (ms - this.#period);
+    this.#gaps[this.#seen % GAPS] = ms;
+    this.#seen++;
+    const seen = this.#gaps.slice(0, Math.min(this.#seen, GAPS)).sort();
+    this.#screen = Math.min(1000 / 60, seen[Math.floor(0.1 * seen.length)]!);
+  }
+
+  /**
+   * The time free in a frame, `elapsed` ms after it began, until `margin`
+   * ms before the screen's next frame, less how much later than the
+   * screen's rhythm the frames have been coming: none, or less than none,
+   * while they come late.
+   */
+  free(elapsed: number, margin: number): number {
+    const late = Math.max(0, this.#period - this.#screen);
+    return this.#screen - elapsed - margin - late;
+  }
+}
+
 /** A share opened in a worker of its own (twins.worker.ts). */
 export const inWorker: OpenShare = (index, shares, n, receive, fail) => {
   const worker = new Worker(new URL("./twins.worker.ts", import.meta.url), {
