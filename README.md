@@ -1,14 +1,12 @@
 # Pendulum
 
-[![CI](https://img.shields.io/github/actions/workflow/status/rafa-el-souza/pendulum/ci.yml?branch=main&label=CI&labelColor=07080b)](https://github.com/rafa-el-souza/pendulum/actions/workflows/ci.yml?query=branch%3Amain)
-[![Site](https://img.shields.io/website?url=https%3A%2F%2Frafa-el-souza.github.io%2Fpendulum%2F&label=site&up_message=live&down_message=down&labelColor=07080b)](https://rafa-el-souza.github.io/pendulum/)
-[![Licence: MIT](https://img.shields.io/github/license/rafa-el-souza/pendulum?label=licence&labelColor=07080b)](LICENSE)
-[![arXiv:1910.12610](https://img.shields.io/badge/arXiv-1910.12610-b31b1b?labelColor=07080b)](https://arxiv.org/abs/1910.12610v2)
-[![The paper, checked: 73 equations right as printed, 14 with a misprint, 5 under a stated reading](https://img.shields.io/badge/paper%20checked-73%20right%20%C2%B7%2014%20misprints%20%C2%B7%205%20by%20reading-fff0d1?labelColor=07080b)](physics/README.md)
-[![Tested in Chromium, Firefox and WebKit](https://img.shields.io/badge/browsers-Chromium%20%C2%B7%20Firefox%20%C2%B7%20WebKit-fff0d1?labelColor=07080b)](web/e2e/)
-[![The physics agrees with the oracle within 1e-12](https://img.shields.io/badge/oracle-within%201e--12-fff0d1?labelColor=07080b)](physics/oracle/)
+[![CI](https://img.shields.io/github/actions/workflow/status/rafa-el-souza/pendulum/ci.yml?branch=main&label=CI)](https://github.com/rafa-el-souza/pendulum/actions/workflows/ci.yml?query=branch%3Amain)
+[![Site](https://img.shields.io/website?url=https%3A%2F%2Frafa-el-souza.github.io%2Fpendulum%2F&label=site&up_message=live&down_message=down)](https://rafa-el-souza.github.io/pendulum/)
+[![Licence: MIT](https://img.shields.io/github/license/rafa-el-souza/pendulum?label=licence)](LICENSE)
+[![arXiv:1910.12610](https://img.shields.io/badge/arXiv-1910.12610-b31b1b)](https://arxiv.org/abs/1910.12610v2)
+[![Tested in Chromium, Firefox and WebKit](https://img.shields.io/badge/browsers-Chromium%20%C2%B7%20Firefox%20%C2%B7%20WebKit-blue)](web/e2e/)
 
-<a href="https://rafa-el-souza.github.io/pendulum/"><img src="docs/media/throw.webp" width="800" alt="A chain of three masses, drawn as light on a dark ground, falls from one side; a hand takes it, swings it round and lets go, and the twins born at the letting go fan out in pink, gold and blue."></a>
+<a href="https://rafa-el-souza.github.io/pendulum/"><img src="docs/media/swing.webp" width="800" alt="A chain of four masses, drawn as light on a dark ground, let go from one side, swings out and back in slow motion, at first a tenth of real time, then faster, smoothly, up to real time, while the twins born with it fan out in pink, gold and blue and fade. The top left corner says how fast time runs."></a>
 
 Interactive browser pieces built on one physics paper. Before any of it
 reached a screen, the paper was checked equation by equation.
