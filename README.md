@@ -37,7 +37,8 @@ hanging rope it becomes as n grows.
   gravity from none to Jupiter's, pointing any way round, and the hand that
   holds it from a rubber band to a firm grip.
   Let go, it leaves 512 twins born a hair apart, which fan out in colour to
-  show chaos, and its tip and theirs leave trails of light that fade. The
+  show chaos, as many as the device's cores carry side by side, and its tip
+  and theirs leave trails of light that fade. The
   twins can stay, a cloud over the whole disc once the fan has opened,
   fade as chaos carries them off and be born again on the chain, so that
   they come out of it as a plume, or stay as dust, each its tip alone, a
