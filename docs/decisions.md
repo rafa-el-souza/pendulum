@@ -1665,9 +1665,13 @@ the screen a key acts a frame later, 16 ms at 60 Hz; let go, the chain's
 fan appears a frame later, born on it; resumed from a pause, a frame is
 shown twice. A moment saved is the one on the screen.
 
-Each worker may take the frame's free time, until 2 ms before the next
-frame, at least 1 ms and at most 10 ms, eased over the frames. For twins in
-workers this replaces the 4 ms of decision 20. As there, the twins a budget
+Each worker may take the frame's free time, until 2 ms before the screen's
+next frame, at least 1 ms and at most 10 ms, eased over the frames. The
+screen's rhythm is read from the last frames, never slower than 60 Hz's;
+while the frames come later than it, as where the page draws without a
+GPU, there is no free time, and each worker takes 1 ms. A browser that
+holds the frames to 30 a second counts as late too. For twins in workers
+this replaces the 4 ms of decision 20. As there, the twins a budget
 cannot carry are dropped from the end of the fan, and so are those a
 worker has not reached by four times its budget, and time never runs
 slower for them. Where no worker can run, or one fails, every twin is lost
@@ -1683,7 +1687,13 @@ piece, when it comes, needs the same rule, since rebuilding the twins from
 a snapshot takes the workers' time too. The budget follows the frame's free
 time so that a screen at 120 Hz, with half the time, carries fewer twins on
 its own, and a phone works harder only when more twins are asked for than
-fit. Batching each worker's twins in one array, which had been estimated at
+fit. It is measured against the screen's rhythm, not against the frames as
+they come, because a page that falls behind would otherwise take its own
+delay for free time: so it was at first, and in CI's Chromium, which draws
+on the CPU, the workers carried two to three times more twins than the main
+line had, the page had to draw them all, and the browser tests that draw
+many of them ran 1.5 to 1.9 times slower, two of them past their 30 s.
+Batching each worker's twins in one array, which had been estimated at
 one and a half to two times faster, was measured first and left out: the
 chain's own arithmetic, which batching leaves as it is, is 70 to 88% of a
 twin's cost, so it could gain at most 1.4 times with 2 masses and 1.15 from
@@ -1701,12 +1711,21 @@ share of a fan, shaken or not; it applies the events in order, drops the
 twins it has not reached by four times its budget, and times their motion
 alone; the workers deal the fan out in turn, keep the first part that every
 worker carried, draw no report from before the fan was put out, and give
-the twins to the main line when one fails. In headless Chromium on this
-machine, which draws on the CPU and gives the page one worker, the page
-carried more twins than before with every number of masses tried, at
-900 × 640 772 against 503 with 2 masses and 4 096 asked, 140 against 109
-with 8 and 29 against 24 with 16, and its first frames showed the fan born
-on the chain. The browser tests of the twins run through the workers in
+the twins to the main line when one fails; the frames' rhythm gives the
+time until 2 ms before the next frame of a screen at 60 or 120 Hz, less
+while the frames come a little late, none while they come at 10 or 30 a
+second, and leaves out a hidden tab's pause. In headless Chromium on this machine, which draws on the CPU,
+told of four cores so that the page opens three workers, at 1280 × 720,
+the page drew as many frames a second as before the workers, with about as
+many twins: 14.4 with 129 twins at four times real time with the twins
+fading, against 11.7 to 13.4 with 78 to 163 before the workers (and 6.9 to
+7.3 with 394 to 456 while the free time was read from the frames as they
+came); 6.3 with 612 of 4 096 asked, against 6.0 with 650. With the one
+worker this machine's two cores give, the page, always late there, carries
+fewer than the main line did: 188 of 4 096 with 2 masses. The main line's
+own work for the twins, mostly their trails, is about half a microsecond a
+twin a frame; on a CPU, drawing them is what costs. The first frames
+showed the fan born on the chain. The browser tests of the twins run through the workers in
 Chromium, Firefox and WebKit, and a new one checks that the page opens a
 worker for each core but one and writes how many of 4 096 twins they carry.
 
@@ -1714,8 +1733,8 @@ worker for each core but one and writes how many of 4 096 twins they carry.
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
 - **Frame budget and target devices.** The chain's physics has 6 ms a frame
-  and the twins, in workers, the frame's free time (decision 51); real
-  devices will set the numbers.
+  and the twins, in workers, the frame's free time (decision 51); drawing
+  the twins has no budget of its own. Real devices will set the numbers.
 - **Which browser versions** count as the major browsers.
 - **Accessibility.** Keyboard control and a pause always within reach from the
   start; reduced motion and the rest still to be decided.
