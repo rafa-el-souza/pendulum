@@ -175,7 +175,7 @@ export const MODE: Parameter = {
       : value === 0
         ? "raised to one side"
         : `normal mode ${String(value)}`,
-  icon: "mode",
+  icon: "start",
 };
 
 /**
@@ -327,7 +327,7 @@ export const STYLE: Parameter = {
   keys: { down: ["Shift+Digit7"], up: ["Shift+Digit8"] },
   show: (value) => (value === 1 ? "strobe" : "lines"),
   speak: (value) => (value === 1 ? "a strobe" : "lines"),
-  icon: "strobe",
+  icon: "style",
 };
 
 /**
@@ -335,38 +335,43 @@ export const STYLE: Parameter = {
  * from a billionth of a radian to a tenth, by powers of ten, opening at the
  * thousandth they were born apart before this control. However close they
  * are born, the fan opens: each power of ten closer only delays it, by a
- * second or so with two masses and less with more (decision 25).
+ * second or so with two masses and less with more (decision 25). The control
+ * shows how close that is: the fan's width at the tip of the chain, a metre
+ * long, held straight, as the twins are born, from a nanometre to ten
+ * centimetres.
  */
-const SUPERSCRIPT: Readonly<Record<string, string>> = {
-  "-": "⁻",
-  "0": "⁰",
-  "1": "¹",
-  "2": "²",
-  "3": "³",
-  "4": "⁴",
-  "5": "⁵",
-  "6": "⁶",
-  "7": "⁷",
-  "8": "⁸",
-  "9": "⁹",
-};
-
-/** The power of ten a spread is. */
-function powerOfTen(value: number): number {
-  return Math.round(Math.log10(value));
-}
-
 export const SPREAD: Parameter = {
   id: "spread",
-  label: "Spread of the twins at birth",
+  label: "How close the twins are born",
   values: [1e-9, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1],
   initial: 1e-3,
   keys: { down: ["3"], up: ["4"] },
-  show: (value) =>
-    `10${String(powerOfTen(value)).replace(/[-0-9]/g, (c) => SUPERSCRIPT[c] ?? c)}`,
-  speak: (value) => `10 to the minus ${String(-powerOfTen(value))} radians`,
+  show: (value) => widthAtTip(value)[0],
+  speak: (value) => `${widthAtTip(value)[1]} apart at the tip`,
   icon: "spread",
 };
+
+/** The fan's width at the tip of the chain, a metre long, for each power of ten of the spread from 10⁻⁹: as shown, and in words. */
+const WIDTHS: readonly (readonly [string, string])[] = [
+  ["1 nm", "1 nanometre"],
+  ["10 nm", "10 nanometres"],
+  ["100 nm", "100 nanometres"],
+  ["1 µm", "1 micrometre"],
+  ["10 µm", "10 micrometres"],
+  ["0.1 mm", "a tenth of a millimetre"],
+  ["1 mm", "1 millimetre"],
+  ["1 cm", "1 centimetre"],
+  ["10 cm", "10 centimetres"],
+];
+
+/** A spread's width at the tip, shown and in words. */
+function widthAtTip(spread: number): readonly [string, string] {
+  const width = WIDTHS[Math.round(Math.log10(spread)) + 9];
+  if (width === undefined) {
+    throw new Error(`no width for a spread of ${String(spread)}`);
+  }
+  return width;
+}
 
 /**
  * Whether the twins stay or fade (decisions 43 and 53). They stay, as they

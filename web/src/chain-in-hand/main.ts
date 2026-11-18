@@ -164,6 +164,9 @@ const STROBE_LIGHT = 0.45;
 const DUST_RADIUS = 1.4;
 // How long the share button shows that the address was copied, in ms.
 const COPIED_MS = 2000;
+// The light switch's name: the twins' and the trails' light, which it puts
+// out and lights again (decision 27), apart from the sketch's light.
+const LIGHT_LABEL = "Light of the twins and trails";
 // The piece's name, which begins the page's title (decision 37).
 const NAME =
   PIECES.find(({ id }) => id === "chain-in-hand")?.title ?? document.title;
@@ -604,7 +607,7 @@ function play({ canvas, gl }: Stage): void {
       trails.clear();
       trail.clear();
     }
-    controls.showAction("light", on ? "light" : "dark", "Light", on);
+    controls.showAction("light", on ? "light" : "dark", LIGHT_LABEL, on);
     showTwins();
   }
 
@@ -630,7 +633,7 @@ function play({ canvas, gl }: Stage): void {
     backwards = on;
     controls.showAction(
       "reverse",
-      on ? "forward" : "rewind",
+      on ? "reversed" : "reverse",
       on ? "Run time forwards" : "Run time backwards",
     );
   }
@@ -910,7 +913,7 @@ function play({ canvas, gl }: Stage): void {
         },
         {
           id: "light",
-          label: "Light",
+          label: LIGHT_LABEL,
           icon: "light",
           keys: ["l", "L"],
           keysShown: "L",
@@ -921,12 +924,12 @@ function play({ canvas, gl }: Stage): void {
         {
           id: "time",
           label: "Time and the start",
-          icon: "hourglass",
+          icon: "clock",
           controls: [
             {
               id: "start",
               label: "Start again",
-              icon: "raise",
+              icon: "restart",
               keys: ["r", "R"],
               keysShown: "R",
             },
@@ -942,7 +945,7 @@ function play({ canvas, gl }: Stage): void {
             {
               id: "reverse",
               label: "Run time backwards",
-              icon: "rewind",
+              icon: "reverse",
               keys: ["b", "B"],
               keysShown: "B",
             },
@@ -960,7 +963,7 @@ function play({ canvas, gl }: Stage): void {
         {
           id: "twins",
           label: "The twins",
-          icon: "fan",
+          icon: "butterfly",
           controls: [TWIN_COUNT, SPREAD, FADE, LOOK, PALETTE],
         },
         {
@@ -979,7 +982,7 @@ function play({ canvas, gl }: Stage): void {
         {
           id: "screen",
           label: "The screen",
-          icon: "frame",
+          icon: "monitor",
           controls: [
             GROUND,
             {

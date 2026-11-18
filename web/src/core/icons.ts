@@ -6,17 +6,17 @@
 export type Icon =
   | "pause"
   | "play"
-  | "raise"
+  | "restart"
   | "fan"
   | "comet"
-  | "strobe"
+  | "style"
   | "dust"
   | "spread"
   | "ribbon"
   | "light"
   | "dark"
-  | "rewind"
-  | "forward"
+  | "reverse"
+  | "reversed"
   | "arrow"
   | "controls"
   | "masses"
@@ -27,7 +27,7 @@ export type Icon =
   | "scale"
   | "ground"
   | "snuffed"
-  | "mode"
+  | "start"
   | "amplitude"
   | "save"
   | "saved"
@@ -40,8 +40,9 @@ export type Icon =
   | "music"
   | "left"
   | "right"
-  | "hourglass"
-  | "frame"
+  | "clock"
+  | "butterfly"
+  | "monitor"
   | "sketch"
   | "sketched";
 
@@ -54,11 +55,9 @@ const SVG = "http://www.w3.org/2000/svg";
 const ICONS: Record<Icon, { fill: string; stroke: string; faint?: string }> = {
   pause: { fill: "M6 5h4v14H6zM14 5h4v14h-4z", stroke: "" },
   play: { fill: "M8 5l11 7-11 7z", stroke: "" },
-  // a circle turning back on itself, its arrowhead at the top pointing left
-  raise: {
-    fill: "",
-    stroke: "M5.5 8.25A7.5 7.5 0 1 0 12 4.5M15 2l-3 2.5 3 2.5",
-  },
+  // a bar and a triangle pointing back to it, as on a player that goes back
+  // to the start
+  restart: { fill: "M19 6v12l-9.5-6z", stroke: "M6 5.5v13" },
   // three chains fanning out from one pivot
   fan: {
     fill: "M10.5 4a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0 -3 0",
@@ -69,18 +68,15 @@ const ICONS: Record<Icon, { fill: string; stroke: string; faint?: string }> = {
     fill: "M14 8a3 3 0 1 0 6 0a3 3 0 1 0 -6 0",
     stroke: "M14.5 10.5L4 21M12.5 8.5L6 13.5M16.5 12L12 19",
   },
-  // the comet's head with its trail broken into stamps: the trails' style,
-  // a strobe's (a placeholder until the author chooses, decision 53)
-  strobe: {
-    fill: "M14 8a3 3 0 1 0 6 0a3 3 0 1 0 -6 0",
-    stroke: "M13.5 11.5L11 14M9 16L6.5 18.5M4.5 20.5L3.5 21.5",
+  // a line that goes on as dots: the trails' style, lines or a strobe's
+  style: {
+    fill: "M11.3 10.6a1.3 1.3 0 1 0 2.6 0a1.3 1.3 0 1 0 -2.6 0M14.7 8.9a1.3 1.3 0 1 0 2.6 0a1.3 1.3 0 1 0 -2.6 0M18.3 7.8a1.3 1.3 0 1 0 2.6 0a1.3 1.3 0 1 0 -2.6 0",
+    stroke: "M3.5 20.5C5.5 16.5 7 14 9.5 12.3",
   },
-  // the fan of chains recalled faint, and only their tips lit: the twins as
-  // dust (a placeholder until the author chooses, decision 53)
+  // a cloud of points of light: the twins' look, chains or dust
   dust: {
-    fill: "M10.8 4a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0M3.8 19a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0M7.3 20.5a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0M10.8 21a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0M14.3 20.5a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0M17.8 19a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0",
+    fill: "M10.5 4.5a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0 -3 0M5.7 8.5a1.3 1.3 0 1 0 2.6 0a1.3 1.3 0 1 0 -2.6 0M15.1 8a1.4 1.4 0 1 0 2.8 0a1.4 1.4 0 1 0 -2.8 0M9 12.5a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0 -3 0M14.3 14a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0M4.3 15a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0M18.2 15a1.3 1.3 0 1 0 2.6 0a1.3 1.3 0 1 0 -2.6 0M7.6 19a1.4 1.4 0 1 0 2.8 0a1.4 1.4 0 1 0 -2.8 0M12.4 19.5a1.6 1.6 0 1 0 3.2 0a1.6 1.6 0 1 0 -3.2 0M17 20a1 1 0 1 0 2 0a1 1 0 1 0 -2 0M3.5 20.5a1 1 0 1 0 2 0a1 1 0 1 0 -2 0",
     stroke: "",
-    faint: "M12 4L5 19M12 4L8.5 20.5M12 4L12 21M12 4L15.5 20.5M12 4L19 19",
   },
   // two chains from one pivot, a narrow angle apart, each with its mass
   spread: {
@@ -92,28 +88,31 @@ const ICONS: Record<Icon, { fill: string; stroke: string; faint?: string }> = {
     fill: "",
     stroke: "M3 9c3-4 6-4 9 0s6 4 9 0M3 15c3-4 6-4 9 0s6 4 9 0",
   },
-  // a light, lit: a disc and its rays
+  // a light bulb, lit: the twins' and the trails' light, filled while it is
+  // on and outlined while it is out
   light: {
-    fill: "M8 12a4 4 0 1 0 8 0a4 4 0 1 0 -8 0",
-    stroke:
-      "M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8",
+    fill: "M12 2.5a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V16h5v-.6c0-.8.4-1.5 1-2A6 6 0 0 0 12 2.5z",
+    stroke: "M9.5 19h5M10.5 21.5h3",
   },
-  // the same light, out: its outline alone
   dark: {
     fill: "",
-    stroke: "M7.5 12a4.5 4.5 0 1 0 9 0a4.5 4.5 0 1 0 -9 0",
+    stroke:
+      "M12 2.5a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V16h5v-.6c0-.8.4-1.5 1-2A6 6 0 0 0 12 2.5zM9.5 19h5M10.5 21.5h3",
   },
-  // two arrowheads pointing back, as on a player that rewinds
-  rewind: { fill: "M11.5 6v12L3 12zM20.5 6v12L12 12z", stroke: "" },
-  // two arrowheads pointing on
-  forward: { fill: "M3.5 6v12l8.5-6zM12 6v12l8.5-6z", stroke: "" },
+  // a triangle pointing back, as on a player that plays backwards: outlined
+  // while time runs forwards, and filled while it runs backwards
+  reverse: { fill: "", stroke: "M16 5.5L5.5 12l10.5 6.5z" },
+  reversed: {
+    fill: "M16 5.5L5.5 12l10.5 6.5z",
+    stroke: "M16 5.5L5.5 12l10.5 6.5z",
+  },
   // an arrow pointing straight down, which a direction turns
   arrow: { fill: "", stroke: "M12 3.5v16M6 13.5l6 6 6-6" },
-  // the button that opens the controls: a little chain of three masses
-  // hanging, which reads as the three dots of "more" too
+  // the button that opens the controls: a little chain hanging from its
+  // pivot, swung a little, its rods drawn and its tip the heaviest
   controls: {
-    fill: "M10 5a2 2 0 1 0 4 0a2 2 0 1 0 -4 0M10 12a2 2 0 1 0 4 0a2 2 0 1 0 -4 0M10 19a2 2 0 1 0 4 0a2 2 0 1 0 -4 0M11.4 7h1.2v3h-1.2zM11.4 14h1.2v3h-1.2z",
-    stroke: "",
+    fill: "M8.2 3a1.4 1.4 0 1 0 2.8 0a1.4 1.4 0 1 0 -2.8 0M9.3 8.8a1.9 1.9 0 1 0 3.8 0a1.9 1.9 0 1 0 -3.8 0M10.9 14.4a1.9 1.9 0 1 0 3.8 0a1.9 1.9 0 1 0 -3.8 0M11.9 20.2a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0 -5 0",
+    stroke: "M9.6 3L14.4 20.2",
   },
   // a chain of beads hanging in a curve, as it does on its way to a rope
   masses: {
@@ -161,12 +160,12 @@ const ICONS: Record<Icon, { fill: string; stroke: string; faint?: string }> = {
     stroke: "M12 14v-1.5c0-1.4-2-1.8-2-3.3",
     faint: "M10 9.2c0-1.5 3-1.7 3-3.4s-2.5-1.6-2.5-3.3",
   },
-  // a string held at both ends in its second mode, as a standing wave is
-  // drawn: one end of its swing, the other faint, and its nodes
-  mode: {
-    fill: "M1.9 12a1.6 1.6 0 1 0 3.2 0a1.6 1.6 0 1 0 -3.2 0M10.4 12a1.6 1.6 0 1 0 3.2 0a1.6 1.6 0 1 0 -3.2 0M18.9 12a1.6 1.6 0 1 0 3.2 0a1.6 1.6 0 1 0 -3.2 0",
-    stroke: "M3.5 12Q7.75 4 12 12T20.5 12",
-    faint: "M3.5 12Q7.75 20 12 12T20.5 12",
+  // a chain raised straight to one side from its pivot, where it hangs at
+  // rest recalled faint: where the chain starts
+  start: {
+    fill: "M3.5 4a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0 -3 0M8.5 8a1.9 1.9 0 1 0 3.8 0a1.9 1.9 0 1 0 -3.8 0M13.9 12a1.9 1.9 0 1 0 3.8 0a1.9 1.9 0 1 0 -3.8 0M18.7 16a2.3 2.3 0 1 0 4.6 0a2.3 2.3 0 1 0 -4.6 0",
+    stroke: "M5 4L10.4 8L15.8 12L21 16",
+    faint: "M5 4V21",
   },
   // a pendulum, and the marks of its swing either side of the bob
   amplitude: {
@@ -213,19 +212,23 @@ const ICONS: Record<Icon, { fill: string; stroke: string; faint?: string }> = {
     fill: "M4.6 18.6c0-1.3 1.3-2.4 2.9-2.4c1.1 0 1.9.6 1.9 1.5c0 1.3-1.3 2.4-2.9 2.4c-1.1 0-1.9-.6-1.9-1.5zM14.6 16.6c0-1.3 1.3-2.4 2.9-2.4c1.1 0 1.9.6 1.9 1.5c0 1.3-1.3 2.4-2.9 2.4c-1.1 0-1.9-.6-1.9-1.5zM9.4 5l10-2v3l-10 2z",
     stroke: "M9.4 17.5V6M19.4 15.5V4",
   },
-  // Two of the groups of the row (decision 54), placeholders until the
-  // author chooses among candidates drawn for them; the chain's, the twins'
-  // and the trails' groups take the icons of their first controls. An
-  // hourglass: time and the start.
-  hourglass: {
-    fill: "M9.5 19.5h5L12 16z",
-    stroke:
-      "M6.5 3h11M6.5 21h11M8 3v2.5L12 12l4-6.5V3M8 21v-2.5L12 12l4 6.5V21",
-  },
-  // the four corners of a frame: the screen
-  frame: {
+  // Three of the groups of the row (decision 54); the chain's and the
+  // trails' take the icons of their first controls. A clock: time and the
+  // start.
+  clock: {
     fill: "",
-    stroke: "M3.5 8.5v-5h5M15.5 3.5h5v5M20.5 15.5v5h-5M8.5 20.5h-5v-5",
+    stroke: "M3.5 12a8.5 8.5 0 1 0 17 0a8.5 8.5 0 1 0 -17 0M12 7.5V12l3 2",
+  },
+  // a butterfly: the twins, which show the butterfly effect
+  butterfly: {
+    fill: "M11.2 11C9.5 6.5 6.5 3.5 4 4.2C2 4.8 2.3 8 4 9.8C5.6 11.4 8.3 12 11.2 12.3ZM12.8 11C14.5 6.5 17.5 3.5 20 4.2C22 4.8 21.7 8 20 9.8C18.4 11.4 15.7 12 12.8 12.3ZM11.2 13.3C8.5 13.6 5.8 14.6 5.4 16.9C5 19.3 7.6 20.6 9.4 18.9C10.5 17.8 11 15.6 11.2 13.3ZM12.8 13.3C15.5 13.6 18.2 14.6 18.6 16.9C19 19.3 16.4 20.6 14.6 18.9C13.5 17.8 13 15.6 12.8 13.3Z",
+    stroke: "M12 9.5v8",
+  },
+  // a monitor on its stand: the screen
+  monitor: {
+    fill: "",
+    stroke:
+      "M4 4.5h16a1.5 1.5 0 0 1 1.5 1.5v9a1.5 1.5 0 0 1-1.5 1.5H4A1.5 1.5 0 0 1 2.5 15V6A1.5 1.5 0 0 1 4 4.5zM8.5 20.5h7M12 16.5v4",
   },
   // a pencil, outlined while the sketch's light is off and filled while it is
   // on the whole frame (decision 24)
