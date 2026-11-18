@@ -126,6 +126,39 @@
   flex: none;
 }
 
+/* The open group's row of icons, right above the row and centred on the
+   group's own icon (decision 54); its value opens above it in turn. */
+.shelf {
+  position: relative;
+  height: 2.5rem;
+}
+
+.group {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  white-space: nowrap;
+}
+
+.shelf[hidden],
+.group[hidden] {
+  display: none;
+}
+
+/* On a narrow phone the row's icons sit a little closer, so that the eight
+   of its first level fit beside the button without scrolling: at 40 px they
+   need 396 px of screen. */
+@media (max-width: 400px) {
+  .row {
+    gap: 0.25rem;
+  }
+
+  .row .tool {
+    width: 2.25rem;
+  }
+}
+
 /* The icons and the button: small glyphs on round targets a finger can hit,
    the button's a little larger. */
 .tool,

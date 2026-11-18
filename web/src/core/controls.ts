@@ -2,15 +2,18 @@
 // few actions, and kept out of the piece's way (decisions 16, 31 and 32). When
 // the pointer moves, a finger lifts or a key is pressed, a small button comes
 // into sight in a corner, and it fades again after a moment of stillness. The
-// button opens a thin row of small icons, one per control, which scrolls
-// sideways where it does not fit, with a chevron at a side where there is
-// more. An action's icon acts; a parameter's icon opens that one value, with
-// its − and +, right above itself. A key steps its parameter whether the row
-// is open or not, and shows the value it changed. The row stays open or shut
-// as the visitor leaves it. On a touch screen, a touch on the controls keeps
-// them in sight for longer, a touch where they are brings them back without
-// grabbing the chain, and a touch on the stage puts them away. Keyboard focus
-// and a mouse resting on them keep them in sight.
+// button opens a thin row of small icons, which scrolls sideways where it does
+// not fit, with a chevron at a side where there is more. The row holds a few
+// actions and the groups of controls (decision 54): a group's icon opens the
+// group's own row right above it, and an action's icon acts. A parameter's
+// icon opens that one value, with its − and +, right above itself. A key
+// steps its parameter whether the row is open or not, and shows the value it
+// changed: with the row open, in its group. The row, the group and the value
+// stay as the visitor leaves them, and come back so when the row is opened
+// again. On a touch screen, a touch on the controls keeps them in sight for
+// longer, a touch where they are brings them back without grabbing the
+// chain, and a touch on the stage puts them away. Keyboard focus and a mouse
+// resting on them keep them in sight.
 
 import { cssColor } from "./color.ts";
 import { cls } from "./css.ts";
@@ -34,6 +37,17 @@ export interface Action {
 /** A control in the row: a parameter, stepped down and up, or an action. */
 export type Control = Parameter | Action;
 
+/** A group of controls (decision 54): its icon in the row opens the group's own row of icons right above it. */
+export interface Group {
+  readonly id: string;
+  readonly label: string;
+  readonly icon: Icon;
+  readonly controls: readonly Control[];
+}
+
+/** What the row holds: controls, and groups of them. */
+export type Item = Control | Group;
+
 export interface ControlHandlers {
   step(parameter: Parameter, direction: 1 | -1): void;
   act(id: string): void;
@@ -42,9 +56,9 @@ export interface ControlHandlers {
 export interface Controls {
   /** Brings the controls into sight, and lets them fade after a moment of stillness. */
   wake(): void;
-  /** Shows a parameter's value with its − and +, as choosing its icon does, and brings it into sight. */
+  /** Shows a parameter's value with its − and +, as choosing its icon does, in its group with the row open, and brings it into sight. */
   choose(id: string): void;
-  /** Brings a parameter's value into sight, unless the visitor is reading another one in the open row. */
+  /** Brings a parameter's value into sight, unless the visitor is reading another value or another group in the open row. */
   notice(id: string): void;
   /** Shows a parameter's value; `reached`, when given, is the value actually reached. */
   showValue(id: string, value: number, reached?: number): void;
@@ -159,6 +173,10 @@ function isParameter(control: Control): control is Parameter {
   return "values" in control;
 }
 
+function isGroup(item: Item): item is Group {
+  return "controls" in item;
+}
+
 /** What a parameter's value shows and says, kept to update it. */
 interface Entry {
   readonly parameter: Parameter;
@@ -181,7 +199,7 @@ interface Entry {
 }
 
 export function mountControls(
-  sets: readonly (readonly Control[])[],
+  sets: readonly (readonly Item[])[],
   handlers: ControlHandlers,
 ): Controls {
   const dock = document.createElement("div");
@@ -234,10 +252,15 @@ export function mountControls(
   tray.className = cls(styles, "tray");
   tray.append(launcher, track);
 
+  // The open group's row, right above the row and its own icon (decision 54).
+  const shelf = document.createElement("div");
+  shelf.className = cls(styles, "shelf");
+  shelf.hidden = true;
+
   // The value chosen, which opens right above its icon.
   const readout = document.createElement("div");
   readout.className = cls(styles, "readout");
-  dock.append(tray, readout);
+  dock.append(shelf, tray, readout);
 
   const button = (
     className: string,
@@ -272,8 +295,19 @@ export function mountControls(
     string,
     { button: HTMLButtonElement; keysShown: string }
   >();
+  // each group's icon in the row and its own row, and the group of each control
+  const groups = new Map<
+    string,
+    { button: HTMLButtonElement; row: HTMLElement }
+  >();
+  const groupOf = new Map<string, string>();
   let chosen: string | null = null;
+  let group: string | null = null;
   let open = false;
+  // what was open last, which comes back as it was left (decision 54): the
+  // group, and in each group the value
+  let lastGroup: string | null = null;
+  const lastChosen = new Map<string, string | null>();
 
   /** Shows the value of the parameter `id` above its icon, or none. */
   function setChosen(id: string | null): void {
@@ -286,15 +320,59 @@ export function mountControls(
     place();
   }
 
+  /** Shows the row of the group `id` above its icon, or none, with the value that was open in it. */
+  function setGroup(id: string | null): void {
+    group = id;
+    for (const [key, { button, row: own }] of groups) {
+      own.hidden = key !== id;
+      button.setAttribute("aria-expanded", String(key === id));
+    }
+    shelf.hidden = id === null;
+    setChosen(id === null ? null : (lastChosen.get(id) ?? null));
+    place();
+  }
+
+  /** What is open now is what opens next time. */
+  function remember(): void {
+    lastGroup = group;
+    if (group === null) return;
+    lastChosen.set(
+      group,
+      chosen !== null && groupOf.get(chosen) === group ? chosen : null,
+    );
+  }
+
   /**
-   * The value chosen opens right above its icon, centred on it, and stays on
-   * the screen; with the row shut, above the button (decision 32).
+   * The open group's row opens right above its icon, centred on it, and
+   * stays on the screen (decision 54). The value chosen opens right above its
+   * icon, centred on it, and stays on the screen; with its group shut, above
+   * the group's icon; with the row shut, above the button (decision 32).
    */
   function place(): void {
+    const dockLeft = dock.getBoundingClientRect().left;
+    const shown = group === null ? undefined : groups.get(group);
+    if (open && shown !== undefined) {
+      const at = shown.button.getBoundingClientRect();
+      const left = centredOver(
+        at.left + at.width / 2,
+        shown.row.offsetWidth,
+        EDGE,
+        innerWidth - EDGE,
+      );
+      shown.row.style.left = `${String(left - dockLeft)}px`;
+    }
     if (chosen === null) return;
     const entry = entries.get(chosen);
     if (entry === undefined) return;
-    const anchor = (open ? entry.tool : launcher).getBoundingClientRect();
+    const owner = groupOf.get(chosen);
+    const owned = owner === undefined ? undefined : groups.get(owner);
+    const anchor = (
+      !open
+        ? launcher
+        : owned === undefined || owner === group
+          ? entry.tool
+          : owned.button
+    ).getBoundingClientRect();
     // its keys, beside it where a pointer hovers, stay on the screen too
     const keys = entry.keys.offsetWidth;
     const left = centredOver(
@@ -303,121 +381,151 @@ export function mountControls(
       EDGE,
       innerWidth - EDGE - (keys === 0 ? 0 : keys + 2),
     );
-    readout.style.left = `${String(left - dock.getBoundingClientRect().left)}px`;
+    readout.style.left = `${String(left - dockLeft)}px`;
+  }
+
+  /** Puts a control's icon `into` a row: an action's, which acts, or a parameter's, which opens its value. */
+  function add(into: HTMLElement, control: Control): void {
+    if (!isParameter(control)) {
+      const action = control;
+      const b = button(
+        "tool",
+        drawIcon(action.icon),
+        action.label,
+        action.keys,
+        () => {
+          handlers.act(action.id);
+        },
+      );
+      b.title = `${action.label} (${action.keysShown})`;
+      if (action.pressed !== undefined) {
+        b.setAttribute("aria-pressed", String(action.pressed));
+      }
+      into.append(b);
+      actionButtons.set(action.id, {
+        button: b,
+        keysShown: action.keysShown,
+      });
+      return;
+    }
+
+    const parameter = control;
+    if (parameter.icon === undefined) {
+      throw new Error(
+        `${parameter.id} has no icon, and the row names its controls without words`,
+      );
+    }
+    const keys = [...parameter.keys.down, ...parameter.keys.up];
+    const reading = document.createElement("div");
+    reading.className = cls(styles, "reading");
+    reading.id = `control-${parameter.id}`;
+    reading.setAttribute("role", "group");
+    reading.setAttribute("aria-label", parameter.label);
+    reading.hidden = true;
+
+    const toolIcon = drawIcon(parameter.icon);
+    const described = hidden("spoken");
+    described.id = `control-${parameter.id}-value`;
+    const tool = button("tool", toolIcon, parameter.label, keys, () => {
+      setChosen(chosen === parameter.id ? null : parameter.id);
+      remember();
+      wake();
+    });
+    const keysShown =
+      parameter.keysShown ??
+      showKeys([parameter.keys.down[0], parameter.keys.up[0]]);
+    tool.title = `${parameter.label} (${keysShown})`;
+    tool.append(described);
+    tool.setAttribute("aria-expanded", "false");
+    tool.setAttribute("aria-controls", reading.id);
+    tool.setAttribute("aria-describedby", described.id);
+    into.append(tool);
+
+    const output = document.createElement("output");
+    output.className = cls(styles, "value");
+    output.setAttribute("aria-live", "polite");
+    const holder = hidden("icon");
+    const readingIcon = drawIcon(parameter.icon);
+    holder.append(readingIcon);
+    const shown = document.createElement("span");
+    output.append(holder, shown);
+    let spoken: HTMLElement | null = null;
+    if (parameter.speak !== undefined || parameter.swatches !== undefined) {
+      // shown to the eye in a way of its own, and said in words to a screen reader
+      shown.setAttribute("aria-hidden", "true");
+      spoken = hidden("spoken");
+      output.append(spoken);
+    }
+    const keysHint = hidden("keys");
+    keysHint.setAttribute("aria-hidden", "true");
+    keysHint.textContent = keysShown;
+    reading.append(
+      button(
+        "button",
+        "−",
+        `Less: ${parameter.label}`,
+        parameter.keys.down,
+        () => {
+          handlers.step(parameter, -1);
+        },
+      ),
+      output,
+      button(
+        "button",
+        "+",
+        `More: ${parameter.label}`,
+        parameter.keys.up,
+        () => {
+          handlers.step(parameter, 1);
+        },
+      ),
+      keysHint,
+    );
+    readout.append(reading);
+    entries.set(parameter.id, {
+      parameter,
+      tool,
+      toolIcon,
+      described,
+      reading,
+      output,
+      shown,
+      spoken,
+      readingIcon,
+      keys: keysHint,
+      painted: "",
+    });
   }
 
   for (const set of sets) {
     const cluster = document.createElement("div");
     cluster.className = cls(styles, "set");
-    for (const control of set) {
-      if (!isParameter(control)) {
-        const action = control;
-        const b = button(
-          "tool",
-          drawIcon(action.icon),
-          action.label,
-          action.keys,
-          () => {
-            handlers.act(action.id);
-          },
-        );
-        b.title = `${action.label} (${action.keysShown})`;
-        if (action.pressed !== undefined) {
-          b.setAttribute("aria-pressed", String(action.pressed));
-        }
-        cluster.append(b);
-        actionButtons.set(action.id, {
-          button: b,
-          keysShown: action.keysShown,
-        });
+    for (const item of set) {
+      if (!isGroup(item)) {
+        add(cluster, item);
         continue;
       }
-
-      const parameter = control;
-      if (parameter.icon === undefined) {
-        throw new Error(
-          `${parameter.id} has no icon, and the row names its controls without words`,
-        );
-      }
-      const keys = [...parameter.keys.down, ...parameter.keys.up];
-      const reading = document.createElement("div");
-      reading.className = cls(styles, "reading");
-      reading.id = `control-${parameter.id}`;
-      reading.setAttribute("role", "group");
-      reading.setAttribute("aria-label", parameter.label);
-      reading.hidden = true;
-
-      const toolIcon = drawIcon(parameter.icon);
-      const described = hidden("spoken");
-      described.id = `control-${parameter.id}-value`;
-      const tool = button("tool", toolIcon, parameter.label, keys, () => {
-        setChosen(chosen === parameter.id ? null : parameter.id);
+      // the group's icon, which opens its own row above it, or shuts it
+      const own = document.createElement("div");
+      own.className = cls(styles, "group");
+      own.id = `group-${item.id}`;
+      own.setAttribute("role", "toolbar");
+      own.setAttribute("aria-label", item.label);
+      own.hidden = true;
+      const opener = button("tool", drawIcon(item.icon), item.label, [], () => {
+        setGroup(group === item.id ? null : item.id);
+        remember();
         wake();
       });
-      const keysShown =
-        parameter.keysShown ??
-        showKeys([parameter.keys.down[0], parameter.keys.up[0]]);
-      tool.title = `${parameter.label} (${keysShown})`;
-      tool.append(described);
-      tool.setAttribute("aria-expanded", "false");
-      tool.setAttribute("aria-controls", reading.id);
-      tool.setAttribute("aria-describedby", described.id);
-      cluster.append(tool);
-
-      const output = document.createElement("output");
-      output.className = cls(styles, "value");
-      output.setAttribute("aria-live", "polite");
-      const holder = hidden("icon");
-      const readingIcon = drawIcon(parameter.icon);
-      holder.append(readingIcon);
-      const shown = document.createElement("span");
-      output.append(holder, shown);
-      let spoken: HTMLElement | null = null;
-      if (parameter.speak !== undefined || parameter.swatches !== undefined) {
-        // shown to the eye in a way of its own, and said in words to a screen reader
-        shown.setAttribute("aria-hidden", "true");
-        spoken = hidden("spoken");
-        output.append(spoken);
+      opener.setAttribute("aria-expanded", "false");
+      opener.setAttribute("aria-controls", own.id);
+      cluster.append(opener);
+      for (const control of item.controls) {
+        groupOf.set(control.id, item.id);
+        add(own, control);
       }
-      const keysHint = hidden("keys");
-      keysHint.setAttribute("aria-hidden", "true");
-      keysHint.textContent = keysShown;
-      reading.append(
-        button(
-          "button",
-          "−",
-          `Less: ${parameter.label}`,
-          parameter.keys.down,
-          () => {
-            handlers.step(parameter, -1);
-          },
-        ),
-        output,
-        button(
-          "button",
-          "+",
-          `More: ${parameter.label}`,
-          parameter.keys.up,
-          () => {
-            handlers.step(parameter, 1);
-          },
-        ),
-        keysHint,
-      );
-      readout.append(reading);
-      entries.set(parameter.id, {
-        parameter,
-        tool,
-        toolIcon,
-        described,
-        reading,
-        output,
-        shown,
-        spoken,
-        readingIcon,
-        keys: keysHint,
-        painted: "",
-      });
+      shelf.append(own);
+      groups.set(item.id, { button: opener, row: own });
     }
     row.append(cluster);
   }
@@ -490,9 +598,11 @@ export function mountControls(
     event.preventDefault();
   });
 
-  /** Where the controls are on the screen: the button with the row, and the value chosen. */
+  /** Where the controls are on the screen: the button with the row, the open group's row, and the value chosen. */
   function boxes(): Box[] {
     const all: Box[] = [tray.getBoundingClientRect()];
+    const shown = group === null ? undefined : groups.get(group);
+    if (shown !== undefined) all.push(shown.row.getBoundingClientRect());
     if (chosen !== null) all.push(readout.getBoundingClientRect());
     return all;
   }
@@ -587,7 +697,9 @@ export function mountControls(
     open = on;
     row.hidden = !on;
     launcher.setAttribute("aria-expanded", String(on));
-    if (!on) setChosen(null);
+    // opened, as it was left: its group, and the value open in it (decision
+    // 54); shut, it keeps them for the next time
+    setGroup(on ? lastGroup : null);
     swing(on);
     settle();
     wake();
@@ -595,17 +707,37 @@ export function mountControls(
   launcher.addEventListener("click", () => {
     setOpen(!open);
   });
-  // Escape shuts the row, and a focus that was in it goes back to the button.
+  // Escape shuts the open group, then the row, and a focus that was in what
+  // it shut goes back to the icon that opened it.
   addEventListener("keydown", (event) => {
     if (event.key !== "Escape" || !open) return;
+    const shown = group === null ? undefined : groups.get(group);
+    if (shown !== undefined) {
+      const inside = shown.row.contains(document.activeElement);
+      setGroup(null);
+      remember();
+      if (inside) shown.button.focus();
+      wake();
+      return;
+    }
     const inside = dock.contains(document.activeElement);
     setOpen(false);
     if (inside) launcher.focus();
   });
 
+  /**
+   * A key's value, above its icon in its group with the row open, or alone
+   * above the button; what the visitor reaches for is what opens next time.
+   */
   function choose(id: string): void {
     if (!entries.has(id)) throw new Error(`no control shows ${id}`);
+    const owner = groupOf.get(id) ?? null;
+    if (open && owner !== null && owner !== group) setGroup(owner);
     setChosen(id);
+    if (owner !== null) {
+      lastGroup = owner;
+      lastChosen.set(owner, id);
+    }
     wake();
   }
 
@@ -614,8 +746,15 @@ export function mountControls(
     wake,
     choose,
     notice(id) {
-      if (open && chosen !== null && chosen !== id) wake();
-      else choose(id);
+      const owner = groupOf.get(id) ?? null;
+      const reading = chosen !== null && chosen !== id;
+      const elsewhere = group !== null && owner !== group;
+      if (open && (reading || elsewhere)) {
+        wake();
+        return;
+      }
+      setChosen(id);
+      wake();
     },
     showValue(id, value, reached) {
       const entry = entries.get(id);
