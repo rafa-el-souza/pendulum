@@ -1934,6 +1934,55 @@ amplitude faint; the start's first step forgetting the moment, the address
 losing its code, and the start raised to one side; the next step choosing
 mode 1; which masses faint with a strobe's trails and not with lines.
 
+## 57. The row's icons and names, chosen from candidates
+
+*2026-11-18.* The first piece's row takes the icons the author chose from
+candidates drawn side by side at the row's size, in its real order, and
+names a visitor reads. This replaces the placeholder icons of decisions 53
+and 54, and the icons and words of decisions 25, 27, 28, 31 and 33 named
+below.
+
+- **The button** that opens the row, a little chain since decision 31, is
+  drawn swung a little from its pivot, its rods visible and its tip the
+  heaviest, since three equal dots read as "more". It still swings to lie
+  along the row.
+- **The groups:** time and the start, a clock; the chain, the chain of its
+  masses' control; the twins, a butterfly, for the butterfly effect they
+  show; the trails, the comet of their duration; the screen, a monitor,
+  since the corners of a frame mean full screen, which may join that group
+  later.
+- **The light switch** is a light bulb, filled while lit and outlined while
+  out, named "Light of the twins and trails", since a sun read as
+  brightness or a theme, and "light" also names the sketch's light.
+- **Time and the start:** start again is a bar with a triangle pointing
+  back to it, as players go back to the start, since a circling arrow read
+  as reloading the page; time backwards is one triangle pointing back,
+  outlined while time runs forwards and filled while it runs backwards,
+  since two read as rewinding fast, and two are kept for a rewind; the
+  start is a chain raised to one side, its rest faint, since a standing
+  wave read as ∞.
+- **The controls of decision 53:** the trails' style is a line going on as
+  dots; the twins' look, a cloud of points; the tension's colours keep the
+  spring balance.
+- **How close the twins are born** (keys 3 and 4, until now "Spread of the
+  twins at birth") shows the fan's width at the tip of the chain, a metre
+  long, held straight, as they are born: from 1 nm to 10 cm, 1 mm where the
+  piece opens, rather than the angle as a power of ten. The page's title
+  says it the same way; the address keeps the angle.
+
+**Why.** The author chose every icon and word from some forty-five
+drawings in three rounds, each shown large and at 18 px between its
+neighbours in the row. Drawings that read as something else were dropped
+before he saw them: a dial on a hook read as an umbrella, a picture on a
+nail as a house, Newton's cradle as "Π", and a chain hanging from a ring as
+a telephone.
+
+**Evidence.** Unit tests: the start's and the style's icons, how close the
+twins are born at each of its nine steps, and the title's words. Browser
+tests find the light switch and the spread by their new names. Screenshots
+of the first level and of each group's row, 1280 and 390 px wide, in
+headless Chromium.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
