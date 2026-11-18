@@ -47,8 +47,6 @@ import { PIECES } from "../pieces.ts";
 import { addressOf, openingOf, type Saved } from "./address.ts";
 import {
   AMPLITUDE,
-  CHAIN,
-  COLOURS,
   FADE,
   FADE_REACH,
   GRAVITY,
@@ -874,12 +872,23 @@ function play({ canvas, gl }: Stage): void {
   function toggle(id: "light" | "tension" | "sketch"): void {
     if (id === "light") setLit(!lit);
     else if (id === "tension") setTensionShown(!tensionShown);
-    else setWholeFrame(!wholeFrame);
+    else {
+      setWholeFrame(!wholeFrame);
+      // its button in the screen's group says whether it is on (decision 54)
+      controls.showAction(
+        "sketch",
+        wholeFrame ? "sketched" : "sketch",
+        "The sketch's light",
+        wholeFrame,
+      );
+    }
     keepAddress();
   }
 
-  // The row of controls: the actions, then what moves the chain, then the
-  // light (decision 31).
+  // The row of controls (decisions 31 and 54): the pause and the light,
+  // which act on the whole piece, then the groups, each opening its own row:
+  // time and where the chain starts, the chain, the twins, the trails, the
+  // music's card, and the screen.
   const controls = mountControls(
     [
       [
@@ -891,47 +900,65 @@ function play({ canvas, gl }: Stage): void {
           keysShown: "␣",
         },
         {
-          id: "reverse",
-          label: "Run time backwards",
-          icon: "rewind",
-          keys: ["b", "B"],
-          keysShown: "B",
-        },
-        {
-          id: "start",
-          label: "Start again",
-          icon: "raise",
-          keys: ["r", "R"],
-          keysShown: "R",
-        },
-        {
-          id: "save",
-          label: "Save this moment",
-          icon: "save",
-          keys: ["s", "S"],
-          keysShown: "S",
-        },
-        {
-          id: "share",
-          label: "Share this page's address",
-          icon: "share",
-          keys: ["h", "H"],
-          keysShown: "H",
-        },
-        {
-          id: "qr",
-          label: "QR code of this page's address",
-          icon: "qr",
-          keys: ["o", "O"],
-          keysShown: "O",
-        },
-        {
           id: "light",
           label: "Light",
           icon: "light",
           keys: ["l", "L"],
           keysShown: "L",
           pressed: lit,
+        },
+      ],
+      [
+        {
+          id: "time",
+          label: "Time and the start",
+          icon: "hourglass",
+          controls: [
+            {
+              id: "start",
+              label: "Start again",
+              icon: "raise",
+              keys: ["r", "R"],
+              keysShown: "R",
+            },
+            {
+              id: "save",
+              label: "Save this moment",
+              icon: "save",
+              keys: ["s", "S"],
+              keysShown: "S",
+            },
+            MODE,
+            AMPLITUDE,
+            {
+              id: "reverse",
+              label: "Run time backwards",
+              icon: "rewind",
+              keys: ["b", "B"],
+              keysShown: "B",
+            },
+            TIME,
+          ],
+        },
+        {
+          id: "chain",
+          label: "The chain",
+          icon: "masses",
+          // the tension's colours, one control in place of the switch and
+          // the scale (decision 53)
+          controls: [MASSES, HAND, GRAVITY, TILT, SHAKE, TENSION],
+        },
+        {
+          id: "twins",
+          label: "The twins",
+          icon: "fan",
+          controls: [TWIN_COUNT, SPREAD, FADE, LOOK, PALETTE],
+        },
+        {
+          id: "trails",
+          label: "The trails",
+          icon: "comet",
+          controls: [TRAIL, STYLE, RIBBON],
         },
         {
           id: "music",
@@ -940,19 +967,44 @@ function play({ canvas, gl }: Stage): void {
           keys: ["w", "W"],
           keysShown: "W",
         },
+        {
+          id: "screen",
+          label: "The screen",
+          icon: "frame",
+          controls: [
+            GROUND,
+            {
+              id: "sketch",
+              label: "The sketch's light",
+              icon: wholeFrame ? "sketched" : "sketch",
+              keys: ["g", "G"],
+              keysShown: "G",
+              pressed: wholeFrame,
+            },
+            {
+              id: "share",
+              label: "Share this page's address",
+              icon: "share",
+              keys: ["h", "H"],
+              keysShown: "H",
+            },
+            {
+              id: "qr",
+              label: "QR code of this page's address",
+              icon: "qr",
+              keys: ["o", "O"],
+              keysShown: "O",
+            },
+          ],
+        },
       ],
-      CHAIN,
-      LIGHT,
-      // the tension's colours, one control in place of the switch and the
-      // scale (decision 53), and the ground
-      COLOURS.map((parameter) => (parameter === SCALE ? TENSION : parameter)),
     ],
     {
       step,
       act(id) {
         if (id === "pause") setPaused(!paused);
         else if (id === "reverse") reverseTime();
-        else if (id === "light") toggle(id);
+        else if (id === "light" || id === "sketch") toggle(id);
         else if (id === "save") save();
         else if (id === "share") void share();
         else if (id === "qr") card.toggle(location.href, document.title);

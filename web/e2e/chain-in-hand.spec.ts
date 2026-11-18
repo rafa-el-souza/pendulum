@@ -34,11 +34,42 @@ async function openControls(page: Page): Promise<void> {
   await expect(launcher(page)).toHaveAttribute("aria-expanded", "true");
 }
 
-/** A control's icon in the open row, which a screen reader hears described by its value. */
+/** A control's icon in the open row or in a group's row, which a screen reader hears described by its value. */
 function icon(page: Page, label: string): Locator {
   return page
-    .getByRole("toolbar", { name: "Controls" })
-    .getByRole("button", { name: label, exact: true });
+    .locator("#controls")
+    .getByRole("button", { name: label, exact: true, includeHidden: true });
+}
+
+/**
+ * Opens the group whose row holds a control's icon, as a visitor does, unless
+ * it is open (decision 54), and gives the icon.
+ */
+async function reveal(page: Page, label: string): Promise<Locator> {
+  const owner = await page
+    .locator("#controls [role=toolbar][id^='group-']")
+    .filter({
+      has: page.locator(`button[aria-label=${JSON.stringify(label)}]`),
+    })
+    .getAttribute("id");
+  if (owner === null) throw new Error(`no group holds ${label}`);
+  const opener = page.locator(
+    `#controls [aria-controls=${JSON.stringify(owner)}]`,
+  );
+  if ((await opener.getAttribute("aria-expanded")) !== "true") {
+    await opener.click();
+  }
+  await expect(opener).toHaveAttribute("aria-expanded", "true");
+  return icon(page, label);
+}
+
+/** The names of the icons in a row, in their order. */
+async function labels(row: Locator): Promise<(string | null)[]> {
+  return Promise.all(
+    (await row.getByRole("button").all()).map((b) =>
+      b.getAttribute("aria-label"),
+    ),
+  );
 }
 
 /** The controls and the value they show, which fade in and out over the stage, to mask in a capture. */
@@ -135,8 +166,10 @@ test("the keys and the controls change the masses and the time, and the address 
   await expect(time).toHaveAccessibleDescription("×0.9");
   await expect(page).toHaveURL(/[?&]time=0\.9(&|$)/);
 
-  // the icon in the row shows its value again, and its + takes clicks
-  await masses.click();
+  // back in its group, the value open there comes back, and its + takes
+  // clicks (decision 54)
+  await reveal(page, "Number of masses");
+  await expect(shown).toBeVisible();
   await shown.getByRole("button", { name: "More: Number of masses" }).click();
   await expect(shown.locator("output")).toHaveText("n = 6");
   await frames(page, 20);
@@ -390,8 +423,8 @@ test("the palette's keys change the twins' colours, the control paints them, and
   await page.goto("./");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   await openControls(page);
-  // its icon in the row shows the palette, as five dots painted
-  await icon(page, "Colours of the twins").click();
+  // its icon in the twins' group shows the palette, as five dots painted
+  await (await reveal(page, "Colours of the twins")).click();
   const palette = page
     .getByRole("group", { name: "Colours of the twins" })
     .locator("output");
@@ -456,6 +489,7 @@ test("the ground's keys dress the piece and the page in another ground, coming r
   // the ground's value is open above its icon in every capture
   await frames(page, 10);
   await page.keyboard.press(" ");
+  await reveal(page, "Colour of the ground");
   await ground.click();
   await frames(page, 3);
   const before = await stage.screenshot({ mask });
@@ -725,6 +759,7 @@ test("the T key and the control's − paint the chain by its tension and back, a
   // and the pointer on its icon, so that each capture shows them alike
   await frames(page, 10);
   await icon(page, "Pause").click();
+  await reveal(page, "Colours of the tension");
   await tension.click();
   await frames(page, 3);
   const plain = await stage.screenshot({ mask });
@@ -981,8 +1016,14 @@ test("an address starts the chain in a mode; with fewer masses it starts in its 
 /** The button that saves the moment, whose name says whether one is kept (decision 34). */
 function saveButton(page: Page): Locator {
   return page
-    .getByRole("toolbar", { name: "Controls" })
+    .locator("#controls")
     .getByRole("button", { name: /^Save this moment/ });
+}
+
+/** The save button in sight, in the group of time and the start (decision 54), whose name a screen reader hears. */
+async function shownSave(page: Page): Promise<Locator> {
+  await reveal(page, "Start again");
+  return saveButton(page);
 }
 
 /** A title with a saved moment's minute and mark (decision 38), after what differs, if anything. */
@@ -998,7 +1039,7 @@ test("the S key saves the moment and the screen into the address, R starts the c
   await expect(page).toHaveTitle("Pendulum");
   await openControls(page);
   const mode = icon(page, "Normal mode");
-  await expect(saveButton(page)).toHaveAccessibleName("Save this moment");
+  await expect(await shownSave(page)).toHaveAccessibleName("Save this moment");
   await frames(page, 10);
 
   // two masses: the screen in fourteen bytes since the sixth code (decision
@@ -1006,7 +1047,7 @@ test("the S key saves the moment and the screen into the address, R starts the c
   await page.keyboard.press("s");
   await expect(page).toHaveURL(/\/#[A-Za-z0-9_-]{40}$/);
   await expect(page).toHaveTitle(SAVED_TITLE);
-  await expect(saveButton(page)).toHaveAccessibleName(
+  await expect(await shownSave(page)).toHaveAccessibleName(
     "Save this moment over the one saved",
   );
   await expect(mode).toHaveClass(/_held_/);
@@ -1030,7 +1071,7 @@ test("the S key saves the moment and the screen into the address, R starts the c
   await expect(page).not.toHaveURL(/#/);
   await expect(page).toHaveURL(/\?g=24\.79&mode=1$/);
   await expect(page).toHaveTitle("Pendulum · Jupiter, mode 1");
-  await expect(saveButton(page)).toHaveAccessibleName("Save this moment");
+  await expect(await shownSave(page)).toHaveAccessibleName("Save this moment");
   await expect(mode).not.toHaveClass(/_held_/);
   await frames(page, 5);
   expect(errors).toEqual([]);
@@ -1074,7 +1115,7 @@ test("a saved moment opens elsewhere as the screen it was: the controls, the swi
   await expect(icon(other, "Number of masses")).toHaveAccessibleDescription(
     "n = 8",
   );
-  await expect(saveButton(other)).toHaveAccessibleName(
+  await expect(await shownSave(other)).toHaveAccessibleName(
     "Save this moment over the one saved",
   );
   await frames(other, 5);
@@ -1100,7 +1141,7 @@ test("the H key and its button hand the page's address and title to the device's
     url: page.url(),
   });
   await openControls(page);
-  await icon(page, "Share this page's address").click();
+  await (await reveal(page, "Share this page's address")).click();
   await expect.poll(() => page.evaluate("window.shared.length")).toBe(2);
   expect(errors).toEqual([]);
 });
@@ -1116,7 +1157,7 @@ test("without a sheet for sharing, the address is copied, and the button and a w
   await page.goto("./?g=1.62");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   await openControls(page);
-  await icon(page, "Share this page's address").click();
+  await (await reveal(page, "Share this page's address")).click();
   await expect(
     page.getByRole("status").filter({ hasText: "Link copied" }),
   ).toBeVisible();
@@ -1182,7 +1223,7 @@ test("the O key and its button show the page's address as a QR code that reads b
   await page.keyboard.press("Escape");
   await expect(card).toBeHidden();
   await openControls(page);
-  await icon(page, "QR code of this page's address").click();
+  await (await reveal(page, "QR code of this page's address")).click();
   await expect(card).toBeVisible();
   await card.getByRole("button", { name: "Close" }).click();
   await expect(card).toBeHidden();
@@ -1218,7 +1259,7 @@ test("an address with a moment starts the chain there, and another number of mas
   await page.goto("./?n=1#moment=AAAAPwAAAAA");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   await openControls(page);
-  await expect(saveButton(page)).toHaveAccessibleName(
+  await expect(await shownSave(page)).toHaveAccessibleName(
     "Save this moment over the one saved",
   );
   await expect(icon(page, "Amplitude of the mode")).toHaveClass(/_held_/);
@@ -1229,7 +1270,7 @@ test("an address with a moment starts the chain there, and another number of mas
   await page.keyboard.press("ArrowUp");
   await expect(page).not.toHaveURL(/#moment=/);
   await expect(page).not.toHaveURL(/[?&]n=/);
-  await expect(saveButton(page)).toHaveAccessibleName("Save this moment");
+  await expect(await shownSave(page)).toHaveAccessibleName("Save this moment");
   await frames(page, 5);
   expect(errors).toEqual([]);
 });
@@ -1239,7 +1280,7 @@ test("a moment for another number of masses is not taken", async ({ page }) => {
   await page.goto("./?n=2#moment=AAAAPwAAAAA");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   await openControls(page);
-  await expect(saveButton(page)).toHaveAccessibleName("Save this moment");
+  await expect(await shownSave(page)).toHaveAccessibleName("Save this moment");
   await frames(page, 5);
   expect(errors).toEqual([]);
 });
@@ -1255,7 +1296,8 @@ test("the controls wait behind one button, whose row shows one value at a time a
 
   await openControls(page);
   await expect(page.getByRole("toolbar", { name: "Controls" })).toBeVisible();
-  const masses = icon(page, "Number of masses");
+  // the masses' icon, in the chain's group (decision 54)
+  const masses = await reveal(page, "Number of masses");
   const shown = page.getByRole("group", { name: "Number of masses" });
   await expect(shown).toBeHidden();
 
@@ -1266,14 +1308,13 @@ test("the controls wait behind one button, whose row shows one value at a time a
   await shown.getByRole("button", { name: "More: Number of masses" }).click();
   await expect(shown.locator("output")).toHaveText("n = 3");
   await expect(page).toHaveURL(/[?&]n=3(&|$)/);
-  // another icon shows its value in place of the first
-  await icon(page, "Speed of time").click();
+  // another icon of the group shows its value in place of the first
+  const hand = page.getByRole("group", { name: "Firmness of the hand" });
+  await icon(page, "Firmness of the hand").click();
   await expect(shown).toBeHidden();
-  await expect(
-    page.getByRole("group", { name: "Speed of time" }).locator("output"),
-  ).toHaveText("×0.8");
-  await icon(page, "Speed of time").click();
-  await expect(page.getByRole("group", { name: "Speed of time" })).toBeHidden();
+  await expect(hand.locator("output")).toContainText("●●●●●");
+  await icon(page, "Firmness of the hand").click();
+  await expect(hand).toBeHidden();
 
   // the button shuts the row
   await launcher(page).click();
@@ -1313,8 +1354,9 @@ test("a value opens right above its icon, centred on it", async ({ page }) => {
   await page.goto("./");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   await openControls(page);
+  // two values of the chain's group (decision 54)
   for (const label of ["Number of masses", "Strength of gravity"]) {
-    const tool = icon(page, label);
+    const tool = await reveal(page, label);
     await tool.click();
     const value = page.getByRole("group", { name: label });
     await expect(value).toBeVisible();
@@ -1371,7 +1413,8 @@ test.describe("on a touch screen", () => {
 });
 
 test.describe("on a narrow screen", () => {
-  test.use({ viewport: { width: 390, height: 844 } });
+  // the first level fits down to 360 px wide (decision 54); narrower, it scrolls
+  test.use({ viewport: { width: 320, height: 640 } });
 
   test("where the row does not fit, a chevron shows there is more, and scrolls the row there", async ({
     page,
@@ -1632,5 +1675,133 @@ test("the music card's mode and strength are kept in the address, beside a saved
   await expect(
     strength.getByRole("button", { name: "Strength 2 of 5" }),
   ).toHaveAttribute("aria-pressed", "true");
+  expect(errors).toEqual([]);
+});
+
+test("the row opens on the pause, the light and six groups, each opening its own row above it, and what was open comes back (decision 54)", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("./");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await openControls(page);
+  const row = page.getByRole("toolbar", { name: "Controls" });
+  expect(await labels(row)).toEqual([
+    "Pause",
+    "Light",
+    "Time and the start",
+    "The chain",
+    "The twins",
+    "The trails",
+    "Music",
+    "The screen",
+  ]);
+
+  // a group's row opens right above the first level, with its own icons
+  const trails = icon(page, "The trails");
+  await trails.click();
+  await expect(trails).toHaveAttribute("aria-expanded", "true");
+  const trailsRow = page.getByRole("toolbar", { name: "The trails" });
+  await expect(trailsRow).toBeVisible();
+  expect(await labels(trailsRow)).toEqual([
+    "How long the trails last",
+    "Style of the trails",
+    "Trails from every mass",
+  ]);
+  const above = await trailsRow.boundingBox();
+  const below = await row.boundingBox();
+  if (above === null || below === null) throw new Error("no rows");
+  expect(above.y + above.height).toBeLessThanOrEqual(below.y + 1);
+
+  // a value opens above its icon in the group
+  await icon(page, "How long the trails last").click();
+  await expect(
+    page.getByRole("group", { name: "How long the trails last" }),
+  ).toBeVisible();
+
+  // a key leads the row to its control's group, its value in sight
+  await page.keyboard.press("ArrowUp");
+  const chainRow = page.getByRole("toolbar", { name: "The chain" });
+  await expect(chainRow).toBeVisible();
+  await expect(trailsRow).toBeHidden();
+  await expect(
+    page.getByRole("group", { name: "Number of masses" }),
+  ).toBeVisible();
+
+  // shut by the button and opened again, as it was left
+  await launcher(page).click();
+  await expect(chainRow).toBeHidden();
+  await launcher(page).click();
+  await expect(chainRow).toBeVisible();
+  await expect(
+    page.getByRole("group", { name: "Number of masses" }),
+  ).toBeVisible();
+
+  // and each group keeps the value last open in it
+  await icon(page, "The trails").click();
+  await expect(
+    page.getByRole("group", { name: "How long the trails last" }),
+  ).toBeVisible();
+
+  // Escape shuts the group, then the row
+  await page.keyboard.press("Escape");
+  await expect(trailsRow).toBeHidden();
+  await expect(row).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(row).toBeHidden();
+  expect(errors).toEqual([]);
+});
+
+test("on a phone 390 or 360 px wide, the first level fits beside the button without scrolling, and a group opens above it (decision 54)", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  for (const width of [390, 360]) {
+    await page.setViewportSize({ width, height: 780 });
+    await page.goto("./");
+    await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+    await openControls(page);
+    await expect(page.locator("#controls [data-more]")).toHaveAttribute(
+      "data-more",
+      "",
+    );
+    for (const button of await page
+      .getByRole("toolbar", { name: "Controls" })
+      .getByRole("button")
+      .all()) {
+      const box = await button.boundingBox();
+      if (box === null)
+        throw new Error("an icon of the row is not on the page");
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(width);
+    }
+    await icon(page, "The twins").click();
+    const twins = page.getByRole("toolbar", { name: "The twins" });
+    await expect(twins).toBeVisible();
+    const box = await twins.boundingBox();
+    if (box === null) throw new Error("the twins' row is not on the page");
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(width);
+  }
+  expect(errors).toEqual([]);
+});
+
+test("the screen's group has a button for the sketch's light, which the G key turns too (decision 54)", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("./");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await openControls(page);
+  const sketch = await reveal(page, "The sketch's light");
+  await expect(sketch).toHaveAttribute("aria-pressed", "false");
+  await sketch.click();
+  await expect(sketch).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("html")).toHaveAttribute("data-light", "frame");
+  await expect(page).toHaveURL(/[?&]sketch=1(&|$)/);
+  await page.keyboard.press("g");
+  await expect(sketch).toHaveAttribute("aria-pressed", "false");
+  await expect(page.locator("html")).toHaveAttribute("data-light", "trails");
+  await frames(page, 5);
   expect(errors).toEqual([]);
 });
