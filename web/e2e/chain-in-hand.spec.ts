@@ -631,7 +631,7 @@ test("the spread's keys bring the twins closer or farther at birth, and the addr
   expect(errors).toEqual([]);
 });
 
-test("the P key lets the twins fade as chaos carries them off and stay again, Shift and P draws them as dust, fading too, and the address and the title follow", async ({
+test("the twins open fading as chaos carries them off; Shift and P draws them as dust, fading too; the P key lets them stay and fade again; and the address and the title follow", async ({
   page,
 }) => {
   const errors = collectErrors(page);
@@ -641,24 +641,28 @@ test("the P key lets the twins fade as chaos carries them off and stay again, Sh
   await openControls(page);
   const fade = icon(page, "Twins stay or fade");
   const look = icon(page, "Look of the twins");
-  await expect(fade).toHaveAccessibleDescription("stay");
-  await expect(look).toHaveAccessibleDescription("chains");
-  await page.keyboard.press("p");
+  // the piece opens with the twins that fade (decision 58)
   await expect(fade).toHaveAccessibleDescription("fade");
-  await expect(page).toHaveURL(/[?&]fade=1(&|$)/);
-  await expect(page).toHaveTitle(/twins that fade/);
+  await expect(look).toHaveAccessibleDescription("chains");
+  await expect(page).not.toHaveTitle(/twins that/);
   await frames(page, 90);
   // their tips alone, a plume of points while they fade (decisions 50, 53)
   await page.keyboard.press("Shift+KeyP");
   await expect(look).toHaveAccessibleDescription("dust");
   await expect(fade).toHaveAccessibleDescription("fade");
-  await expect(page).toHaveURL(/[?&]fade=1&look=1(&|$)/);
-  await expect(page).toHaveTitle(/twins that fade, twins as dust/);
+  await expect(page).toHaveURL(/[?&]look=1(&|$)/);
+  await expect(page).not.toHaveURL(/fade=/);
+  await expect(page).toHaveTitle(/twins as dust/);
+  await frames(page, 30);
+  await page.keyboard.press("p");
+  await expect(fade).toHaveAccessibleDescription("stay");
+  await expect(look).toHaveAccessibleDescription("dust");
+  await expect(page).toHaveURL(/[?&]fade=0&look=1(&|$)/);
+  await expect(page).toHaveTitle(/twins that stay, twins as dust/);
   await frames(page, 30);
   // P alone, with caps lock on, still goes round whether they fade
   await page.keyboard.press("P");
-  await expect(fade).toHaveAccessibleDescription("stay");
-  await expect(look).toHaveAccessibleDescription("dust");
+  await expect(fade).toHaveAccessibleDescription("fade");
   await expect(page).not.toHaveURL(/fade=/);
   await frames(page, 30);
   await page.keyboard.press("Shift+KeyP");
@@ -668,11 +672,11 @@ test("the P key lets the twins fade as chaos carries them off and stay again, Sh
   expect(errors).toEqual([]);
 });
 
-test("an address asks for 4 096 twins that fade, which are born again from the chain let go", async ({
+test("an address asks for 4 096 twins, which fade as the piece opens and are born again from the chain let go", async ({
   page,
 }) => {
   const errors = collectErrors(page);
-  await page.goto("./?fade=1&twins=4096&time=4");
+  await page.goto("./?twins=4096&time=4");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   const box = await page.locator("#stage").boundingBox();
   if (box === null) throw new Error("the stage is not on the page");
