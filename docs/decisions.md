@@ -1983,6 +1983,34 @@ tests find the light switch and the spread by their new names. Screenshots
 of the first level and of each group's row, 1280 and 390 px wide, in
 headless Chromium.
 
+## 58. The twins open fading
+
+*2026-11-18.* The first piece opens with the twins that fade (decision 43),
+and P still lets them stay. This replaces, in decision 43, the twins that
+stay as the piece opens.
+
+- **The readable address** writes `fade=0` for twins that stay, and nothing
+  for twins that fade, so an address written before without `fade=` now
+  opens with the twins fading.
+- **A saved moment's code** opens as it did: codes of versions 4 to 6 hold
+  the choice, and codes of versions 1 to 3, written before the twins could
+  fade, open with the twins that stay, as they were published.
+- **The page's title** names twins that stay, rather than twins that fade.
+- **The README's picture of the fan,** taken six seconds in with the twins
+  staying, is kept: at that moment the two differ little, the paths a
+  little brighter while the twins fade. Its animation already shows twins
+  that fade.
+
+**Why.** The author asked for the twins that fade as the way the piece
+opens, and judged the README's picture too close to the new opening to be
+taken again.
+
+**Evidence.** Unit tests: the control opening at fade; the readable address
+with and without `fade=0`; a code of each version without the control
+opening with the twins that stay; the title's words. Browser test: the
+piece opening with the twins fading, Shift and P drawing them as dust, P
+letting them stay and fade again, and the address and the title following.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
