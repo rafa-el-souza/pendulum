@@ -53,6 +53,14 @@ export interface ControlHandlers {
   act(id: string): void;
 }
 
+/** How a value stands, besides the value itself. */
+export interface Showing {
+  /** The value actually reached, held below the one asked for, as time is when the machine cannot keep up: shown in the hand's colour. */
+  reached?: number;
+  /** Whether the value has nothing to do now, as a mode's amplitude while the chain starts raised: shown faint, and still there to choose. */
+  idle?: boolean;
+}
+
 export interface Controls {
   /** Brings the controls into sight, and lets them fade after a moment of stillness. */
   wake(): void;
@@ -60,8 +68,8 @@ export interface Controls {
   choose(id: string): void;
   /** Brings a parameter's value into sight, unless the visitor is reading another value or another group in the open row. */
   notice(id: string): void;
-  /** Shows a parameter's value; `reached`, when given, is the value actually reached. */
-  showValue(id: string, value: number, reached?: number): void;
+  /** Shows a parameter's value, and how it stands beside it. */
+  showValue(id: string, value: number, showing?: Showing): void;
   /** Changes what an action's button shows, as pause becomes resume, and whether a switch is on. */
   showAction(id: string, icon: Icon, label: string, pressed?: boolean): void;
 }
@@ -742,6 +750,7 @@ export function mountControls(
   }
 
   const held = cls(styles, "held");
+  const faint = cls(styles, "idle");
   return {
     wake,
     choose,
@@ -756,7 +765,8 @@ export function mountControls(
       setChosen(id);
       wake();
     },
-    showValue(id, value, reached) {
+    showValue(id, value, showing = {}) {
+      const { reached, idle = false } = showing;
       const entry = entries.get(id);
       if (entry === undefined) throw new Error(`no control shows ${id}`);
       const at = reached ?? value;
@@ -795,6 +805,8 @@ export function mountControls(
       }
       entry.output.classList.toggle(held, reached !== undefined);
       entry.tool.classList.toggle(held, reached !== undefined);
+      entry.output.classList.toggle(faint, idle);
+      entry.tool.classList.toggle(faint, idle);
       // a value that grew or shrank stays centred on its icon
       if (id === chosen && entry.shown.textContent !== before) place();
     },

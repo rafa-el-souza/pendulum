@@ -59,6 +59,7 @@ import {
   PALETTE,
   PARAMETERS,
   RIBBON,
+  SAVED_START,
   SCALE,
   SHAKE,
   SPREAD,
@@ -399,7 +400,7 @@ function play({ canvas, gl }: Stage): void {
   function showTwins(): void {
     const asked = value(TWIN_COUNT);
     if (lit && hand === null && twins.count < asked) {
-      controls.showValue(TWIN_COUNT.id, asked, twins.count);
+      controls.showValue(TWIN_COUNT.id, asked, { reached: twins.count });
     } else {
       controls.showValue(TWIN_COUNT.id, asked);
     }
@@ -515,23 +516,25 @@ function play({ canvas, gl }: Stage): void {
   }
 
   /**
-   * The start's controls: a mode the chain lacks shows the highest it has,
-   * held back, and the amplitude, which only a mode has, shows held back
-   * while the chain starts raised; with a moment saved, where the chain
-   * starts, both show held back.
+   * The start's controls: with a moment saved, the start says the chain
+   * starts there; without, a mode the chain lacks shows the highest it has,
+   * held back. The amplitude, which only a mode has, shows faint while the
+   * chain starts raised or from the moment saved, where it has nothing to do.
    */
   function showStart(): void {
     const mode = value(MODE);
-    if (saved !== null) {
-      controls.showValue(MODE.id, mode, Math.min(mode, chain.n));
-      controls.showValue(AMPLITUDE.id, value(AMPLITUDE), value(AMPLITUDE));
-      return;
-    }
-    if (mode > chain.n) controls.showValue(MODE.id, mode, chain.n);
-    else controls.showValue(MODE.id, mode);
-    const amplitude = value(AMPLITUDE);
-    if (mode === 0) controls.showValue(AMPLITUDE.id, amplitude, amplitude);
-    else controls.showValue(AMPLITUDE.id, amplitude);
+    if (saved !== null) controls.showValue(MODE.id, SAVED_START);
+    else if (mode > chain.n) {
+      controls.showValue(MODE.id, mode, { reached: chain.n });
+    } else controls.showValue(MODE.id, mode);
+    controls.showValue(AMPLITUDE.id, value(AMPLITUDE), {
+      idle: saved !== null || mode === 0,
+    });
+  }
+
+  /** Which masses draw the trails, faint with a strobe's, which stamps the whole chain (decision 50). */
+  function showRibbon(): void {
+    controls.showValue(RIBBON.id, value(RIBBON), { idle: value(STYLE) === 1 });
   }
 
   /** A hand on mass `index`, with the grip the hand's control asks for, where `at` is and moving as it moves. */
@@ -815,7 +818,12 @@ function play({ canvas, gl }: Stage): void {
       return;
     }
     const before = value(parameter);
-    const next = stepValue(parameter, before, direction);
+    // with a moment saved, the start's first step forgets it and goes back
+    // to the start it had before, rather than to the next one
+    const next =
+      parameter === MODE && saved !== null
+        ? before
+        : stepValue(parameter, before, direction);
     values.set(parameter.id, next);
     // a moment saved belongs to a chain of so many masses, and choosing a
     // start, a mode or the amplitude of one, starts there instead
@@ -865,6 +873,7 @@ function play({ canvas, gl }: Stage): void {
     if (parameter === SCALE) controls.showValue(TENSION.id, tensionAt());
     else controls.showValue(parameter.id, next);
     showStart();
+    showRibbon();
     keepAddress();
   }
 
@@ -1017,6 +1026,7 @@ function play({ canvas, gl }: Stage): void {
     // the scale shows in the tension's colours, which the switch's turn shows
     if (parameter !== SCALE) controls.showValue(parameter.id, value(parameter));
   }
+  showRibbon();
   // the switches as the address asks for them
   setLit(lit);
   setTensionShown(tensionShown);
@@ -1415,11 +1425,9 @@ function play({ canvas, gl }: Stage): void {
     const held = reached < 0.97;
     const speed = value(TIME);
     if (held) {
-      controls.showValue(
-        TIME.id,
-        speed,
-        Math.round(speed * reached * 100) / 100,
-      );
+      controls.showValue(TIME.id, speed, {
+        reached: Math.round(speed * reached * 100) / 100,
+      });
       if (!wasHeld) controls.notice(TIME.id);
     } else if (wasHeld) {
       controls.showValue(TIME.id, speed);

@@ -286,6 +286,13 @@
   color: var(--color-hand);
 }
 
+/* A value with nothing to do now, as a mode's amplitude while the chain starts
+   raised, and its icon in the row: faint, as a control that is off, and still
+   there to choose. */
+.idle {
+  opacity: 0.4;
+}
+
 .keys {
   position: absolute;
   top: 50%;

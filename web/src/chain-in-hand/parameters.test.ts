@@ -20,6 +20,7 @@ import {
   PALETTE,
   PARAMETERS,
   RIBBON,
+  SAVED_START,
   SCALE,
   SHAKE,
   SHAKE_AMPLITUDE,
@@ -344,11 +345,18 @@ describe("the first piece's parameters", () => {
     expect(MODE.icon).toBe("mode");
   });
 
-  it("show the mode by its number, a dash for none, and say it in words", () => {
-    expect(MODE.show(0)).toBe("—");
-    expect(MODE.show(2)).toBe("2");
+  it("name the start, and show it in words a visitor reads: side, or the mode by its number", () => {
+    expect(MODE.label).toBe("Start");
+    expect(MODE.show(0)).toBe("side");
+    expect(MODE.show(2)).toBe("mode 2");
     expect(MODE.speak?.(0)).toBe("raised to one side");
     expect(MODE.speak?.(1)).toBe("normal mode 1");
+  });
+
+  it("show the start as saved while a moment is saved, where the chain starts then, outside its steps", () => {
+    expect(MODE.values).not.toContain(SAVED_START);
+    expect(MODE.show(SAVED_START)).toBe("saved");
+    expect(MODE.speak?.(SAVED_START)).toBe("the moment saved");
   });
 
   it("swing a mode from 2° to 180° at its largest angle, opening at 30° (decision 33)", () => {
