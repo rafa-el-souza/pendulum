@@ -76,7 +76,7 @@ export interface TwinCommand {
   readonly chain: Float64Array | null;
   /** Each twin sent back whole, every mass, or its tip alone, as dust (decision 50). */
   readonly whole: boolean;
-  /** How long the share may take, in ms; the twins it has not reached by twice this are dropped (decision 20). */
+  /** How long the share may take, in ms; the twins it has not reached by four times this are dropped (decision 20). */
   readonly budget: number;
   /** How many times the fan had been put out when this was sent: a report of an older time is not drawn. */
   readonly generation: number;
@@ -147,17 +147,21 @@ export class TwinShare {
     return this.#twins;
   }
 
-  /** Applies a command's events, advances the twins by its time, and reports where they are. */
+  /**
+   * Applies a command's events, advances the twins by its time, and reports
+   * where they are. Only the motion is timed: the events before it, such as
+   * a whole fan born at once, take none of the budget.
+   */
   run(command: TwinCommand): TwinReport {
-    const start = this.#clock();
     for (const event of command.events) this.#apply(event);
+    const start = this.#clock();
     const twins = this.#twins;
     const asked = twins.length;
     const n = this.#chain.n;
     const pieces = command.time > 0 ? Math.max(1, command.pieces) : 0;
     const stride = 2 * (pieces + 1);
     const tips = new Float32Array(stride * asked);
-    const giveUp = start + 2 * command.budget;
+    const giveUp = start + 4 * command.budget;
     let done = 0;
     for (const twin of twins) {
       // Out of time: the twins not reached are dropped, so that every twin

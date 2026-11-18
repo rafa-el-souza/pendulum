@@ -188,10 +188,11 @@ describe("the twins' workers", () => {
     bench.deliver();
     twins.take();
     expect(twins.count).toBe(60);
-    // worker 1 finds a millisecond gone at every read of its clock, and runs
-    // out of twice its budget before its twin 16 of 20, which is twin 49
+    // worker 1 finds two milliseconds gone at every read of its clock, and
+    // runs out of four times its budget before its twin 16 of 20, which is
+    // twin 49 of the fan
     let now = 0;
-    bench.clocks[1] = () => (now += 1);
+    bench.clocks[1] = () => (now += 2);
     twins.send(frame({ budget: 1 }));
     bench.deliver();
     twins.take();

@@ -245,7 +245,7 @@ describe("a share of the twins", () => {
     expect(share.twins).toHaveLength(3);
   });
 
-  it("drops the twins it has not reached by twice its budget, reading the clock every eight twins", () => {
+  it("drops the twins it has not reached by four times its budget, reading the clock every eight twins", () => {
     // every read of the clock finds a millisecond gone by
     let now = 0;
     const share = new TwinShare(0, 1, 2, () => (now += 1));
@@ -254,13 +254,29 @@ describe("a share of the twins", () => {
     const report = share.run(
       command([], FRAME, 2, [null, null], { budget: 1 }),
     );
-    // read at the start, then before twins 0, 8 and 16: the last, three
-    // milliseconds in, is past twice the budget, and twin 16 is not reached
-    expect(now).toBe(start + 4);
+    // read at the start, then before twins 0, 8, 16, 24 and 32: the last,
+    // five milliseconds in, is past four times the budget, and twin 32 is
+    // not reached
+    expect(now).toBe(start + 6);
     expect(report.asked).toBe(40);
-    expect(report.count).toBe(16);
-    expect(share.twins).toHaveLength(16);
+    expect(report.count).toBe(32);
+    expect(share.twins).toHaveLength(32);
     expect(report.tips).toHaveLength(40 * 2 * 3);
+  });
+
+  it("times its twins' motion alone: the events before it, such as thousands of twins born, take none of its budget", () => {
+    // the clock stands at 0 until the twins are born, and at 1000 after
+    let share: TwinShare | null = null;
+    share = new TwinShare(0, 1, 2, () =>
+      (share?.twins.length ?? 0) > 0 ? 1000 : 0,
+    );
+    const report = share.run(
+      command([bornAll(raised(2), 64, 0, 1, 1e-3)], FRAME, 2, [null, null], {
+        budget: 1,
+      }),
+    );
+    expect(report.count).toBe(64);
+    expect(report.spent).toBe(0);
   });
 
   it("reads no clock and drops no twin for a command of events alone", () => {
