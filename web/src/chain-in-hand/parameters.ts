@@ -374,19 +374,19 @@ function widthAtTip(spread: number): readonly [string, string] {
 }
 
 /**
- * Whether the twins stay or fade (decisions 43 and 53). They stay, as they
- * have until now and as the piece opens: once the fan has opened they fill
- * the disc, a cloud that does not go. Or each fades as chaos carries it off
- * from the chain, its light falling with how far it looks from it and never
- * rising again, and once dark it is born again on the chain, at its place
- * in the fan, a few a frame, so that the twins come out of the chain as a
- * plume and come apart in the chaos. One key goes round the two.
+ * Whether the twins stay or fade (decisions 43 and 53). They stay: once the
+ * fan has opened they fill the disc, a cloud that does not go. Or, as the
+ * piece opens (decision 58), each fades as chaos carries it off from the
+ * chain, its light falling with how far it looks from it and never rising
+ * again, and once dark it is born again on the chain, at its place in the
+ * fan, a few a frame, so that the twins come out of the chain as a plume and
+ * come apart in the chaos. One key goes round the two.
  */
 export const FADE: Parameter = {
   id: "fade",
   label: "Twins stay or fade",
   values: [0, 1],
-  initial: 0,
+  initial: 1,
   keys: { down: [], up: ["p", "P"] },
   cyclic: true,
   show: (value) => (value === 1 ? "fade" : "stay"),

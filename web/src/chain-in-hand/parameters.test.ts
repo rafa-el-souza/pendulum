@@ -278,10 +278,10 @@ describe("the first piece's parameters", () => {
     expect(PARAMETERS).toEqual([...CHAIN, ...LIGHT, ...COLOURS]);
   });
 
-  it("let the twins stay, as they have until now and as the piece opens, or fade as chaos carries them off (decision 43), on one key (decision 53)", () => {
+  it("let the twins fade as chaos carries them off, as the piece opens (decision 58), or stay (decision 43), on one key (decision 53)", () => {
     expect(FADE.label).toBe("Twins stay or fade");
     expect(FADE.values).toEqual([0, 1]);
-    expect(FADE.initial).toBe(0);
+    expect(FADE.initial).toBe(1);
     expect(FADE.keys).toEqual({ down: [], up: ["p", "P"] });
     expect(FADE.cyclic).toBe(true);
     expect(stepValue(FADE, 0, 1)).toBe(1);

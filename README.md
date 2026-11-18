@@ -58,10 +58,10 @@ hanging rope it becomes as n grows.
   Let go, it leaves 512 twins born a hair apart, which fan out in colour to
   show chaos, as many as the device's cores carry side by side, and its tip
   and theirs leave trails of light that fade. The
-  twins can stay, a cloud over the whole disc once the fan has opened, or
-  fade as chaos carries them off and be born again on the chain, so that
-  they come out of it as a plume, and either way be drawn as chains or as
-  dust, each its tip alone, a point of light. How many twins there are, how
+  twins fade as chaos carries them off and are born again on the chain, so
+  that they come out of it as a plume, or they can stay, a cloud over the
+  whole disc once the fan has opened; either way they can be drawn as
+  chains or as dust, each its tip alone, a point of light. How many twins there are, how
   far apart they are born, whether they fade and how they are drawn, how
   long the trails last and whether they leave a mark that stays, whether
   they are drawn as lines or by a strobe, the whole chain stamped at even
@@ -139,7 +139,8 @@ npm run dev                           # the app, at http://127.0.0.1:5173/
 ```
 
 `npm run e2e` needs Playwright's browsers; `npm run e2e:browsers` installs
-them with their system packages on Ubuntu, as CI does.
+them with their system packages on Ubuntu. CI runs the browser tests in
+Playwright's own image of the same version, which has them.
 
 `npm run media` takes the pictures at the top of this README again, from the
 published site, into `docs/media/`; `npm run media -- fan` takes one.

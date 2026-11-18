@@ -1983,6 +1983,86 @@ tests find the light switch and the spread by their new names. Screenshots
 of the first level and of each group's row, 1280 and 390 px wide, in
 headless Chromium.
 
+## 58. The twins open fading
+
+*2026-11-18.* The first piece opens with the twins that fade (decision 43),
+and P still lets them stay. This replaces, in decision 43, the twins that
+stay as the piece opens.
+
+- **The readable address** writes `fade=0` for twins that stay, and nothing
+  for twins that fade, so an address written before without `fade=` now
+  opens with the twins fading.
+- **A saved moment's code** opens as it did: codes of versions 4 to 6 hold
+  the choice, and codes of versions 1 to 3, written before the twins could
+  fade, open with the twins that stay, as they were published.
+- **The page's title** names twins that stay, rather than twins that fade.
+- **The README's picture of the fan,** taken six seconds in with the twins
+  staying, is kept: at that moment the two differ little, the paths a
+  little brighter while the twins fade. Its animation already shows twins
+  that fade.
+
+**Why.** The author asked for the twins that fade as the way the piece
+opens, and judged the README's picture too close to the new opening to be
+taken again.
+
+**Evidence.** Unit tests: the control opening at fade; the readable address
+with and without `fade=0`; a code of each version without the control
+opening with the twins that stay; the title's words. Browser test: the
+piece opening with the twins fading, Shift and P drawing them as dust, P
+letting them stay and fade again, and the address and the title following.
+
+## 59. The button is a pendulum, and it swings where it hangs
+
+*2026-11-18.* The button that opens the first piece's row is drawn as a
+pendulum: a bar, a string and a heavy bob, swung to one side over the faint
+arc of its swing. As the row opens or shuts, the string and the bob swing
+out to the other side about the pivot and back, losing their swing, to hang
+where they were, while the bar and the arc keep still; with reduced motion
+asked for, the button does not move. This replaces, in decision 57, the
+little chain swung from its pivot, and its turn to lie along the row.
+
+**Why.** On the site, the author found that the little chain did not read
+as a pendulum: without a support, and with masses of about one size, it
+read as a line of beads. He chose this pendulum from four drawn side by
+side at 18 px, closed and beside the row: with the arc, a bar, string and
+bob read as something that swings rather than as a "T". Turned 90° to lie
+along the row, none of the four read as a pendulum; raised to the side, the
+pendulum read as a pin, and swung to rest on the other side, as a musical
+note beside the music's icon. He chose that it hang and swing.
+
+**Evidence.** Frames of the swing on the built page, every 75 ms of its
+900, and a recording of the row opening and shutting at 640 and 390 px
+wide, in headless Chromium. The browser tests open and shut the row as
+before.
+
+## 60. The browser tests run in Playwright's own image
+
+*2026-11-18.* In CI, the web job runs in Playwright's image of the version
+the tests use (`mcr.microsoft.com/playwright`, on Ubuntu 24.04, pinned by
+its digest), which carries Chromium, Firefox and WebKit, their system
+packages, and Xvfb for Firefox's virtual display. The step that installed
+the three browsers and their system packages through apt goes. The sound
+server of decision 44 is still installed through apt, since the image lacks
+it: nine packages, 2.2 MB, after 34 MB of package lists. The image runs as
+root, so Firefox is given root's home, and Chromium shares the host's
+memory, as Playwright advises. A unit test holds the image's version to the
+one in `web/package.json`, so a bump of Playwright that forgets the image
+fails before the browser tests do.
+
+**Why.** Ubuntu's package mirror has slowed several times to tens of kB/s.
+Installing the browsers' system packages, 185 of them, 125 MB, then took
+from 21 to more than 33 minutes, and the web job hit its 40-minute limit
+before any browser test ran: twice in a row on the pull requests of
+decisions 58 and 59. The image comes from Microsoft's registry instead.
+The author chose this over retrying until the mirror recovered, or leaving
+the pull requests for a later session.
+
+**Evidence.** The whole browser suite in the three engines, run on this
+machine in the same image, with the sound server started as the step
+starts it: 174 tests passed and 3 skipped, as in CI, in 15.2 minutes, on
+the code of decisions 58 and 59. The unit test of the image's version, red
+before the workflow named the image.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.

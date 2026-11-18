@@ -48,7 +48,7 @@ function words(parameter: Parameter, value: number): string {
     case "spread":
       return `born ${SPREAD.show(value)} apart`;
     case "fade":
-      return "twins that fade";
+      return value === 1 ? "twins that fade" : "twins that stay";
     case "look":
       return "twins as dust";
     case "trail":
