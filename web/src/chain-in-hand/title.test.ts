@@ -63,7 +63,7 @@ describe("the title of the first piece's page (decision 38)", () => {
     ["mode", 2, "mode 2"],
     ["twins", 0, "no twins"],
     ["twins", 4096, "4096 twins"],
-    ["spread", 1e-6, "born 10⁻⁶ apart"],
+    ["spread", 1e-6, "born 1 µm apart"],
     ["fade", 1, "twins that fade"],
     ["look", 1, "twins as dust"],
     ["trail", 0, "no trails"],

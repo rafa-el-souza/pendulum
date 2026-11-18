@@ -146,7 +146,7 @@ describe("the first piece's parameters", () => {
     expect(STYLE.show(0)).toBe("lines");
     expect(STYLE.show(1)).toBe("strobe");
     expect(STYLE.speak?.(1)).toBe("a strobe");
-    expect(STYLE.icon).toBe("strobe");
+    expect(STYLE.icon).toBe("style");
   });
 
   it("step through the twins' palettes, opening with the sketch's, which the author keeps (decision 23)", () => {
@@ -173,11 +173,25 @@ describe("the first piece's parameters", () => {
     expect(SPREAD.icon).toBe("spread");
   });
 
-  it("show the spread as a power of ten, and say it in words", () => {
-    expect(SPREAD.show(1e-9)).toBe("10⁻⁹");
-    expect(SPREAD.show(1e-3)).toBe("10⁻³");
-    expect(SPREAD.show(1e-1)).toBe("10⁻¹");
-    expect(SPREAD.speak?.(1e-3)).toBe("10 to the minus 3 radians");
+  it("show the spread as how close the twins are born: the fan's width at the tip of the chain, a metre long, in units a visitor reads", () => {
+    expect(SPREAD.label).toBe("How close the twins are born");
+    expect(SPREAD.values.map((value) => SPREAD.show(value))).toEqual([
+      "1 nm",
+      "10 nm",
+      "100 nm",
+      "1 µm",
+      "10 µm",
+      "0.1 mm",
+      "1 mm",
+      "1 cm",
+      "10 cm",
+    ]);
+    expect(SPREAD.speak?.(1e-9)).toBe("1 nanometre apart at the tip");
+    expect(SPREAD.speak?.(1e-4)).toBe(
+      "a tenth of a millimetre apart at the tip",
+    );
+    expect(SPREAD.speak?.(1e-3)).toBe("1 millimetre apart at the tip");
+    expect(SPREAD.speak?.(1e-1)).toBe("10 centimetres apart at the tip");
   });
 
   it("let the trails come from the tip alone, as they have until now, or from every mass of the chain (decision 26)", () => {
@@ -342,7 +356,7 @@ describe("the first piece's parameters", () => {
     expect(MODE.values).toEqual([0, 1, 2, 3, 4]);
     expect(MODE.initial).toBe(0);
     expect(MODE.keys).toEqual({ down: ["n", "N"], up: ["m", "M"] });
-    expect(MODE.icon).toBe("mode");
+    expect(MODE.icon).toBe("start");
   });
 
   it("name the start, and show it in words a visitor reads: side, or the mode by its number", () => {

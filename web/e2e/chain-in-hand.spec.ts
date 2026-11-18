@@ -607,17 +607,25 @@ test("the spread's keys bring the twins closer or farther at birth, and the addr
   await page.goto("./");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   await openControls(page);
-  const spread = icon(page, "Spread of the twins at birth");
-  await expect(spread).toHaveAccessibleDescription("10 to the minus 3 radians");
+  const spread = icon(page, "How close the twins are born");
+  await expect(spread).toHaveAccessibleDescription(
+    "1 millimetre apart at the tip",
+  );
 
   await page.keyboard.press("3");
-  await expect(spread).toHaveAccessibleDescription("10 to the minus 4 radians");
+  await expect(spread).toHaveAccessibleDescription(
+    "a tenth of a millimetre apart at the tip",
+  );
   await expect(page).toHaveURL(/[?&]spread=0\.0001(&|$)/);
   for (let press = 0; press < 5; press++) await page.keyboard.press("3");
-  await expect(spread).toHaveAccessibleDescription("10 to the minus 9 radians");
+  await expect(spread).toHaveAccessibleDescription(
+    "1 nanometre apart at the tip",
+  );
   await expect(page).toHaveURL(/[?&]spread=1e-9(&|$)/);
   for (let press = 0; press < 8; press++) await page.keyboard.press("4");
-  await expect(spread).toHaveAccessibleDescription("10 to the minus 1 radians");
+  await expect(spread).toHaveAccessibleDescription(
+    "10 centimetres apart at the tip",
+  );
   await expect(page).toHaveURL(/[?&]spread=0\.1(&|$)/);
   await frames(page, 10);
   expect(errors).toEqual([]);
@@ -713,7 +721,7 @@ test("the light switch puts out the twins and the trails and lights them again, 
   await page.goto("./?time=4");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   await openControls(page);
-  const light = icon(page, "Light");
+  const light = icon(page, "Light of the twins and trails");
   const twins = icon(page, "Number of twins");
   const trail = icon(page, "How long the trails last");
   await expect(light).toHaveAttribute("aria-pressed", "true");
@@ -1120,7 +1128,10 @@ test("a saved moment opens elsewhere as the screen it was: the controls, the swi
   await expect(html).toHaveAttribute("data-light", "frame");
   await expect(other).toHaveTitle(title);
   await openControls(other);
-  await expect(icon(other, "Light")).toHaveAttribute("aria-pressed", "false");
+  await expect(icon(other, "Light of the twins and trails")).toHaveAttribute(
+    "aria-pressed",
+    "false",
+  );
   await expect(
     icon(other, "Colours of the tension"),
   ).toHaveAccessibleDescription("heat");
@@ -1701,7 +1712,7 @@ test("the row opens on the pause, the light and six groups, each opening its own
   const row = page.getByRole("toolbar", { name: "Controls" });
   expect(await labels(row)).toEqual([
     "Pause",
-    "Light",
+    "Light of the twins and trails",
     "Time and the start",
     "The chain",
     "The twins",
