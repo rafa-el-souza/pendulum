@@ -1,13 +1,13 @@
-// The README's pictures of the first piece: an animation, the chain thrown by
-// the hand in slow motion and let go, then time sped up to real time, with its
-// speed written in a corner, and the fan of twins it leaves; and three stills,
-// each the screen an address opens after so many seconds, which the README
-// links to that address. They are taken from the published site in Chromium, a
-// frame at a time on the page's own clock, so that a slow machine draws them as
-// smoothly as a fast one, and written as WebP by the browser's own encoder. The
-// page is told it has eight cores, so that its workers carry the twins a
-// desktop's would. Writes the pictures to ../docs/media/.
-// Run: npm run media [-- <site>] [-- <names>], as "npm run media -- throw fan".
+// The README's pictures of the first piece: an animation, the chain let go from
+// the piece's raised start in slow motion, then sped up smoothly to real time,
+// with its speed written in a corner, and the fan of twins it leaves; and three
+// stills, each the screen an address opens after so many seconds, which the
+// README links to that address. They are taken from the published site in
+// Chromium, a frame at a time on the page's own clock, so that a slow machine
+// draws them as smoothly as a fast one, and written as WebP by the browser's
+// own encoder. The page is told it has eight cores, so that its workers carry
+// the twins a desktop's would. Writes the pictures to ../docs/media/.
+// Run: npm run media [-- <site>] [-- <names>], as "npm run media -- swing fan".
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 
@@ -22,12 +22,10 @@ const NAMES = ARGS.filter((arg) => !arg.startsWith("http"));
 const OUT = new URL("../../docs/media/", import.meta.url);
 /** A frame of the page's clock, in ms: a 60 Hz screen's, as the fake clock fires them. */
 const FRAME_MS = 16;
-/** The animation keeps every second frame. */
+/** An image of the animation lasts two of the page's frames, 32 ms. */
 const KEEP_EVERY = 2;
 /** WebP quality, from 0 to 1. */
 const QUALITY = 0.75;
-/** Real time between the hand's moves, in ms: longer than a frame's picture takes. */
-const HAND_PACE_MS = 400;
 /** The animation's last frames fade to the ground, so that its loop starts again from the ground. */
 const FADE_FRAMES = 10;
 const CORES = 8;
@@ -224,14 +222,31 @@ function animated(
   return concat([riff, body]);
 }
 
-/** The speed of the piece's time, as its own control steps it, and what the animation's corner calls it. */
-const PACES: readonly { readonly time: number; readonly words: string }[] = [
-  { time: 0.25, words: "slow motion" },
-  { time: 0.5, words: "speeding up" },
-  { time: 0.8, words: "speeding up" },
-  { time: 0.9, words: "speeding up" },
-  { time: 1, words: "real time" },
-];
+/** The piece's slowest time, a tenth of real time, which the animation's page keeps. */
+const SLOWEST = 0.1;
+/** In images of the animation: held at the slowest, speeding up, and at real time. */
+const HOLD = 30;
+const SPEED_UP = 250;
+const REAL = 60;
+/** The last images of the speeding up ease into real time. */
+const EASE = 60;
+
+/**
+ * How fast the animation runs at its image `i`, as a share of real time:
+ * the slowest, then up by the same ratio from each image to the next, so that
+ * it looks as smooth at a tenth as near real time, easing into real time over
+ * the last images, and then real time.
+ */
+function speedAt(i: number): number {
+  const j = Math.min(Math.max(0, i - HOLD), SPEED_UP);
+  // the logarithm of the speed climbs at a rate that is constant, then falls
+  // to nothing over the ease, and adds up to a tenfold rise
+  const rate = Math.log(1 / SLOWEST) / (SPEED_UP - EASE / 2);
+  const steady = Math.min(j, SPEED_UP - EASE);
+  const eased = Math.max(0, j - (SPEED_UP - EASE));
+  const climbed = rate * (steady + eased - (eased * eased) / (2 * EASE));
+  return Math.min(1, SLOWEST * Math.exp(climbed));
+}
 
 /** Writes in the page's top left corner how fast its time runs, in the page's own face and ink, or nothing. */
 async function label(page: Page, text: string): Promise<void> {
@@ -257,74 +272,42 @@ async function label(page: Page, text: string): Promise<void> {
 }
 
 /**
- * The animation: the chain of four falls from the piece's raised start in
- * slow motion, a quarter of real time; the hand takes it, swings it round at
- * an even pace and lets go; the piece's time is sped up to real time, a step
- * of its own control at a time; and the twins born at the letting go fan
- * out in colour and fade. The top left corner says how fast time runs.
+ * The animation: the chain of four masses let go from the piece's raised
+ * start, swinging out and back in slow motion, at first a tenth of real time,
+ * then faster, smoothly, up to real time, while the twins born with it fan out
+ * in colour and fade. The page's time stays at its slowest, and each image of
+ * the animation runs it as many frames as its speed asks, so that the speed
+ * changes by steps no larger than a twentieth of real time. The top left
+ * corner says how fast the animation runs.
  */
 async function hero(browser: Browser, encoder: Page): Promise<void> {
-  const page = await open(browser, "?n=4&fade=1&time=0.25", HERO);
-  const cx = HERO.width / 2;
-  const cy = HERO.height / 2;
-  const reach = 0.42 * HERO.height;
-  // in frames of the page: the fall, the hand, each step of the speeding
-  // up, and real time to the end
-  const falls = 90;
-  const held = 70;
-  const step = 14;
-  const ends = 180;
-  const total = falls + held + step * (PACES.length - 1) + ends;
+  const page = await open(browser, `?n=4&fade=1&time=${String(SLOWEST)}`, HERO);
+  const images = HOLD + SPEED_UP + REAL;
+  /** Frames of the page an image at real time takes: its 32 ms, at a tenth. */
+  const perImage = KEEP_EVERY / SLOWEST;
   const frames: Uint8Array[] = [];
-  let frame = 0;
-  const keep = async (): Promise<void> => {
-    if (frame % KEEP_EVERY === 0) {
-      const left = (total - frame) / KEEP_EVERY;
-      const veil = Math.max(0, 1 - left / FADE_FRAMES);
-      frames.push(await webp(encoder, await page.screenshot(), veil));
-    }
-    frame++;
-  };
-  const pace = async (at: number): Promise<void> => {
-    const { time, words } = PACES[at] ?? { time: 1, words: "" };
-    await label(page, `×${String(time)}  ${words}`);
-  };
-  await pace(0);
-  await run(page, falls, keep);
-  // the hand: below and to the right of the pivot, then three quarters of a
-  // turn round it at an even pace. The page measures the hand's speed by the
-  // pointer's events, which keep real time, not the page's clock; so the
-  // events come a fixed real time apart, and every run throws alike.
-  const paced = async (move: () => Promise<void>): Promise<void> => {
-    const next = Date.now() + HAND_PACE_MS;
-    await move();
-    await page.waitForTimeout(Math.max(0, next - Date.now()));
-  };
-  await page.mouse.move(cx + 0.6 * reach, cy + 0.7 * reach);
-  await paced(() => page.mouse.down());
-  for (let moved = 0; moved < held; moved++) {
-    const angle = Math.PI / 4 - 1.5 * Math.PI * (moved / held);
-    await paced(async () => {
-      await page.mouse.move(
-        cx + 0.9 * reach * Math.cos(angle),
-        cy - 0.9 * reach * Math.sin(angle),
-      );
-      await run(page, 1, keep);
-    });
+  let owed = 0;
+  for (let i = 0; i < images; i++) {
+    const speed = speedAt(i);
+    owed += speed * perImage;
+    const due = Math.floor(owed);
+    owed -= due;
+    await run(page, due);
+    const words =
+      i < HOLD
+        ? "slow motion"
+        : speed < 0.995
+          ? "slow motion, speeding up"
+          : "real time";
+    await label(page, `×${speed < 0.995 ? speed.toFixed(2) : "1"}  ${words}`);
+    const veil = Math.max(0, 1 - (images - i) / FADE_FRAMES);
+    frames.push(await webp(encoder, await page.screenshot(), veil));
   }
-  await page.mouse.up();
-  // the piece's time, sped up by its own key, a step at a time
-  for (let at = 1; at < PACES.length; at++) {
-    await page.keyboard.press("ArrowRight");
-    await pace(at);
-    await run(page, step, keep);
-  }
-  await run(page, ends, keep);
   writeFileSync(
-    new URL("throw.webp", OUT),
+    new URL("swing.webp", OUT),
     animated(frames, HERO, KEEP_EVERY * FRAME_MS),
   );
-  console.log(`throw.webp: ${String(frames.length)} frames`);
+  console.log(`swing.webp: ${String(frames.length)} frames`);
   await page.close();
 }
 
@@ -348,7 +331,7 @@ const browser = await chromium.launch();
 const encoder = await browser.newPage();
 const asked = (name: string): boolean =>
   NAMES.length === 0 || NAMES.includes(name);
-if (asked("throw")) await hero(browser, encoder);
+if (asked("swing")) await hero(browser, encoder);
 for (const one of STILLS)
   if (asked(one.name)) await still(browser, encoder, one);
 await browser.close();

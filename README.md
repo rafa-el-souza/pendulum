@@ -6,7 +6,7 @@
 [![arXiv:1910.12610](https://img.shields.io/badge/arXiv-1910.12610-b31b1b)](https://arxiv.org/abs/1910.12610v2)
 [![Tested in Chromium, Firefox and WebKit](https://img.shields.io/badge/browsers-Chromium%20%C2%B7%20Firefox%20%C2%B7%20WebKit-blue)](web/e2e/)
 
-<a href="https://rafa-el-souza.github.io/pendulum/"><img src="docs/media/throw.webp" width="800" alt="A chain of four masses, drawn as light on a dark ground, falls from one side in slow motion, at a quarter of real time; a hand takes it, swings it round and lets go; time speeds up, step by step, to real time, and the twins born at the letting go fan out in pink, gold and blue and fade. The top left corner says how fast time runs."></a>
+<a href="https://rafa-el-souza.github.io/pendulum/"><img src="docs/media/swing.webp" width="800" alt="A chain of four masses, drawn as light on a dark ground, let go from one side, swings out and back in slow motion, at first a tenth of real time, then faster, smoothly, up to real time, while the twins born with it fan out in pink, gold and blue and fade. The top left corner says how fast time runs."></a>
 
 Interactive browser pieces built on one physics paper. Before any of it
 reached a screen, the paper was checked equation by equation.
