@@ -1044,7 +1044,7 @@ async function shownSave(page: Page): Promise<Locator> {
 const SAVED_TITLE =
   /^Pendulum( · .+)? · \d{1,2} [A-Z][a-z]{2}( \d{4})? \d{2}:\d{2} · [0-9A-HJKMNP-TV-Z]{4}$/;
 
-test("the S key saves the moment and the screen into the address, the start says so and R starts the chain there, and the start's first step forgets it and goes back to the start before", async ({
+test("the S key saves the moment and the screen into the address, the start says so, and R starts the chain there", async ({
   page,
 }) => {
   const errors = collectErrors(page);
@@ -1080,20 +1080,40 @@ test("the S key saves the moment and the screen into the address, the start says
   await expect(page).toHaveTitle(
     new RegExp(`^Pendulum · Jupiter · .+ · ${mark}$`),
   );
+  await frames(page, 5);
+  expect(errors).toEqual([]);
+});
 
-  // the start's first step forgets the moment and goes back to the start it
-  // had, raised to one side; the next chooses a mode
+test("the start's first step forgets a saved moment and goes back to the start it had, and the next steps from there (decision 56)", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("./");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await openControls(page);
+  const mode = icon(page, "Start");
+  await frames(page, 5);
+  await page.keyboard.press("s");
+  await expect(page).toHaveURL(/\/#[A-Za-z0-9_-]{40}$/);
+  await expect(mode).toHaveAccessibleDescription("the moment saved");
+
+  // the + forgets the moment and goes back to the chain raised to one side;
+  // the next chooses mode 1
   await page.keyboard.press("m");
   await expect(mode).toHaveAccessibleDescription("raised to one side");
   await expect(page).not.toHaveURL(/#/);
-  await expect(page).toHaveURL(/\?g=24\.79$/);
-  await expect(page).toHaveTitle("Pendulum · Jupiter");
   await expect(await shownSave(page)).toHaveAccessibleName("Save this moment");
   await page.keyboard.press("m");
   await expect(mode).toHaveAccessibleDescription("normal mode 1");
-  await expect(page).toHaveURL(/\?g=24\.79&mode=1$/);
-  await expect(page).toHaveTitle("Pendulum · Jupiter, mode 1");
-  await expect(mode).not.toHaveClass(/_held_/);
+  await expect(page).toHaveURL(/\?mode=1$/);
+
+  // saved in mode 1, the − goes back to mode 1, not on to the side
+  await page.keyboard.press("s");
+  await expect(mode).toHaveAccessibleDescription("the moment saved");
+  await page.keyboard.press("n");
+  await expect(mode).toHaveAccessibleDescription("normal mode 1");
+  await expect(page).toHaveURL(/\?mode=1$/);
+  await expect(icon(page, "Amplitude of the mode")).not.toHaveClass(/_idle_/);
   await frames(page, 5);
   expect(errors).toEqual([]);
 });
