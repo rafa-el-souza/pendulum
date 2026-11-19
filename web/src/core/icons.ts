@@ -46,7 +46,8 @@ export type Icon =
   | "sketch"
   | "sketched"
   | "whiten"
-  | "near";
+  | "near"
+  | "eye";
 
 const SVG = "http://www.w3.org/2000/svg";
 
@@ -266,6 +267,12 @@ const ICONS: Record<
   // a line and two brackets closing in on it from either side: how near
   // the chain the twins are held
   near: { fill: "", stroke: "M12 4v16M4.5 7l4 5-4 5M19.5 7l-4 5 4 5" },
+  // an eye open: what of the chain is drawn
+  eye: {
+    fill: "M9.4 12a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0 -5.2 0",
+    stroke:
+      "M2.5 12c2.5-4.5 6-7 9.5-7s7 2.5 9.5 7c-2.5 4.5-6 7-9.5 7s-7-2.5-9.5-7z",
+  },
   left: { fill: "", stroke: "M15 5l-7 7 7 7" },
   right: { fill: "", stroke: "M9 5l7 7-7 7" },
 };

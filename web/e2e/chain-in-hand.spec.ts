@@ -458,6 +458,50 @@ test("the palette's keys change the twins' colours, the control paints them, and
   expect(errors).toEqual([]);
 });
 
+test("Shift with the masses' keys goes round what of the chain is drawn, its rods, its masses, none of it and the whole of it again, the masses' keys alone still step the masses, and the address and the title follow (decision 65)", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("./");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await openControls(page);
+  // last in the chain's group, the whole chain as the piece opens
+  await (await reveal(page, "What of the chain is drawn")).click();
+  const drawn = page
+    .getByRole("group", { name: "What of the chain is drawn" })
+    .locator("output");
+  await expect(drawn).toContainText("whole");
+  await expect(page).not.toHaveURL(/chain=/);
+
+  await page.keyboard.press("Shift+ArrowUp");
+  await expect(drawn).toContainText("rods");
+  await expect(page).toHaveURL(/[?&]chain=1(&|$)/);
+  await expect(page).toHaveTitle("Pendulum · rods alone");
+  await page.keyboard.press("Shift+ArrowUp");
+  await expect(drawn).toContainText("masses");
+  await expect(page).toHaveURL(/[?&]chain=2(&|$)/);
+  await expect(page).toHaveTitle("Pendulum · masses alone");
+  await page.keyboard.press("Shift+ArrowUp");
+  await expect(drawn).toContainText("none");
+  await expect(page).toHaveURL(/[?&]chain=3(&|$)/);
+  await expect(page).toHaveTitle("Pendulum · chain hidden");
+  await frames(page, 10);
+  // round to the whole chain, and back down to none of it
+  await page.keyboard.press("Shift+ArrowUp");
+  await expect(drawn).toContainText("whole");
+  await expect(page).not.toHaveURL(/chain=/);
+  await page.keyboard.press("Shift+ArrowDown");
+  await expect(drawn).toContainText("none");
+  await expect(page).toHaveURL(/[?&]chain=3(&|$)/);
+
+  // the masses' own keys, without Shift, step the masses as before
+  await page.keyboard.press("ArrowUp");
+  await expect(page).toHaveURL(/[?&]n=3&chain=3(&|$)/);
+  await expect(page).toHaveTitle("Pendulum · 3 masses, chain hidden");
+  await frames(page, 10);
+  expect(errors).toEqual([]);
+});
+
 test("Shift with the palette's keys steps when dense light turns white, the control paints it in the palette's colours, and the address and the title follow (decision 61)", async ({
   page,
 }) => {
@@ -1176,10 +1220,10 @@ test("the S key saves the moment and the screen into the address, the start says
   await expect(await shownSave(page)).toHaveAccessibleName("Save this moment");
   await frames(page, 10);
 
-  // two masses: the screen in fourteen bytes since the sixth code (decision
-  // 53) and the moment in sixteen, 40 letters
+  // two masses: the screen in fifteen bytes since the tenth code (decision
+  // 65) and the moment in sixteen, 42 letters
   await page.keyboard.press("s");
-  await expect(page).toHaveURL(/\/#[A-Za-z0-9_-]{40}$/);
+  await expect(page).toHaveURL(/\/#[A-Za-z0-9_-]{42}$/);
   await expect(page).toHaveTitle(SAVED_TITLE);
   await expect(await shownSave(page)).toHaveAccessibleName(
     "Save this moment over the one saved",
@@ -1194,7 +1238,7 @@ test("the S key saves the moment and the screen into the address, the start says
   await frames(page, 5);
   // another value goes into the code, beside the same moment, and the title names it
   await page.keyboard.press("e");
-  await expect(page).toHaveURL(/\/#[A-Za-z0-9_-]{40}$/);
+  await expect(page).toHaveURL(/\/#[A-Za-z0-9_-]{42}$/);
   expect(page.url()).not.toBe(saved);
   await expect(page).toHaveTitle(SAVED_TITLE);
   await expect(page).toHaveTitle(
@@ -1214,7 +1258,7 @@ test("the start's first step forgets a saved moment and goes back to the start i
   const mode = icon(page, "Start");
   await frames(page, 5);
   await page.keyboard.press("s");
-  await expect(page).toHaveURL(/\/#[A-Za-z0-9_-]{40}$/);
+  await expect(page).toHaveURL(/\/#[A-Za-z0-9_-]{42}$/);
   await expect(mode).toHaveAccessibleDescription("the moment saved");
 
   // the + forgets the moment and goes back to the chain raised to one side;
@@ -1401,9 +1445,9 @@ test("an address longer than a QR code holds says so in place of the code", asyn
   await page.goto("./?n=384&twins=0&trail=0");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   await page.keyboard.press(" ");
-  // the screen in fourteen bytes and 384 masses in eight each: 4 115 letters
+  // the screen in fifteen bytes and 384 masses in eight each: 4 116 letters
   await page.keyboard.press("s");
-  await expect(page).toHaveURL(/\/#[A-Za-z0-9_-]{4115}$/);
+  await expect(page).toHaveURL(/\/#[A-Za-z0-9_-]{4116}$/);
   await page.keyboard.press("o");
   const card = page.getByRole("dialog", {
     name: "This page's address as a QR code",

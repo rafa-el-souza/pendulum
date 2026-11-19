@@ -147,7 +147,7 @@ export function onControls(
   );
 }
 
-/** A key held with Shift by where it is, "Shift+KeyP" or "Shift+Digit7", as the key's own letter or digit, or null for any other key. */
+/** A key held with Shift by where it is, "Shift+KeyP", "Shift+Digit7" or "Shift+ArrowUp", as the key's own letter, digit or name, or null for any other key. */
 function shifted(key: string): string | null {
   const match = /^Shift\+(?:Key|Digit)?(.+)$/.exec(key);
   return match?.[1] ?? null;
@@ -161,27 +161,26 @@ function shortcut(key: string): string {
 
 /**
  * The keys shown beside a control: arrows as arrows, and letters as capitals,
- * as on the keys; keys held with Shift after the word, "Shift 7 8", since a
- * font may lack the ⇧ sign.
+ * as on the keys; keys held with Shift after the word, "Shift 7 8" or "Shift
+ * ↓ ↑", since a font may lack the ⇧ sign.
  */
-function showKeys(keys: readonly (string | undefined)[]): string {
+export function showKeys(keys: readonly (string | undefined)[]): string {
   const arrows: Record<string, string> = {
     ArrowDown: "↓",
     ArrowUp: "↑",
     ArrowLeft: "←",
     ArrowRight: "→",
   };
+  const shown = (key: string): string => arrows[key] ?? key.toUpperCase();
   const pressed = keys.filter((key): key is string => key !== undefined);
   const held = pressed.map(shifted);
   if (held.length > 0 && held.every((key) => key !== null)) {
-    return `Shift ${held.join(" ").toUpperCase()}`;
+    return `Shift ${held.map(shown).join(" ")}`;
   }
   return pressed
     .map((key) => {
       const letter = shifted(key);
-      return letter === null
-        ? (arrows[key] ?? key.toUpperCase())
-        : `Shift+${letter.toUpperCase()}`;
+      return letter === null ? shown(key) : `Shift+${shown(letter)}`;
     })
     .join(" ");
 }

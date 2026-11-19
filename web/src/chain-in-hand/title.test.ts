@@ -83,6 +83,9 @@ describe("the title of the first piece's page (decision 38)", () => {
     ["white", 3, "colours that never whiten"],
     ["scale", 1, "incandescent scale"],
     ["ground", 2, "navy ground"],
+    ["chain", 1, "rods alone"],
+    ["chain", 2, "masses alone"],
+    ["chain", 3, "chain hidden"],
   ])('says %s = %s as "%s"', (id, value, words) => {
     const { values, switches } = opening();
     values.set(id, value);
