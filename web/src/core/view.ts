@@ -25,3 +25,20 @@ export function toWorld(
 ): [number, number] {
   return [(cssX - cssWidth / 2) / scale, (cssHeight / 2 - cssY) / scale];
 }
+
+/** A box of a canvas's pixels: from the left, from the bottom, wide and high, as WebGL cuts drawing to one. */
+export type Box = readonly [number, number, number, number];
+
+/**
+ * The canvas's pixels within `reach` pixels of its centre, where the pivot
+ * is, as a box cut at the canvas's edges (decision 62): whole pixels, every
+ * one the reach touches. Symmetric about the centre, so the same from the
+ * top as from the bottom.
+ */
+export function reachBox(width: number, height: number, reach: number): Box {
+  const x0 = Math.max(0, Math.floor(width / 2 - reach));
+  const y0 = Math.max(0, Math.floor(height / 2 - reach));
+  const x1 = Math.min(width, Math.ceil(width / 2 + reach));
+  const y1 = Math.min(height, Math.ceil(height / 2 + reach));
+  return [x0, y0, x1 - x0, y1 - y0];
+}
