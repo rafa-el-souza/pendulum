@@ -427,6 +427,8 @@ export const FADE: Parameter = {
         : value === 1
           ? "fade"
           : "stay",
+  // said as shown, so that the lens's number can be said whole in its place
+  speak: (value) => FADE.show(value),
   icon: "snuffed",
 };
 

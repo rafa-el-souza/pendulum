@@ -24,6 +24,7 @@ import {
   tensionScaleAt,
 } from "../core/tension.ts";
 import { LightTarget, Trails, fadeAfter } from "../core/trails.ts";
+import type { TwinHold } from "../core/twin-share.ts";
 import {
   FrameRhythm,
   TwinWorkers,
@@ -32,9 +33,11 @@ import {
   workerBudget,
 } from "../core/twin-workers.ts";
 import {
+  Doubling,
   Fading,
   bornApart,
   bornPerFrame,
+  bornWidth,
   fanPlace,
   fromPivot,
   twinShine,
@@ -57,6 +60,14 @@ import {
   AMPLITUDE,
   FADE,
   FADE_REACH,
+  HELD_STEP,
+  HOLD_WIDTH,
+  LEASHED_STEP,
+  LEASH_RATE,
+  LEASH_SLACK,
+  NEAR_SPREAD,
+  doublingSaid,
+  doublingShown,
   GRAVITY,
   GROUND,
   HAND,
@@ -259,6 +270,12 @@ function play({ canvas, gl }: Stage): void {
   // While the twins fade (decision 43), each one's light, which falls as it
   // parts from the chain; those gone dark are born again on the chain.
   const fading = new Fading(mostTwins);
+  // While the twins are held (decision 64), the lens's width, the fan's as
+  // it was born if wider than the lens's own, and the time differences take
+  // to double, as the lens measures it; shown for twins born near the chain.
+  let lensWidth = HOLD_WIDTH;
+  let bornNear = true;
+  const doubling = new Doubling();
   const fan = new SegmentBatch(value(TWIN_COUNT) * chain.n);
   // the twins as dust: their tips alone (decision 50)
   const dust = new SegmentBatch(value(TWIN_COUNT));
@@ -430,6 +447,20 @@ function play({ canvas, gl }: Stage): void {
     } else {
       controls.showValue(TWIN_COUNT.id, asked);
     }
+    // held, the time differences take to double, once the lens has measured
+    // it, for twins born near the chain (decision 64)
+    const seconds =
+      value(FADE) === HELD_STEP && bornNear && twins.count > 0
+        ? doubling.seconds
+        : null;
+    if (seconds === null) {
+      controls.showValue(FADE.id, value(FADE));
+    } else {
+      controls.showValue(FADE.id, HELD_STEP, {
+        text: doublingShown(seconds),
+        words: doublingSaid(seconds),
+      });
+    }
   }
 
   /**
@@ -446,11 +477,14 @@ function play({ canvas, gl }: Stage): void {
    * `spread` wide, and each to fade from how far it looks from the chain as
    * it is born (decision 63).
    */
-  function bear(js: readonly number[], spread: number): void {
+  function bear(js: readonly number[], spread: number): number {
     twins.born(js, state, spread);
     chain.positions(state.theta, x, y);
     const reach = fromPivot(x, y, chain.totalLength);
     for (const j of js) fading.born(j, bornApart(j, spread, reach));
+    // what the lens measured was of the twins before
+    if (js.length > 0) doubling.clear();
+    return reach;
   }
 
   /** Twins of the chain as it is now, as many as their budget carries, while the light is on. */
@@ -458,11 +492,16 @@ function play({ canvas, gl }: Stage): void {
     spawnPending = false;
     twins.clear();
     const count = lit ? Math.min(value(TWIN_COUNT), twins.affordable()) : 0;
-    bear(
+    const spread = value(SPREAD);
+    const reach = bear(
       Array.from({ length: count }, (_, j) => j),
-      value(SPREAD),
+      spread,
     );
     fading.relight();
+    // held, the fan may be as wide as it was born (decision 64), and its
+    // number is shown only for twins born near the chain
+    lensWidth = Math.max(HOLD_WIDTH, bornWidth(count, spread, reach));
+    bornNear = spread <= NEAR_SPREAD;
   }
 
   /**
@@ -629,6 +668,7 @@ function play({ canvas, gl }: Stage): void {
     twins.rescale(before.n, n);
     twins.keep(twins.affordable());
     twins.resample(n);
+    doubling.clear();
     const carried = Math.min(value(TWIN_COUNT), twins.affordable());
     if (hand === null && twins.count < 0.5 * carried) spawnTwins();
     resetTrailEnds();
@@ -694,6 +734,8 @@ function play({ canvas, gl }: Stage): void {
     if (hand !== null) return;
     reverseMotion(state);
     twins.reverse();
+    // differences shrink as time runs back, until chaos takes over again
+    doubling.clear();
     // the shake runs back too: its pivot keeps its place and moves the other
     // way, which is its phase turned over
     shakePhase = -shakePhase;
@@ -1589,6 +1631,23 @@ function play({ canvas, gl }: Stage): void {
       at.set(x);
       at.set(y, chain.n);
     }
+    // held near the chain as it is at the frame's end (decision 64)
+    const life = value(FADE);
+    let hold: TwinHold | null = null;
+    if (life === HELD_STEP || life === LEASHED_STEP) {
+      const theta = Float64Array.from(state.theta);
+      const omega = Float64Array.from(state.omega);
+      hold =
+        life === HELD_STEP
+          ? { kind: "lens", width: lensWidth, theta, omega }
+          : {
+              kind: "leash",
+              slack: LEASH_SLACK,
+              rate: LEASH_RATE,
+              theta,
+              omega,
+            };
+    }
     const free = workerBudget(
       rhythm.free(performance.now() - now, TWIN_MARGIN_MS),
       twins.shares,
@@ -1603,7 +1662,7 @@ function play({ canvas, gl }: Stage): void {
       g,
       shakes,
       chain: at,
-      hold: null,
+      hold,
       whole: value(LOOK) !== 1,
       budget: twins.local ? TWIN_LOCAL_MS : twinBudget,
     });
@@ -1629,7 +1688,17 @@ function play({ canvas, gl }: Stage): void {
     const strobe = lit && value(TRAIL) > 0 && value(STYLE) === 1;
     const tipLines = !strobe && value(LOOK) !== 1;
     const music = 1 + Math.min(TRAIL_MOST, look.trail);
+    // held, how much each share's fan stretched, averaged over the shares
+    // (decision 64)
+    let stretch = 0;
+    let stretchTime = 0;
+    let measured = 0;
     twins.take((j, report, k) => {
+      if (k === 0 && report.stretchTime > 0) {
+        stretch += report.stretch;
+        stretchTime += report.stretchTime;
+        measured++;
+      }
       const color = tinted(fanColors[j] ?? colors.chain, "twins");
       const shine = fades ? (fading.light[j] ?? 1) : 1;
       const { pieces, tips } = report;
@@ -1656,6 +1725,9 @@ function play({ canvas, gl }: Stage): void {
         fading.see(j, report.apart[k] ?? 0, FADE_REACH);
       }
     });
+    if (measured > 0 && value(FADE) === HELD_STEP) {
+      doubling.add(stretch / measured, stretchTime / measured);
+    }
   }
 
   let last = performance.now();

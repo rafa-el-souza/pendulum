@@ -375,6 +375,12 @@ describe("the first piece's parameters", () => {
     expect(FADE.show(1)).toBe("fade");
     expect(FADE.show(3)).toBe("held");
     expect(FADE.show(4)).toBe("leashed");
+    expect(FADE.values.map((value) => FADE.speak?.(value))).toEqual([
+      "stay",
+      "fade",
+      "held",
+      "leashed",
+    ]);
   });
 
   it("hold the twins within a fifth of the chain's length, or leash each with slack of 0.15 of it, what is past it falling at 8 a second; the lens's number only for twins born up to 10 cm apart (decision 64)", () => {

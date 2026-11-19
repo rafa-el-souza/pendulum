@@ -61,6 +61,10 @@ export interface Showing {
   idle?: boolean;
   /** Colours to paint as dots in place of the parameter's own, for a value whose colours depend on another, as the white's on the palette. */
   swatches?: readonly Rgb[];
+  /** What to show in place of the value's own text, as a number the piece measures, the lens's (decision 64). */
+  text?: string;
+  /** What a screen reader hears, and the icon's title says, in place of the value's own words, as the lens's number said whole. */
+  words?: string;
 }
 
 export interface Controls {
@@ -207,6 +211,8 @@ interface Entry {
   readonly readingIcon: SVGSVGElement;
   /** Its keys, beside the value where a pointer hovers. */
   readonly keys: HTMLElement;
+  /** The keys as its title shows them. */
+  readonly keysShown: string;
   /** The colours painted, when the value is shown in colours. */
   painted: string;
 }
@@ -507,6 +513,7 @@ export function mountControls(
       spoken,
       readingIcon,
       keys: keysHint,
+      keysShown,
       painted: "",
     });
   }
@@ -774,7 +781,7 @@ export function mountControls(
       const entry = entries.get(id);
       if (entry === undefined) throw new Error(`no control shows ${id}`);
       const at = reached ?? value;
-      const text = entry.parameter.show(at);
+      const text = showing.text ?? entry.parameter.show(at);
       const swatches = (painting ?? entry.parameter.swatches?.(at))?.map((c) =>
         cssColor(c),
       );
@@ -802,13 +809,17 @@ export function mountControls(
         entry.readingIcon.style.transform = rotate;
         entry.toolIcon.style.transform = rotate;
       }
-      const words = entry.parameter.speak?.(at) ?? text;
+      const words = showing.words ?? entry.parameter.speak?.(at) ?? text;
       if (entry.spoken !== null && entry.spoken.textContent !== words) {
         entry.spoken.textContent = words;
       }
       if (entry.described.textContent !== words) {
         entry.described.textContent = words;
       }
+      // the title says the words given in place of the name, as the lens's
+      // number said whole, and the name again once they are gone
+      const title = `${showing.words ?? entry.parameter.label} (${entry.keysShown})`;
+      if (entry.tool.title !== title) entry.tool.title = title;
       entry.output.classList.toggle(held, reached !== undefined);
       entry.tool.classList.toggle(held, reached !== undefined);
       entry.output.classList.toggle(faint, idle);
