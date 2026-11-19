@@ -31,7 +31,15 @@ import {
   sharesFor,
   workerBudget,
 } from "../core/twin-workers.ts";
-import { Fading, bornPerFrame, fanPlace, twinShine } from "../core/twins.ts";
+import {
+  Fading,
+  bornApart,
+  bornPerFrame,
+  fanPlace,
+  fromPivot,
+  twinShine,
+  widened,
+} from "../core/twins.ts";
 import { fitScale, reachBox, toWorld } from "../core/view.ts";
 import { Chain, createHand, type Hand } from "../physics/chain.ts";
 import { startInMode } from "../physics/modes.ts";
@@ -433,14 +441,25 @@ function play({ canvas, gl }: Stage): void {
     spawnPending = true;
   }
 
+  /**
+   * Twins `js` born of the chain as it is now, each at its place in a fan
+   * `spread` wide, and each to fade from how far it looks from the chain as
+   * it is born (decision 63).
+   */
+  function bear(js: readonly number[], spread: number): void {
+    twins.born(js, state, spread);
+    chain.positions(state.theta, x, y);
+    const reach = fromPivot(x, y, chain.totalLength);
+    for (const j of js) fading.born(j, bornApart(j, spread, reach));
+  }
+
   /** Twins of the chain as it is now, as many as their budget carries, while the light is on. */
   function bearTwins(): void {
     spawnPending = false;
     twins.clear();
     const count = lit ? Math.min(value(TWIN_COUNT), twins.affordable()) : 0;
-    twins.born(
+    bear(
       Array.from({ length: count }, (_, j) => j),
-      state,
       value(SPREAD),
     );
     fading.relight();
@@ -461,8 +480,8 @@ function play({ canvas, gl }: Stage): void {
       born.push(j);
       fading.light[j] = 1;
     }
-    // the fan opens wider as the music asks (decision 49)
-    twins.born(born, state, value(SPREAD) * 10 ** look.spread);
+    // the fan opens wider as the music asks (decision 49), to a whole turn
+    bear(born, widened(value(SPREAD), look.spread));
   }
 
   /**
@@ -485,8 +504,8 @@ function play({ canvas, gl }: Stage): void {
       bornNext = (bornNext + count) % alive;
     }
     for (const j of chosen) fading.light[j] = 1;
-    // the fan opens wider as the music asks (decision 49)
-    twins.born(chosen, state, value(SPREAD) * 10 ** look.spread);
+    // the fan opens wider as the music asks (decision 49), to a whole turn
+    bear(chosen, widened(value(SPREAD), look.spread));
   }
 
   /**
