@@ -2121,6 +2121,39 @@ white at once and in the palette's colour never, another palette painting
 them again, and the address and the title following. Captures of his
 settings at 2, 5 and 9 seconds, the same motion at each step.
 
+## 62. Passes over the whole frame are cut to the chain's reach
+
+*2026-11-19.* Every mass, twin and trail of the first piece stays within the
+chain's length of the pivot, at the centre of the frame, and its glow within
+52 CSS pixels of that: three spreads of the rods' widest halo, with the
+music at its most, and a pixel for a line's edge. The passes that go over
+the whole of a target, the trails' fade, the clear of the sketch's scene and
+the show of the trails through their curve, are cut to the box round that
+disc, with WebGL's scissor; about 55% of the frame at 1280 by 720 pixels,
+and as much on a phone. The canvas's own clear, and the chain, the hand's
+spring and the dots drawn straight onto it, are not cut. With the sketch's
+light on and the hand holding the chain, the spring goes through the scene
+wherever the hand is, and the passes stay whole.
+
+**Why.** Where the browser draws without a graphics card, as CI's three
+browsers do, a frame is nearly all passes over every pixel. The twins'
+target of decision 61 added more of them, and the browser tests took 31 to
+45% longer; three that count frames went past their 30 seconds. Of the
+changes a survey of the frame's drawing measured, the author chose this
+one, which leaves the screen as it was, to come first. Two are kept for
+later: the trails' fade kept as a number instead of a pass every frame, and
+a canvas without multisample antialiasing, which changes the screen a
+little.
+
+**Evidence.** On paused pages read back whole, with the passes cut and
+whole: 0 pixels differ, with the twins as chains and as dust, the sketch's
+light, the trails' mark, the strobe, and on a phone's canvas of 1170 by
+2532. Frames a second in headless Chromium without a graphics card, the
+same build with the passes whole and cut, medians of three rounds: 10.1 to
+15.6 with the twins as chains and 15.1 to 22.9 as dust at 1280 by 720, and
+20.2 to 30.8 at 390 by 844. Unit tests of the box: centred, cut at the
+canvas's edges, and holding every point within the reach.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
