@@ -200,12 +200,18 @@ const VERSION_8: CodeTable = {
 
 /**
  * The code's ninth version (decision 64), frozen once published: the twins
- * held near the chain and leashed to it, after those that stay and fade.
+ * held near the chain and leashed to it, after those that stay and fade,
+ * and how near, after their life.
  */
 const VERSION_9: CodeTable = {
   version: 9,
-  controls: VERSION_8.controls.map((control) =>
-    control.id === "fade" ? { id: "fade", values: [0, 1, 3, 4] } : control,
+  controls: VERSION_8.controls.flatMap((control) =>
+    control.id === "fade"
+      ? [
+          { id: "fade", values: [0, 1, 3, 4] },
+          { id: "hold", values: [0.05, 0.1, 0.2, 0.3, 0.4] },
+        ]
+      : [control],
   ),
   switches: ["light", "tension", "sketch"],
 };

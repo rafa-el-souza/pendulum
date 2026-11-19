@@ -736,7 +736,7 @@ test("the twins open fading as chaos carries them off; Shift and P draws them as
   expect(errors).toEqual([]);
 });
 
-test("the P key goes on to the twins held near the chain, which show how often differences double, and to the twins leashed to it; the address and the title follow", async ({
+test("the P key goes on to the twins held near the chain, which show how often differences double, and to the twins leashed to it; Shift with 3 and 4 says how near, faint while they fade or stay; the address and the title follow", async ({
   page,
 }) => {
   const errors = collectErrors(page);
@@ -745,7 +745,10 @@ test("the P key goes on to the twins held near the chain, which show how often d
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   await openControls(page);
   const life = icon(page, "Life of the twins");
+  const near = icon(page, "How near the twins are held");
   await expect(life).toHaveAccessibleDescription("fade");
+  await expect(near).toHaveAccessibleDescription("within 20 centimetres");
+  await expect(near).toHaveClass(/_idle_/);
   await page.keyboard.press("p");
   await expect(page).toHaveURL(/[?&]fade=3(&|$)/);
   await expect(page).toHaveTitle(/twins held/);
@@ -759,15 +762,29 @@ test("the P key goes on to the twins held near the chain, which show how often d
     "title",
     /^Twins held: differences double every \d\.\d\d s \(P\)$/,
   );
+  await expect(near).not.toHaveClass(/_idle_/);
+  // a lens wider than 20 cm shows no number, which would read too long
+  await page.keyboard.press("Shift+Digit4");
+  await expect(near).toHaveAccessibleDescription("within 30 centimetres");
+  await expect(page).toHaveURL(/[?&]hold=0\.3(&|$)/);
+  await expect(page).toHaveTitle(/twins held, within 30 cm/);
+  await expect(life).toHaveAccessibleDescription("held");
+  await page.keyboard.press("Shift+Digit3");
+  await page.keyboard.press("Shift+Digit3");
+  await expect(near).toHaveAccessibleDescription("within 10 centimetres");
+  await expect(page).toHaveURL(/[?&]hold=0\.1(&|$)/);
   await page.keyboard.press("p");
   await expect(life).toHaveAccessibleDescription("leashed");
+  await expect(near).not.toHaveClass(/_idle_/);
   await expect(life).toHaveAttribute("title", "Life of the twins (P)");
   await expect(page).toHaveURL(/[?&]fade=4(&|$)/);
   await expect(page).toHaveTitle(/twins leashed/);
   await frames(page, 20);
   await page.keyboard.press("p");
   await expect(life).toHaveAccessibleDescription("stay");
+  await expect(near).toHaveClass(/_idle_/);
   await expect(page).toHaveURL(/[?&]fade=0(&|$)/);
+  await expect(page).not.toHaveTitle(/within/);
   expect(errors).toEqual([]);
 });
 

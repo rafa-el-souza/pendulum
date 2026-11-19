@@ -212,14 +212,22 @@ describe("the first piece's address (decision 38)", () => {
     }
   });
 
-  it("writes codes of version 9, which hold the twins held near the chain and leashed to it (decision 64)", () => {
+  it("writes codes of version 9, which hold the twins held near the chain and leashed to it, and how near, after their life (decision 64)", () => {
     expect(CODE.version).toBe(9);
+    const ids = CODE.controls.map(({ id }) => id);
+    expect(ids.indexOf("hold")).toBe(ids.indexOf("fade") + 1);
     for (const fade of [0, 1, 3, 4]) {
-      const { values, switches } = opening();
-      values.set("n", 3);
-      values.set("fade", fade);
-      const opened = openingOf("", addressOf(values, switches, moment(3), ""));
-      expect(opened.values).toEqual(values);
+      for (const hold of [0.05, 0.1, 0.2, 0.3, 0.4]) {
+        const { values, switches } = opening();
+        values.set("n", 3);
+        values.set("fade", fade);
+        values.set("hold", hold);
+        const opened = openingOf(
+          "",
+          addressOf(values, switches, moment(3), ""),
+        );
+        expect(opened.values).toEqual(values);
+      }
     }
     // a code of version 8 holds the twins that stay or fade, as published
     const { values, switches } = opening();
@@ -247,6 +255,10 @@ describe("the first piece's address (decision 38)", () => {
     const dust = openingOf("?fade=2", "").values;
     expect(dust.get("fade")).toBe(0);
     expect(dust.get("look")).toBe(1);
+    values.set("hold", 0.4);
+    expect(addressOf(values, switches, null, "")).toBe("?fade=4&hold=0.4");
+    expect(openingOf("?fade=4&hold=0.4", "").values.get("hold")).toBe(0.4);
+    expect(openingOf("?hold=0.15", "").values.get("hold")).toBe(0.2);
   });
 
   it("reads codes of version 8, which hold the twins born wider apart, round the pivot (decision 63)", () => {

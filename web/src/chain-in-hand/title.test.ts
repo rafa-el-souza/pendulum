@@ -89,6 +89,22 @@ describe("the title of the first piece's page (decision 38)", () => {
     expect(summaryOf(values, switches, null)).toEqual([words]);
   });
 
+  it("names how near the twins are held only while they are held or leashed (decision 64)", () => {
+    const { values, switches } = opening();
+    values.set("hold", 0.3);
+    expect(summaryOf(values, switches, null)).toEqual([]);
+    values.set("fade", 3);
+    expect(summaryOf(values, switches, null)).toEqual([
+      "twins held",
+      "within 30 cm",
+    ]);
+    values.set("fade", 4);
+    expect(summaryOf(values, switches, null)).toEqual([
+      "twins leashed",
+      "within 30 cm",
+    ]);
+  });
+
   it("names the amplitude only for a mode, and neither the mode nor its amplitude for a moment, where the chain starts instead", () => {
     const { values, switches } = opening();
     values.set("amplitude", 60);

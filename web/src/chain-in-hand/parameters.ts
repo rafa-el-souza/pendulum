@@ -433,20 +433,40 @@ export const FADE: Parameter = {
 };
 
 /**
- * How wide the lens lets the fan grow before it draws the twins in, as the
- * root mean square of their distances from the chain, a share of the
- * chain's length (decision 64); or as wide as the twins were born, if wider.
- * A placeholder for the author's eye.
+ * How near the chain the twins are held (decision 64), in centimetres on a
+ * chain a metre long, as the spread's width at the tip (decision 57): while
+ * they are held, how wide the lens lets the fan grow, as the root mean
+ * square of the twins' distances from the chain, or as wide as they were
+ * born, if wider; while they are leashed, the slack each has before the
+ * leash pulls. Shown faint while the twins stay or fade, where it has
+ * nothing to do. On Shift with the spread's keys, another distance from the
+ * chain.
  */
-export const HOLD_WIDTH = 0.2;
+export const HOLD: Parameter = {
+  id: "hold",
+  label: "How near the twins are held",
+  values: [0.05, 0.1, 0.2, 0.3, 0.4],
+  initial: 0.2,
+  keys: { down: ["Shift+Digit3"], up: ["Shift+Digit4"] },
+  show: (value) => `${String(Math.round(value * 100))} cm`,
+  speak: (value) => `within ${String(Math.round(value * 100))} centimetres`,
+  icon: "near",
+};
 
 /**
- * The leash's slack, as a share of the chain's length, and the rate per
- * second at which a twin's distance past it falls (decision 64): fixed,
- * placeholders set by the author's eye on the prototype.
+ * The rate per second at which a leashed twin's distance past its slack
+ * falls (decision 64): near the rate chaos parts the twins at, so that the
+ * cloud swells and shrinks. Fixed, a placeholder set by the author's eye on
+ * the prototype.
  */
-export const LEASH_SLACK = 0.15;
 export const LEASH_RATE = 8;
+
+/**
+ * The widest lens whose number is shown (decision 64): wider, the fan's
+ * differences are no longer small, they stretch more slowly than small ones
+ * do, and the number would read the time to double too long.
+ */
+export const MEASURED_WIDEST = 0.2;
 
 /**
  * The widest spread the lens shows its number for, 10 cm at the tip
@@ -673,6 +693,7 @@ export const LIGHT: readonly Parameter[] = [
   TWIN_COUNT,
   SPREAD,
   FADE,
+  HOLD,
   LOOK,
   TRAIL,
   STYLE,

@@ -64,13 +64,13 @@ import {
   GROUND,
   HAND,
   HELD_STEP,
-  HOLD_WIDTH,
+  HOLD,
   LEASHED_STEP,
   LEASH_RATE,
-  LEASH_SLACK,
   LIGHT,
   LOOK,
   MASSES,
+  MEASURED_WIDEST,
   MODE,
   NEAR_SPREAD,
   PALETTE,
@@ -270,10 +270,11 @@ function play({ canvas, gl }: Stage): void {
   // While the twins fade (decision 43), each one's light, which falls as it
   // parts from the chain; those gone dark are born again on the chain.
   const fading = new Fading(mostTwins);
-  // While the twins are held (decision 64), the lens's width, the fan's as
-  // it was born if wider than the lens's own, and the time differences take
-  // to double, as the lens measures it; shown for twins born near the chain.
-  let lensWidth = HOLD_WIDTH;
+  // While the twins are held (decision 64), the width of the fan as it was
+  // born, which the lens lets it keep if wider than its own, and the time
+  // differences take to double, as the lens measures it; shown for twins
+  // born near the chain.
+  let widthBorn = 0;
   let bornNear = true;
   const doubling = new Doubling();
   const fan = new SegmentBatch(value(TWIN_COUNT) * chain.n);
@@ -448,9 +449,13 @@ function play({ canvas, gl }: Stage): void {
       controls.showValue(TWIN_COUNT.id, asked);
     }
     // held, the time differences take to double, once the lens has measured
-    // it, for twins born near the chain (decision 64)
+    // it, for twins born near the chain and a lens no wider than its number
+    // holds for (decision 64)
     const seconds =
-      value(FADE) === HELD_STEP && bornNear && twins.count > 0
+      value(FADE) === HELD_STEP &&
+      bornNear &&
+      value(HOLD) <= MEASURED_WIDEST &&
+      twins.count > 0
         ? doubling.seconds
         : null;
     if (seconds === null) {
@@ -500,7 +505,7 @@ function play({ canvas, gl }: Stage): void {
     fading.relight();
     // held, the fan may be as wide as it was born (decision 64), and its
     // number is shown only for twins born near the chain
-    lensWidth = Math.max(HOLD_WIDTH, bornWidth(count, spread, reach));
+    widthBorn = bornWidth(count, spread, reach);
     bornNear = spread <= NEAR_SPREAD;
   }
 
@@ -618,6 +623,14 @@ function play({ canvas, gl }: Stage): void {
     controls.showValue(WHITE.id, value(WHITE), {
       swatches: whiteSwatches(value(WHITE), value(PALETTE)),
       idle: !twinLight.floating,
+    });
+  }
+
+  /** How near the twins are held, faint while they stay or fade, where it has nothing to do (decision 64). */
+  function showHold(): void {
+    const life = value(FADE);
+    controls.showValue(HOLD.id, value(HOLD), {
+      idle: life !== HELD_STEP && life !== LEASHED_STEP,
     });
   }
 
@@ -935,6 +948,8 @@ function play({ canvas, gl }: Stage): void {
     const twinsAgain =
       parameter === TWIN_COUNT || parameter === SPREAD || parameter === FADE;
     if (twinsAgain && hand === null) spawnTwins();
+    // another lens measures afresh (decision 64)
+    if (parameter === HOLD) doubling.clear();
     if (parameter === TRAIL && next === 0) {
       trails.clear();
       trail.clear();
@@ -968,6 +983,7 @@ function play({ canvas, gl }: Stage): void {
     showStart();
     showRibbon();
     showWhite();
+    showHold();
     keepAddress();
   }
 
@@ -1055,7 +1071,7 @@ function play({ canvas, gl }: Stage): void {
           id: "twins",
           label: "The twins",
           icon: "butterfly",
-          controls: [TWIN_COUNT, SPREAD, FADE, LOOK, PALETTE, WHITE],
+          controls: [TWIN_COUNT, SPREAD, FADE, HOLD, LOOK, PALETTE, WHITE],
         },
         {
           id: "trails",
@@ -1125,6 +1141,7 @@ function play({ canvas, gl }: Stage): void {
   }
   showRibbon();
   showWhite();
+  showHold();
   // the switches as the address asks for them
   setLit(lit);
   setTensionShown(tensionShown);
@@ -1639,10 +1656,15 @@ function play({ canvas, gl }: Stage): void {
       const omega = Float64Array.from(state.omega);
       hold =
         life === HELD_STEP
-          ? { kind: "lens", width: lensWidth, theta, omega }
+          ? {
+              kind: "lens",
+              width: Math.max(value(HOLD), widthBorn),
+              theta,
+              omega,
+            }
           : {
               kind: "leash",
-              slack: LEASH_SLACK,
+              slack: value(HOLD),
               rate: LEASH_RATE,
               theta,
               omega,

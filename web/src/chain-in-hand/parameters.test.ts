@@ -13,10 +13,10 @@ import {
   FADE,
   FADE_REACH,
   HELD_STEP,
-  HOLD_WIDTH,
+  HOLD,
   LEASHED_STEP,
   LEASH_RATE,
-  LEASH_SLACK,
+  MEASURED_WIDEST,
   NEAR_SPREAD,
   GRAVITY,
   GROUND,
@@ -348,6 +348,7 @@ describe("the first piece's parameters", () => {
       TWIN_COUNT,
       SPREAD,
       FADE,
+      HOLD,
       LOOK,
       TRAIL,
       STYLE,
@@ -383,10 +384,30 @@ describe("the first piece's parameters", () => {
     ]);
   });
 
-  it("hold the twins within a fifth of the chain's length, or leash each with slack of 0.15 of it, what is past it falling at 8 a second; the lens's number only for twins born up to 10 cm apart (decision 64)", () => {
-    expect(HOLD_WIDTH).toBe(0.2);
-    expect(LEASH_SLACK).toBe(0.15);
+  it("hold the twins as near the chain as a control says, from 5 to 40 cm on a chain a metre long, opening at 20, on Shift with the spread's keys: the lens's width while they are held, and each one's slack while they are leashed (decision 64)", () => {
+    expect(HOLD.id).toBe("hold");
+    expect(HOLD.label).toBe("How near the twins are held");
+    expect(HOLD.values).toEqual([0.05, 0.1, 0.2, 0.3, 0.4]);
+    expect(HOLD.initial).toBe(0.2);
+    expect(HOLD.keys).toEqual({
+      down: ["Shift+Digit3"],
+      up: ["Shift+Digit4"],
+    });
+    expect(HOLD.values.map((value) => HOLD.show(value))).toEqual([
+      "5 cm",
+      "10 cm",
+      "20 cm",
+      "30 cm",
+      "40 cm",
+    ]);
+    expect(HOLD.speak?.(0.3)).toBe("within 30 centimetres");
+    expect(HOLD.icon).toBe("near");
+  });
+
+  it("leash the twins at 8 a second past their slack, and show the lens's number up to 20 cm, for twins born up to 10 cm apart (decision 64)", () => {
     expect(LEASH_RATE).toBe(8);
+    expect(MEASURED_WIDEST).toBe(0.2);
+    expect(HOLD.values).toContain(MEASURED_WIDEST);
     expect(NEAR_SPREAD).toBe(0.1);
     expect(SPREAD.values).toContain(NEAR_SPREAD);
   });

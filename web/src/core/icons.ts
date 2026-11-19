@@ -45,7 +45,8 @@ export type Icon =
   | "monitor"
   | "sketch"
   | "sketched"
-  | "whiten";
+  | "whiten"
+  | "near";
 
 const SVG = "http://www.w3.org/2000/svg";
 
@@ -261,6 +262,13 @@ const ICONS: Record<
   whiten: {
     fill: "M12 20.5a6 6 0 0 1-6-6c0-3.5 3-7 6-11z",
     stroke: "M12 3.5c3 4 6 7.5 6 11a6 6 0 0 1-12 0c0-3.5 3-7 6-11z",
+  },
+  // a chain hanging from its pivot, and the twins drawn in to it from
+  // either side: how near the twins are held
+  near: {
+    fill: "M10.5 4a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0 -3 0M10 19.5a2 2 0 1 0 4 0a2 2 0 1 0 -4 0",
+    stroke:
+      "M12 4V19.5M3 12h4M5.5 9.5L8 12l-2.5 2.5M21 12h-4M18.5 9.5L16 12l2.5 2.5",
   },
   left: { fill: "", stroke: "M15 5l-7 7 7 7" },
   right: { fill: "", stroke: "M9 5l7 7-7 7" },
