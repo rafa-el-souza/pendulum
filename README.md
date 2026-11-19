@@ -72,7 +72,10 @@ hanging rope it becomes as n grows.
   which of ten palettes colours the twins, and how long their light keeps
   that colour where it is dense before it turns white are controls too, and so is
   the ground, one of eleven dark colours, each with a chain's colour to go
-  with it. One switch puts out the twins and the
+  with it. The chain itself can be drawn whole, as its rods alone, as its
+  masses alone or not at all, while everything it leaves is drawn as
+  before; hidden rods show only as the music lights them. One switch puts
+  out the twins and the
   trails and lights them again, time can run backwards until the fan
   closes, as far as chaos allows, and the G key passes the whole frame
   through the light of the first sketch, to compare.
