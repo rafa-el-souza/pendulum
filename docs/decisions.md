@@ -2063,6 +2063,64 @@ starts it: 174 tests passed and 3 skipped, as in CI, in 15.2 minutes, on
 the code of decisions 58 and 59. The unit test of the image's version, red
 before the workflow named the image.
 
+## 61. Dense light can keep its colour
+
+*2026-11-19.* The first piece's group of the twins has a control after the
+palette, "When dense light turns white", on Shift with the palette's keys,
+in four steps: at once, late, later and never. At once is the piece as it
+was: the twins are drawn straight onto the canvas, which cuts each colour
+channel at full, so that where many twins share a pixel their light turns
+white in any palette, and the trails go through 1 − e^(−x) channel by
+channel (decision 21). At the other steps the twins are drawn into a target
+of their own, of half floats, and they and the trails go to the canvas
+through one curve: the brightness of the brightest channel, 1 − e^(−m), in
+the colour of the light added, with white coming in as 1 − e^(−m/w), w being
+40, 150 and without end. A faint twin looks as it did. The piece opens at
+later. This changes, in decision 21, the curve the trails go through at
+every step but at once.
+
+- **The control** is a drop of colour, half full, and its value five dots
+  of the palette's middle colour as 4, 16, 64, 256 and 1 024 twins add it
+  in one pixel, each as bright as one of the 512 the piece opens with,
+  through the same curve, so that the dots show the palette chosen; a
+  screen reader hears the step in words.
+- **The readable address** writes `white=` for every step but later, so an
+  address written before without it now opens keeping the colour.
+- **A saved moment's code** is in version 7, which holds the step after the
+  palette; codes of versions 1 to 6 open at once, as they were published.
+- **A browser that cannot draw into half floats** has eight bits there,
+  which cut the light at full as the canvas does: there the light turns
+  white at once at every step, and the control shows faint.
+- **The page's title** names the steps but later: "colours that whiten at
+  once", "colours that whiten late", "colours that never whiten".
+- **The cost** is one target the size of the frame, cleared and drawn into
+  every frame, and read in the pass that shows the trails. Without a
+  graphics card, in headless Chromium, the frame takes about an eighth
+  longer than before with the twins as chains and a third longer as dust.
+  With a graphics card it was not measured.
+- **40 and 150** are the session's placeholders for the author's eye; 150
+  is the one he saw.
+
+**Why.** In the author's settings (the blossom palette, 4 096 twins, time
+at a tenth), the fan that keeps out of chaos for long was a white band with
+pink edges. Each of 4 096 twins adds a twentieth of its colour, and on the
+blossom palette the red channel fills with about 20 twins in a pixel, the
+blue with 36 to 46 and the green with 28 to 114, so the dense middle turned
+white. He saw this as a prototype beside a wider fan and twins held near the
+chain, kept all three, and chose that this one be a value beside the
+palette, opening keeping the colour, with addresses without it opening so
+too.
+
+**Evidence.** Unit tests: the curve channel by channel at once, otherwise
+the colour kept and white coming in the later the more light it takes, and
+faint light shown as it was added; the control's steps, keys, words and
+dots; the code of version 7 and the older codes opening at once; the
+readable address with and without `white=`; the title's words. Browser
+test: Shift with the palette's keys stepping the white, the dots painted,
+white at once and in the palette's colour never, another palette painting
+them again, and the address and the title following. Captures of his
+settings at 2, 5 and 9 seconds, the same motion at each step.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
