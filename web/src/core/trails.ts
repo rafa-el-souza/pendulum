@@ -12,6 +12,12 @@
 // The trails can leave a mark (decision 42): a second target keeps, at every
 // point, the brightest piece of trail drawn there, and shows under the
 // fading trails after they are gone.
+// Dense light can keep its colour (decision 61): the curve then takes the
+// brightness from the brightest channel and keeps the colour, and white
+// comes in only over more light, or never. The twins' light is then drawn
+// into a target of its own and added to the canvas through the same curve.
+
+import type { Rgb } from "./color.ts";
 
 const FULL_VERTEX = `#version 300 es
 layout(location = 0) in vec2 corner;
@@ -29,8 +35,23 @@ void main() {
   color = uColor;
 }`;
 
+// The curve, as lightCurve below: with uKeep off, each channel on its own;
+// on, the brightest channel's brightness, the colour kept, and white coming
+// in at the rate uWhiten, none at 0.
+const CURVE = `
+uniform float uKeep;
+uniform float uWhiten;
+vec3 curve(vec3 sum) {
+  if (uKeep < 0.5) return 1.0 - exp(-sum);
+  float m = max(max(sum.r, sum.g), sum.b);
+  if (m <= 0.0) return vec3(0.0);
+  float white = 1.0 - exp(-m * uWhiten);
+  return mix(sum / m, vec3(1.0), white) * (1.0 - exp(-m));
+}`;
+
 const SHOW = `#version 300 es
 precision highp float;
+${CURVE}
 uniform sampler2D uTrails;
 uniform sampler2D uMark;
 uniform float uGain;
@@ -39,7 +60,7 @@ in vec2 vUv;
 out vec4 color;
 void main() {
   vec3 sum = texture(uTrails, vUv).rgb * uGain + texture(uMark, vUv).rgb * uMarkGain;
-  vec3 light = 1.0 - exp(-sum);
+  vec3 light = curve(sum);
   // Light is added to the canvas, so the alpha written is zero.
   color = vec4(pow(light, vec3(1.0 / 2.2)), 0.0);
 }`;
@@ -47,6 +68,7 @@ void main() {
 // The trails and the frame's lines together, through the same curve.
 const SHOW_WITH_SCENE = `#version 300 es
 precision highp float;
+${CURVE}
 uniform sampler2D uTrails;
 uniform sampler2D uScene;
 uniform sampler2D uMark;
@@ -57,9 +79,48 @@ in vec2 vUv;
 out vec4 color;
 void main() {
   vec3 sum = texture(uTrails, vUv).rgb * uGain + texture(uScene, vUv).rgb * uSceneGain + texture(uMark, vUv).rgb * uMarkGain;
-  vec3 light = 1.0 - exp(-sum);
+  vec3 light = curve(sum);
   color = vec4(pow(light, vec3(1.0 / 2.2)), 0.0);
 }`;
+
+// Light drawn off the canvas, as the twins' while their colour is kept, added
+// to the canvas through the same curve but without the trails' lift towards
+// the light (the power of 1 / 2.2), so that a faint twin looks as it did
+// drawn straight on the canvas.
+const SHOW_LIGHT = `#version 300 es
+precision highp float;
+${CURVE}
+uniform sampler2D uLight;
+in vec2 vUv;
+out vec4 color;
+void main() {
+  color = vec4(curve(texture(uLight, vUv).rgb), 0.0);
+}`;
+
+/**
+ * The curve light goes through to the canvas (decisions 21 and 61), as the
+ * shaders' `curve`: with `white` 0, each channel on its own, 1 - e^(-x), so
+ * that dense light turns white as each channel fills; otherwise the
+ * brightness of the brightest channel, 1 - e^(-m), in the colour of the light
+ * added, and white coming in as 1 - e^(-m / white), never with a `white`
+ * without end. Faint, light comes out as it went in.
+ */
+export function lightCurve(sum: Rgb, white: number): Rgb {
+  if (white === 0) {
+    return [
+      1 - Math.exp(-sum[0]),
+      1 - Math.exp(-sum[1]),
+      1 - Math.exp(-sum[2]),
+    ];
+  }
+  const m = Math.max(sum[0], sum[1], sum[2]);
+  if (m <= 0) return [0, 0, 0];
+  const whiten = 1 - Math.exp(-m / white);
+  const light = 1 - Math.exp(-m);
+  const mix = (channel: number): number =>
+    (channel / m + whiten * (1 - channel / m)) * light;
+  return [mix(sum[0]), mix(sum[1]), mix(sum[2])];
+}
 
 /** How much of a trail's light is left after `seconds` of simulated time, with a half-life of `halfLife` seconds; none fades with a half-life without end. */
 export function fadeAfter(seconds: number, halfLife: number): number {
@@ -113,6 +174,9 @@ function compile(
   }
   return shader;
 }
+
+/** The uniforms of the curve, in every program that shows light. */
+const CURVE_UNIFORMS = ["uKeep", "uWhiten"];
 
 interface Linked {
   readonly program: WebGLProgram;
@@ -264,17 +328,29 @@ export class Trails {
   readonly #fill: Linked;
   readonly #show: Linked;
   readonly #showWithScene: Linked;
+  readonly #showLight: Linked;
   readonly #quad: WebGLVertexArrayObject;
   readonly #target: LightTarget;
   // the mark: the brightest piece of trail drawn at every point, kept while
   // the trails leave one
   readonly #mark: LightTarget;
   readonly #batch = new FadeBatch();
+  /**
+   * Over how much light white comes in, as lightCurve takes it: 0, each
+   * channel filling on its own, as the trails always had (decision 61).
+   */
+  white = 0;
 
   constructor(gl: WebGL2RenderingContext) {
     this.#gl = gl;
     this.#fill = link(gl, FILL, ["uColor"]);
-    this.#show = link(gl, SHOW, ["uTrails", "uMark", "uGain", "uMarkGain"]);
+    this.#show = link(gl, SHOW, [
+      "uTrails",
+      "uMark",
+      "uGain",
+      "uMarkGain",
+      ...CURVE_UNIFORMS,
+    ]);
     this.#showWithScene = link(gl, SHOW_WITH_SCENE, [
       "uTrails",
       "uScene",
@@ -282,7 +358,9 @@ export class Trails {
       "uGain",
       "uSceneGain",
       "uMarkGain",
+      ...CURVE_UNIFORMS,
     ]);
+    this.#showLight = link(gl, SHOW_LIGHT, ["uLight", ...CURVE_UNIFORMS]);
     this.#target = new LightTarget(gl);
     this.#mark = new LightTarget(gl);
     const buffer = gl.createBuffer();
@@ -306,6 +384,14 @@ export class Trails {
         ? "half-float"
         : "8-bit";
     }
+  }
+
+  /** Sets the curve's uniforms of a program in use to `white`. */
+  #curve(at: Linked["at"]): void {
+    const gl = this.#gl;
+    gl.uniform1f(at.uKeep ?? null, this.white > 0 ? 1 : 0);
+    // a white without end comes in at the rate 0: never
+    gl.uniform1f(at.uWhiten ?? null, this.white > 0 ? 1 / this.white : 0);
   }
 
   #fullscreen(): void {
@@ -404,6 +490,27 @@ export class Trails {
     gl.bindTexture(gl.TEXTURE_2D, this.#target.texture);
     gl.uniform1i(at.uTrails ?? null, 0);
     gl.uniform1f(at.uGain ?? null, this.#target.gain);
+    this.#curve(at);
+    this.#fullscreen();
+  }
+
+  /**
+   * Adds the light of `light`, a target of half floats, to the canvas through
+   * the curve, without the trails' lift: the twins' light while dense light
+   * keeps its colour (decision 61).
+   */
+  showLight(light: LightTarget): void {
+    const gl = this.#gl;
+    light.unbind();
+    gl.enable(gl.BLEND);
+    gl.blendEquation(gl.FUNC_ADD);
+    gl.blendFunc(gl.ONE, gl.ONE);
+    const { program, at } = this.#showLight;
+    gl.useProgram(program);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, light.texture);
+    gl.uniform1i(at.uLight ?? null, 0);
+    this.#curve(at);
     this.#fullscreen();
   }
 }
