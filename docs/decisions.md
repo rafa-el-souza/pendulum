@@ -2154,6 +2154,57 @@ same build with the passes whole and cut, medians of three rounds: 10.1 to
 20.2 to 30.8 at 390 by 844. Unit tests of the box: centred, cut at the
 canvas's edges, and holding every point within the reach.
 
+## 63. The twins can be born round the pivot, to a whole turn
+
+*2026-11-19.* The first piece's spread (decision 25) goes on past ten
+centimetres at the tip: 15°, 45°, 90°, 180° and 360° round the pivot, on the
+same keys, 3 and 4, and the same place in the address. Twins born that far
+apart are no longer twins of one motion: each is the chain turned whole by
+its share of the fan, with an energy of its own, and at 360° they are a
+flower of chains round the pivot. The control is now "How far apart the
+twins are born" (decision 57 named it "How close the twins are born"); its
+value shows the fan's width at the tip up to ten centimetres, then the
+fan's angle, "90°", and a screen reader hears "90 degrees round the pivot".
+
+- **Twins that fade** measure how far chaos has carried them from where
+  they were born: the light of decision 43 falls with how far the twin
+  looks from the chain now, against how far it looked as it was born. A
+  twin born turned by an angle θ from its chain moves each mass along a
+  chord of its circle round the pivot, so the two look 2 |sin(θ / 2)| times
+  the root mean square of the masses' distances from the pivot apart. Up
+  to ten centimetres that is under a twentieth of the chain's length, and
+  the fade looks as it did; without it, a twin born across the pivot would
+  open dark.
+- **The music's fan** (decision 49), which widens the spread by ten to the
+  power the music asks, stops at a whole turn.
+- **The readable address** writes the new steps in short radians,
+  `spread=0.26` to `spread=6.28`, which are the control's values
+  themselves, so that an address carries them exactly; 6.28 is a hair
+  under a whole turn, and the fan's two edges all but meet.
+- **A saved moment's code** is in version 8, which holds the new steps;
+  codes of versions 1 to 7 open as they were published.
+- **The page's title** says "born across 90°" for the new steps.
+
+**Why.** In the author's settings, the twins that keep out of chaos for
+long stay a narrow band along the chain. Asked what could be done with
+them, the session brought ten options; he chose three to see as
+prototypes, the light that keeps its colour (decision 61), this wider fan
+and twins held near the chain, kept all three, and chose that the wider fan
+go on the control there was, in degrees after ten centimetres, without a
+new key.
+
+**Evidence.** Unit tests: the spread's steps, name, values shown and words;
+the distance at birth equal to the one measured between the chain and its
+twin, for spreads up to a whole turn; a twin's light measured from it; the
+music's fan stopping at a whole turn; the code of version 8 and the codes
+of version 7; the readable address with the new steps; the title's words.
+Browser test: the key 4 stepping past ten centimetres to 360°, the address
+and the title following. Frames a second in headless Chromium without a
+graphics card, the branch and the main it starts from in turn, at 1280 by
+720: medians of six rounds with the twins as chains, 8.0 on both, and of
+nine as dust, 7.7 on main and 7.9 on the branch, single rounds ranging from
+6.8 to 9.5; on the branch at 90° and at 360°, 7.9.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
