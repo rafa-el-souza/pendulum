@@ -2311,6 +2311,60 @@ alternating: on main with the twins that stay, 6.2; on the branch, 7.3
 with them staying, 7.0 held and 7.1 leashed; single rounds ranged from 3.1
 to 9.9.
 
+## 65. What of the chain is drawn
+
+*2026-11-19.* The first piece's group of the chain has a control after the
+tension's colours, "What of the chain is drawn", on Shift with the masses'
+keys, ↓ and ↑, coming round, in four steps: whole, as the piece opens,
+rods, masses and none. Everything else is drawn as before, from where the
+chain is: the twins, the trails, the strobe's stamps, the hand's spring and
+the pivot; and the chain moves as before. Hidden rods show only while the
+music lights them: as bright as its light on the kicks makes them (decision
+46), up to how bright they are drawn, with their halo, and not at all in
+silence.
+
+- **The control** is an open eye. Its value is the step's word; a screen
+  reader hears "the whole chain", "its rods alone", "its masses alone" or
+  "none of it". Beside it the keys read "Shift ↓ ↑"; the masses' keys
+  without Shift step the masses as before.
+- **The readable address** writes `chain=1`, `2` or `3`, and nothing for
+  the whole chain.
+- **A saved moment's code** is in version 10, which holds the step after
+  the ground; its first part takes fifteen bytes instead of fourteen, and
+  codes of versions 1 to 9 open with the whole chain.
+- **The page's title** names the steps but the whole: "rods alone",
+  "masses alone", "chain hidden".
+- **What was hidden before:** the masses of rods shorter than 12 pixels
+  are not drawn, so "rods" changes only short chains. With the light put
+  out (decision 27) and none of the chain, the pivot alone shows. With the
+  rods hidden, the tension's colours (decision 35) show only in what is
+  still drawn: the masses, the trails and the strobe's stamps.
+- **Other ways the music could show hidden rods,** seen as animations and
+  not chosen: only the light it adds to the halo, a faint smoke with beads
+  at the joints; the same in the music's glow mode, a thick blur; and the
+  whole halo without the line, always, a ghost that never goes.
+
+**Why.** The author asked whether the circles and the segments could be
+hidden while every effect stays in sight, as a clean switch. Seeing a
+prototype as animations, he chose the four steps and the rods lit by the
+music; then the name and the words, the keys, the place last in the
+chain's group and `chain=` in the address, from the session's
+recommendations, and the eye from seven icons drawn at the row's size,
+where the eye crossed out would say hidden of the chain the piece opens
+with, and the half-faint pendulums read as the masses' and the shake's
+icons.
+
+**Evidence.** Unit tests: the control's steps, keys, words, icon and
+coming round; which steps draw the rods and the masses; arrows held with
+Shift shown as arrows; codes of versions 10 and 9; the readable address
+with `chain=` and without; the title's words. Browser test: Shift and ↑
+going round the four steps and Shift and ↓ back, the address and the title
+following, and ↑ alone stepping the masses. Captures of the row at 390 px
+and at desktop width at each step; animations of six seconds with the demo
+beat and eight masses, the masses alone and none of the chain, with and
+without the twins and the trails. With the whole chain, a frame draws what
+it drew before.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
