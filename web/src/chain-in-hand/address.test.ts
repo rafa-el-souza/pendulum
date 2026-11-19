@@ -124,7 +124,6 @@ describe("the first piece's address (decision 38)", () => {
   });
 
   it("writes codes of version 6, which hold the trails' style apart from how long they last, and the twins' look apart from whether they fade (decision 53)", () => {
-    expect(CODE.version).toBe(6);
     const { values, switches } = opening();
     values.set("n", 3);
     values.set("fade", 1);
@@ -211,6 +210,45 @@ describe("the first piece's address (decision 38)", () => {
       const code = writeCode(table, { values, switches, ...moment(3) });
       expect(openingOf("", `#${code}`).values.get("fade")).toBe(0);
     }
+  });
+
+  it("writes codes of version 7, which hold when dense light turns white, after the palette (decision 61)", () => {
+    expect(CODE.version).toBe(7);
+    const ids = CODE.controls.map(({ id }) => id);
+    expect(ids.indexOf("white")).toBe(ids.indexOf("palette") + 1);
+    for (const white of [0, 1, 2, 3]) {
+      const { values, switches } = opening();
+      values.set("n", 3);
+      values.set("white", white);
+      const opened = openingOf("", addressOf(values, switches, moment(3), ""));
+      expect(opened.values).toEqual(values);
+    }
+  });
+
+  it("opens the codes written before version 7 with white coming in at once, as they were published (decision 61)", () => {
+    const before = CODES.filter(
+      ({ controls }) => !controls.some(({ id }) => id === "white"),
+    );
+    expect(before.map(({ version }) => version)).toEqual([1, 2, 3, 4, 5, 6]);
+    for (const table of before) {
+      const { values, switches } = opening();
+      values.set("n", 3);
+      const code = writeCode(table, { values, switches, ...moment(3) });
+      expect(openingOf("", `#${code}`).values.get("white")).toBe(0);
+    }
+    expect(openingOf("", `#${VERSION_5}`).values.get("white")).toBe(0);
+  });
+
+  it("opens keeping the colour later, readable addresses without white= too, and carries the other steps readable (decision 61)", () => {
+    const { values, switches } = opening();
+    expect(openingOf("", "").values.get("white")).toBe(2);
+    expect(openingOf("?n=3&palette=5", "").values.get("white")).toBe(2);
+    expect(addressOf(values, switches, null, "")).toBe("");
+    values.set("palette", 5);
+    values.set("white", 0);
+    expect(addressOf(values, switches, null, "")).toBe("?palette=5&white=0");
+    expect(openingOf("?palette=5&white=0", "").values.get("white")).toBe(0);
+    expect(openingOf("?white=3", "").values.get("white")).toBe(3);
   });
 
   it("writes codes that hold the ground, the scale and the palettes added (decision 41)", () => {

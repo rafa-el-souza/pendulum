@@ -1,7 +1,10 @@
 import { GROUNDS, groundAt } from "../core/grounds.ts";
+import type { Rgb } from "../core/color.ts";
 import { FAN_PALETTES, fanPalette } from "../core/palettes.ts";
 import type { Parameter } from "../core/parameters.ts";
 import { TENSION_SCALES, tensionScaleAt } from "../core/tension.ts";
+import { lightCurve } from "../core/trails.ts";
+import { twinShine } from "../core/twins.ts";
 import { gravity, type Gravity } from "../physics/chain.ts";
 import type { Shake } from "../physics/step.ts";
 
@@ -459,6 +462,75 @@ export const PALETTE: Parameter = {
 };
 
 /**
+ * When dense light turns white (decision 61): where many twins, or many
+ * trails, add their light in one place. At once, as the piece had until
+ * now: each channel fills on its own and the densest light is white in any
+ * palette. Or the light keeps its colour, at full where it is densest, and
+ * white comes in late, later, as the piece opens, or never. The keys are the
+ * palette's, with Shift. The control paints five dots of the palette's
+ * middle colour, from 4 twins in a pixel to 1 024 (`whiteSwatches`), so that
+ * it shows in the colours of the palette chosen; a screen reader hears the
+ * words.
+ */
+const WHITE_WORDS = ["at once", "late", "later", "never"];
+
+export const WHITE: Parameter = {
+  id: "white",
+  label: "When dense light turns white",
+  values: [0, 1, 2, 3],
+  initial: 2,
+  keys: { down: ["Shift+Digit5"], up: ["Shift+Digit6"] },
+  show: (value) => WHITE_WORDS[value] ?? "",
+  speak: (value) =>
+    value === 0
+      ? "at once, each colour filling on its own"
+      : value === 3
+        ? "never: dense light keeps its colour"
+        : (WHITE_WORDS[value] ?? ""),
+  icon: "whiten",
+};
+
+/**
+ * Over how much light white comes in at each step of `WHITE`, as the curve
+ * takes it (lightCurve): none at once, where each channel fills on its own;
+ * then 40 and 150, which are the session's placeholders for the author's
+ * eye; and never.
+ */
+const WHITENS = [0, 40, 150, Number.POSITIVE_INFINITY];
+
+export function whiteAfter(step: number): number {
+  const white = WHITENS[step];
+  if (white === undefined) throw new Error(`no step ${String(step)} of white`);
+  return white;
+}
+
+/** How many twins share a pixel at each of the white's five dots. */
+const SHARED = [4, 16, 64, 256, 1024];
+
+/**
+ * The white's five dots in the palette `palette`: its middle colour as 4, 16,
+ * 64, 256 and 1 024 twins add it in one pixel, each as bright as one of the
+ * 512 the piece opens with, shown at `step`. At once they are added as on the
+ * canvas, each channel cut at full; otherwise through the curve.
+ */
+export function whiteSwatches(step: number, palette: number): Rgb[] {
+  const middle = fanPalette(palette).color(0.5);
+  const one = twinShine(TWIN_COUNT.initial);
+  const white = whiteAfter(step);
+  return SHARED.map((count) => {
+    const sum: Rgb = [
+      middle[0] * one * count,
+      middle[1] * one * count,
+      middle[2] * one * count,
+    ];
+    if (white === 0) {
+      return [Math.min(1, sum[0]), Math.min(1, sum[1]), Math.min(1, sum[2])];
+    }
+    return lightCurve(sum, white);
+  });
+}
+
+/**
  * The scale of the tension's colours (decision 41): decision 35's first, then
  * the others, on one key beside the T that turns the colours on, coming round
  * from the last to the first. Stepping it turns the colours on. The control
@@ -526,7 +598,7 @@ export const CHAIN: readonly Parameter[] = [
   AMPLITUDE,
 ];
 
-/** The light: the twins, whether they fade and how they are drawn, their trails and the chain's, and their colours. */
+/** The light: the twins, whether they fade and how they are drawn, their trails and the chain's, their colours, and when dense light turns white. */
 export const LIGHT: readonly Parameter[] = [
   TWIN_COUNT,
   SPREAD,
@@ -536,6 +608,7 @@ export const LIGHT: readonly Parameter[] = [
   STYLE,
   RIBBON,
   PALETTE,
+  WHITE,
 ];
 
 /** The colours that are not the light's: the tension's scale and the ground (decision 41). */

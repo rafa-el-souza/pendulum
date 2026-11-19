@@ -31,11 +31,14 @@ import {
   TIME,
   TRAIL,
   TWIN_COUNT,
+  WHITE,
   gravityOf,
   handDamping,
   MARK_STEP,
   shakeOf,
   trailFade,
+  whiteAfter,
+  whiteSwatches,
 } from "./parameters.ts";
 
 describe("the first piece's parameters", () => {
@@ -164,6 +167,67 @@ describe("the first piece's parameters", () => {
     });
   });
 
+  it("let dense light turn white at once, as before, late, later, as the piece opens, or never, on Shift with the palette's keys (decision 61)", () => {
+    expect(WHITE.id).toBe("white");
+    expect(WHITE.label).toBe("When dense light turns white");
+    expect(WHITE.values).toEqual([0, 1, 2, 3]);
+    expect(WHITE.initial).toBe(2);
+    expect(WHITE.keys).toEqual({
+      down: ["Shift+Digit5"],
+      up: ["Shift+Digit6"],
+    });
+    expect(WHITE.values.map((value) => WHITE.show(value))).toEqual([
+      "at once",
+      "late",
+      "later",
+      "never",
+    ]);
+    expect(WHITE.speak?.(0)).toBe("at once, each colour filling on its own");
+    expect(WHITE.speak?.(3)).toBe("never: dense light keeps its colour");
+    expect(WHITE.icon).toBe("whiten");
+    expect(WHITE.values.map(whiteAfter)).toEqual([
+      0,
+      40,
+      150,
+      Number.POSITIVE_INFINITY,
+    ]);
+  });
+
+  it("paint when white comes in as five dots of the palette's middle colour, from 4 twins in a pixel to 1 024, each as bright as one of the 512 the piece opens with (decision 61)", () => {
+    const blossom = FAN_PALETTES.findIndex(({ name }) => name === "blossom");
+    const middle = FAN_PALETTES[blossom]?.color(0.5) ?? [0, 0, 0];
+    const brightest = Math.max(...middle);
+    const four = (4 * 2.2) / Math.sqrt(512);
+    for (const step of WHITE.values) {
+      const dots = whiteSwatches(step, blossom);
+      expect(dots).toHaveLength(5);
+      // brighter the more twins share the pixel, until a channel is full
+      for (let i = 1; i < dots.length; i++) {
+        const before = Math.max(...(dots[i - 1] ?? []));
+        const now = Math.max(...(dots[i] ?? []));
+        if (before < 1) expect(now).toBeGreaterThan(before);
+        else expect(now).toBe(1);
+      }
+    }
+    // at once, the twins added on the canvas, each channel cut at full: the
+    // densest dots white
+    expect(whiteSwatches(0, blossom)[0]?.[2]).toBeCloseTo(four * middle[2], 12);
+    expect(whiteSwatches(0, blossom)[4]).toEqual([1, 1, 1]);
+    // never, the palette's colour at every density
+    for (const dot of whiteSwatches(3, blossom)) {
+      const top = Math.max(...dot);
+      dot.forEach((channel, i) => {
+        expect(channel / top).toBeCloseTo((middle[i] ?? 0) / brightest, 12);
+      });
+    }
+    // late is whiter than later at the densest dot
+    const whiteness = (dot: readonly number[]): number =>
+      Math.min(...dot) / Math.max(...dot);
+    expect(whiteness(whiteSwatches(1, blossom)[4] ?? [])).toBeGreaterThan(
+      whiteness(whiteSwatches(2, blossom)[4] ?? []),
+    );
+  });
+
   it("let the twins be born from a billionth of a radian apart to a tenth, by powers of ten, opening at the thousandth they had (decision 25)", () => {
     expect(SPREAD.values).toEqual([
       1e-9, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1,
@@ -273,6 +337,7 @@ describe("the first piece's parameters", () => {
       STYLE,
       RIBBON,
       PALETTE,
+      WHITE,
     ]);
     expect(COLOURS).toEqual([SCALE, GROUND]);
     expect(PARAMETERS).toEqual([...CHAIN, ...LIGHT, ...COLOURS]);

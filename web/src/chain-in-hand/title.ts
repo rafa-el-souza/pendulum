@@ -13,6 +13,7 @@ import {
   PARAMETERS,
   SPREAD,
   TRAIL,
+  WHITE,
 } from "./parameters.ts";
 
 // The page's title, which names a bookmark (docs/decisions.md, decision 38):
@@ -62,6 +63,9 @@ function words(parameter: Parameter, value: number): string {
       return "trails from every mass";
     case "palette":
       return `${fanPalette(value).name} palette`;
+    case "white":
+      if (value === 3) return "colours that never whiten";
+      return `colours that whiten ${WHITE.show(value)}`;
     case "scale":
       return `${tensionScaleAt(value).name} scale`;
     case "ground":
