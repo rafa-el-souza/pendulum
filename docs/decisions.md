@@ -2205,6 +2205,89 @@ graphics card, the branch and the main it starts from in turn, at 1280 by
 nine as dust, 7.7 on main and 7.9 on the branch, single rounds ranging from
 6.8 to 9.5; on the branch at 90° and at 360°, 7.9.
 
+## 64. The twins can be held near the chain, or leashed to it
+
+*2026-11-19.* The first piece's P key (decision 43) goes round four lives of
+the twins instead of two: stay, fade (as the piece opens, decision 58), held
+and leashed. The control is now "Life of the twins" (decision 57 named it
+"Twins stay or fade"). Neither new life is in the paper: each acts on the
+twins alone, once each frame's time has gone by, and the chain moves as
+before.
+
+- **Held.** Once the fan grows wider than a fifth of the chain's length,
+  measured as the root mean square of how far its twins look from the chain,
+  every twin is drawn in towards the chain by one factor, the differences of
+  its angles from the chain's, the nearest way round, and of its rates
+  alike, so that the fan is that wide again. The twins keep the direction
+  they differ in, and stay a thin blade along the direction the motion
+  stretches differences in at that instant, which is how Benettin's method
+  measures chaos. A fan born wider than a fifth (decision 63) is held at the
+  width it was born with.
+- **How often differences double.** How much the held fan grew from one
+  frame to the next, averaged over the last three seconds or so of
+  simulated time, gives the time a difference takes to double. Once there
+  is half a second of measure, for twins born up to ten centimetres apart,
+  the P's value shows it in two figures, "0.11 s", and its title and a
+  screen reader say "Twins held: differences double every 0.11 s";
+  otherwise the value is "held". Twins born again, time turned back and
+  another number of masses start the measure again.
+- **Leashed.** Each twin is free within 0.15 of the chain's length of the
+  chain, and past it, what is beyond falls back at 8 a second, each twin on
+  its own: a cloud that swells where the motion is most chaotic.
+- **Where they act.** In each worker's share of the twins (decision 51),
+  with the chain as it is once the frame's time has gone by, which the
+  frame's command now carries. What a share sends back is where its twins
+  got to on their own, and the next frame starts from where they were
+  drawn in to. Each share holds its own twins by its own factor, and each
+  share's twins are spread over the whole fan (decision 51).
+- **The readable address** writes `fade=3` and `fade=4`; `fade=2` is still
+  the dust of addresses written before decision 53.
+- **A saved moment's code** is in version 9, which holds the two new steps;
+  codes of versions 1 to 8 open as they were published.
+- **The page's title** says "twins held" and "twins leashed".
+- **A fifth, 0.15 and 8 a second** are placeholders for the author's eye.
+- **The number** is measured once a frame, on a fan a fifth of the chain
+  wide. Out of the page, with three masses let go from the side under
+  Jupiter's gravity, at a tenth of real time, it reads 0.21 s over the
+  first simulated second and 0.10 to 0.11 s from the fifth on, where the
+  same measure with a lens two hundred times narrower reads 0.10 s; at real
+  time, 0.11 to 0.13 s at 60 frames a second and 0.11 to 0.15 s at 30.
+  Frames that each simulate more time, on a slow device or with time sped
+  up, let the fan grow further between them, where it stretches more
+  slowly, and read longer. With the two masses the piece opens with,
+  differences double every 0.2 to 0.3 s.
+
+**Why.** In the author's settings, the twins that keep out of chaos for
+long stay a narrow band along the chain, and those that fade come and go.
+Asked what could be done with them, the session brought ten options; he
+chose three to see as prototypes, the light that keeps its colour (decision
+61), the wider fan (decision 63) and twins held near the chain, kept all
+three, and chose that the held twins be a third step of the P, with the
+lens's number under its icon. Of a second round of prototypes he chose the
+leash, as a fourth step with its slack and pull fixed, in the same slice.
+
+**Evidence.** Unit tests: a twin drawn in by a factor, its angles the
+nearest way round and its rates; the fan's width as a root mean square, and
+as it is born; the leash within and past the slack; the measure of the
+doubling, its half second, its forgetting over three seconds, and nothing
+while the fan does not stretch; a share's twins held exactly as a free
+share's drawn in by the lens's width over the fan's, or left alone while no
+wider; the stretch reported from the width after the last command, and
+none after an event; each twin leashed exactly as the free one drawn in by
+the leash's factor; nothing held over a command of events alone; the P's
+steps, words and fixed values; the number in two figures; codes of
+versions 9 and 8; the readable address with `fade=3`, `fade=4` and the dust
+of `fade=2`; the title's words. Browser tests: P from fade to held, its
+number said whole and in its title within seconds, on to leashed and stay,
+the address and the title following; P going round with the twins as dust.
+The number read out of the page over a minute of simulated time, at four
+widths of the lens and three lengths of frame, and in the page with two and
+three masses. Frames a second in headless Chromium without a graphics card,
+three masses at four times real time, at 1280 by 720, medians of six rounds
+alternating: on main with the twins that stay, 6.2; on the branch, 7.3
+with them staying, 7.0 held and 7.1 leashed; single rounds ranged from 3.1
+to 9.9.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
