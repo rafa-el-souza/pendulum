@@ -97,6 +97,25 @@ void main() {
   color = vec4(curve(texture(uLight, vUv).rgb), 0.0);
 }`;
 
+// The trails, and the twins' light beside them, in one pass: the twins'
+// without the lift, as SHOW_LIGHT shows it, so that a browser drawing without
+// a graphics card takes one pass over the frame instead of two.
+const SHOW_WITH_LIGHT = `#version 300 es
+precision highp float;
+${CURVE}
+uniform sampler2D uTrails;
+uniform sampler2D uMark;
+uniform sampler2D uLight;
+uniform float uGain;
+uniform float uMarkGain;
+in vec2 vUv;
+out vec4 color;
+void main() {
+  vec3 sum = texture(uTrails, vUv).rgb * uGain + texture(uMark, vUv).rgb * uMarkGain;
+  vec3 light = pow(curve(sum), vec3(1.0 / 2.2)) + curve(texture(uLight, vUv).rgb);
+  color = vec4(light, 0.0);
+}`;
+
 /**
  * The curve light goes through to the canvas (decisions 21 and 61), as the
  * shaders' `curve`: with `white` 0, each channel on its own, 1 - e^(-x), so
@@ -329,6 +348,7 @@ export class Trails {
   readonly #show: Linked;
   readonly #showWithScene: Linked;
   readonly #showLight: Linked;
+  readonly #showWithLight: Linked;
   readonly #quad: WebGLVertexArrayObject;
   readonly #target: LightTarget;
   // the mark: the brightest piece of trail drawn at every point, kept while
@@ -361,6 +381,14 @@ export class Trails {
       ...CURVE_UNIFORMS,
     ]);
     this.#showLight = link(gl, SHOW_LIGHT, ["uLight", ...CURVE_UNIFORMS]);
+    this.#showWithLight = link(gl, SHOW_WITH_LIGHT, [
+      "uTrails",
+      "uMark",
+      "uLight",
+      "uGain",
+      "uMarkGain",
+      ...CURVE_UNIFORMS,
+    ]);
     this.#target = new LightTarget(gl);
     this.#mark = new LightTarget(gl);
     const buffer = gl.createBuffer();
@@ -459,9 +487,11 @@ export class Trails {
   /**
    * Adds the trails' light to the canvas, lifted where a target holds eight
    * bits, and with it the light of `scene`, when given, and of the mark,
-   * when `marked`, through the same curve.
+   * when `marked`, through the same curve; and, when given, the light of
+   * `light` through the curve without the lift, as showLight adds it, in the
+   * same pass.
    */
-  show(scene?: LightTarget, marked = false): void {
+  show(scene?: LightTarget, marked = false, light?: LightTarget): void {
     const gl = this.#gl;
     this.#fit();
     this.#target.unbind();
@@ -469,8 +499,17 @@ export class Trails {
     gl.blendEquation(gl.FUNC_ADD);
     gl.blendFunc(gl.ONE, gl.ONE);
     const { program, at } =
-      scene === undefined ? this.#show : this.#showWithScene;
+      scene !== undefined
+        ? this.#showWithScene
+        : light !== undefined
+          ? this.#showWithLight
+          : this.#show;
     gl.useProgram(program);
+    if (scene === undefined && light !== undefined) {
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, light.texture);
+      gl.uniform1i(at.uLight ?? null, 1);
+    }
     if (scene !== undefined) {
       gl.activeTexture(gl.TEXTURE1);
       gl.bindTexture(gl.TEXTURE_2D, scene.texture);

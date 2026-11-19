@@ -1316,8 +1316,10 @@ function play({ canvas, gl }: Stage): void {
         twinLight.unbind();
       }
       lines.clear(colors.ground);
-      if (trailStep > 0) trails.show(undefined, mark);
-      if (twinsShown) trails.showLight(twinLight);
+      const light = twinsShown ? twinLight : undefined;
+      // one pass over the frame for both, where the trails are on
+      if (trailStep > 0) trails.show(undefined, mark, light);
+      else if (light !== undefined) trails.showLight(light);
       drawChain(scale, ratio, rodPixels);
     } else {
       // the trails through the curve, under the chains
