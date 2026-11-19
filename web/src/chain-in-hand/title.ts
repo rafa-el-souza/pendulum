@@ -83,6 +83,12 @@ function words(parameter: Parameter, value: number): string {
       return `${tensionScaleAt(value).name} scale`;
     case "ground":
       return `${groundAt(value).name} ground`;
+    case "chain":
+      return value === 3
+        ? "chain hidden"
+        : value === 2
+          ? "masses alone"
+          : "rods alone";
     default:
       return `${parameter.id} ${String(value)}`;
   }

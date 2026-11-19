@@ -216,6 +216,16 @@ const VERSION_9: CodeTable = {
   switches: ["light", "tension", "sketch"],
 };
 
+/**
+ * The code's tenth version (decision 65), frozen once published: what of the
+ * chain is drawn, after the ground.
+ */
+const VERSION_10: CodeTable = {
+  version: 10,
+  controls: [...VERSION_9.controls, { id: "chain", values: [0, 1, 2, 3] }],
+  switches: ["light", "tension", "sketch"],
+};
+
 /** Every version of the code the piece reads, oldest first. */
 export const CODES: readonly CodeTable[] = [
   VERSION_1,
@@ -227,10 +237,11 @@ export const CODES: readonly CodeTable[] = [
   VERSION_7,
   VERSION_8,
   VERSION_9,
+  VERSION_10,
 ];
 
 /** The version the piece writes: the newest. */
-export const CODE: CodeTable = VERSION_9;
+export const CODE: CodeTable = VERSION_10;
 
 /**
  * The trails' step of a strobe and the twins as dust, as the fifth code and

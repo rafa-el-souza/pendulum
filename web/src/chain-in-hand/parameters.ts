@@ -676,6 +676,40 @@ export const GROUND: Parameter = {
   icon: "ground",
 };
 
+/**
+ * What of the chain is drawn (decision 65): the whole of it, as the piece
+ * opens, its rods alone, its masses alone, or none of it, while the twins,
+ * the trails and the rest are drawn as before, from where the chain is. The
+ * hand's spring and the pivot stay. Rods hidden are lit by the music: as
+ * bright as its light on the kicks makes them, up to how bright they are
+ * drawn, and gone in silence. The keys are the masses' own, with Shift, and
+ * come round.
+ */
+export const DRAWN: Parameter = {
+  id: "chain",
+  label: "What of the chain is drawn",
+  values: [0, 1, 2, 3],
+  initial: 0,
+  keys: { down: ["Shift+ArrowDown"], up: ["Shift+ArrowUp"] },
+  cyclic: true,
+  show: (value) => ["whole", "rods", "masses", "none"][value] ?? "whole",
+  speak: (value) =>
+    ["the whole chain", "its rods alone", "its masses alone", "none of it"][
+      value
+    ] ?? "the whole chain",
+  icon: "eye",
+};
+
+/** Whether the chain's rods are drawn, for a value of what of it is drawn; hidden, the music still lights them (decision 65). */
+export function rodsDrawn(value: number): boolean {
+  return value === 0 || value === 1;
+}
+
+/** Whether the chain's masses are drawn, for a value of what of it is drawn (decision 65). */
+export function massesDrawn(value: number): boolean {
+  return value === 0 || value === 2;
+}
+
 /** What moves the chain: its masses, its time, the hand, gravity, the shake, and where it starts. */
 export const CHAIN: readonly Parameter[] = [
   MASSES,
@@ -706,11 +740,12 @@ export const LIGHT: readonly Parameter[] = [
 export const COLOURS: readonly Parameter[] = [SCALE, GROUND];
 
 /**
- * Every parameter, the chain's first. The row of controls shows the sets
- * apart (decision 31).
+ * Every parameter, the chain's first, and what of the chain is drawn last.
+ * The row of controls shows the sets apart (decision 31).
  */
 export const PARAMETERS: readonly Parameter[] = [
   ...CHAIN,
   ...LIGHT,
   ...COLOURS,
+  DRAWN,
 ];

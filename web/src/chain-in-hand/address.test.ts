@@ -212,9 +212,51 @@ describe("the first piece's address (decision 38)", () => {
     }
   });
 
-  it("writes codes of version 9, which hold the twins held near the chain and leashed to it, and how near, after their life (decision 64)", () => {
-    expect(CODE.version).toBe(9);
+  it("writes codes of version 10, which hold what of the chain is drawn, after the ground (decision 65)", () => {
+    expect(CODE.version).toBe(10);
     const ids = CODE.controls.map(({ id }) => id);
+    expect(ids.at(-1)).toBe("chain");
+    expect(ids.at(-2)).toBe("ground");
+    for (const drawn of [0, 1, 2, 3]) {
+      const { values, switches } = opening();
+      values.set("n", 3);
+      values.set("chain", drawn);
+      const opened = openingOf("", addressOf(values, switches, moment(3), ""));
+      expect(opened.values).toEqual(values);
+    }
+    // a code of version 9 opens with the whole chain, as it was published
+    const { values, switches } = opening();
+    values.set("n", 3);
+    values.set("fade", 3);
+    const ninth = CODES.find(({ version }) => version === 9);
+    expect(ninth).toBeDefined();
+    if (ninth === undefined) return;
+    const code = writeCode(ninth, { values, switches, ...moment(3) });
+    const opened = openingOf("", `#${code}`).values;
+    expect(opened).toEqual(values);
+    expect(opened.get("chain")).toBe(0);
+  });
+
+  it("carries what of the chain is drawn readable, without a moment, and opens with the whole chain (decision 65)", () => {
+    const { values, switches } = opening();
+    expect(openingOf("", "").values.get("chain")).toBe(0);
+    expect(addressOf(values, switches, null, "")).toBe("");
+    for (const drawn of [1, 2, 3]) {
+      values.set("chain", drawn);
+      const address = addressOf(values, switches, null, "");
+      expect(address).toBe(`?chain=${String(drawn)}`);
+      expect(openingOf(address, "").values.get("chain")).toBe(drawn);
+    }
+    values.set("n", 8);
+    expect(addressOf(values, switches, null, "")).toBe("?n=8&chain=3");
+    expect(openingOf("?chain=4", "").values.get("chain")).toBe(0);
+  });
+
+  it("reads codes of version 9, which hold the twins held near the chain and leashed to it, and how near, after their life (decision 64)", () => {
+    const ninth = CODES.find(({ version }) => version === 9);
+    expect(ninth).toBeDefined();
+    if (ninth === undefined) return;
+    const ids = ninth.controls.map(({ id }) => id);
     expect(ids.indexOf("hold")).toBe(ids.indexOf("fade") + 1);
     for (const fade of [0, 1, 3, 4]) {
       for (const hold of [0.05, 0.1, 0.2, 0.3, 0.4]) {
@@ -222,11 +264,8 @@ describe("the first piece's address (decision 38)", () => {
         values.set("n", 3);
         values.set("fade", fade);
         values.set("hold", hold);
-        const opened = openingOf(
-          "",
-          addressOf(values, switches, moment(3), ""),
-        );
-        expect(opened.values).toEqual(values);
+        const code = writeCode(ninth, { values, switches, ...moment(3) });
+        expect(openingOf("", `#${code}`).values).toEqual(values);
       }
     }
     // a code of version 8 holds the twins that stay or fade, as published
@@ -387,8 +426,8 @@ describe("the first piece's address (decision 38)", () => {
     const saved = moment(3);
     const address = addressOf(values, switches, saved, "?n=3&shake=800");
     expect(address).toMatch(/^#[A-Za-z0-9_-]+$/);
-    // fourteen bytes since the sixth version (decision 53), and eight to a mass
-    expect(address).toHaveLength(1 + Math.ceil((4 * (14 + 8 * 3)) / 3));
+    // fifteen bytes since the tenth version (decision 65), and eight to a mass
+    expect(address).toHaveLength(1 + Math.ceil((4 * (15 + 8 * 3)) / 3));
     const opened = openingOf("", address);
     expect(opened.values).toEqual(values);
     expect(opened.switches).toEqual(switches);

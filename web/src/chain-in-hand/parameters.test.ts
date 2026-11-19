@@ -10,6 +10,7 @@ import {
   doublingSaid,
   doublingShown,
   COLOURS,
+  DRAWN,
   FADE,
   FADE_REACH,
   HELD_STEP,
@@ -42,7 +43,9 @@ import {
   WHITE,
   gravityOf,
   handDamping,
+  massesDrawn,
   MARK_STEP,
+  rodsDrawn,
   shakeOf,
   trailFade,
   whiteAfter,
@@ -357,7 +360,35 @@ describe("the first piece's parameters", () => {
       WHITE,
     ]);
     expect(COLOURS).toEqual([SCALE, GROUND]);
-    expect(PARAMETERS).toEqual([...CHAIN, ...LIGHT, ...COLOURS]);
+    expect(PARAMETERS).toEqual([...CHAIN, ...LIGHT, ...COLOURS, DRAWN]);
+  });
+
+  it("draw the whole chain, as the piece opens, its rods alone, its masses alone, or none of it, coming round on Shift with the masses' own keys (decision 65)", () => {
+    expect(DRAWN.id).toBe("chain");
+    expect(DRAWN.label).toBe("What of the chain is drawn");
+    expect(DRAWN.values).toEqual([0, 1, 2, 3]);
+    expect(DRAWN.initial).toBe(0);
+    expect(DRAWN.keys).toEqual({
+      down: ["Shift+ArrowDown"],
+      up: ["Shift+ArrowUp"],
+    });
+    expect(DRAWN.values.map((value) => DRAWN.show(value))).toEqual([
+      "whole",
+      "rods",
+      "masses",
+      "none",
+    ]);
+    expect(DRAWN.values.map((value) => DRAWN.speak?.(value))).toEqual([
+      "the whole chain",
+      "its rods alone",
+      "its masses alone",
+      "none of it",
+    ]);
+    expect(DRAWN.icon).toBe("eye");
+    expect(stepValue(DRAWN, 0, -1)).toBe(3);
+    expect(stepValue(DRAWN, 3, 1)).toBe(0);
+    expect(DRAWN.values.map(rodsDrawn)).toEqual([true, true, false, false]);
+    expect(DRAWN.values.map(massesDrawn)).toEqual([true, false, true, false]);
   });
 
   it("let the twins fade as chaos carries them off, as the piece opens (decision 58), stay (decision 43), be held near the chain or leashed to it (decision 64), round one key (decision 53)", () => {
