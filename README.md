@@ -64,8 +64,8 @@ hanging rope it becomes as n grows.
   that tells how often their differences double, or be leashed to it, a
   cloud that swells where the motion is most chaotic; any way they can be
   drawn as chains or as dust, each its tip alone, a point of light. How
-  many twins there are, how far apart they are born, how they live and how
-  they are drawn, how
+  many twins there are, how far apart they are born, how they live, how
+  near they are held and how they are drawn, how
   long the trails last and whether they leave a mark that stays, whether
   they are drawn as lines or by a strobe, the whole chain stamped at even
   times, whether every mass of the chain leaves one,
