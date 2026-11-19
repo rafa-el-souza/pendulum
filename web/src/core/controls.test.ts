@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { centredOver, moreToScroll, onControls } from "./controls.ts";
+import { centredOver, moreToScroll, onControls, showKeys } from "./controls.ts";
 
 // The row of controls scrolls sideways where it does not fit, and fades at
 // the side where there is more of it to see (decision 31).
@@ -59,5 +59,18 @@ describe("where the controls are, for a touch", () => {
     expect(onControls([button], 12, 320, 812)).toBe(false);
     expect(onControls([button, value], 12, 195, 420)).toBe(false);
     expect(onControls([], 12, 358, 812)).toBe(false);
+  });
+});
+
+describe("the keys shown beside a control", () => {
+  it("are arrows as arrows and letters as capitals", () => {
+    expect(showKeys(["ArrowDown", "ArrowUp"])).toBe("↓ ↑");
+    expect(showKeys(["q", "e"])).toBe("Q E");
+  });
+
+  it("name Shift once, before the keys held with it, digits and letters as on the keys and arrows as arrows (decisions 53 and 65)", () => {
+    expect(showKeys(["Shift+Digit7", "Shift+Digit8"])).toBe("Shift 7 8");
+    expect(showKeys([undefined, "Shift+KeyP"])).toBe("Shift P");
+    expect(showKeys(["Shift+ArrowDown", "Shift+ArrowUp"])).toBe("Shift ↓ ↑");
   });
 });
