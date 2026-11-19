@@ -690,7 +690,7 @@ test("the spread's keys bring the twins closer or farther at birth, past ten cen
   expect(errors).toEqual([]);
 });
 
-test("the twins open fading as chaos carries them off; Shift and P draws them as dust, fading too; the P key lets them stay and fade again; and the address and the title follow", async ({
+test("the twins open fading as chaos carries them off; Shift and P draws them as dust, fading too; the P key goes round to let them stay and fade again; and the address and the title follow", async ({
   page,
 }) => {
   const errors = collectErrors(page);
@@ -698,7 +698,7 @@ test("the twins open fading as chaos carries them off; Shift and P draws them as
   await page.goto("./?time=4");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   await openControls(page);
-  const fade = icon(page, "Twins stay or fade");
+  const fade = icon(page, "Life of the twins");
   const look = icon(page, "Look of the twins");
   // the piece opens with the twins that fade (decision 58)
   await expect(fade).toHaveAccessibleDescription("fade");
@@ -713,6 +713,11 @@ test("the twins open fading as chaos carries them off; Shift and P draws them as
   await expect(page).not.toHaveURL(/fade=/);
   await expect(page).toHaveTitle(/twins as dust/);
   await frames(page, 30);
+  // round the twins held and leashed (decision 64) to those that stay
+  await page.keyboard.press("p");
+  await expect(fade).toHaveAccessibleDescription(/^held$|^Twins held/);
+  await page.keyboard.press("p");
+  await expect(fade).toHaveAccessibleDescription("leashed");
   await page.keyboard.press("p");
   await expect(fade).toHaveAccessibleDescription("stay");
   await expect(look).toHaveAccessibleDescription("dust");
@@ -728,6 +733,41 @@ test("the twins open fading as chaos carries them off; Shift and P draws them as
   await expect(look).toHaveAccessibleDescription("chains");
   await expect(page).not.toHaveURL(/look=/);
   await frames(page, 10);
+  expect(errors).toEqual([]);
+});
+
+test("the P key goes on to the twins held near the chain, which show how often differences double, and to the twins leashed to it; the address and the title follow", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  // three masses, time four times faster, so that the lens measures soon
+  await page.goto("./?n=3&twins=64&time=4");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await openControls(page);
+  const life = icon(page, "Life of the twins");
+  await expect(life).toHaveAccessibleDescription("fade");
+  await page.keyboard.press("p");
+  await expect(page).toHaveURL(/[?&]fade=3(&|$)/);
+  await expect(page).toHaveTitle(/twins held/);
+  // held until the lens has measured half a second, then its number
+  // (decision 64), said whole and in the icon's title
+  await expect(life).toHaveAccessibleDescription(
+    /^Twins held: differences double every \d\.\d\d s$/,
+    { timeout: 15_000 },
+  );
+  await expect(life).toHaveAttribute(
+    "title",
+    /^Twins held: differences double every \d\.\d\d s \(P\)$/,
+  );
+  await page.keyboard.press("p");
+  await expect(life).toHaveAccessibleDescription("leashed");
+  await expect(life).toHaveAttribute("title", "Life of the twins (P)");
+  await expect(page).toHaveURL(/[?&]fade=4(&|$)/);
+  await expect(page).toHaveTitle(/twins leashed/);
+  await frames(page, 20);
+  await page.keyboard.press("p");
+  await expect(life).toHaveAccessibleDescription("stay");
+  await expect(page).toHaveURL(/[?&]fade=0(&|$)/);
   expect(errors).toEqual([]);
 });
 
@@ -748,7 +788,7 @@ test("an address asks for 4 096 twins, which fade as the piece opens and are bor
   await page.mouse.up();
   await frames(page, 30);
   await openControls(page);
-  await expect(icon(page, "Twins stay or fade")).toHaveAccessibleDescription(
+  await expect(icon(page, "Life of the twins")).toHaveAccessibleDescription(
     "fade",
   );
   expect(errors).toEqual([]);
