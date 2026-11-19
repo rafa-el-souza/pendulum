@@ -58,6 +58,7 @@ import { PIECES } from "../pieces.ts";
 import { addressOf, openingOf, type Saved } from "./address.ts";
 import {
   AMPLITUDE,
+  DRAWN,
   FADE,
   FADE_REACH,
   GRAVITY,
@@ -92,7 +93,9 @@ import {
   gravityOf,
   handDamping,
   MARK_STEP,
+  massesDrawn,
   radians,
+  rodsDrawn,
   shakeOf,
   trailFade,
   whiteAfter,
@@ -1064,8 +1067,9 @@ function play({ canvas, gl }: Stage): void {
           label: "The chain",
           icon: "masses",
           // the tension's colours, one control in place of the switch and
-          // the scale (decision 53)
-          controls: [MASSES, HAND, GRAVITY, TILT, SHAKE, TENSION],
+          // the scale (decision 53), and what of the chain is drawn last
+          // (decision 65)
+          controls: [MASSES, HAND, GRAVITY, TILT, SHAKE, TENSION, DRAWN],
         },
         {
           id: "twins",
@@ -1329,16 +1333,22 @@ function play({ canvas, gl }: Stage): void {
     dots.clear();
     spring.clear();
     const chainColor = tinted(colors.chain, "chain");
+    // what of the chain is drawn (decision 65): hidden, its rods are as
+    // bright as the music's light on the kicks makes them, up to how bright
+    // they are drawn, and gone in silence
+    const drawn = value(DRAWN);
+    const rodLight = rodsDrawn(drawn) ? 1 : Math.min(1, look.glow);
+    const massesShown = massesDrawn(drawn);
     let ax = 0;
     let ay = 0;
     for (let i = 0; i < chain.n; i++) {
       const bx = x[i] ?? 0;
       const by = y[i] ?? 0;
       const color = tensionShown ? (rodColors[i] ?? colors.chain) : chainColor;
-      rods.push(ax, ay, bx, by, color, 0.9);
+      rods.push(ax, ay, bx, by, color, 0.9 * rodLight);
       // the masses, while the rods are long enough to tell them apart, each
-      // in the colour of the rod it hangs from
-      if (rodPixels >= 12) dots.push(bx, by, bx, by, color, 1);
+      // in the colour of the rod it hangs from, unless they are hidden
+      if (massesShown && rodPixels >= 12) dots.push(bx, by, bx, by, color, 1);
       ax = bx;
       ay = by;
     }
@@ -1449,12 +1459,15 @@ function play({ canvas, gl }: Stage): void {
     // one even line instead of beads where their round ends overlap.
     // the halo widens and brightens as the music lights it (decision 46)
     const glow = Math.min(GLOW_MOST, look.glow);
-    lines.draw(rods, scale, {
-      radius: (chain.n > 64 ? 1.0 : 1.3) * ratio,
-      roundEnds: chain.n <= 64,
-      halo: (5 + GLOW_RADIUS * glow) * ratio,
-      haloGain: 0.22 + GLOW_GAIN * glow,
-    });
+    // rods hidden are drawn only while the music lights them (decision 65)
+    if (rodsDrawn(value(DRAWN)) || glow > 0) {
+      lines.draw(rods, scale, {
+        radius: (chain.n > 64 ? 1.0 : 1.3) * ratio,
+        roundEnds: chain.n <= 64,
+        halo: (5 + GLOW_RADIUS * glow) * ratio,
+        haloGain: 0.22 + GLOW_GAIN * glow,
+      });
+    }
     lines.draw(spring, scale, {
       radius: (0.8 + 1.4 * strength) * ratio,
       roundEnds: true,

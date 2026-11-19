@@ -458,6 +458,50 @@ test("the palette's keys change the twins' colours, the control paints them, and
   expect(errors).toEqual([]);
 });
 
+test("Shift with the masses' keys goes round what of the chain is drawn, its rods, its masses, none of it and the whole of it again, the masses' keys alone still step the masses, and the address and the title follow (decision 65)", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("./");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await openControls(page);
+  // last in the chain's group, the whole chain as the piece opens
+  await (await reveal(page, "What of the chain is drawn")).click();
+  const drawn = page
+    .getByRole("group", { name: "What of the chain is drawn" })
+    .locator("output");
+  await expect(drawn).toContainText("whole");
+  await expect(page).not.toHaveURL(/chain=/);
+
+  await page.keyboard.press("Shift+ArrowUp");
+  await expect(drawn).toContainText("rods");
+  await expect(page).toHaveURL(/[?&]chain=1(&|$)/);
+  await expect(page).toHaveTitle("Pendulum · rods alone");
+  await page.keyboard.press("Shift+ArrowUp");
+  await expect(drawn).toContainText("masses");
+  await expect(page).toHaveURL(/[?&]chain=2(&|$)/);
+  await expect(page).toHaveTitle("Pendulum · masses alone");
+  await page.keyboard.press("Shift+ArrowUp");
+  await expect(drawn).toContainText("none");
+  await expect(page).toHaveURL(/[?&]chain=3(&|$)/);
+  await expect(page).toHaveTitle("Pendulum · chain hidden");
+  await frames(page, 10);
+  // round to the whole chain, and back down to none of it
+  await page.keyboard.press("Shift+ArrowUp");
+  await expect(drawn).toContainText("whole");
+  await expect(page).not.toHaveURL(/chain=/);
+  await page.keyboard.press("Shift+ArrowDown");
+  await expect(drawn).toContainText("none");
+  await expect(page).toHaveURL(/[?&]chain=3(&|$)/);
+
+  // the masses' own keys, without Shift, step the masses as before
+  await page.keyboard.press("ArrowUp");
+  await expect(page).toHaveURL(/[?&]n=3&chain=3(&|$)/);
+  await expect(page).toHaveTitle("Pendulum · 3 masses, chain hidden");
+  await frames(page, 10);
+  expect(errors).toEqual([]);
+});
+
 test("Shift with the palette's keys steps when dense light turns white, the control paints it in the palette's colours, and the address and the title follow (decision 61)", async ({
   page,
 }) => {
