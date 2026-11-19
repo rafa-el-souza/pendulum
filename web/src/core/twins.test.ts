@@ -3,17 +3,22 @@ import { describe, expect, it } from "vitest";
 import { Chain } from "../physics/chain.ts";
 import { restingState } from "../physics/step.ts";
 import {
+  Doubling,
   Fading,
   TwinBudget,
   WHOLE_TURN,
   apart,
   bornApart,
+  bornWidth,
+  drawIn,
+  leashFactor,
   bornPerFrame,
   bornTwin,
   bornTwins,
   fanPlace,
   fromPivot,
   lightApart,
+  rootMeanSquare,
   twinShine,
   widened,
 } from "./twins.ts";
@@ -269,5 +274,95 @@ describe("a twin's light", () => {
     expect(twinShine(4096)).toBe(0.05);
     expect(twinShine(1)).toBe(0.5);
     expect(twinShine(0)).toBe(0.5);
+  });
+});
+
+describe("twins held near the chain (decision 64)", () => {
+  it("are drawn in towards the chain by a factor: every angle's difference the nearest way round, and every rate's", () => {
+    const chain = restingState(3);
+    chain.theta.set([0.1, 3.1, -3.1]);
+    chain.omega.set([1, -2, 0.5]);
+    const twin = restingState(3);
+    // the second and third angles a hair across the turn from the chain's
+    twin.theta.set([0.5, -3.1, 3.1 + 2 * Math.PI]);
+    twin.omega.set([3, 2, 0.5]);
+    drawIn(twin, chain, 0.25);
+    const across = 2 * Math.PI - 6.2;
+    expect(twin.theta[0]).toBeCloseTo(0.1 + 0.25 * 0.4, 12);
+    expect(twin.theta[1]).toBeCloseTo(3.1 + 0.25 * across, 12);
+    expect(twin.theta[2]).toBeCloseTo(-3.1 - 0.25 * across, 12);
+    expect([...twin.omega]).toEqual([1 + 0.25 * 2, -2 + 0.25 * 4, 0.5]);
+  });
+
+  it("measure the fan's width as the root mean square of its twins' distances, so that one twin carried off does not set it", () => {
+    const distances = Float64Array.from([0.1, 0.1, 0.1, 1, 99]);
+    expect(rootMeanSquare(distances, 4)).toBeCloseTo(
+      Math.sqrt((3 * 0.01 + 1) / 4),
+      12,
+    );
+    expect(rootMeanSquare(distances, 0)).toBe(0);
+  });
+
+  it("know the fan's width as it is born, the root mean square of how far each twin looks from the chain", () => {
+    const reach = 0.7;
+    const widths = Array.from({ length: 512 }, (_, j) =>
+      bornApart(j, 1.57, reach),
+    );
+    const rms = Math.sqrt(
+      widths.reduce((sum, w) => sum + w * w, 0) / widths.length,
+    );
+    expect(bornWidth(512, 1.57, reach)).toBeCloseTo(rms, 12);
+    expect(bornWidth(0, 1.57, reach)).toBe(0);
+  });
+
+  it("are leashed with slack: free within it, and past it what is beyond falls back at the rate, as the time goes by", () => {
+    const fall = Math.exp(-8 * 0.1);
+    expect(leashFactor(0.1, 0.15, fall)).toBe(1);
+    expect(leashFactor(0.15, 0.15, fall)).toBe(1);
+    expect(leashFactor(0.35, 0.15, fall) * 0.35).toBeCloseTo(
+      0.15 + 0.2 * fall,
+      12,
+    );
+    expect(leashFactor(0.35, 0.15, 1)).toBe(1);
+  });
+});
+
+describe("the time differences take to double, measured by the lens (decision 64)", () => {
+  it("waits for half a second of measure, then reads ln 2 over the rate the fan stretches at", () => {
+    const doubling = new Doubling();
+    expect(doubling.seconds).toBeNull();
+    // stretching by e^6.93 a second: differences double every 0.1 s
+    const rate = Math.LN2 / 0.1;
+    for (let frame = 0; frame < 20; frame++) doubling.add(rate / 60, 1 / 60);
+    expect(doubling.seconds).toBeNull();
+    for (let frame = 0; frame < 20; frame++) doubling.add(rate / 60, 1 / 60);
+    expect(doubling.seconds).toBeCloseTo(0.1, 9);
+  });
+
+  it("forgets what it measured over about three seconds, so that a new motion takes over", () => {
+    const doubling = new Doubling();
+    for (let frame = 0; frame < 600; frame++) {
+      doubling.add(Math.LN2 / 0.1 / 60, 1 / 60);
+    }
+    for (let frame = 0; frame < 900; frame++) {
+      doubling.add(Math.LN2 / 0.4 / 60, 1 / 60);
+    }
+    expect(doubling.seconds).toBeCloseTo(0.4, 1);
+  });
+
+  it("reads nothing while the fan does not stretch, and nothing once cleared", () => {
+    const doubling = new Doubling();
+    for (let frame = 0; frame < 60; frame++) doubling.add(-0.01, 1 / 60);
+    expect(doubling.seconds).toBeNull();
+    for (let frame = 0; frame < 60; frame++) doubling.add(0.2, 1 / 60);
+    expect(doubling.seconds).not.toBeNull();
+    doubling.clear();
+    expect(doubling.seconds).toBeNull();
+  });
+
+  it("takes no measure of no time", () => {
+    const doubling = new Doubling();
+    for (let frame = 0; frame < 60; frame++) doubling.add(5, 0);
+    expect(doubling.seconds).toBeNull();
   });
 });

@@ -7,7 +7,11 @@ import { SWITCHES, type Saved } from "./address.ts";
 import {
   AMPLITUDE,
   BODIES,
+  FADE,
   HAND,
+  HELD_STEP,
+  HOLD,
+  LEASHED_STEP,
   MARK_STEP,
   MODE,
   PARAMETERS,
@@ -54,7 +58,11 @@ function words(parameter: Parameter, value: number): string {
         : `born ${shown} apart`;
     }
     case "fade":
+      if (value === HELD_STEP) return "twins held";
+      if (value === LEASHED_STEP) return "twins leashed";
       return value === 1 ? "twins that fade" : "twins that stay";
+    case "hold":
+      return `within ${HOLD.show(value)}`;
     case "look":
       return "twins as dust";
     case "trail":
@@ -101,6 +109,8 @@ export function summaryOf(
 ): string[] {
   const said: string[] = [];
   const inMode = (values.get(MODE.id) ?? MODE.initial) > 0;
+  const life = values.get(FADE.id) ?? FADE.initial;
+  const holds = life === HELD_STEP || life === LEASHED_STEP;
   for (const parameter of PARAMETERS) {
     const value = values.get(parameter.id) ?? parameter.initial;
     if (value === parameter.initial) continue;
@@ -108,6 +118,8 @@ export function summaryOf(
       continue;
     }
     if (parameter === AMPLITUDE && !inMode) continue;
+    // how near the twins are held, only while they are held or leashed
+    if (parameter === HOLD && !holds) continue;
     said.push(words(parameter, value));
   }
   for (const { id, initial } of SWITCHES) {

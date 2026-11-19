@@ -77,6 +77,7 @@ function frame(
     g,
     shakes: [null, null],
     chain: null,
+    hold: null,
     whole: true,
     budget: 10,
     ...more,

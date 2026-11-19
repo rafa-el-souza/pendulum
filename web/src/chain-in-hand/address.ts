@@ -198,6 +198,24 @@ const VERSION_8: CodeTable = {
   switches: ["light", "tension", "sketch"],
 };
 
+/**
+ * The code's ninth version (decision 64), frozen once published: the twins
+ * held near the chain and leashed to it, after those that stay and fade,
+ * and how near, after their life.
+ */
+const VERSION_9: CodeTable = {
+  version: 9,
+  controls: VERSION_8.controls.flatMap((control) =>
+    control.id === "fade"
+      ? [
+          { id: "fade", values: [0, 1, 3, 4] },
+          { id: "hold", values: [0.05, 0.1, 0.2, 0.3, 0.4] },
+        ]
+      : [control],
+  ),
+  switches: ["light", "tension", "sketch"],
+};
+
 /** Every version of the code the piece reads, oldest first. */
 export const CODES: readonly CodeTable[] = [
   VERSION_1,
@@ -208,10 +226,11 @@ export const CODES: readonly CodeTable[] = [
   VERSION_6,
   VERSION_7,
   VERSION_8,
+  VERSION_9,
 ];
 
 /** The version the piece writes: the newest. */
-export const CODE: CodeTable = VERSION_8;
+export const CODE: CodeTable = VERSION_9;
 
 /**
  * The trails' step of a strobe and the twins as dust, as the fifth code and

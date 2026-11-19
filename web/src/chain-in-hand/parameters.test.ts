@@ -7,9 +7,17 @@ import { TENSION_SCALES } from "../core/tension.ts";
 import {
   AMPLITUDE,
   CHAIN,
+  doublingSaid,
+  doublingShown,
   COLOURS,
   FADE,
   FADE_REACH,
+  HELD_STEP,
+  HOLD,
+  LEASHED_STEP,
+  LEASH_RATE,
+  MEASURED_WIDEST,
+  NEAR_SPREAD,
   GRAVITY,
   GROUND,
   HAND,
@@ -340,6 +348,7 @@ describe("the first piece's parameters", () => {
       TWIN_COUNT,
       SPREAD,
       FADE,
+      HOLD,
       LOOK,
       TRAIL,
       STYLE,
@@ -351,16 +360,68 @@ describe("the first piece's parameters", () => {
     expect(PARAMETERS).toEqual([...CHAIN, ...LIGHT, ...COLOURS]);
   });
 
-  it("let the twins fade as chaos carries them off, as the piece opens (decision 58), or stay (decision 43), on one key (decision 53)", () => {
-    expect(FADE.label).toBe("Twins stay or fade");
-    expect(FADE.values).toEqual([0, 1]);
+  it("let the twins fade as chaos carries them off, as the piece opens (decision 58), stay (decision 43), be held near the chain or leashed to it (decision 64), round one key (decision 53)", () => {
+    expect(FADE.label).toBe("Life of the twins");
+    // 2 is the dust of addresses written before decision 53 (address.ts)
+    expect(FADE.values).toEqual([0, 1, 3, 4]);
+    expect([HELD_STEP, LEASHED_STEP]).toEqual([3, 4]);
     expect(FADE.initial).toBe(1);
     expect(FADE.keys).toEqual({ down: [], up: ["p", "P"] });
     expect(FADE.cyclic).toBe(true);
+    expect(stepValue(FADE, 1, 1)).toBe(3);
+    expect(stepValue(FADE, 3, 1)).toBe(4);
+    expect(stepValue(FADE, 4, 1)).toBe(0);
     expect(stepValue(FADE, 0, 1)).toBe(1);
-    expect(stepValue(FADE, 1, 1)).toBe(0);
     expect(FADE.show(0)).toBe("stay");
     expect(FADE.show(1)).toBe("fade");
+    expect(FADE.show(3)).toBe("held");
+    expect(FADE.show(4)).toBe("leashed");
+    expect(FADE.values.map((value) => FADE.speak?.(value))).toEqual([
+      "stay",
+      "fade",
+      "held",
+      "leashed",
+    ]);
+  });
+
+  it("hold the twins as near the chain as a control says, from 5 to 40 cm on a chain a metre long, opening at 20, on Shift with the spread's keys: the lens's width while they are held, and each one's slack while they are leashed (decision 64)", () => {
+    expect(HOLD.id).toBe("hold");
+    expect(HOLD.label).toBe("How near the twins are held");
+    expect(HOLD.values).toEqual([0.05, 0.1, 0.2, 0.3, 0.4]);
+    expect(HOLD.initial).toBe(0.2);
+    expect(HOLD.keys).toEqual({
+      down: ["Shift+Digit3"],
+      up: ["Shift+Digit4"],
+    });
+    expect(HOLD.values.map((value) => HOLD.show(value))).toEqual([
+      "5 cm",
+      "10 cm",
+      "20 cm",
+      "30 cm",
+      "40 cm",
+    ]);
+    expect(HOLD.speak?.(0.3)).toBe("within 30 centimetres");
+    expect(HOLD.icon).toBe("near");
+  });
+
+  it("leash the twins at 8 a second past their slack, and show the lens's number up to 20 cm, for twins born up to 10 cm apart (decision 64)", () => {
+    expect(LEASH_RATE).toBe(8);
+    expect(MEASURED_WIDEST).toBe(0.2);
+    expect(HOLD.values).toContain(MEASURED_WIDEST);
+    expect(NEAR_SPREAD).toBe(0.1);
+    expect(SPREAD.values).toContain(NEAR_SPREAD);
+  });
+
+  it("show the time differences take to double in two figures, and say it whole (decision 64)", () => {
+    expect(doublingShown(0.1)).toBe("0.10 s");
+    expect(doublingShown(0.273)).toBe("0.27 s");
+    expect(doublingShown(1.53)).toBe("1.5 s");
+    expect(doublingShown(9.94)).toBe("9.9 s");
+    expect(doublingShown(35.2)).toBe("35 s");
+    expect(doublingShown(1234.5)).toBe("1235 s");
+    expect(doublingSaid(0.1)).toBe(
+      "Twins held: differences double every 0.10 s",
+    );
   });
 
   it("draw the twins as chains, as they have until now and as the piece opens, or as dust, their tips alone (decision 50), on Shift with the twins' P, whether they stay or fade (decision 53)", () => {

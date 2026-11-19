@@ -8,8 +8,9 @@
 //
 // It is told what to do by a command a frame: the events since the last one
 // (twins born, kept, given other masses, run backwards), then the time to
-// advance and what to send back. It answers with a report: where its twins
-// are, in buffers that are handed over, not copied.
+// advance, how to hold the twins near the chain once it has gone by, and
+// what to send back. It answers with a report: where its twins are, in
+// buffers that are handed over, not copied.
 
 /* eslint-disable @typescript-eslint/no-non-null-assertion --
    Every index here runs within arrays sized for it, which the compiler's
@@ -23,7 +24,13 @@ import {
   type ChainState,
   type Shake,
 } from "../physics/step.ts";
-import { apart, bornTwin } from "./twins.ts";
+import {
+  apart,
+  bornTwin,
+  drawIn,
+  leashFactor,
+  rootMeanSquare,
+} from "./twins.ts";
 
 /** The twins' longest substep, coarser than the chain's (decision 20). */
 export const TWIN_STEP = 1 / 240;
@@ -58,6 +65,31 @@ export type TwinEvent =
       readonly kind: "reverse";
     };
 
+/**
+ * How the twins are held near the chain once a command's time has gone by
+ * (decision 64), towards the chain as it is then. The lens draws the share's
+ * twins in all together, by one factor, once the fan, measured as the root
+ * mean square of their distances from the chain, is wider than `width`, so
+ * that they stay a blade along the direction chaos stretches them in. The
+ * leash draws in each twin past the `slack` on its own, what is beyond it
+ * falling at `rate` per second. Both are measured as shares of the chain's
+ * length, and act on angles and rates alike; neither is in the paper.
+ */
+export type TwinHold =
+  | {
+      readonly kind: "lens";
+      readonly width: number;
+      readonly theta: Float64Array;
+      readonly omega: Float64Array;
+    }
+  | {
+      readonly kind: "leash";
+      readonly slack: number;
+      readonly rate: number;
+      readonly theta: Float64Array;
+      readonly omega: Float64Array;
+    };
+
 /** A frame's work for a share. */
 export interface TwinCommand {
   readonly events: readonly TwinEvent[];
@@ -74,6 +106,8 @@ export interface TwinCommand {
    * null when no twin's light is asked for.
    */
   readonly chain: Float64Array | null;
+  /** How the twins are held near the chain once the time has gone by (decision 64); null while they go free. */
+  readonly hold: TwinHold | null;
   /** Each twin sent back whole, every mass, or its tip alone, as dust (decision 50). */
   readonly whole: boolean;
   /** How long the share may take, in ms; the twins it has not reached by four times this are dropped (decision 20). */
@@ -100,6 +134,14 @@ export interface TwinReport {
   readonly apart: Float64Array;
   /** How long the command took, in ms. */
   readonly spent: number;
+  /**
+   * Under the lens (decision 64), how much the share's fan stretched over
+   * the time, as the logarithm of its width now over its width after the
+   * last command, and that time, in s; both none just after an event, or
+   * without the lens.
+   */
+  readonly stretch: number;
+  readonly stretchTime: number;
 }
 
 /** How many twins of a fan of `count` belong to share `index` of `shares`. */
@@ -117,6 +159,15 @@ export class TwinShare {
   #x: Float64Array;
   #y: Float64Array;
   readonly #clock: () => number;
+  // under the lens, the fan's width after the last command, as a share of
+  // the chain's length; none after an event, when there is nothing to
+  // measure from
+  #widthAfter = 0;
+  // the chain's masses where the twins are held to, and each twin's distance
+  // from them
+  #heldX: Float64Array;
+  #heldY: Float64Array;
+  #held = new Float64Array(0);
 
   /** A share of no twins yet, of chains of n masses, timed by `clock` (performance.now). */
   constructor(
@@ -140,6 +191,8 @@ export class TwinShare {
     this.#stepper = new Stepper(this.#chain, { maxStep: TWIN_STEP });
     this.#x = new Float64Array(n);
     this.#y = new Float64Array(n);
+    this.#heldX = new Float64Array(n);
+    this.#heldY = new Float64Array(n);
   }
 
   /** The states of the share's twins, in the order of their places in the fan; for the tests. */
@@ -201,6 +254,12 @@ export class TwinShare {
         distances[k] = apart(chainX, chainY, x, y, this.#chain.totalLength);
       }
     }
+    // held once the time has gone by: what is sent back is where the twins
+    // got to on their own, and the next frame starts where they are held to
+    const stretch =
+      command.hold !== null && pieces > 0
+        ? this.#hold(command.hold, command.time, done)
+        : null;
     return {
       generation: command.generation,
       asked,
@@ -211,11 +270,57 @@ export class TwinShare {
       tips,
       apart: distances,
       spent: this.#clock() - start,
+      stretch: stretch ?? 0,
+      stretchTime: stretch === null ? 0 : command.time,
     };
+  }
+
+  /**
+   * Holds the share's first `count` twins near the chain once `time` has
+   * gone by (decision 64), and returns how much the fan stretched over it
+   * under the lens, or null where there is no measure.
+   */
+  #hold(hold: TwinHold, time: number, count: number): number | null {
+    const chain = this.#chain;
+    const n = chain.n;
+    const twins = this.#twins;
+    if (hold.theta.length !== n || count === 0) return null;
+    if (this.#held.length < count) this.#held = new Float64Array(count);
+    const held = this.#held;
+    const x = this.#x;
+    const y = this.#y;
+    chain.positions(hold.theta, this.#heldX, this.#heldY);
+    for (let k = 0; k < count; k++) {
+      chain.positions(twins[k]!.theta, x, y);
+      held[k] = apart(this.#heldX, this.#heldY, x, y, chain.totalLength);
+    }
+    if (hold.kind === "leash") {
+      const fall = Math.exp(-hold.rate * time);
+      for (let k = 0; k < count; k++) {
+        const factor = leashFactor(held[k]!, hold.slack, fall);
+        if (factor < 1) drawIn(twins[k]!, hold, factor);
+      }
+      return null;
+    }
+    const width = rootMeanSquare(held, count);
+    const stretch =
+      this.#widthAfter > 0 && width > 0
+        ? Math.log(width / this.#widthAfter)
+        : null;
+    if (width > hold.width) {
+      const factor = hold.width / width;
+      for (let k = 0; k < count; k++) drawIn(twins[k]!, hold, factor);
+      this.#widthAfter = hold.width;
+    } else {
+      this.#widthAfter = width;
+    }
+    return stretch;
   }
 
   #apply(event: TwinEvent): void {
     const twins = this.#twins;
+    // the fan's width after the last command says nothing of it now
+    this.#widthAfter = 0;
     switch (event.kind) {
       case "born": {
         const chain = { theta: event.theta, omega: event.omega };
@@ -250,6 +355,8 @@ export class TwinShare {
         this.#stepper = new Stepper(this.#chain, { maxStep: TWIN_STEP });
         this.#x = new Float64Array(event.n);
         this.#y = new Float64Array(event.n);
+        this.#heldX = new Float64Array(event.n);
+        this.#heldY = new Float64Array(event.n);
         break;
       }
       case "reverse":

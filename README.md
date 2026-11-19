@@ -60,9 +60,12 @@ hanging rope it becomes as n grows.
   and theirs leave trails of light that fade. The
   twins fade as chaos carries them off and are born again on the chain, so
   that they come out of it as a plume, or they can stay, a cloud over the
-  whole disc once the fan has opened; either way they can be drawn as
-  chains or as dust, each its tip alone, a point of light. How many twins there are, how
-  far apart they are born, whether they fade and how they are drawn, how
+  whole disc once the fan has opened, be held near the chain, a thin blade
+  that tells how often their differences double, or be leashed to it, a
+  cloud that swells where the motion is most chaotic; any way they can be
+  drawn as chains or as dust, each its tip alone, a point of light. How
+  many twins there are, how far apart they are born, how they live, how
+  near they are held and how they are drawn, how
   long the trails last and whether they leave a mark that stays, whether
   they are drawn as lines or by a strobe, the whole chain stamped at even
   times, whether every mass of the chain leaves one,

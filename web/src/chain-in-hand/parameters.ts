@@ -395,24 +395,96 @@ function widthAtTip(spread: number): readonly [string, string] {
 }
 
 /**
- * Whether the twins stay or fade (decisions 43 and 53). They stay: once the
- * fan has opened they fill the disc, a cloud that does not go. Or, as the
- * piece opens (decision 58), each fades as chaos carries it off from the
- * chain, its light falling with how far it looks from it and never rising
- * again, and once dark it is born again on the chain, at its place in the
- * fan, a few a frame, so that the twins come out of the chain as a plume and
- * come apart in the chaos. One key goes round the two.
+ * How the twins live (decisions 43, 53 and 64). They stay: once the fan has
+ * opened they fill the disc, a cloud that does not go. Or, as the piece
+ * opens (decision 58), each fades as chaos carries it off from the chain,
+ * its light falling with how far it looks from it and never rising again,
+ * and once dark it is born again on the chain, at its place in the fan, a
+ * few a frame, so that the twins come out of the chain as a plume and come
+ * apart in the chaos. Or they are held near the chain, all drawn in together
+ * by one factor whenever the fan grows wider than the lens, so that they
+ * stay a blade along the direction chaos stretches them in, and the control
+ * shows how often differences double. Or each is leashed to the chain with
+ * slack, a cloud that swells where the motion is most chaotic. One key goes
+ * round the four. The step 2 is not one of them: addresses written before
+ * decision 53 meant the twins as dust by it (address.ts).
  */
+export const HELD_STEP = 3;
+export const LEASHED_STEP = 4;
+
 export const FADE: Parameter = {
   id: "fade",
-  label: "Twins stay or fade",
-  values: [0, 1],
+  label: "Life of the twins",
+  values: [0, 1, HELD_STEP, LEASHED_STEP],
   initial: 1,
   keys: { down: [], up: ["p", "P"] },
   cyclic: true,
-  show: (value) => (value === 1 ? "fade" : "stay"),
+  show: (value) =>
+    value === LEASHED_STEP
+      ? "leashed"
+      : value === HELD_STEP
+        ? "held"
+        : value === 1
+          ? "fade"
+          : "stay",
+  // said as shown, so that the lens's number can be said whole in its place
+  speak: (value) => FADE.show(value),
   icon: "snuffed",
 };
+
+/**
+ * How near the chain the twins are held (decision 64), in centimetres on a
+ * chain a metre long, as the spread's width at the tip (decision 57): while
+ * they are held, how wide the lens lets the fan grow, as the root mean
+ * square of the twins' distances from the chain, or as wide as they were
+ * born, if wider; while they are leashed, the slack each has before the
+ * leash pulls. Shown faint while the twins stay or fade, where it has
+ * nothing to do. On Shift with the spread's keys, another distance from the
+ * chain.
+ */
+export const HOLD: Parameter = {
+  id: "hold",
+  label: "How near the twins are held",
+  values: [0.05, 0.1, 0.2, 0.3, 0.4],
+  initial: 0.2,
+  keys: { down: ["Shift+Digit3"], up: ["Shift+Digit4"] },
+  show: (value) => `${String(Math.round(value * 100))} cm`,
+  speak: (value) => `within ${String(Math.round(value * 100))} centimetres`,
+  icon: "near",
+};
+
+/**
+ * The rate per second at which a leashed twin's distance past its slack
+ * falls (decision 64): near the rate chaos parts the twins at, so that the
+ * cloud swells and shrinks. Fixed, a placeholder set by the author's eye on
+ * the prototype.
+ */
+export const LEASH_RATE = 8;
+
+/**
+ * The widest lens whose number is shown (decision 64): wider, the fan's
+ * differences are no longer small, they stretch more slowly than small ones
+ * do, and the number would read the time to double too long.
+ */
+export const MEASURED_WIDEST = 0.2;
+
+/**
+ * The widest spread the lens shows its number for, 10 cm at the tip
+ * (decision 64): twins born farther apart are not differences of one motion,
+ * and how they stretch says nothing of its chaos.
+ */
+export const NEAR_SPREAD = 0.1;
+
+/** The seconds a difference takes to double, in two figures (decision 64). */
+export function doublingShown(seconds: number): string {
+  const figures = seconds < 10 ? seconds.toPrecision(2) : seconds.toFixed(0);
+  return `${figures} s`;
+}
+
+/** The lens's number in words, for a screen reader and the control's title (decision 64). */
+export function doublingSaid(seconds: number): string {
+  return `Twins held: differences double every ${doublingShown(seconds)}`;
+}
 
 /**
  * How the twins are drawn (decisions 50 and 53): as chains, as they have been
@@ -621,6 +693,7 @@ export const LIGHT: readonly Parameter[] = [
   TWIN_COUNT,
   SPREAD,
   FADE,
+  HOLD,
   LOOK,
   TRAIL,
   STYLE,

@@ -4,7 +4,8 @@
 // of them, and time never runs slower for them (decision 20). They can stay
 // once the fan has opened, or fade as chaos carries them off from where they
 // were born and be born again on the chain, a few a frame, so that they come
-// out of it as a plume (decisions 43 and 63).
+// out of it as a plume (decisions 43 and 63), or be held near it, all drawn
+// in together once the fan grows too wide, or each on a leash (decision 64).
 
 import type { ChainState } from "../physics/step.ts";
 
@@ -106,6 +107,102 @@ export function fromPivot(
 export function bornApart(j: number, spread: number, reach: number): number {
   const turn = spread * (fanPlace(j) - 0.5);
   return 2 * Math.abs(Math.sin(turn / 2)) * reach;
+}
+
+/**
+ * The root mean square of the first `count` distances: a fan's width, which
+ * one twin carried off far in a fold does not set (decision 64).
+ */
+export function rootMeanSquare(distances: Float64Array, count: number): number {
+  if (count <= 0) return 0;
+  let sum = 0;
+  for (let k = 0; k < count; k++) sum += (distances[k] ?? 0) ** 2;
+  return Math.sqrt(sum / count);
+}
+
+/**
+ * How wide a fan of `count` twins is as it is born (decision 64): the root
+ * mean square of how far each twin looks from the chain (`bornApart`).
+ */
+export function bornWidth(
+  count: number,
+  spread: number,
+  reach: number,
+): number {
+  if (count <= 0) return 0;
+  let sum = 0;
+  for (let j = 0; j < count; j++) sum += bornApart(j, spread, reach) ** 2;
+  return Math.sqrt(sum / count);
+}
+
+/**
+ * Draws a twin in towards its chain by `factor` (decision 64): every angle's
+ * difference from the chain's, the nearest way round, and every rate's, so
+ * that the twin keeps the direction it differs in and only comes nearer.
+ */
+export function drawIn(
+  twin: ChainState,
+  chain: ChainState,
+  factor: number,
+): void {
+  for (let i = 0; i < twin.theta.length; i++) {
+    const at = chain.theta[i] ?? 0;
+    let d = (twin.theta[i] ?? 0) - at;
+    d -= WHOLE_TURN * Math.round(d / WHOLE_TURN);
+    twin.theta[i] = at + factor * d;
+    const rate = chain.omega[i] ?? 0;
+    twin.omega[i] = rate + factor * ((twin.omega[i] ?? 0) - rate);
+  }
+}
+
+/**
+ * What a leashed twin `distance` from its chain is drawn in by (decision
+ * 64): nothing within the `slack`, and past it, what is beyond the slack
+ * falls to `fall` of itself, e^(−rate × time).
+ */
+export function leashFactor(
+  distance: number,
+  slack: number,
+  fall: number,
+): number {
+  if (!(distance > slack)) return 1;
+  return (slack + (distance - slack) * fall) / distance;
+}
+
+/** Over about how many seconds simulated the lens's measure is averaged. */
+const DOUBLING_MEMORY = 3;
+/** How many seconds simulated the lens measures before it reads. */
+const DOUBLING_LEAST = 0.5;
+
+/**
+ * The time a difference between the chain and its twins takes to double, as
+ * the lens measures it (decision 64): how much the held fan stretched over
+ * the time simulated, averaged over the last few seconds of it, read once it
+ * has measured half a second, and while the fan stretches.
+ */
+export class Doubling {
+  #stretch = 0;
+  #time = 0;
+
+  /** The fan grew e^`stretch` times wider over `time` s simulated. */
+  add(stretch: number, time: number): void {
+    if (!(time > 0) || !Number.isFinite(stretch)) return;
+    const keep = Math.exp(-time / DOUBLING_MEMORY);
+    this.#stretch = keep * this.#stretch + stretch;
+    this.#time = keep * this.#time + time;
+  }
+
+  /** Forgets what it measured, as when the twins are born again or time turns back. */
+  clear(): void {
+    this.#stretch = 0;
+    this.#time = 0;
+  }
+
+  /** The seconds simulated a difference takes to double, or null before there is a measure. */
+  get seconds(): number | null {
+    if (this.#time < DOUBLING_LEAST || !(this.#stretch > 0)) return null;
+    return (Math.LN2 * this.#time) / this.#stretch;
+  }
 }
 
 /**

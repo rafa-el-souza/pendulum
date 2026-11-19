@@ -67,6 +67,8 @@ describe("the title of the first piece's page (decision 38)", () => {
     ["spread", 1.57, "born across 90°"],
     ["spread", 6.28, "born across 360°"],
     ["fade", 0, "twins that stay"],
+    ["fade", 3, "twins held"],
+    ["fade", 4, "twins leashed"],
     ["look", 1, "twins as dust"],
     ["trail", 0, "no trails"],
     ["trail", 10, "trails 10 s"],
@@ -85,6 +87,22 @@ describe("the title of the first piece's page (decision 38)", () => {
     const { values, switches } = opening();
     values.set(id, value);
     expect(summaryOf(values, switches, null)).toEqual([words]);
+  });
+
+  it("names how near the twins are held only while they are held or leashed (decision 64)", () => {
+    const { values, switches } = opening();
+    values.set("hold", 0.3);
+    expect(summaryOf(values, switches, null)).toEqual([]);
+    values.set("fade", 3);
+    expect(summaryOf(values, switches, null)).toEqual([
+      "twins held",
+      "within 30 cm",
+    ]);
+    values.set("fade", 4);
+    expect(summaryOf(values, switches, null)).toEqual([
+      "twins leashed",
+      "within 30 cm",
+    ]);
   });
 
   it("names the amplitude only for a mode, and neither the mode nor its amplitude for a moment, where the chain starts instead", () => {
