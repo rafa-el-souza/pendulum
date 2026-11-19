@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { FADE_STEP, FadeBatch, fadeAfter, lightCurve } from "./trails.ts";
+import {
+  FADE_STEP,
+  FadeBatch,
+  carriedGain,
+  fadeAfter,
+  lightCurve,
+} from "./trails.ts";
+import { bufferView } from "./view.ts";
 
 // Trails fade in simulated time, so that a paused piece keeps them
 // (docs/decisions.md, decision 21), and a fade too small for the light's
@@ -137,5 +144,31 @@ describe("the curve light goes through to the canvas (decision 61)", () => {
     for (const white of [0, 40, 150, Number.POSITIVE_INFINITY]) {
       expect(lightCurve([0, 0, 0], white)).toEqual([0, 0, 0]);
     }
+  });
+});
+
+describe("light carried to another view (decision 66)", () => {
+  // two views of the same reach, the second at twice the scale
+  const small = bufferView(1000, 800, 1);
+  const large = bufferView(2000, 1600, 1);
+
+  it("is multiplied by the old scale over the new, so that a line stretched twice as wide holds the light per length of a line drawn there anew", () => {
+    // a line is drawn as many pixels wide in any view: stretched twice as
+    // wide, each pixel holds half its light
+    expect(carriedGain(small, large)).toBe(0.5);
+    const width = 2;
+    const light = 1;
+    expect(2 * width * light * carriedGain(small, large)).toBe(width * light);
+    // shrunk to half, each pixel the mean of two by two, twice that
+    expect(carriedGain(large, small)).toBe(2);
+  });
+
+  it("comes back as it was, carried there and back", () => {
+    const other = bufferView(1170, 2532, 1);
+    expect(carriedGain(small, other) * carriedGain(other, small)).toBeCloseTo(
+      1,
+      15,
+    );
+    expect(carriedGain(small, small)).toBe(1);
   });
 });

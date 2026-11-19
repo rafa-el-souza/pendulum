@@ -6,6 +6,7 @@
 // the few lines that should stand out.
 
 import type { Rgb } from "./color.ts";
+import type { View } from "./view.ts";
 
 const VERTEX = `#version 300 es
 precision highp float;
@@ -152,7 +153,7 @@ function compile(
   return shader;
 }
 
-/** Draws batches of segments, with the pivot at the centre of the canvas. */
+/** Draws batches of segments, with the pivot at the centre of what is drawn into. */
 export class Lines {
   readonly #gl: WebGL2RenderingContext;
   readonly #program: WebGLProgram;
@@ -209,18 +210,17 @@ export class Lines {
     gl.clear(gl.COLOR_BUFFER_BIT);
   }
 
-  /** Adds the batch's light to the canvas; `scale` is device pixels per metre. */
-  draw(batch: SegmentBatch, scale: number, style: LineStyle): void {
+  /**
+   * Adds the batch's light to what is drawn into, seen as `view`: the
+   * canvas's drawing buffer, or a target of light (decision 66).
+   */
+  draw(batch: SegmentBatch, view: View, style: LineStyle): void {
     if (batch.count === 0) return;
     const gl = this.#gl;
     const at = this.#at;
     gl.useProgram(this.#program);
-    gl.uniform2f(
-      at.uHalfView ?? null,
-      gl.drawingBufferWidth / 2,
-      gl.drawingBufferHeight / 2,
-    );
-    gl.uniform1f(at.uScale ?? null, scale);
+    gl.uniform2f(at.uHalfView ?? null, view.width / 2, view.height / 2);
+    gl.uniform1f(at.uScale ?? null, view.scale);
     gl.uniform1f(at.uRadius ?? null, style.radius);
     gl.uniform1f(at.uCaps ?? null, style.roundEnds ? 1 : 0);
     gl.uniform1f(at.uHalo ?? null, style.halo ?? 0);

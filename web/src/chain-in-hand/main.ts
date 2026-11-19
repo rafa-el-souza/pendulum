@@ -43,7 +43,7 @@ import {
   twinShine,
   widened,
 } from "../core/twins.ts";
-import { fitScale, reachBox, toWorld } from "../core/view.ts";
+import { bufferView, reachBox, toWorld, type View } from "../core/view.ts";
 import { Chain, createHand, type Hand } from "../physics/chain.ts";
 import { startInMode } from "../physics/modes.ts";
 import { resample } from "../physics/resample.ts";
@@ -1154,14 +1154,28 @@ function play({ canvas, gl }: Stage): void {
   // the button shows for a moment as the piece opens, so that it is found
   controls.wake();
 
+  /** The view the frame is drawn in: the drawing buffer's alone (decision 66). */
+  function seen(): View {
+    return bufferView(
+      gl.drawingBufferWidth,
+      gl.drawingBufferHeight,
+      chain.totalLength,
+    );
+  }
+
   function world(event: PointerEvent): [number, number] {
+    // the drawing buffer's pixel under the pointer, as the canvas shows it,
+    // in the view the frame is drawn in
     const box = canvas.getBoundingClientRect();
+    const view = seen();
     return toWorld(
-      event.clientX - box.left,
-      event.clientY - box.top,
-      box.width,
-      box.height,
-      fitScale(box.width, box.height, chain.totalLength),
+      box.width > 0 ? ((event.clientX - box.left) * view.width) / box.width : 0,
+      box.height > 0
+        ? ((event.clientY - box.top) * view.height) / box.height
+        : 0,
+      view.width,
+      view.height,
+      view.scale,
     );
   }
 
@@ -1274,7 +1288,12 @@ function play({ canvas, gl }: Stage): void {
   function draw(simulated: number): void {
     const box = canvas.getBoundingClientRect();
     const ratio = box.width > 0 ? canvas.width / box.width : 1;
-    const scale = fitScale(box.width, box.height, chain.totalLength) * ratio;
+    // The view from the drawing buffer alone, and the trails carried to it
+    // when it changed (decision 66). In the frame where the window has
+    // changed and the buffer not yet, the buffer's view is the one shown.
+    const view = seen();
+    trails.see(view);
+    const scale = view.scale;
     const rodPixels = (chain.totalLength / chain.n) * (scale / ratio);
     // Every mass, twin and trail stays within the chain's length of the
     // pivot, and its glow within GLOW_REACH of that: the passes over a whole
@@ -1389,17 +1408,17 @@ function play({ canvas, gl }: Stage): void {
     const { halfLife, mark } = trailFade(trailStep);
     if (simulated > 0 && trailStep > 0) {
       // they last longer as the music asks (decision 49)
-      trails.begin(fadeAfter(simulated, halfLife * (1 + look.linger)));
-      lines.draw(trail, scale, { radius: 0.9 * ratio, roundEnds: false });
-      trails.end();
+      trails.add(fadeAfter(simulated, halfLife * (1 + look.linger)), (into) => {
+        lines.draw(trail, into, { radius: 0.9 * ratio, roundEnds: false });
+      });
       if (mark) {
-        trails.beginMark();
-        lines.draw(trail, scale, {
-          radius: 0.9 * ratio,
-          roundEnds: false,
-          keep: true,
+        trails.addMark((into) => {
+          lines.draw(trail, into, {
+            radius: 0.9 * ratio,
+            roundEnds: false,
+            keep: true,
+          });
         });
-        trails.end();
       }
     }
     // dense light keeps its colour, or turns white at once (decision 61)
@@ -1408,8 +1427,8 @@ function play({ canvas, gl }: Stage): void {
     if (wholeFrame) {
       // the frame's lines, then all of it through the curve
       scene.bind(true, region);
-      drawTwins(scale, ratio);
-      drawChain(scale, ratio, rodPixels);
+      drawTwins(view, ratio);
+      drawChain(view, ratio, rodPixels);
       scene.unbind();
       lines.clear(colors.ground);
       trails.show(scene, mark);
@@ -1418,7 +1437,7 @@ function play({ canvas, gl }: Stage): void {
       const twinsShown = twins.count > 0;
       if (twinsShown) {
         twinLight.bind(true, region);
-        drawTwins(scale, ratio);
+        drawTwins(view, ratio);
         twinLight.unbind();
       }
       lines.clear(colors.ground);
@@ -1426,26 +1445,26 @@ function play({ canvas, gl }: Stage): void {
       // one pass over the frame for both, where the trails are on
       if (trailStep > 0) trails.show(undefined, mark, light);
       else if (light !== undefined) trails.showLight(light);
-      drawChain(scale, ratio, rodPixels);
+      drawChain(view, ratio, rodPixels);
     } else {
       // the trails through the curve, under the chains
       lines.clear(colors.ground);
       if (trailStep > 0) trails.show(undefined, mark);
-      drawTwins(scale, ratio);
-      drawChain(scale, ratio, rodPixels);
+      drawTwins(view, ratio);
+      drawChain(view, ratio, rodPixels);
     }
   }
 
   /** The twins, as chains or as dust. */
-  function drawTwins(scale: number, ratio: number): void {
-    lines.draw(fan, scale, {
+  function drawTwins(view: View, ratio: number): void {
+    lines.draw(fan, view, {
       radius: 0.7 * ratio,
       roundEnds: chain.n <= 64,
     });
     // the twins as dust, each point swelling as the music lights the halo
     // (decision 50)
     const pulse = Math.min(1, look.glow);
-    lines.draw(dust, scale, {
+    lines.draw(dust, view, {
       radius: DUST_RADIUS * (1 + pulse) * ratio,
       roundEnds: true,
       halo: 3 * ratio,
@@ -1454,27 +1473,27 @@ function play({ canvas, gl }: Stage): void {
   }
 
   /** The chain, the hand's spring and the dots. */
-  function drawChain(scale: number, ratio: number, rodPixels: number): void {
+  function drawChain(view: View, ratio: number, rodPixels: number): void {
     // Past 64 rods the ends are cut flat, so that rods laid end to end make
     // one even line instead of beads where their round ends overlap.
     // the halo widens and brightens as the music lights it (decision 46)
     const glow = Math.min(GLOW_MOST, look.glow);
     // rods hidden are drawn only while the music lights them (decision 65)
     if (rodsDrawn(value(DRAWN)) || glow > 0) {
-      lines.draw(rods, scale, {
+      lines.draw(rods, view, {
         radius: (chain.n > 64 ? 1.0 : 1.3) * ratio,
         roundEnds: chain.n <= 64,
         halo: (5 + GLOW_RADIUS * glow) * ratio,
         haloGain: 0.22 + GLOW_GAIN * glow,
       });
     }
-    lines.draw(spring, scale, {
+    lines.draw(spring, view, {
       radius: (0.8 + 1.4 * strength) * ratio,
       roundEnds: true,
       halo: 5 * ratio,
       haloGain: 0.2 + 0.3 * strength,
     });
-    lines.draw(dots, scale, {
+    lines.draw(dots, view, {
       radius: Math.min(4.5, Math.max(2, 0.2 * rodPixels)) * ratio,
       roundEnds: true,
       halo: 6 * ratio,
