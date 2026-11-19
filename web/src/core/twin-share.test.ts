@@ -9,8 +9,15 @@ import {
   shareOf,
   type TwinCommand,
   type TwinEvent,
+  type TwinHold,
 } from "./twin-share.ts";
-import { apart, bornTwins } from "./twins.ts";
+import {
+  apart,
+  bornTwins,
+  drawIn,
+  leashFactor,
+  rootMeanSquare,
+} from "./twins.ts";
 
 // A worker's share of the twins (docs/decisions.md, decision 51): the twins
 // j ≡ index (mod shares) of the fan, advanced by the step the piece's own
@@ -62,6 +69,7 @@ function command(
     g,
     shakes,
     chain: null,
+    hold: null,
     whole: false,
     budget: 1e9,
     generation: 0,
@@ -295,5 +303,217 @@ describe("a share of the twins", () => {
     expect([0, 1, 2].map((index) => shareOf(2, index, 3))).toEqual([1, 1, 0]);
     expect(shareOf(0, 0, 1)).toBe(0);
     expect(shareOf(4096, 0, 1)).toBe(4096);
+  });
+});
+
+/** The chain of n masses from `start`, `frames` frames on, as the piece's loop would have it. */
+function chainAfter(
+  start: { theta: Float64Array; omega: Float64Array },
+  frames: number,
+): { theta: Float64Array; omega: Float64Array } {
+  const n = start.theta.length;
+  const state = {
+    theta: Float64Array.from(start.theta),
+    omega: Float64Array.from(start.omega),
+  };
+  const stepper = new Stepper(Chain.uniform(n));
+  for (let frame = 0; frame < frames; frame++) {
+    stepper.advance(state, FRAME, g);
+  }
+  return state;
+}
+
+/** How far each of the twins looks from the chain, as a share of its length. */
+function distancesOf(
+  twins: readonly { theta: Float64Array }[],
+  chain: { theta: Float64Array },
+): Float64Array {
+  const n = chain.theta.length;
+  const shape = Chain.uniform(n);
+  const cx = new Float64Array(n);
+  const cy = new Float64Array(n);
+  const x = new Float64Array(n);
+  const y = new Float64Array(n);
+  shape.positions(chain.theta, cx, cy);
+  return Float64Array.from(twins, (twin) => {
+    shape.positions(twin.theta, x, y);
+    return apart(cx, cy, x, y, shape.totalLength);
+  });
+}
+
+/** A copy of the twins' states. */
+function copies(
+  twins: readonly { theta: Float64Array; omega: Float64Array }[],
+): { theta: Float64Array; omega: Float64Array }[] {
+  return twins.map((twin) => ({
+    theta: Float64Array.from(twin.theta),
+    omega: Float64Array.from(twin.omega),
+  }));
+}
+
+/** The lens of decision 64, `width` wide, about the chain as it is. */
+function lens(
+  width: number,
+  chain: { theta: Float64Array; omega: Float64Array },
+): TwinHold {
+  return {
+    kind: "lens",
+    width,
+    theta: Float64Array.from(chain.theta),
+    omega: Float64Array.from(chain.omega),
+  };
+}
+
+describe("twins held near the chain (decision 64)", () => {
+  const n = 3;
+  const start = raised(n);
+  // a fan a tenth of the chain wide, some twins near the chain, some far
+  const born = (count: number): TwinEvent => bornAll(start, count, 0, 1, 0.5);
+
+  it("draw the whole share in by one factor once the fan grows wider than the lens, towards the chain as it is once the time has gone by", () => {
+    const free = new TwinShare(0, 1, n);
+    const held = new TwinShare(0, 1, n);
+    free.run(command([born(24)], 0, 0));
+    held.run(command([born(24)], 0, 0));
+    const chain = chainAfter(start, 1);
+    free.run(command([], FRAME, 2, [null, null]));
+    held.run(command([], FRAME, 2, [null, null], { hold: lens(0.05, chain) }));
+    // the free fan is wider than the lens, and the held one is the free one
+    // drawn in by the lens's width over the fan's
+    const width = rootMeanSquare(distancesOf(free.twins, chain), 24);
+    expect(width).toBeGreaterThan(0.05);
+    const expected = copies(free.twins);
+    for (const twin of expected) drawIn(twin, chain, 0.05 / width);
+    held.twins.forEach((twin, k) => {
+      expect([...twin.theta]).toEqual([...(expected[k]?.theta ?? [])]);
+      expect([...twin.omega]).toEqual([...(expected[k]?.omega ?? [])]);
+    });
+  });
+
+  it("leave the fan alone while it is no wider than the lens", () => {
+    const free = new TwinShare(0, 1, n);
+    const held = new TwinShare(0, 1, n);
+    free.run(command([born(24)], 0, 0));
+    held.run(command([born(24)], 0, 0));
+    const chain = chainAfter(start, 1);
+    free.run(command([], FRAME, 2, [null, null]));
+    held.run(command([], FRAME, 2, [null, null], { hold: lens(1, chain) }));
+    held.twins.forEach((twin, k) => {
+      expect([...twin.theta]).toEqual([...(free.twins[k]?.theta ?? [])]);
+      expect([...twin.omega]).toEqual([...(free.twins[k]?.omega ?? [])]);
+    });
+  });
+
+  it("report how much the fan stretched over the time, as a logarithm, from its width after the last command, and nothing just after the twins are born", () => {
+    const free = new TwinShare(0, 1, n);
+    const held = new TwinShare(0, 1, n);
+    free.run(command([born(24)], 0, 0));
+    const first = held.run(
+      command([born(24)], FRAME, 2, [null, null], {
+        hold: lens(1, chainAfter(start, 1)),
+      }),
+    );
+    expect(first.stretch).toBe(0);
+    expect(first.stretchTime).toBe(0);
+    free.run(command([], FRAME, 2, [null, null]));
+    const before = rootMeanSquare(
+      distancesOf(free.twins, chainAfter(start, 1)),
+      24,
+    );
+    free.run(command([], FRAME, 2, [null, null]));
+    const after = rootMeanSquare(
+      distancesOf(free.twins, chainAfter(start, 2)),
+      24,
+    );
+    const second = held.run(
+      command([], FRAME, 2, [null, null], {
+        hold: lens(1, chainAfter(start, 2)),
+      }),
+    );
+    expect(second.stretch).toBeCloseTo(Math.log(after / before), 12);
+    expect(second.stretchTime).toBe(FRAME);
+  });
+
+  it("measure the stretch from the lens's width once the fan was drawn in, and start the measure again after any event", () => {
+    const held = new TwinShare(0, 1, n);
+    held.run(command([born(24)], 0, 0));
+    held.run(
+      command([], FRAME, 2, [null, null], {
+        hold: lens(0.05, chainAfter(start, 1)),
+      }),
+    );
+    const report = held.run(
+      command([], FRAME, 2, [null, null], {
+        hold: lens(0.05, chainAfter(start, 2)),
+      }),
+    );
+    const width = rootMeanSquare(
+      distancesOf(held.twins, chainAfter(start, 2)),
+      24,
+    );
+    // drawn in again, so the width it stretched to is no longer there to
+    // measure; what it stretched by was against the lens's width
+    expect(report.stretch).toBeGreaterThan(0);
+    expect(width).toBeLessThan(0.05 * Math.exp(report.stretch));
+    for (const event of [
+      { kind: "reverse" },
+      { kind: "keep", count: 20 },
+      { kind: "masses", n: 4 },
+      born(24),
+    ] as TwinEvent[]) {
+      const after = held.run(
+        command([event], FRAME, 2, [null, null], {
+          hold: lens(0.05, chainAfter(start, 3)),
+        }),
+      );
+      expect(after.stretch).toBe(0);
+      expect(after.stretchTime).toBe(0);
+      held.run(command([{ kind: "masses", n }], 0, 0));
+    }
+  });
+
+  it("leash each twin with slack: free within it, and past it what is beyond falls back at the rate", () => {
+    const free = new TwinShare(0, 1, n);
+    const leashed = new TwinShare(0, 1, n);
+    free.run(command([born(24)], 0, 0));
+    leashed.run(command([born(24)], 0, 0));
+    const chain = chainAfter(start, 1);
+    const leash: TwinHold = {
+      kind: "leash",
+      slack: 0.05,
+      rate: 8,
+      theta: Float64Array.from(chain.theta),
+      omega: Float64Array.from(chain.omega),
+    };
+    free.run(command([], FRAME, 2, [null, null]));
+    const report = leashed.run(
+      command([], FRAME, 2, [null, null], { hold: leash }),
+    );
+    const distances = distancesOf(free.twins, chain);
+    const fall = Math.exp(-8 * FRAME);
+    const expected = copies(free.twins);
+    let within = 0;
+    expected.forEach((twin, k) => {
+      const factor = leashFactor(distances[k] ?? 0, 0.05, fall);
+      if (factor === 1) within++;
+      drawIn(twin, chain, factor);
+    });
+    // some twins within the slack and some past it
+    expect(within).toBeGreaterThan(0);
+    expect(within).toBeLessThan(24);
+    leashed.twins.forEach((twin, k) => {
+      expect([...twin.theta]).toEqual([...(expected[k]?.theta ?? [])]);
+      expect([...twin.omega]).toEqual([...(expected[k]?.omega ?? [])]);
+    });
+    expect(report.stretch).toBe(0);
+  });
+
+  it("hold nothing over a command of events alone", () => {
+    const held = new TwinShare(0, 1, n);
+    held.run(command([born(24)], 0, 0, [], { hold: lens(0.001, start) }));
+    const expected = bornTwins(start, 24, 0.5);
+    held.twins.forEach((twin, k) => {
+      expect([...twin.theta]).toEqual([...(expected[k]?.theta ?? [])]);
+    });
   });
 });

@@ -1603,6 +1603,7 @@ function play({ canvas, gl }: Stage): void {
       g,
       shakes,
       chain: at,
+      hold: null,
       whole: value(LOOK) !== 1,
       budget: twins.local ? TWIN_LOCAL_MS : twinBudget,
     });
