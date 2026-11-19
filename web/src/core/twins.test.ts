@@ -1,16 +1,21 @@
 import { describe, expect, it } from "vitest";
 
+import { Chain } from "../physics/chain.ts";
 import { restingState } from "../physics/step.ts";
 import {
   Fading,
   TwinBudget,
+  WHOLE_TURN,
   apart,
+  bornApart,
   bornPerFrame,
   bornTwin,
   bornTwins,
   fanPlace,
+  fromPivot,
   lightApart,
   twinShine,
+  widened,
 } from "./twins.ts";
 
 // Twins: copies of a chain born a hair apart, which fan out to show chaos
@@ -142,6 +147,65 @@ describe("twins that fade", () => {
       15,
     );
     expect(apart(...hanging, ...hanging, 1)).toBe(0);
+  });
+
+  it("know how far each twin looks from its chain as it is born, however wide the fan: the chain turned whole moves each mass along a chord of its circle round the pivot (decision 63)", () => {
+    const chain = new Chain([1, 2, 1], [0.5, 0.3, 0.2]);
+    const state = restingState(3);
+    state.theta.set([1.1, -0.4, 2.5]);
+    const x = new Float64Array(3);
+    const y = new Float64Array(3);
+    const tx = new Float64Array(3);
+    const ty = new Float64Array(3);
+    chain.positions(state.theta, x, y);
+    const reach = fromPivot(x, y, chain.totalLength);
+    // the root mean square of the masses' distances from the pivot, over the
+    // chain's length, which is 1 m
+    const squares = [...x].map((at, i) => at ** 2 + (y[i] ?? 0) ** 2);
+    expect(reach).toBeCloseTo(
+      Math.sqrt(squares.reduce((sum, d) => sum + d, 0) / 3),
+      15,
+    );
+    for (const spread of [1e-3, 0.1, 0.79, 3.14, 6.28]) {
+      for (const j of [0, 1, 7, 300, 4095]) {
+        chain.positions(bornTwin(state, j, spread).theta, tx, ty);
+        expect(bornApart(j, spread, reach)).toBeCloseTo(
+          apart(x, y, tx, ty, chain.totalLength),
+          12,
+        );
+      }
+    }
+    // the first twin, in the middle of the fan, is born on the chain
+    expect(bornApart(0, 6.28, reach)).toBe(0);
+  });
+
+  it("measure a twin's light from how far it was born from its chain: lit while it keeps that distance, falling as chaos carries it nearer or farther (decision 63)", () => {
+    const fading = new Fading(8);
+    fading.born(3, 0.5);
+    fading.see(3, 0.5, 0.2);
+    expect(fading.light[3]).toBe(1);
+    fading.see(3, 0.6, 0.2);
+    expect(fading.light[3]).toBeCloseTo(lightApart(0.1, 0.2), 15);
+    fading.see(3, 0.3, 0.2);
+    expect(fading.light[3]).toBeCloseTo(lightApart(0.2, 0.2), 15);
+    // born again where it is, it measures from there
+    fading.light[3] = 1;
+    fading.born(3, 0.3);
+    fading.see(3, 0.3, 0.2);
+    expect(fading.light[3]).toBe(1);
+    // a twin born on its chain measures from the chain, as before
+    fading.see(2, 0.2, 0.2);
+    expect(fading.light[2]).toBeCloseTo(lightApart(0.2, 0.2), 15);
+  });
+
+  it("open as wide as the music asks, ten to its lift times the spread, but never past a whole turn round the pivot (decisions 49 and 63)", () => {
+    expect(WHOLE_TURN).toBe(2 * Math.PI);
+    expect(widened(1e-3, 0)).toBe(1e-3);
+    expect(widened(1e-3, 2)).toBeCloseTo(0.1, 15);
+    expect(widened(0.79, 0.5)).toBeCloseTo(0.79 * Math.sqrt(10), 15);
+    expect(widened(3.14, 1)).toBe(WHOLE_TURN);
+    expect(widened(6.28, 0)).toBe(6.28);
+    expect(widened(6.28, 0.1)).toBe(WHOLE_TURN);
   });
 
   it("light a twin fully on the chain, to a third of it at the reach, and all but out at twice the reach", () => {

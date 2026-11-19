@@ -46,8 +46,13 @@ function words(parameter: Parameter, value: number): string {
       return `±${String(value)}°`;
     case "twins":
       return value === 0 ? "no twins" : `${String(value)} twins`;
-    case "spread":
-      return `born ${SPREAD.show(value)} apart`;
+    case "spread": {
+      // a width at the tip, or past it an angle round the pivot (decision 63)
+      const shown = SPREAD.show(value);
+      return shown.endsWith("°")
+        ? `born across ${shown}`
+        : `born ${shown} apart`;
+    }
     case "fade":
       return value === 1 ? "twins that fade" : "twins that stay";
     case "look":

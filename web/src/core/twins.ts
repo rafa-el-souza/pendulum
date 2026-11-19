@@ -2,9 +2,9 @@
 // (docs/decisions.md, decision 4). They live the same simulated time as the
 // chain, under a budget of their own: when they do not fit it there are fewer
 // of them, and time never runs slower for them (decision 20). They can stay
-// once the fan has opened, or fade as chaos carries them off from the chain
-// and be born again on it, a few a frame, so that they come out of it as a
-// plume (decision 43).
+// once the fan has opened, or fade as chaos carries them off from where they
+// were born and be born again on the chain, a few a frame, so that they come
+// out of it as a plume (decisions 43 and 63).
 
 import type { ChainState } from "../physics/step.ts";
 
@@ -38,6 +38,18 @@ export function bornTwin(
   };
 }
 
+/** A whole turn round the pivot: the widest the fan opens (decision 63). */
+export const WHOLE_TURN = 2 * Math.PI;
+
+/**
+ * The spread the music opens the fan to (decision 49): the spread chosen
+ * times ten to the music's lift, never past a whole turn round the pivot
+ * (decision 63).
+ */
+export function widened(spread: number, lift: number): number {
+  return Math.min(WHOLE_TURN, spread * 10 ** lift);
+}
+
 /** `count` twins of a chain as it is now, the first `count` places of the fan. */
 export function bornTwins(
   chain: ChainState,
@@ -66,6 +78,34 @@ export function apart(
     sum += dx * dx + dy * dy;
   }
   return Math.sqrt(sum / Math.max(1, x.length)) / length;
+}
+
+/**
+ * How far a chain's masses are from the pivot: the root mean square of their
+ * distances from it, as a share of the chain's length.
+ */
+export function fromPivot(
+  x: Float64Array,
+  y: Float64Array,
+  length: number,
+): number {
+  let sum = 0;
+  for (let i = 0; i < x.length; i++) {
+    sum += (x[i] ?? 0) ** 2 + (y[i] ?? 0) ** 2;
+  }
+  return Math.sqrt(sum / Math.max(1, x.length)) / length;
+}
+
+/**
+ * How far twin j looks from its chain as it is born (decision 63), the
+ * chain's masses `reach` from the pivot (`fromPivot`): turned whole by the
+ * twin's share of the spread, each mass moves along a chord of its circle
+ * round the pivot, 2 |sin(turn / 2)| times its distance from it, and so the
+ * two chains look that many times `reach` apart.
+ */
+export function bornApart(j: number, spread: number, reach: number): number {
+  const turn = spread * (fanPlace(j) - 0.5);
+  return 2 * Math.abs(Math.sin(turn / 2)) * reach;
 }
 
 /**
@@ -100,20 +140,24 @@ export function bornPerFrame(count: number): number {
 
 /**
  * The light of each twin while the twins fade (decision 43), by its place in
- * the fan. It falls as chaos carries the twin off from the chain and never
- * rises again, so that a twin that has been carried off stays dark where it
- * crosses the chain; the light measures how far the chain can still be
- * foretold from it. Those gone dark are handed back, a few a frame, to be
- * born again on the chain.
+ * the fan. It falls as chaos carries the twin off from where it was born, as
+ * far from the chain as it looks now against as far as it looked then
+ * (decision 63), and never rises again, so that a twin that has been carried
+ * off stays dark where it crosses the chain; the light measures how far the
+ * chain can still be foretold from it. Those gone dark are handed back, a few
+ * a frame, to be born again on the chain.
  */
 export class Fading {
   /** Each twin's light, from 1, on the chain, down to 0. */
   readonly light: Float64Array;
+  /** How far each twin looked from the chain as it was born. */
+  readonly #born: Float64Array;
   /** Where the next look for twins gone dark starts. */
   #turn = 0;
 
   constructor(most: number) {
     this.light = new Float64Array(most).fill(1);
+    this.#born = new Float64Array(most);
   }
 
   /** Every twin lit: they are born on the chain. */
@@ -121,9 +165,17 @@ export class Fading {
     this.light.fill(1);
   }
 
-  /** Twin j is `distance` from the chain: its light falls to that distance's, if lower. */
+  /** Twin j is born `distance` from the chain (`bornApart`), and its light measures from there. */
+  born(j: number, distance: number): void {
+    this.#born[j] = distance;
+  }
+
+  /**
+   * Twin j is `distance` from the chain: its light falls to that of how far
+   * that is from where it was born, if lower.
+   */
   see(j: number, distance: number, reach: number): void {
-    const now = lightApart(distance, reach);
+    const now = lightApart(Math.abs(distance - (this.#born[j] ?? 0)), reach);
     if (now < (this.light[j] ?? 1)) this.light[j] = now;
   }
 

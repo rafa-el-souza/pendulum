@@ -212,16 +212,54 @@ describe("the first piece's address (decision 38)", () => {
     }
   });
 
-  it("writes codes of version 7, which hold when dense light turns white, after the palette (decision 61)", () => {
-    expect(CODE.version).toBe(7);
-    const ids = CODE.controls.map(({ id }) => id);
+  it("writes codes of version 8, which hold the twins born wider apart, round the pivot (decision 63)", () => {
+    expect(CODE.version).toBe(8);
+    for (const spread of [1e-9, 0.1, 0.26, 0.79, 1.57, 3.14, 6.28]) {
+      const { values, switches } = opening();
+      values.set("n", 3);
+      values.set("spread", spread);
+      const opened = openingOf("", addressOf(values, switches, moment(3), ""));
+      expect(opened.values).toEqual(values);
+    }
+    // a code of version 7 holds a spread up to a tenth, as published
+    const { values, switches } = opening();
+    values.set("n", 3);
+    values.set("spread", 0.1);
+    const seventh = CODES.find(({ version }) => version === 7);
+    expect(seventh).toBeDefined();
+    if (seventh === undefined) return;
+    const code = writeCode(seventh, { values, switches, ...moment(3) });
+    expect(openingOf("", `#${code}`).values).toEqual(values);
+    values.set("spread", 0.26);
+    expect(() =>
+      writeCode(seventh, { values, switches, ...moment(3) }),
+    ).toThrow();
+  });
+
+  it("carries the twins born wider apart readable, in short radians, without a moment (decision 63)", () => {
+    const { values, switches } = opening();
+    values.set("spread", 6.28);
+    expect(addressOf(values, switches, null, "")).toBe("?spread=6.28");
+    expect(openingOf("?spread=6.28", "").values.get("spread")).toBe(6.28);
+    expect(openingOf("?spread=0.79", "").values.get("spread")).toBe(0.79);
+    // a radian not on the control's steps opens where the piece opens
+    expect(
+      openingOf("?spread=6.283185307179586", "").values.get("spread"),
+    ).toBe(1e-3);
+  });
+
+  it("reads codes of version 7, which hold when dense light turns white, after the palette (decision 61)", () => {
+    const seventh = CODES.find(({ version }) => version === 7);
+    expect(seventh).toBeDefined();
+    if (seventh === undefined) return;
+    const ids = seventh.controls.map(({ id }) => id);
     expect(ids.indexOf("white")).toBe(ids.indexOf("palette") + 1);
     for (const white of [0, 1, 2, 3]) {
       const { values, switches } = opening();
       values.set("n", 3);
       values.set("white", white);
-      const opened = openingOf("", addressOf(values, switches, moment(3), ""));
-      expect(opened.values).toEqual(values);
+      const code = writeCode(seventh, { values, switches, ...moment(3) });
+      expect(openingOf("", `#${code}`).values).toEqual(values);
     }
   });
 
