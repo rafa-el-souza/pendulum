@@ -341,18 +341,36 @@ export const STYLE: Parameter = {
  * second or so with two masses and less with more (decision 25). The control
  * shows how close that is: the fan's width at the tip of the chain, a metre
  * long, held straight, as the twins are born, from a nanometre to ten
- * centimetres.
+ * centimetres. Past that the fan opens round the pivot (decision 63), to 15°,
+ * 45°, 90°, 180° and a whole turn, where the twins are no longer twins of one
+ * motion; these steps are written in short radians, 0.26 to 6.28, so that an
+ * address carries them as they are, and shown in degrees.
  */
 export const SPREAD: Parameter = {
   id: "spread",
-  label: "How close the twins are born",
-  values: [1e-9, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1],
+  label: "How far apart the twins are born",
+  values: [
+    1e-9, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 0.26, 0.79, 1.57,
+    3.14, 6.28,
+  ],
   initial: 1e-3,
   keys: { down: ["3"], up: ["4"] },
-  show: (value) => widthAtTip(value)[0],
-  speak: (value) => `${widthAtTip(value)[1]} apart at the tip`,
+  show: (value) =>
+    value < WIDEST_AT_TIP ? widthAtTip(value)[0] : `${degrees(value)}°`,
+  speak: (value) =>
+    value < WIDEST_AT_TIP
+      ? `${widthAtTip(value)[1]} apart at the tip`
+      : `${degrees(value)} degrees round the pivot`,
   icon: "spread",
 };
+
+/** The widest spread shown as a width at the tip; wider ones are shown in degrees. */
+const WIDEST_AT_TIP = 0.2;
+
+/** A spread in whole degrees. */
+function degrees(spread: number): string {
+  return String(Math.round((spread * 180) / Math.PI));
+}
 
 /** The fan's width at the tip of the chain, a metre long, for each power of ten of the spread from 10⁻⁹: as shown, and in words. */
 const WIDTHS: readonly (readonly [string, string])[] = [

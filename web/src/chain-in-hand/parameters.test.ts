@@ -228,17 +228,18 @@ describe("the first piece's parameters", () => {
     );
   });
 
-  it("let the twins be born from a billionth of a radian apart to a tenth, by powers of ten, opening at the thousandth they had (decision 25)", () => {
+  it("let the twins be born from a billionth of a radian apart to a tenth, by powers of ten, opening at the thousandth they had (decision 25), and then wider, round the pivot to a whole turn, in short radians (decision 63)", () => {
     expect(SPREAD.values).toEqual([
-      1e-9, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1,
+      1e-9, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 0.26, 0.79, 1.57,
+      3.14, 6.28,
     ]);
     expect(SPREAD.initial).toBe(1e-3);
     expect(SPREAD.keys).toEqual({ down: ["3"], up: ["4"] });
     expect(SPREAD.icon).toBe("spread");
   });
 
-  it("show the spread as how close the twins are born: the fan's width at the tip of the chain, a metre long, in units a visitor reads", () => {
-    expect(SPREAD.label).toBe("How close the twins are born");
+  it("show the spread as how far apart the twins are born: the fan's width at the tip of the chain, a metre long, in units a visitor reads, and past ten centimetres the fan's angle round the pivot, in degrees (decision 63)", () => {
+    expect(SPREAD.label).toBe("How far apart the twins are born");
     expect(SPREAD.values.map((value) => SPREAD.show(value))).toEqual([
       "1 nm",
       "10 nm",
@@ -249,6 +250,11 @@ describe("the first piece's parameters", () => {
       "1 mm",
       "1 cm",
       "10 cm",
+      "15°",
+      "45°",
+      "90°",
+      "180°",
+      "360°",
     ]);
     expect(SPREAD.speak?.(1e-9)).toBe("1 nanometre apart at the tip");
     expect(SPREAD.speak?.(1e-4)).toBe(
@@ -256,6 +262,8 @@ describe("the first piece's parameters", () => {
     );
     expect(SPREAD.speak?.(1e-3)).toBe("1 millimetre apart at the tip");
     expect(SPREAD.speak?.(1e-1)).toBe("10 centimetres apart at the tip");
+    expect(SPREAD.speak?.(0.26)).toBe("15 degrees round the pivot");
+    expect(SPREAD.speak?.(6.28)).toBe("360 degrees round the pivot");
   });
 
   it("let the trails come from the tip alone, as they have until now, or from every mass of the chain (decision 26)", () => {

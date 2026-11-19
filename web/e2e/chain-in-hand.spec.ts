@@ -645,14 +645,14 @@ test("the G key passes the whole frame through the sketch's light, and back, and
   expect(errors).toEqual([]);
 });
 
-test("the spread's keys bring the twins closer or farther at birth, and the address follows", async ({
+test("the spread's keys bring the twins closer or farther at birth, past ten centimetres round the pivot to a whole turn, and the address and the title follow", async ({
   page,
 }) => {
   const errors = collectErrors(page);
   await page.goto("./");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   await openControls(page);
-  const spread = icon(page, "How close the twins are born");
+  const spread = icon(page, "How far apart the twins are born");
   await expect(spread).toHaveAccessibleDescription(
     "1 millimetre apart at the tip",
   );
@@ -672,6 +672,20 @@ test("the spread's keys bring the twins closer or farther at birth, and the addr
     "10 centimetres apart at the tip",
   );
   await expect(page).toHaveURL(/[?&]spread=0\.1(&|$)/);
+  await frames(page, 10);
+
+  // past ten centimetres, the fan opens round the pivot (decision 63)
+  await page.keyboard.press("4");
+  await expect(spread).toHaveAccessibleDescription(
+    "15 degrees round the pivot",
+  );
+  await expect(page).toHaveURL(/[?&]spread=0\.26(&|$)/);
+  for (let press = 0; press < 5; press++) await page.keyboard.press("4");
+  await expect(spread).toHaveAccessibleDescription(
+    "360 degrees round the pivot",
+  );
+  await expect(page).toHaveURL(/[?&]spread=6\.28(&|$)/);
+  await expect(page).toHaveTitle(/born across 360°/);
   await frames(page, 10);
   expect(errors).toEqual([]);
 });

@@ -181,6 +181,23 @@ const VERSION_7: CodeTable = {
   switches: ["light", "tension", "sketch"],
 };
 
+/**
+ * The code's eighth version (decision 63), frozen once published: the twins
+ * born wider apart, round the pivot, after the spreads up to a tenth.
+ */
+const VERSION_8: CodeTable = {
+  version: 8,
+  controls: VERSION_7.controls.map((control) =>
+    control.id === "spread"
+      ? {
+          id: "spread",
+          values: [...control.values, 0.26, 0.79, 1.57, 3.14, 6.28],
+        }
+      : control,
+  ),
+  switches: ["light", "tension", "sketch"],
+};
+
 /** Every version of the code the piece reads, oldest first. */
 export const CODES: readonly CodeTable[] = [
   VERSION_1,
@@ -190,10 +207,11 @@ export const CODES: readonly CodeTable[] = [
   VERSION_5,
   VERSION_6,
   VERSION_7,
+  VERSION_8,
 ];
 
 /** The version the piece writes: the newest. */
-export const CODE: CodeTable = VERSION_7;
+export const CODE: CodeTable = VERSION_8;
 
 /**
  * The trails' step of a strobe and the twins as dust, as the fifth code and
