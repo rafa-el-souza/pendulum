@@ -8,6 +8,8 @@ import {
   AMPLITUDE,
   BODIES,
   HAND,
+  HELD_STEP,
+  LEASHED_STEP,
   MARK_STEP,
   MODE,
   PARAMETERS,
@@ -54,6 +56,8 @@ function words(parameter: Parameter, value: number): string {
         : `born ${shown} apart`;
     }
     case "fade":
+      if (value === HELD_STEP) return "twins held";
+      if (value === LEASHED_STEP) return "twins leashed";
       return value === 1 ? "twins that fade" : "twins that stay";
     case "look":
       return "twins as dust";

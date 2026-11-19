@@ -395,24 +395,74 @@ function widthAtTip(spread: number): readonly [string, string] {
 }
 
 /**
- * Whether the twins stay or fade (decisions 43 and 53). They stay: once the
- * fan has opened they fill the disc, a cloud that does not go. Or, as the
- * piece opens (decision 58), each fades as chaos carries it off from the
- * chain, its light falling with how far it looks from it and never rising
- * again, and once dark it is born again on the chain, at its place in the
- * fan, a few a frame, so that the twins come out of the chain as a plume and
- * come apart in the chaos. One key goes round the two.
+ * How the twins live (decisions 43, 53 and 64). They stay: once the fan has
+ * opened they fill the disc, a cloud that does not go. Or, as the piece
+ * opens (decision 58), each fades as chaos carries it off from the chain,
+ * its light falling with how far it looks from it and never rising again,
+ * and once dark it is born again on the chain, at its place in the fan, a
+ * few a frame, so that the twins come out of the chain as a plume and come
+ * apart in the chaos. Or they are held near the chain, all drawn in together
+ * by one factor whenever the fan grows wider than the lens, so that they
+ * stay a blade along the direction chaos stretches them in, and the control
+ * shows how often differences double. Or each is leashed to the chain with
+ * slack, a cloud that swells where the motion is most chaotic. One key goes
+ * round the four. The step 2 is not one of them: addresses written before
+ * decision 53 meant the twins as dust by it (address.ts).
  */
+export const HELD_STEP = 3;
+export const LEASHED_STEP = 4;
+
 export const FADE: Parameter = {
   id: "fade",
-  label: "Twins stay or fade",
-  values: [0, 1],
+  label: "Life of the twins",
+  values: [0, 1, HELD_STEP, LEASHED_STEP],
   initial: 1,
   keys: { down: [], up: ["p", "P"] },
   cyclic: true,
-  show: (value) => (value === 1 ? "fade" : "stay"),
+  show: (value) =>
+    value === LEASHED_STEP
+      ? "leashed"
+      : value === HELD_STEP
+        ? "held"
+        : value === 1
+          ? "fade"
+          : "stay",
   icon: "snuffed",
 };
+
+/**
+ * How wide the lens lets the fan grow before it draws the twins in, as the
+ * root mean square of their distances from the chain, a share of the
+ * chain's length (decision 64); or as wide as the twins were born, if wider.
+ * A placeholder for the author's eye.
+ */
+export const HOLD_WIDTH = 0.2;
+
+/**
+ * The leash's slack, as a share of the chain's length, and the rate per
+ * second at which a twin's distance past it falls (decision 64): fixed,
+ * placeholders set by the author's eye on the prototype.
+ */
+export const LEASH_SLACK = 0.15;
+export const LEASH_RATE = 8;
+
+/**
+ * The widest spread the lens shows its number for, 10 cm at the tip
+ * (decision 64): twins born farther apart are not differences of one motion,
+ * and how they stretch says nothing of its chaos.
+ */
+export const NEAR_SPREAD = 0.1;
+
+/** The seconds a difference takes to double, in two figures (decision 64). */
+export function doublingShown(seconds: number): string {
+  const figures = seconds < 10 ? seconds.toPrecision(2) : seconds.toFixed(0);
+  return `${figures} s`;
+}
+
+/** The lens's number in words, for a screen reader and the control's title (decision 64). */
+export function doublingSaid(seconds: number): string {
+  return `Twins held: differences double every ${doublingShown(seconds)}`;
+}
 
 /**
  * How the twins are drawn (decisions 50 and 53): as chains, as they have been

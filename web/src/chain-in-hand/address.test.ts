@@ -212,14 +212,53 @@ describe("the first piece's address (decision 38)", () => {
     }
   });
 
-  it("writes codes of version 8, which hold the twins born wider apart, round the pivot (decision 63)", () => {
-    expect(CODE.version).toBe(8);
+  it("writes codes of version 9, which hold the twins held near the chain and leashed to it (decision 64)", () => {
+    expect(CODE.version).toBe(9);
+    for (const fade of [0, 1, 3, 4]) {
+      const { values, switches } = opening();
+      values.set("n", 3);
+      values.set("fade", fade);
+      const opened = openingOf("", addressOf(values, switches, moment(3), ""));
+      expect(opened.values).toEqual(values);
+    }
+    // a code of version 8 holds the twins that stay or fade, as published
+    const { values, switches } = opening();
+    values.set("n", 3);
+    values.set("fade", 0);
+    const eighth = CODES.find(({ version }) => version === 8);
+    expect(eighth).toBeDefined();
+    if (eighth === undefined) return;
+    const code = writeCode(eighth, { values, switches, ...moment(3) });
+    expect(openingOf("", `#${code}`).values).toEqual(values);
+    values.set("fade", 3);
+    expect(() =>
+      writeCode(eighth, { values, switches, ...moment(3) }),
+    ).toThrow();
+  });
+
+  it("carries the twins held and leashed readable, without a moment, and the dust of old addresses as it was (decision 64)", () => {
+    const { values, switches } = opening();
+    values.set("fade", 3);
+    expect(addressOf(values, switches, null, "")).toBe("?fade=3");
+    expect(openingOf("?fade=3", "").values.get("fade")).toBe(3);
+    values.set("fade", 4);
+    expect(addressOf(values, switches, null, "")).toBe("?fade=4");
+    expect(openingOf("?fade=4", "").values.get("fade")).toBe(4);
+    const dust = openingOf("?fade=2", "").values;
+    expect(dust.get("fade")).toBe(0);
+    expect(dust.get("look")).toBe(1);
+  });
+
+  it("reads codes of version 8, which hold the twins born wider apart, round the pivot (decision 63)", () => {
+    const eighth = CODES.find(({ version }) => version === 8);
+    expect(eighth).toBeDefined();
+    if (eighth === undefined) return;
     for (const spread of [1e-9, 0.1, 0.26, 0.79, 1.57, 3.14, 6.28]) {
       const { values, switches } = opening();
       values.set("n", 3);
       values.set("spread", spread);
-      const opened = openingOf("", addressOf(values, switches, moment(3), ""));
-      expect(opened.values).toEqual(values);
+      const code = writeCode(eighth, { values, switches, ...moment(3) });
+      expect(openingOf("", `#${code}`).values).toEqual(values);
     }
     // a code of version 7 holds a spread up to a tenth, as published
     const { values, switches } = opening();

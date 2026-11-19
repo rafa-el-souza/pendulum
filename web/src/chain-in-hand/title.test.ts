@@ -67,6 +67,8 @@ describe("the title of the first piece's page (decision 38)", () => {
     ["spread", 1.57, "born across 90°"],
     ["spread", 6.28, "born across 360°"],
     ["fade", 0, "twins that stay"],
+    ["fade", 3, "twins held"],
+    ["fade", 4, "twins leashed"],
     ["look", 1, "twins as dust"],
     ["trail", 0, "no trails"],
     ["trail", 10, "trails 10 s"],

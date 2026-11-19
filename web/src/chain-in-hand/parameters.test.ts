@@ -7,9 +7,17 @@ import { TENSION_SCALES } from "../core/tension.ts";
 import {
   AMPLITUDE,
   CHAIN,
+  doublingSaid,
+  doublingShown,
   COLOURS,
   FADE,
   FADE_REACH,
+  HELD_STEP,
+  HOLD_WIDTH,
+  LEASHED_STEP,
+  LEASH_RATE,
+  LEASH_SLACK,
+  NEAR_SPREAD,
   GRAVITY,
   GROUND,
   HAND,
@@ -351,16 +359,42 @@ describe("the first piece's parameters", () => {
     expect(PARAMETERS).toEqual([...CHAIN, ...LIGHT, ...COLOURS]);
   });
 
-  it("let the twins fade as chaos carries them off, as the piece opens (decision 58), or stay (decision 43), on one key (decision 53)", () => {
-    expect(FADE.label).toBe("Twins stay or fade");
-    expect(FADE.values).toEqual([0, 1]);
+  it("let the twins fade as chaos carries them off, as the piece opens (decision 58), stay (decision 43), be held near the chain or leashed to it (decision 64), round one key (decision 53)", () => {
+    expect(FADE.label).toBe("Life of the twins");
+    // 2 is the dust of addresses written before decision 53 (address.ts)
+    expect(FADE.values).toEqual([0, 1, 3, 4]);
+    expect([HELD_STEP, LEASHED_STEP]).toEqual([3, 4]);
     expect(FADE.initial).toBe(1);
     expect(FADE.keys).toEqual({ down: [], up: ["p", "P"] });
     expect(FADE.cyclic).toBe(true);
+    expect(stepValue(FADE, 1, 1)).toBe(3);
+    expect(stepValue(FADE, 3, 1)).toBe(4);
+    expect(stepValue(FADE, 4, 1)).toBe(0);
     expect(stepValue(FADE, 0, 1)).toBe(1);
-    expect(stepValue(FADE, 1, 1)).toBe(0);
     expect(FADE.show(0)).toBe("stay");
     expect(FADE.show(1)).toBe("fade");
+    expect(FADE.show(3)).toBe("held");
+    expect(FADE.show(4)).toBe("leashed");
+  });
+
+  it("hold the twins within a fifth of the chain's length, or leash each with slack of 0.15 of it, what is past it falling at 8 a second; the lens's number only for twins born up to 10 cm apart (decision 64)", () => {
+    expect(HOLD_WIDTH).toBe(0.2);
+    expect(LEASH_SLACK).toBe(0.15);
+    expect(LEASH_RATE).toBe(8);
+    expect(NEAR_SPREAD).toBe(0.1);
+    expect(SPREAD.values).toContain(NEAR_SPREAD);
+  });
+
+  it("show the time differences take to double in two figures, and say it whole (decision 64)", () => {
+    expect(doublingShown(0.1)).toBe("0.10 s");
+    expect(doublingShown(0.273)).toBe("0.27 s");
+    expect(doublingShown(1.53)).toBe("1.5 s");
+    expect(doublingShown(9.94)).toBe("9.9 s");
+    expect(doublingShown(35.2)).toBe("35 s");
+    expect(doublingShown(1234.5)).toBe("1235 s");
+    expect(doublingSaid(0.1)).toBe(
+      "Twins held: differences double every 0.10 s",
+    );
   });
 
   it("draw the twins as chains, as they have until now and as the piece opens, or as dust, their tips alone (decision 50), on Shift with the twins' P, whether they stay or fade (decision 53)", () => {
