@@ -32,7 +32,7 @@ import {
   workerBudget,
 } from "../core/twin-workers.ts";
 import { Fading, bornPerFrame, fanPlace } from "../core/twins.ts";
-import { fitScale, toWorld } from "../core/view.ts";
+import { fitScale, reachBox, toWorld } from "../core/view.ts";
 import { Chain, createHand, type Hand } from "../physics/chain.ts";
 import { startInMode } from "../physics/modes.ts";
 import { resample } from "../physics/resample.ts";
@@ -163,6 +163,11 @@ const NOTE_EASE_SLOW = 1;
 const STROBE_RATE = 12;
 const STROBE_LIGHT = 0.45;
 const DUST_RADIUS = 1.4;
+// How far past a mass's place its light can reach on the frame, in CSS
+// pixels: the rods' widest halo with the music at its most, whose glow a line
+// draws out to three spreads (lines.ts), and a pixel for the line's edge.
+// Every other line, dot and point of dust reaches less (decision 62).
+const GLOW_REACH = 3 * (5 + GLOW_RADIUS * GLOW_MOST) + 1;
 // How long the share button shows that the address was copied, in ms.
 const COPIED_MS = 2000;
 // The light switch's name: the twins' and the trails' light, which it puts
@@ -1161,6 +1166,19 @@ function play({ canvas, gl }: Stage): void {
     const ratio = box.width > 0 ? canvas.width / box.width : 1;
     const scale = fitScale(box.width, box.height, chain.totalLength) * ratio;
     const rodPixels = (chain.totalLength / chain.n) * (scale / ratio);
+    // Every mass, twin and trail stays within the chain's length of the
+    // pivot, and its glow within GLOW_REACH of that: the passes over a whole
+    // target are cut to that box (decision 62). With the sketch's light the
+    // hand's spring, wherever the hand is, goes through the scene too.
+    const region =
+      wholeFrame && hand !== null
+        ? null
+        : reachBox(
+            gl.drawingBufferWidth,
+            gl.drawingBufferHeight,
+            chain.totalLength * scale + GLOW_REACH * ratio,
+          );
+    trails.region = region;
 
     // The twins, faint, so that many together read as one bright chain and
     // only the fringes of the fan show colour; while they fade, each in its
@@ -1273,7 +1291,7 @@ function play({ canvas, gl }: Stage): void {
     }
     if (wholeFrame) {
       // the frame's lines, then all of it through the curve
-      scene.bind(true);
+      scene.bind(true, region);
       drawLines(scale, ratio, rodPixels);
       scene.unbind();
       lines.clear(colors.ground);

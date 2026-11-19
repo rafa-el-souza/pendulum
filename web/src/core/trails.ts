@@ -12,6 +12,11 @@
 // The trails can leave a mark (decision 42): a second target keeps, at every
 // point, the brightest piece of trail drawn there, and shows under the
 // fading trails after they are gone.
+// The passes over the whole of a target, the fade, the clear and the show,
+// can be cut to a region the light is known to stay in (decision 62): what
+// they would do outside it changes nothing that is shown.
+
+import type { Box } from "./view.ts";
 
 const FULL_VERTEX = `#version 300 es
 layout(location = 0) in vec2 corner;
@@ -141,6 +146,16 @@ function link(
   };
 }
 
+/** Cuts what is drawn next to `box`, or lets it reach every pixel when there is none. */
+function cutTo(gl: WebGL2RenderingContext, box: Box | null): void {
+  if (box === null) {
+    gl.disable(gl.SCISSOR_TEST);
+    return;
+  }
+  gl.enable(gl.SCISSOR_TEST);
+  gl.scissor(box[0], box[1], box[2], box[3]);
+}
+
 /** Where light is drawn off the canvas: the size of the canvas's drawing buffer. */
 export class LightTarget {
   readonly #gl: WebGL2RenderingContext;
@@ -228,15 +243,21 @@ export class LightTarget {
     );
   }
 
-  /** Draws into it from now on, over all of it; `fresh` darkens it first. */
-  bind(fresh = false): void {
+  /**
+   * Draws into it from now on, over all of it; `fresh` darkens it first,
+   * within `region` when given, where whatever is drawn next stays.
+   */
+  bind(fresh = false, region: Box | null = null): void {
     const gl = this.#gl;
-    this.fit();
+    // a target made anew is dark all over
+    if (this.fit()) region = null;
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.#framebuffer);
     gl.viewport(0, 0, this.#width, this.#height);
     if (fresh) {
+      cutTo(gl, region);
       gl.clearColor(0, 0, 0, 0);
       gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.disable(gl.SCISSOR_TEST);
     }
   }
 
@@ -270,6 +291,11 @@ export class Trails {
   // the trails leave one
   readonly #mark: LightTarget;
   readonly #batch = new FadeBatch();
+  /**
+   * The region every trail stays in, where the fade and the show are cut
+   * (decision 62); none, the whole target.
+   */
+  region: Box | null = null;
 
   constructor(gl: WebGL2RenderingContext) {
     this.#gl = gl;
@@ -340,6 +366,7 @@ export class Trails {
     gl.useProgram(this.#fill.program);
     gl.uniform4f(this.#fill.at.uColor ?? null, 0, 0, 0, 0);
     const now = this.#batch.take(left);
+    cutTo(gl, this.region);
     if (now < 1) {
       gl.blendEquation(gl.FUNC_ADD);
       gl.blendFunc(gl.ZERO, gl.CONSTANT_COLOR);
@@ -355,6 +382,7 @@ export class Trails {
       this.#fullscreen();
       gl.blendEquation(gl.FUNC_ADD);
     }
+    gl.disable(gl.SCISSOR_TEST);
   }
 
   /**
@@ -404,6 +432,8 @@ export class Trails {
     gl.bindTexture(gl.TEXTURE_2D, this.#target.texture);
     gl.uniform1i(at.uTrails ?? null, 0);
     gl.uniform1f(at.uGain ?? null, this.#target.gain);
+    cutTo(gl, this.region);
     this.#fullscreen();
+    gl.disable(gl.SCISSOR_TEST);
   }
 }
