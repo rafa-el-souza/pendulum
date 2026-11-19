@@ -31,7 +31,7 @@ import {
   sharesFor,
   workerBudget,
 } from "../core/twin-workers.ts";
-import { Fading, bornPerFrame, fanPlace } from "../core/twins.ts";
+import { Fading, bornPerFrame, fanPlace, twinShine } from "../core/twins.ts";
 import { fitScale, toWorld } from "../core/view.ts";
 import { Chain, createHand, type Hand } from "../physics/chain.ts";
 import { startInMode } from "../physics/modes.ts";
@@ -1167,10 +1167,7 @@ function play({ canvas, gl }: Stage): void {
     // own light, and those gone dark not at all.
     fan.clear();
     dust.clear();
-    const faint = Math.min(
-      0.5,
-      Math.max(0.05, 2.2 / Math.sqrt(Math.max(1, twins.count))),
-    );
+    const faint = twinShine(twins.count);
     const fades = value(FADE) === 1;
     // as dust, each twin its tip alone, a point brighter than a line, and
     // in its own light while the twins fade (decision 53)

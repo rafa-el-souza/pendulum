@@ -77,6 +77,15 @@ export function lightApart(distance: number, reach: number): number {
   return Math.exp(-((distance / reach) ** 2));
 }
 
+/**
+ * How much light a twin of `count` adds where it is drawn: faint, so that many
+ * together read as one bright chain and only the fringes of the fan show
+ * colour, 2.2 over the root of their number, from a twentieth to a half.
+ */
+export function twinShine(count: number): number {
+  return Math.min(0.5, Math.max(0.05, 2.2 / Math.sqrt(Math.max(1, count))));
+}
+
 /** A twin whose light is below this has gone dark, and is born again. */
 const DARK = 1 / 64;
 

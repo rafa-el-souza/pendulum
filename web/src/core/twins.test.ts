@@ -10,6 +10,7 @@ import {
   bornTwins,
   fanPlace,
   lightApart,
+  twinShine,
 } from "./twins.ts";
 
 // Twins: copies of a chain born a hair apart, which fan out to show chaos
@@ -194,5 +195,15 @@ describe("twins that fade", () => {
     expect(bornPerFrame(64)).toBe(1);
     expect(bornPerFrame(3)).toBe(1);
     expect(bornPerFrame(0)).toBe(1);
+  });
+});
+
+describe("a twin's light", () => {
+  it("is faint, so that many together read as one bright chain: 2.2 over the root of their number, from a twentieth to a half", () => {
+    expect(twinShine(512)).toBeCloseTo(2.2 / Math.sqrt(512), 15);
+    expect(twinShine(64)).toBeCloseTo(0.275, 15);
+    expect(twinShine(4096)).toBe(0.05);
+    expect(twinShine(1)).toBe(0.5);
+    expect(twinShine(0)).toBe(0.5);
   });
 });
