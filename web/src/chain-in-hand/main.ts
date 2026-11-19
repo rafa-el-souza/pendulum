@@ -31,7 +31,7 @@ import {
   sharesFor,
   workerBudget,
 } from "../core/twin-workers.ts";
-import { Fading, bornPerFrame, fanPlace } from "../core/twins.ts";
+import { Fading, bornPerFrame, fanPlace, twinShine } from "../core/twins.ts";
 import { fitScale, reachBox, toWorld } from "../core/view.ts";
 import { Chain, createHand, type Hand } from "../physics/chain.ts";
 import { startInMode } from "../physics/modes.ts";
@@ -69,12 +69,15 @@ import {
   TIME,
   TRAIL,
   TWIN_COUNT,
+  WHITE,
   gravityOf,
   handDamping,
   MARK_STEP,
   radians,
   shakeOf,
   trailFade,
+  whiteAfter,
+  whiteSwatches,
 } from "./parameters.ts";
 import { MODES, modeOf } from "./music.ts";
 import { titleOf } from "./title.ts";
@@ -263,6 +266,12 @@ function play({ canvas, gl }: Stage): void {
   // With the sketch's light on the whole frame, the frame's lines are drawn
   // here first, and go through the trails' curve with them (decision 24).
   const scene = new LightTarget(gl);
+  // While dense light keeps its colour (decision 61), the twins' lines are
+  // drawn here first, and go to the canvas through the curve. A browser that
+  // cannot draw into half floats has eight bits here, which cut the light at
+  // full as the canvas does: there white comes in at once, as before.
+  const twinLight = new LightTarget(gl);
+  twinLight.fit();
   let wholeFrame = opened.switches.get("sketch") ?? false;
   // The twins and the trails, lit or put out by one switch; their controls
   // keep their values, and stepping one of them lights them again.
@@ -538,6 +547,19 @@ function play({ canvas, gl }: Stage): void {
     } else controls.showValue(MODE.id, mode);
     controls.showValue(AMPLITUDE.id, value(AMPLITUDE), {
       idle: saved !== null || mode === 0,
+    });
+  }
+
+  /** Whether dense light keeps its colour now: asked for, where the browser can draw light into half floats (decision 61). */
+  function keepsColour(): boolean {
+    return value(WHITE) > 0 && twinLight.floating;
+  }
+
+  /** When dense light turns white, in five dots of the palette chosen; faint where the browser cannot keep the colour (decision 61). */
+  function showWhite(): void {
+    controls.showValue(WHITE.id, value(WHITE), {
+      swatches: whiteSwatches(value(WHITE), value(PALETTE)),
+      idle: !twinLight.floating,
     });
   }
 
@@ -878,11 +900,13 @@ function play({ canvas, gl }: Stage): void {
       if (!tensionShown) setTensionShown(true);
     }
     if (!lit && LIGHT_CONTROLS.has(parameter)) setLit(true);
-    // the scale shows in the tension's colours, one control (decision 53)
+    // the scale shows in the tension's colours, one control (decision 53),
+    // and the white in the palette's (decision 61)
     if (parameter === SCALE) controls.showValue(TENSION.id, tensionAt());
-    else controls.showValue(parameter.id, next);
+    else if (parameter !== WHITE) controls.showValue(parameter.id, next);
     showStart();
     showRibbon();
+    showWhite();
     keepAddress();
   }
 
@@ -970,7 +994,7 @@ function play({ canvas, gl }: Stage): void {
           id: "twins",
           label: "The twins",
           icon: "butterfly",
-          controls: [TWIN_COUNT, SPREAD, FADE, LOOK, PALETTE],
+          controls: [TWIN_COUNT, SPREAD, FADE, LOOK, PALETTE, WHITE],
         },
         {
           id: "trails",
@@ -1032,10 +1056,14 @@ function play({ canvas, gl }: Stage): void {
     },
   );
   for (const parameter of PARAMETERS) {
-    // the scale shows in the tension's colours, which the switch's turn shows
-    if (parameter !== SCALE) controls.showValue(parameter.id, value(parameter));
+    // the scale shows in the tension's colours, which the switch's turn shows,
+    // and the white in the palette's
+    if (parameter !== SCALE && parameter !== WHITE) {
+      controls.showValue(parameter.id, value(parameter));
+    }
   }
   showRibbon();
+  showWhite();
   // the switches as the address asks for them
   setLit(lit);
   setTensionShown(tensionShown);
@@ -1185,10 +1213,7 @@ function play({ canvas, gl }: Stage): void {
     // own light, and those gone dark not at all.
     fan.clear();
     dust.clear();
-    const faint = Math.min(
-      0.5,
-      Math.max(0.05, 2.2 / Math.sqrt(Math.max(1, twins.count))),
-    );
+    const faint = twinShine(twins.count);
     const fades = value(FADE) === 1;
     // as dust, each twin its tip alone, a point brighter than a line, and
     // in its own light while the twins fade (decision 53)
@@ -1289,23 +1314,42 @@ function play({ canvas, gl }: Stage): void {
         trails.end();
       }
     }
+    // dense light keeps its colour, or turns white at once (decision 61)
+    const keeps = keepsColour();
+    trails.white = keeps ? whiteAfter(value(WHITE)) : 0;
     if (wholeFrame) {
       // the frame's lines, then all of it through the curve
       scene.bind(true, region);
-      drawLines(scale, ratio, rodPixels);
+      drawTwins(scale, ratio);
+      drawChain(scale, ratio, rodPixels);
       scene.unbind();
       lines.clear(colors.ground);
       trails.show(scene, mark);
+    } else if (keeps) {
+      // the trails and the twins through the curve, each apart, under the chain
+      const twinsShown = twins.count > 0;
+      if (twinsShown) {
+        twinLight.bind(true, region);
+        drawTwins(scale, ratio);
+        twinLight.unbind();
+      }
+      lines.clear(colors.ground);
+      const light = twinsShown ? twinLight : undefined;
+      // one pass over the frame for both, where the trails are on
+      if (trailStep > 0) trails.show(undefined, mark, light);
+      else if (light !== undefined) trails.showLight(light);
+      drawChain(scale, ratio, rodPixels);
     } else {
       // the trails through the curve, under the chains
       lines.clear(colors.ground);
       if (trailStep > 0) trails.show(undefined, mark);
-      drawLines(scale, ratio, rodPixels);
+      drawTwins(scale, ratio);
+      drawChain(scale, ratio, rodPixels);
     }
   }
 
-  /** The frame's lines: the twins, the chain, the hand's spring and the dots. */
-  function drawLines(scale: number, ratio: number, rodPixels: number): void {
+  /** The twins, as chains or as dust. */
+  function drawTwins(scale: number, ratio: number): void {
     lines.draw(fan, scale, {
       radius: 0.7 * ratio,
       roundEnds: chain.n <= 64,
@@ -1319,6 +1363,10 @@ function play({ canvas, gl }: Stage): void {
       halo: 3 * ratio,
       haloGain: 0.2 + 0.4 * pulse,
     });
+  }
+
+  /** The chain, the hand's spring and the dots. */
+  function drawChain(scale: number, ratio: number, rodPixels: number): void {
     // Past 64 rods the ends are cut flat, so that rods laid end to end make
     // one even line instead of beads where their round ends overlap.
     // the halo widens and brightens as the music lights it (decision 46)

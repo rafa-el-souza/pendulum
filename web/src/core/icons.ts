@@ -44,7 +44,8 @@ export type Icon =
   | "butterfly"
   | "monitor"
   | "sketch"
-  | "sketched";
+  | "sketched"
+  | "whiten";
 
 const SVG = "http://www.w3.org/2000/svg";
 
@@ -254,6 +255,12 @@ const ICONS: Record<
   sketched: {
     fill: "M4 20l1-4.5L15.5 5l3.5 3.5L8.5 19z",
     stroke: "M4 20l1-4.5L15.5 5l3.5 3.5L8.5 19z",
+  },
+  // a drop of colour, half full: how much dense light keeps its colour
+  // before it turns white (decision 61)
+  whiten: {
+    fill: "M12 20.5a6 6 0 0 1-6-6c0-3.5 3-7 6-11z",
+    stroke: "M12 3.5c3 4 6 7.5 6 11a6 6 0 0 1-12 0c0-3.5 3-7 6-11z",
   },
   left: { fill: "", stroke: "M15 5l-7 7 7 7" },
   right: { fill: "", stroke: "M9 5l7 7-7 7" },

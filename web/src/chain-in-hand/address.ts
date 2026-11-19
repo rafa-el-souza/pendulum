@@ -14,7 +14,7 @@ import {
   type Switch,
   type Values,
 } from "../core/parameters.ts";
-import { FADE, MASSES, PARAMETERS } from "./parameters.ts";
+import { FADE, MASSES, PARAMETERS, WHITE } from "./parameters.ts";
 
 // What the first piece's address carries (docs/decisions.md, decision 38).
 // Without a saved moment, the values of its controls and its switches that
@@ -167,6 +167,20 @@ const VERSION_6: CodeTable = {
   switches: ["light", "tension", "sketch"],
 };
 
+/**
+ * The code's seventh version (decision 61), frozen once published: when dense
+ * light turns white, after the palette.
+ */
+const VERSION_7: CodeTable = {
+  version: 7,
+  controls: VERSION_6.controls.flatMap((control) =>
+    control.id === "palette"
+      ? [control, { id: "white", values: [0, 1, 2, 3] }]
+      : [control],
+  ),
+  switches: ["light", "tension", "sketch"],
+};
+
 /** Every version of the code the piece reads, oldest first. */
 export const CODES: readonly CodeTable[] = [
   VERSION_1,
@@ -175,10 +189,11 @@ export const CODES: readonly CodeTable[] = [
   VERSION_4,
   VERSION_5,
   VERSION_6,
+  VERSION_7,
 ];
 
 /** The version the piece writes: the newest. */
-export const CODE: CodeTable = VERSION_6;
+export const CODE: CodeTable = VERSION_7;
 
 /**
  * The trails' step of a strobe and the twins as dust, as the fifth code and
@@ -233,6 +248,10 @@ export function openingOf(search: string, hash: string): Opening {
     // the twins that stay, as they were published, though the piece now opens
     // with the twins that fade (decision 58)
     if (!written.has(FADE.id)) written.set(FADE.id, "0");
+    // and codes written before the light could keep its colour (versions 1
+    // to 6) open with white coming in at once, as they were published, though
+    // the piece now opens keeping it (decision 61)
+    if (!written.has(WHITE.id)) written.set(WHITE.id, "0");
     const values = initialValues(PARAMETERS);
     for (const p of PARAMETERS) {
       const text = written.get(p.id);

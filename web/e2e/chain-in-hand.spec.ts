@@ -458,6 +458,51 @@ test("the palette's keys change the twins' colours, the control paints them, and
   expect(errors).toEqual([]);
 });
 
+test("Shift with the palette's keys steps when dense light turns white, the control paints it in the palette's colours, and the address and the title follow (decision 61)", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("./");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await openControls(page);
+  // beside the palette in the twins' group, five dots of its middle colour
+  await (await reveal(page, "When dense light turns white")).click();
+  const white = page
+    .getByRole("group", { name: "When dense light turns white" })
+    .locator("output");
+  const dots = white.locator("[aria-hidden='true'] > span");
+  const painted = (): Promise<string[]> =>
+    page.evaluate(
+      `[...document.querySelectorAll('[aria-label="When dense light turns white"] output [aria-hidden="true"] > span')].map((dot) => getComputedStyle(dot).color)`,
+    );
+  // the piece opens keeping the colour, later
+  await expect(white).toContainText("later");
+  await expect(dots).toHaveCount(5);
+  const later = await painted();
+  expect(new Set(later).size).toBe(5);
+  await expect(page).not.toHaveURL(/white=/);
+
+  // at once, the densest dots white, as the piece was before
+  await page.keyboard.press("Shift+Digit5");
+  await page.keyboard.press("Shift+Digit5");
+  await expect(white).toContainText("at once");
+  await expect(page).toHaveURL(/[?&]white=0(&|$)/);
+  await expect(page).toHaveTitle("Pendulum · colours that whiten at once");
+  expect((await painted()).at(-1)).toBe("rgb(255, 255, 255)");
+
+  // never, and in another palette's colours
+  for (let i = 0; i < 3; i++) await page.keyboard.press("Shift+Digit6");
+  await expect(white).toContainText("never");
+  await expect(page).toHaveURL(/[?&]white=3(&|$)/);
+  const never = await painted();
+  expect(never.at(-1)).not.toBe("rgb(255, 255, 255)");
+  await page.keyboard.press("6");
+  await expect(page).toHaveURL(/[?&]palette=1&white=3(&|$)/);
+  expect(await painted()).not.toEqual(never);
+  await frames(page, 10);
+  expect(errors).toEqual([]);
+});
+
 test("an address carries the palette", async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto("./?palette=4");

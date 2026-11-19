@@ -74,6 +74,9 @@ describe("the title of the first piece's page (decision 38)", () => {
     ["ribbon", 1, "trails from every mass"],
     ["palette", 1, "fire palette"],
     ["palette", 9, "reef palette"],
+    ["white", 0, "colours that whiten at once"],
+    ["white", 1, "colours that whiten late"],
+    ["white", 3, "colours that never whiten"],
     ["scale", 1, "incandescent scale"],
     ["ground", 2, "navy ground"],
   ])('says %s = %s as "%s"', (id, value, words) => {

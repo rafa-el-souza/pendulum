@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { FADE_STEP, FadeBatch, fadeAfter } from "./trails.ts";
+import { FADE_STEP, FadeBatch, fadeAfter, lightCurve } from "./trails.ts";
 
 // Trails fade in simulated time, so that a paused piece keeps them
 // (docs/decisions.md, decision 21), and a fade too small for the light's
@@ -92,5 +92,50 @@ describe("a batch of fades", () => {
     batch.take(1 - FADE_STEP / 2);
     batch.reset();
     expect(batch.pending).toBe(1);
+  });
+});
+
+describe("the curve light goes through to the canvas (decision 61)", () => {
+  it("fills each channel on its own when white comes in at once, as the trails always had", () => {
+    const shown = lightCurve([0.5, 2, 8], 0);
+    expect(shown[0]).toBeCloseTo(1 - Math.exp(-0.5), 12);
+    expect(shown[1]).toBeCloseTo(1 - Math.exp(-2), 12);
+    expect(shown[2]).toBeCloseTo(1 - Math.exp(-8), 12);
+  });
+
+  it("otherwise takes the brightness from the brightest channel and keeps the colour, so that faint light looks as before", () => {
+    const pink: [number, number, number] = [1, 0.25, 0.5];
+    for (const light of [0.01, 0.5, 4, 40]) {
+      const sum = pink.map((c) => c * light) as [number, number, number];
+      const shown = lightCurve(sum, Number.POSITIVE_INFINITY);
+      expect(Math.max(...shown)).toBeCloseTo(1 - Math.exp(-light), 12);
+      // the colour kept: each channel in the same share of the brightest
+      expect(shown[1] / shown[0]).toBeCloseTo(0.25, 12);
+      expect(shown[2] / shown[0]).toBeCloseTo(0.5, 12);
+    }
+    // faint, it is the light added, as the twins drawn straight on the canvas
+    const faint = lightCurve([0.001, 0.00025, 0.0005], 150);
+    expect(faint[0]).toBeCloseTo(0.001, 5);
+    expect(faint[1]).toBeCloseTo(0.00025, 5);
+  });
+
+  it("lets white come in over the light given, sooner the less it is, and never without end", () => {
+    const sum: [number, number, number] = [60, 15, 30];
+    const whiteness = (white: number): number =>
+      Math.min(...lightCurve(sum, white)) / Math.max(...lightCurve(sum, white));
+    expect(whiteness(Number.POSITIVE_INFINITY)).toBeCloseTo(0.25, 12);
+    expect(whiteness(150)).toBeGreaterThan(0.25);
+    expect(whiteness(40)).toBeGreaterThan(whiteness(150));
+    expect(whiteness(0)).toBeGreaterThan(whiteness(40));
+    // past many times the light given, all but white
+    expect(Math.min(...lightCurve([6000, 1500, 3000], 40))).toBeGreaterThan(
+      0.99,
+    );
+  });
+
+  it("leaves the dark dark", () => {
+    for (const white of [0, 40, 150, Number.POSITIVE_INFINITY]) {
+      expect(lightCurve([0, 0, 0], white)).toEqual([0, 0, 0]);
+    }
   });
 });
