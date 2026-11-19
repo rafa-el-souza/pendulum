@@ -15,7 +15,7 @@
 // chain, and a touch on the stage puts them away. Keyboard focus and a mouse
 // resting on them keep them in sight.
 
-import { cssColor } from "./color.ts";
+import { cssColor, type Rgb } from "./color.ts";
 import { cls } from "./css.ts";
 import styles from "./controls.module.css";
 import { drawIcon, swingingPart, type Icon } from "./icons.ts";
@@ -59,6 +59,8 @@ export interface Showing {
   reached?: number;
   /** Whether the value has nothing to do now, as a mode's amplitude while the chain starts raised: shown faint, and still there to choose. */
   idle?: boolean;
+  /** Colours to paint as dots in place of the parameter's own, for a value whose colours depend on another, as the white's on the palette. */
+  swatches?: readonly Rgb[];
 }
 
 export interface Controls {
@@ -768,12 +770,14 @@ export function mountControls(
       wake();
     },
     showValue(id, value, showing = {}) {
-      const { reached, idle = false } = showing;
+      const { reached, idle = false, swatches: painting } = showing;
       const entry = entries.get(id);
       if (entry === undefined) throw new Error(`no control shows ${id}`);
       const at = reached ?? value;
       const text = entry.parameter.show(at);
-      const swatches = entry.parameter.swatches?.(at).map((c) => cssColor(c));
+      const swatches = (painting ?? entry.parameter.swatches?.(at))?.map((c) =>
+        cssColor(c),
+      );
       const before = entry.shown.textContent;
       if (swatches === undefined || swatches.length === 0) {
         // in words, where a value has no colours to paint, as colours off
