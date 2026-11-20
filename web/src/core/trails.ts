@@ -19,12 +19,14 @@
 // The passes over the whole of a target, the fade, the clear and the show,
 // can be cut to a region the light is known to stay in (decision 62): what
 // they would do outside it changes nothing that is shown.
-// When the canvas changes size, the light the targets keep is carried to the
-// new view instead of cleared (decision 66): each new pixel reads the old
-// target where the old view saw the same point of the world, with the light
-// a line drawn there anew would have. Over a run of changes, as a window's
-// edge is dragged, the light is held as it was and read from there at every
-// change, so that it is resampled once however long the run.
+// When the canvas changes size, or the camera its view (decision 67), the
+// light the targets keep is carried to the new view instead of cleared
+// (decision 66): each new pixel reads the old target where the old view saw
+// the same point of the world, with the light a line drawn there anew would
+// have. Over a run of changes, as a window's edge is dragged, the light is
+// held as it was and read from there at every change, so that it is
+// resampled once however long the run; a gesture holds it anew as it comes
+// twice as near, or sees past what is held (ViewRuns).
 
 import type { Rgb } from "./color.ts";
 import { ViewRuns, carryMap, type Box, type View } from "./view.ts";
@@ -598,32 +600,35 @@ export class Trails {
   }
 
   /**
-   * Takes the view of this frame, the drawing buffer's, before anything is
-   * drawn into the trails or shown: when it has changed, the trails and the
-   * mark are carried to it (decision 66).
+   * Takes the view of this frame, the drawing buffer's or the camera's,
+   * before anything is drawn into the trails or shown: when it has changed,
+   * the trails and the mark are carried to it (decisions 66 and 67), and it
+   * says so.
    */
-  see(view: View): void {
+  see(view: View): boolean {
     const step = this.#runs.see(view);
     this.#view = view;
-    if (step === null) return;
+    if (step === null) return false;
     if (step.act === "let go") {
       this.#held?.dispose();
       this.#heldMark?.dispose();
       this.#held = null;
       this.#heldMark = null;
       this.#heldView = null;
-      return;
+      return false;
     }
     if (step.act === "hold") {
       // the targets as they are become what is held, and new ones take the
-      // new view
+      // new view; held anew within a run, the old held ones take its place
       if (this.#target.made) {
+        const before = this.#held;
         this.#held = this.#target;
-        this.#target = this.#fresh(this.#held);
+        this.#target = before ?? this.#fresh(this.#held);
       }
       if (this.#mark.made) {
+        const before = this.#heldMark;
         this.#heldMark = this.#mark;
-        this.#mark = this.#fresh(this.#heldMark);
+        this.#mark = before ?? this.#fresh(this.#heldMark);
       }
       this.#heldView = step.from;
     }
@@ -633,6 +638,7 @@ export class Trails {
     if (this.#heldMark !== null) {
       this.#carry(this.#heldMark, step.from, this.#mark, view);
     }
+    return true;
   }
 
   /** A new target that holds what `like` holds, half floats or eight bits. */
