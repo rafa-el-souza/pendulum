@@ -294,10 +294,10 @@ export const GROWTH_LIMIT = 1.25;
 
 /**
  * Half-lives after which light drawn at a scale no longer counts for
- * GROWTH_LIMIT (decision 69): a 32nd of it is left, too faint to read as a
- * band. Trails that stay, and a mark, never fade, and always count.
+ * GROWTH_LIMIT (decision 69): an eighth of it is left. Trails that stay, and
+ * a mark, never fade, and always count.
  */
-export const FORGET_HALF_LIVES = 5;
+export const FORGET_HALF_LIVES = 3;
 
 /**
  * How low k falls, the fade kept as a number by trails kept as curves
