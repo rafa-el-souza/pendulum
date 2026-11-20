@@ -375,6 +375,14 @@ describe("a gesture's changes of view (decision 67)", () => {
     expect(runs.see(at(1.7))).toEqual({ act: "clear" });
   });
 
+  it("counts a view a quarter nearer as within the limit, however its scale rounds", () => {
+    for (let k = 0; k < 24; k++) {
+      const runs = new ViewRuns(2, 1.25);
+      runs.see(at(1.25 ** k));
+      expect(runs.see(at(1.25 ** (k + 1)))?.act).toBe("hold");
+    }
+  });
+
   it("carries a camera that goes farther and comes back, and clears once it comes nearer than the light drawn farther", () => {
     const runs = new ViewRuns(2, 1.25);
     runs.see(at(8));

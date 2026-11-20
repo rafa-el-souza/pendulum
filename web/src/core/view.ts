@@ -282,16 +282,22 @@ export function sameView(a: View, b: View): boolean {
   );
 }
 
+/**
+ * A rounding's slack: a view within a few parts in a billion of a bound is
+ * within it, so that Z pressed again and again, each time a quarter nearer,
+ * stays within a quarter.
+ */
+export const SLACK = 1 + 1e-9;
+
 /** Whether every point `inner` sees, `outer` sees too. */
 function covers(outer: View, inner: View): boolean {
-  const slack = 1 + 1e-9;
   const ox = outer.width / 2 / outer.scale;
   const oy = outer.height / 2 / outer.scale;
   const ix = inner.width / 2 / inner.scale;
   const iy = inner.height / 2 / inner.scale;
   return (
-    Math.abs(inner.cx - outer.cx) + ix <= ox * slack &&
-    Math.abs(inner.cy - outer.cy) + iy <= oy * slack
+    Math.abs(inner.cx - outer.cx) + ix <= ox * SLACK &&
+    Math.abs(inner.cy - outer.cy) + iy <= oy * SLACK
   );
 }
 
@@ -352,7 +358,7 @@ export class ViewRuns {
     const shown = this.#least;
     const held = this.#held;
     const read = held === null ? shown : this.#heldLeast;
-    if (view.scale / read > this.#limit) {
+    if (view.scale / read > this.#limit * SLACK) {
       this.#held = null;
       this.#least = view.scale;
       return { act: "clear" };
