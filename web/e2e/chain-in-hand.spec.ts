@@ -296,6 +296,64 @@ test("the tips leave trails, kept in half floats or eight bits as the engine all
   expect(errors).toEqual([]);
 });
 
+/**
+ * The light the page shows round the middle, where the chain and its trails
+ * are, away from the controls' button in its corner: the sum over the
+ * pixels of a capture of how far each is above the ground in the corner.
+ */
+async function lightShown(page: Page): Promise<number> {
+  const png = (await page.screenshot()).toString("base64");
+  return page.evaluate<number>(`(async () => {
+    const bytes = Uint8Array.from(atob("${png}"), (c) => c.charCodeAt(0));
+    const image = await createImageBitmap(new Blob([bytes], { type: "image/png" }));
+    const canvas = document.createElement("canvas");
+    canvas.width = image.width;
+    canvas.height = image.height;
+    const context = canvas.getContext("2d");
+    context.drawImage(image, 0, 0);
+    const { data, width, height } = context.getImageData(0, 0, image.width, image.height);
+    const ground = data[0] + data[1] + data[2];
+    let sum = 0;
+    for (let y = Math.floor(height * 0.1); y < height * 0.9; y++) {
+      for (let x = Math.floor(width * 0.2); x < width * 0.8; x++) {
+        const i = 4 * (y * width + x);
+        sum += Math.max(0, data[i] + data[i + 1] + data[i + 2] - ground);
+      }
+    }
+    return sum;
+  })()`);
+}
+
+test("the trails stay where the chain drew them when the canvas changes size, once and over a run of changes (decision 66)", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.setViewportSize({ width: 640, height: 400 });
+  // trails that stay, of a chain swinging fast, without twins
+  await page.goto("./?twins=0&time=4&trail=600");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await frames(page, 40);
+  await page.keyboard.press(" ");
+  await frames(page, 3);
+  const before = await lightShown(page);
+  // a smaller canvas, at a smaller scale: the trails as they were, not gone
+  await page.setViewportSize({ width: 560, height: 360 });
+  await frames(page, 3);
+  const smaller = await lightShown(page);
+  expect(smaller).toBeGreaterThan(0.5 * before);
+  // a window's edge dragged out and back, a frame a step
+  for (const width of [580, 600, 620, 640, 620, 600]) {
+    await page.setViewportSize({ width, height: 330 + width / 10 });
+    await frames(page, 1);
+  }
+  await page.setViewportSize({ width: 640, height: 400 });
+  await frames(page, 3);
+  const back = await lightShown(page);
+  expect(back).toBeGreaterThan(0.5 * before);
+  expect(back).toBeLessThan(1.5 * before);
+  expect(errors).toEqual([]);
+});
+
 test("the twins' and the trails' keys change their number, how long the trails last and their style, and the address follows", async ({
   page,
 }) => {

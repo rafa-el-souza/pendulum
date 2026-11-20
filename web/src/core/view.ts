@@ -1,5 +1,5 @@
 // How the world sits on a canvas. The world is in metres, with the pivot at
-// the origin and y up; the canvas in CSS pixels, from its top left corner, y
+// the origin and y up; the canvas in pixels, from its top left corner, y
 // down. The pivot sits at the canvas's centre.
 
 /**
@@ -15,7 +15,7 @@ export function fitScale(
   return Math.min(0.46 * cssWidth, 0.42 * cssHeight) / reach;
 }
 
-/** The point in metres under a point of the canvas, in CSS pixels. */
+/** The point in metres under a point of the canvas, in pixels of the same kind as its size and scale. */
 export function toWorld(
   cssX: number,
   cssY: number,
@@ -41,4 +41,90 @@ export function reachBox(width: number, height: number, reach: number): Box {
   const x1 = Math.min(width, Math.ceil(width / 2 + reach));
   const y1 = Math.min(height, Math.ceil(height / 2 + reach));
   return [x0, y0, x1 - x0, y1 - y0];
+}
+
+/**
+ * What a target of light sees (decision 66): its size in pixels and its
+ * pixels per metre, with the pivot at its centre.
+ */
+export interface View {
+  readonly width: number;
+  readonly height: number;
+  readonly scale: number;
+}
+
+/**
+ * The view of a canvas's drawing buffer, its scale fitting `reach` metres
+ * into the buffer's own pixels (decision 66). In the frame where the window
+ * has changed and the buffer has not yet, a scale taken from the canvas's
+ * box and its buffer together mixes two sizes.
+ */
+export function bufferView(width: number, height: number, reach: number): View {
+  return { width, height, scale: fitScale(width, height, reach) };
+}
+
+/**
+ * Where each pixel of the view `to` reads a target seen as `from`, so that
+ * both see the same point of the world: the target's texture coordinates
+ * are the pixel, at its centre, times `[kx, ky]` plus `[mx, my]`.
+ */
+export function carryMap(
+  from: View,
+  to: View,
+): [kx: number, ky: number, mx: number, my: number] {
+  const ratio = from.scale / to.scale;
+  return [
+    ratio / from.width,
+    ratio / from.height,
+    (from.width - ratio * to.width) / 2 / from.width,
+    (from.height - ratio * to.height) / 2 / from.height,
+  ];
+}
+
+/** What a change of view asks of light kept in pixels: to hold it and carry it, to carry it from what is held, or to let what is held go. */
+export type ViewStep =
+  | { readonly act: "hold" | "carry"; readonly from: View }
+  | { readonly act: "let go" };
+
+function sameView(a: View, b: View): boolean {
+  return a.width === b.width && a.height === b.height && a.scale === b.scale;
+}
+
+/**
+ * A canvas's views frame by frame, as runs of changes (decision 66). At a
+ * run's first change, light kept in pixels is held as it was, in the view
+ * it was in; every change of the run is carried from what is held, so that
+ * the light is read once however many changes the run has, instead of once
+ * a change, each blurring it a little more; the run ends, and what is held
+ * can go, once the view has stayed for `settle` frames.
+ */
+export class ViewRuns {
+  readonly #settle: number;
+  #last: View | null = null;
+  #held: View | null = null;
+  #still = 0;
+
+  constructor(settle: number) {
+    this.#settle = settle;
+  }
+
+  /** Takes the frame's view, and says what its light asks for, if anything. */
+  see(view: View): ViewStep | null {
+    const last = this.#last;
+    this.#last = view;
+    if (last === null) return null;
+    if (sameView(last, view)) {
+      if (this.#held === null) return null;
+      this.#still++;
+      if (this.#still < this.#settle) return null;
+      this.#held = null;
+      return { act: "let go" };
+    }
+    this.#still = 0;
+    if (this.#held === null) {
+      this.#held = last;
+      return { act: "hold", from: last };
+    }
+    return { act: "carry", from: this.#held };
+  }
 }
