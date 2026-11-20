@@ -2501,6 +2501,32 @@ and clears them with a mark. At the opening, side by side, Z pressed every
 18 s carries the trails at every press, and every 14 s too; before, every
 other press cleared them.
 
+## 70. The curves can keep more, and a snapshot keeps all its light
+
+*2026-11-20.* With `?trails=sharp`, the address can ask the curves to keep
+up to twenty times as many spans before a snapshot (`?keep=10`), with as
+many times the room on the graphics card, and keeps that beside a saved
+moment; with `?fps=1`, the meter also says the seconds of motion the curves
+keep. While the image lacks light from before the window, left out because
+the view is more than a quarter nearer than the snapshot or its coarse image
+saw (decision 69), the next snapshot waits for the view to read that light
+again; if the window fills first, the snapshot is made again with that
+light, read stretched, and the window drawn over it.
+
+**Why.** Where 512 masses draw, the curves kept under two seconds of motion,
+so most of the drawing came from the snapshot and went at a quarter nearer;
+how much more a device can keep is to be measured on it. A snapshot copied
+while that light was left out lost it for good: once it was the older one,
+its region went dark in the whole view.
+
+**Evidence.** Unit tests of the address, of when a snapshot is taken and how
+it waits, of the window's free pages and when it is full, and of the meter's
+line. A browser test, in the three engines, of the meter's line and of the
+address kept beside a saved moment. Side by side on the page's clock, 512
+masses drawing and the wheel in and out: the dark rectangle where a snapshot
+had been taken at six times nearer is gone. With `?keep=10`, the curves kept
+11 s of motion after 14 s, the window at 275 MB, against 1.4 s and 40 MB.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
