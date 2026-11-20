@@ -2437,6 +2437,39 @@ four times and 22% at sixteen. Without a graphics card, at 1280 by 720
 view against 11.1 before, 10.9 held at twenty times, and 7.2 during a
 gesture of the wheel, which reads the trails anew every frame.
 
+## 68. Trails kept as curves, behind the address
+
+*2026-11-20.* With `?trails=sharp` in the address, the recent trails are
+kept as curves and drawn anew in every view, as fine as when they were
+drawn; without it, the piece is as before (decisions 66 and 67). Each trail's
+samples, with their velocities, are joined into spans of cubic curves that
+pass within 1.5 µm of every sample they skip, and each span is drawn as a
+band, cut into as many straight pieces as its bend in the view asks for. The
+image of the trails takes each frame's new spans and, every three half-lives
+of fade or 200 000 spans, is copied with the view it saw. When the view
+changes, it is remade from the older copy, read from its view and faded
+since, from a coarse image of the whole disc where that copy did not see,
+and from the spans since. The fade is kept as a number, and each span keeps
+the fade at its ends rather than the time, so that its light holds as the
+half-life changes. A strobe's trails, a mark, and browsers without half
+floats go on as the image carried. With `?fps=1`, a meter in a corner shows
+the frames a second, the last remake's cost, which of the two draws, and the
+memory the curves take.
+
+**Why.** Carried nearer, an image's lines come out wider, and past a quarter
+nearer they are cleared; drawn anew, the recent trails keep their width up
+to sixty-four times nearer. The address keeps the curves a trial until their
+cost is known on devices with a graphics card, which the meter measures.
+
+**Evidence.** Unit tests of the curves and their merger, the window of
+spans, the clock, the copies and the meter, and of the twins' tip velocities
+against their motion. Browser tests, in the three engines: the trails stay
+through a view 1.56 times nearer and a canvas twice as large, and come back
+as they were; a strobe turns the meter to the image carried. After several
+copies, with twins and a fade, a remade image holds the light of the image
+kept frame by frame to 0.01%. Without a graphics card, at 1280 by 720, the
+piece without the address draws as many frames a second as before.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
