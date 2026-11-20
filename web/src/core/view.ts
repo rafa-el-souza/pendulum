@@ -81,10 +81,11 @@ export function carryMap(
   ];
 }
 
-/** What a change of view asks of light kept in pixels: to hold it and carry it, to carry it from what is held, or to let what is held go. */
+/** What a change of view asks of light kept in pixels: to hold it and carry it, to carry it from what is held, to let what is held go, or to clear it. */
 export type ViewStep =
   | { readonly act: "hold" | "carry"; readonly from: View }
-  | { readonly act: "let go" };
+  | { readonly act: "let go" }
+  | { readonly act: "clear" };
 
 function sameView(a: View, b: View): boolean {
   return a.width === b.width && a.height === b.height && a.scale === b.scale;
@@ -96,23 +97,39 @@ function sameView(a: View, b: View): boolean {
  * it was in; every change of the run is carried from what is held, so that
  * the light is read once however many changes the run has, instead of once
  * a change, each blurring it a little more; the run ends, and what is held
- * can go, once the view has stayed for `settle` frames.
+ * can go, once the view has stayed for `settle` frames. A view grown more
+ * than `limit` times the least scale the light it would read was drawn at
+ * asks for the light to be cleared instead: lines drawn a pixel or two wide
+ * come out wider in proportion, and past that they read as wide, soft bands
+ * beside the new ones. The run ends there, and the next change holds anew.
+ * The least scale goes with the light: what is held keeps the least of the
+ * light it held; carried, the light is what was held and what is drawn on
+ * it in the new view; so that runs each growing a little add up, and a run
+ * that shrinks and grows back reads only what was held at the larger view.
  */
 export class ViewRuns {
   readonly #settle: number;
+  readonly #limit: number;
   #last: View | null = null;
   #held: View | null = null;
   #still = 0;
+  // the least scale the light shown, and the light held, were drawn at
+  #least = Number.POSITIVE_INFINITY;
+  #heldLeast = Number.POSITIVE_INFINITY;
 
-  constructor(settle: number) {
+  constructor(settle: number, limit = Number.POSITIVE_INFINITY) {
     this.#settle = settle;
+    this.#limit = limit;
   }
 
   /** Takes the frame's view, and says what its light asks for, if anything. */
   see(view: View): ViewStep | null {
     const last = this.#last;
     this.#last = view;
-    if (last === null) return null;
+    if (last === null) {
+      this.#least = view.scale;
+      return null;
+    }
     if (sameView(last, view)) {
       if (this.#held === null) return null;
       this.#still++;
@@ -121,8 +138,16 @@ export class ViewRuns {
       return { act: "let go" };
     }
     this.#still = 0;
+    const read = this.#held === null ? this.#least : this.#heldLeast;
+    if (view.scale / read > this.#limit) {
+      this.#held = null;
+      this.#least = view.scale;
+      return { act: "clear" };
+    }
+    this.#least = Math.min(read, view.scale);
     if (this.#held === null) {
       this.#held = last;
+      this.#heldLeast = read;
       return { act: "hold", from: last };
     }
     return { act: "carry", from: this.#held };

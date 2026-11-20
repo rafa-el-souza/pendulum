@@ -147,3 +147,85 @@ describe("changes of view, as runs (decision 66)", () => {
     expect(runs.see(c)).toEqual({ act: "let go" });
   });
 });
+
+describe("a canvas that grows too much, as runs (decision 66)", () => {
+  const a = bufferView(1280, 720, 1);
+  // the same reach at 1.2, 1.3 and 0.5 times the scale of a
+  const at = (k: number) => ({
+    width: 1280 * k,
+    height: 720 * k,
+    scale: a.scale * k,
+  });
+
+  it("asks for the light to be cleared, not held, when a change grows the view more than the limit", () => {
+    const runs = new ViewRuns(3, 1.25);
+    runs.see(a);
+    expect(runs.see(at(1.3))).toEqual({ act: "clear" });
+  });
+
+  it("holds and carries a change that grows the view no more than the limit, and one that shrinks it however much", () => {
+    const runs = new ViewRuns(3, 1.25);
+    runs.see(a);
+    expect(runs.see(at(1.2))).toEqual({ act: "hold", from: a });
+    expect(runs.see(at(0.5))).toEqual({ act: "carry", from: a });
+    expect(runs.see(at(1.25))).toEqual({ act: "carry", from: a });
+  });
+
+  it("measures the growth from the light held, so that steps each small add up over a run", () => {
+    const runs = new ViewRuns(3, 1.25);
+    runs.see(a);
+    expect(runs.see(at(1.1))).toEqual({ act: "hold", from: a });
+    expect(runs.see(at(1.2))).toEqual({ act: "carry", from: a });
+    expect(runs.see(at(1.3))).toEqual({ act: "clear" });
+  });
+
+  it("after clearing, holds anew at the next change, from the view before it", () => {
+    const runs = new ViewRuns(3, 1.25);
+    runs.see(a);
+    runs.see(at(1.3));
+    expect(runs.see(at(1.4))).toEqual({ act: "hold", from: at(1.3) });
+  });
+
+  it("measures the growth from the least scale the light was drawn at, so that two runs each growing less than the limit clear when together they grow more", () => {
+    const runs = new ViewRuns(2, 1.25);
+    runs.see(a);
+    expect(runs.see(at(1.2))).toEqual({ act: "hold", from: a });
+    runs.see(at(1.2));
+    expect(runs.see(at(1.2))).toEqual({ act: "let go" });
+    // a second run, 1.2 times again: 1.44 times the light drawn in a
+    expect(runs.see(at(1.44))).toEqual({ act: "clear" });
+  });
+
+  it("carries a run that shrinks and grows back, as the light it reads was held at the larger view", () => {
+    const runs = new ViewRuns(2, 1.25);
+    runs.see(a);
+    expect(runs.see(at(0.5))).toEqual({ act: "hold", from: a });
+    expect(runs.see(at(1.2))).toEqual({ act: "carry", from: a });
+  });
+
+  it("clears a canvas grown back past the limit once a run has settled smaller, as the light drawn there would be stretched", () => {
+    const runs = new ViewRuns(2, 1.25);
+    runs.see(a);
+    runs.see(at(0.5));
+    runs.see(at(0.5));
+    expect(runs.see(at(0.5))).toEqual({ act: "let go" });
+    expect(runs.see(a)).toEqual({ act: "clear" });
+  });
+
+  it("carries a phone turned and turned back, each way within the limit", () => {
+    const portrait = bufferView(1170, 2532, 1);
+    const landscape = bufferView(2532, 1170, 1);
+    const runs = new ViewRuns(2, 1.25);
+    runs.see(portrait);
+    expect(runs.see(landscape)).toEqual({ act: "hold", from: portrait });
+    runs.see(landscape);
+    expect(runs.see(landscape)).toEqual({ act: "let go" });
+    expect(runs.see(portrait)).toEqual({ act: "hold", from: landscape });
+  });
+
+  it("without a limit carries any growth, as before", () => {
+    const runs = new ViewRuns(3);
+    runs.see(a);
+    expect(runs.see(at(2.7))).toEqual({ act: "hold", from: a });
+  });
+});
