@@ -14,6 +14,7 @@ layout(location = 0) in vec2 corner;
 layout(location = 1) in vec4 seg;
 layout(location = 2) in vec4 tint;
 uniform vec2 uHalfView;
+uniform vec2 uCenter;
 uniform float uScale;
 uniform float uRadius;
 uniform float uCaps;
@@ -23,8 +24,10 @@ out vec2 vA;
 out vec2 vB;
 out vec4 vTint;
 void main() {
-  vec2 a = seg.xy * uScale;
-  vec2 b = seg.zw * uScale;
+  // the camera's point at the centre (decision 67), subtracted before the
+  // scale so that a near view keeps the precision of metres
+  vec2 a = (seg.xy - uCenter) * uScale;
+  vec2 b = (seg.zw - uCenter) * uScale;
   vec2 d = b - a;
   float len = length(d);
   vec2 t = len > 1e-5 ? d / len : vec2(1.0, 0.0);
@@ -153,7 +156,7 @@ function compile(
   return shader;
 }
 
-/** Draws batches of segments, with the pivot at the centre of what is drawn into. */
+/** Draws batches of segments, with the point the view looks at at the centre of what is drawn into. */
 export class Lines {
   readonly #gl: WebGL2RenderingContext;
   readonly #program: WebGLProgram;
@@ -174,9 +177,15 @@ export class Lines {
     }
     this.#program = program;
     this.#at = Object.fromEntries(
-      ["uHalfView", "uScale", "uRadius", "uCaps", "uHalo", "uHaloGain"].map(
-        (name) => [name, gl.getUniformLocation(program, name)],
-      ),
+      [
+        "uHalfView",
+        "uCenter",
+        "uScale",
+        "uRadius",
+        "uCaps",
+        "uHalo",
+        "uHaloGain",
+      ].map((name) => [name, gl.getUniformLocation(program, name)]),
     );
 
     const quad = gl.createBuffer();
@@ -220,6 +229,7 @@ export class Lines {
     const at = this.#at;
     gl.useProgram(this.#program);
     gl.uniform2f(at.uHalfView ?? null, view.width / 2, view.height / 2);
+    gl.uniform2f(at.uCenter ?? null, view.cx, view.cy);
     gl.uniform1f(at.uScale ?? null, view.scale);
     gl.uniform1f(at.uRadius ?? null, style.radius);
     gl.uniform1f(at.uCaps ?? null, style.roundEnds ? 1 : 0);

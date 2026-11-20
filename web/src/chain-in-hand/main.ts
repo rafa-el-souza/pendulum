@@ -1173,9 +1173,7 @@ function play({ canvas, gl }: Stage): void {
       box.height > 0
         ? ((event.clientY - box.top) * view.height) / box.height
         : 0,
-      view.width,
-      view.height,
-      view.scale,
+      view,
     );
   }
 
@@ -1302,11 +1300,7 @@ function play({ canvas, gl }: Stage): void {
     const region =
       wholeFrame && hand !== null
         ? null
-        : reachBox(
-            gl.drawingBufferWidth,
-            gl.drawingBufferHeight,
-            chain.totalLength * scale + GLOW_REACH * ratio,
-          );
+        : reachBox(view, chain.totalLength * scale + GLOW_REACH * ratio);
     trails.region = region;
 
     // The twins, faint, so that many together read as one bright chain and
