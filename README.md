@@ -114,10 +114,10 @@ hanging rope it becomes as n grows.
   for sharing, or as a QR code to open it on a phone. And it can listen to
   music, through the microphone, from a file, from the sound of a browser
   tab or of the whole screen in desktop Chrome and Edge, or from a beat it
-  makes itself, with a card that shows what it hears; the sound stays on
-  the device. The music lights the chain's halo on the kicks, gives its
-  trails strength with the loudness, and has twins born again from it on
-  every attack. The card offers candidates beside that, each changing one
+  makes itself, chosen in the music's own group of the row, which shows
+  what it hears; the sound stays on the device. The music lights the
+  chain's halo on the kicks, gives its trails strength with the loudness,
+  and has twins born again from it on every attack. Its group offers candidates beside that, each changing one
   thing of it. Two move the chain: the kicks take its pivot aside and back,
   as a speaker's cone, or a hand of the music swings its tip to the other
   side on every kick. The others light it differently: a stronger halo,

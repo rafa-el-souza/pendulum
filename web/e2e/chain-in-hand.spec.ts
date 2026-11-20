@@ -2099,7 +2099,7 @@ test.describe("on a narrow screen", () => {
   });
 });
 
-/** A second of a tone at 440 Hz, as a WAV file of 16-bit samples at 8 kHz, for the music card to play. */
+/** A second of a tone at 440 Hz, as a WAV file of 16-bit samples at 8 kHz, for the music's group to play. */
 function toneFile(): Buffer {
   const rate = 8000;
   const samples = rate;

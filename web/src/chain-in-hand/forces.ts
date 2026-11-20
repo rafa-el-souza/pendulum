@@ -5,7 +5,7 @@ import type { Drive, Kick, MusicHand, Point } from "../physics/drive.ts";
 import { handDamping } from "./parameters.ts";
 
 // The music's forces on the first piece (docs/decisions.md, decision 75),
-// each the force of a mode of the music card, beside its light: the speaker,
+// each the force of a mode of the music's group, beside its light: the speaker,
 // whose kicks take the pivot aside and back, and the dancing hand, which
 // holds the tip and swings it to the other side on every kick. They keep the
 // music's pace, as its light does: a kick lasts as long on the clock at any
@@ -61,7 +61,7 @@ export interface ForceFrame {
   readonly heard: Signals | null;
   /** The force of the music's mode, if it has one. */
   readonly force: Force | undefined;
-  /** The card's strength, its step from 1. */
+  /** The music's strength, its step from 1. */
   readonly strength: number;
   /** The real time since the frame before, in s. */
   readonly real: number;

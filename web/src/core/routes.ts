@@ -4,11 +4,11 @@ import type { Signals } from "../audio/signals.ts";
 // decisions 46 and 49). A route takes one signal to one target, at a depth,
 // and follows it with an attack and a release, so that a beat's spike
 // becomes a pulse that fades. A mode is a list of routes, as data, and may
-// colour the piece with the note the bass holds; the strength the card sets
-// multiplies them all. What the routes give is a record a frame of what the
-// music adds to the light; it never writes the values of the controls. A
-// mode may also name a force, which the piece puts into its physics
-// (decision 75).
+// colour the piece with the note the bass holds; the strength the music's
+// group sets multiplies them all. What the routes give is a record a frame
+// of what the music adds to the light; it never writes the values of the
+// controls. A mode may also name a force, which the piece puts into its
+// physics (decision 75).
 
 /** The signals a route can take: each from 0 to 1. */
 export type Signal =
@@ -81,7 +81,7 @@ export interface Force {
 export interface Mode {
   /** Its key in the address: lowercase letters. */
   readonly id: string;
-  /** Its name on the card. */
+  /** Its name in the music's group. */
   readonly name: string;
   readonly routes: readonly Route[];
   readonly tint?: Tint;

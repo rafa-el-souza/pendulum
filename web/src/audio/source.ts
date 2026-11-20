@@ -334,7 +334,7 @@ export class Listening {
    * a picture with it, and refuse sound alone; the page asks for the picture
    * at a frame a second, never shows it, and keeps it while it listens,
    * since a share whose picture stops may stop its sound. The visitor may
-   * leave the sound out of the share, and the card then says how to put it
+   * leave the sound out of the share, and the music's panel then says how to put it
    * in; stopping the share from the browser's own bar stops the listening.
    */
   private async tab(

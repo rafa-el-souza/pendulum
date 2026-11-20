@@ -1290,7 +1290,7 @@ function play({ canvas, gl }: Stage): void {
   // The row of controls (decisions 31 and 54): the pause and the light,
   // which act on the whole piece, then the groups, each opening its own row:
   // time and where the chain starts, the chain, the twins, the trails, the
-  // music's card, and the screen.
+  // music, and the screen.
   const controls = mountControls(
     [
       [
@@ -2579,7 +2579,7 @@ function play({ canvas, gl }: Stage): void {
       const holder = touches.holder;
       if (holder !== null) grab(holder.id, holder.spot, now);
     }
-    // what the music says this frame, which the card's meter shows, paused
+    // what the music says this frame, which the music's panel shows, paused
     // or not, and what it adds to the light, in real time (decision 46)
     const heard = music.hear();
     look = router.look(heard, real, tune.strength);

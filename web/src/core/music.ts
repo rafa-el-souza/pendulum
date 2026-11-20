@@ -39,7 +39,7 @@ function onIos(): boolean {
   );
 }
 
-/** What the card says of how a start came out. */
+/** What the panel says of how a start came out. */
 export function said(outcome: Outcome): string {
   switch (outcome.kind) {
     case "listening":
