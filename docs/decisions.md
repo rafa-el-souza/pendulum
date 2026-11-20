@@ -2550,6 +2550,23 @@ layers. Without a graphics card, at 1280 by 720, medians of six rounds in
 each order: 13.4 and 12.4 frames a second at the opening against 12.9 and
 12.7 before, and 59.6 and 59.9 with 4 096 twins against 55.4 and 54.1.
 
+## 72. How far the old light stretches, asked by the address
+
+*2026-11-20.* With the trails kept as curves, the address can say how many
+times the light from before the window, read from the older snapshot or its
+coarse image, may be stretched before it is hidden: `?stretch=2`, from 1 to
+64, which never hides it; without it, a quarter, as decision 69 has it. A
+saved moment keeps it.
+
+**Why.** A mouse's wheel step is often 1.27 times, a little past a quarter:
+one step hid the drawing older than the window, while Z, a quarter exactly,
+kept it. The address lets the stretch be tried before the default is chosen.
+
+**Evidence.** Unit tests of the address and of the light read at each
+stretch. A browser test of the address kept beside a saved moment. Where 512
+masses draw, one wheel step of 1.82 times nearer gave 1.74 times the light
+of the whole view with a quarter, and 2.72 with 2 and with 64.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.

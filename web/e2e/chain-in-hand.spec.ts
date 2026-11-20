@@ -627,11 +627,11 @@ test("kept as curves, the trails are drawn anew as the view comes nearer and as 
   expect(errors).toEqual([]);
 });
 
-test("the meter says the frames a second and, kept as curves, the last remake, the mechanism, its memory and the seconds of motion they keep; a strobe's trails go on as the image carried; the address keeps them and how much the curves keep beside a saved moment (decisions 68 and 70)", async ({
+test("the meter says the frames a second and, kept as curves, the last remake, the mechanism, its memory and the seconds of motion they keep; a strobe's trails go on as the image carried; the address keeps them, how much the curves keep and how far their old light stretches beside a saved moment (decisions 68, 70 and 72)", async ({
   page,
 }) => {
   const errors = collectErrors(page);
-  await page.goto("./?twins=0&fps=1&trails=sharp&keep=3");
+  await page.goto("./?twins=0&fps=1&trails=sharp&keep=3&stretch=2");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   const meter = page.locator("output", { hasText: "fps" });
   await expect(meter).toHaveText(
@@ -646,7 +646,9 @@ test("the meter says the frames a second and, kept as curves, the last remake, t
   await expect(meter).toHaveText(/ · sharp · /);
   // a moment saved keeps them in the address's readable part, as the music
   await page.keyboard.press("s");
-  await expect(page).toHaveURL(/\?trails=sharp&fps=1&keep=3#[A-Za-z0-9_-]+$/);
+  await expect(page).toHaveURL(
+    /\?trails=sharp&fps=1&keep=3&stretch=2#[A-Za-z0-9_-]+$/,
+  );
   expect(errors).toEqual([]);
 });
 

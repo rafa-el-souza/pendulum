@@ -11,6 +11,7 @@ import {
   readCurves,
   readKeep,
   readMeter,
+  readStretch,
   readable,
   snapshotDue,
   snapshotGain,
@@ -33,7 +34,7 @@ describe("which trails an address asks for", () => {
     expect(readCurves("?n=3&trails=layers&zoom=2")).toBe(false);
   });
 
-  it("keeps the trails' mechanism, their window and the meter, and nothing else, beside a saved moment", () => {
+  it("keeps the trails' mechanism, their window, how far their old light stretches and the meter, and nothing else, beside a saved moment", () => {
     expect(keepMeasures("?n=3&trails=sharp&zoom=2&fps=1")).toBe(
       "?trails=sharp&fps=1",
     );
@@ -43,6 +44,18 @@ describe("which trails an address asks for", () => {
       "?trails=sharp&keep=3",
     );
     expect(keepMeasures("?trails=layers&n=3")).toBe("?trails=layers");
+    expect(keepMeasures("?stretch=2&n=3&keep=3")).toBe("?keep=3&stretch=2");
+  });
+
+  it("lets the light from before the window be stretched as many times as ?stretch= says before it is hidden, from one to sixty-four, a quarter when it says none (decision 72)", () => {
+    expect(readStretch("")).toBe(1.25);
+    expect(readStretch("?stretch=2")).toBe(2);
+    expect(readStretch("?n=3&stretch=1.5&keep=3")).toBe(1.5);
+    expect(readStretch("?stretch=64")).toBe(64);
+    expect(readStretch("?stretch=100")).toBe(64);
+    expect(readStretch("?stretch=0.5")).toBe(1);
+    expect(readStretch("?stretch=")).toBe(1.25);
+    expect(readStretch("?stretch=far")).toBe(1.25);
   });
 
   it("asks the curves to keep as many times more spans as ?keep= says, from one to twenty, and ten times when it says none (decisions 70 and 71)", () => {
@@ -159,6 +172,13 @@ describe("the light before the older snapshot, read nearer (decision 69)", () =>
     expect(readable(at(8), at(10.1))).toBe(false);
     // farther, however much
     expect(readable(at(8), at(1))).toBe(true);
+  });
+
+  it("is read as far as the address lets it be stretched (decision 72)", () => {
+    expect(readable(at(1), at(1.5625), 2)).toBe(true);
+    expect(readable(at(1), at(2), 2)).toBe(true);
+    expect(readable(at(1), at(2.01), 2)).toBe(false);
+    expect(readable(at(1), at(64), 64)).toBe(true);
   });
 
   it("counts a larger canvas as nearer, as the image carried does", () => {
