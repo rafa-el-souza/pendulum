@@ -462,11 +462,12 @@ function play({ canvas, gl }: Stage): void {
   const still = matchMedia("(prefers-reduced-motion: reduce)");
   let router = new Router(modeOf(tune.mode), { slow: still.matches });
   let look: Look = UNLIT;
-  // The music's forces (decision 75): the speaker's kicks and the dancing
-  // hand, from what the music says this frame; whether they act, which
-  // turns time backwards off; where the pivot is, and how it moves, at the
-  // instant the chain was computed to, which the drawing hangs everything
-  // from; and the music's hand there, while it holds.
+  // The music's forces (decisions 75 and 77): the speaker's kicks, the
+  // dancing hand, the breath and the swaying gravity, from what the music
+  // says this frame; whether they act, which turns time backwards off; where
+  // the pivot is, and how it moves, at the instant the chain was computed to,
+  // which the drawing hangs everything from; and the music's hand there,
+  // while it holds.
   const forces = new MusicForces({ slow: still.matches });
   let heardNow: Signals | null = null;
   let forcing = false;
@@ -488,6 +489,7 @@ function play({ canvas, gl }: Stage): void {
       span: asked,
       speed: value(TIME),
       chain,
+      state,
       g,
       held: hand !== null,
     });
