@@ -71,7 +71,7 @@ function command(
     chain: null,
     hold: null,
     whole: false,
-    speeds: false,
+    clock: null,
     budget: 1e9,
     generation: 0,
     ...more,
@@ -180,15 +180,16 @@ describe("a share of the twins", () => {
     }
   });
 
-  it("sends back each tip's velocity at the same instants when asked, the rate the tip moves at (decision 68), and none otherwise", () => {
+  it("sends back each tip's velocity at the same instants when the command carries a clock, the rate the tip moves at, and the clock and the time with it (decision 68)", () => {
     const n = 3;
     const share = new TwinShare(0, 1, n);
     share.run(command([bornAll(raised(n), 4, 0, 1, 1e-2)], 0, 0));
     const pieces = 40;
     const still: (Shake | null)[] = Array.from({ length: pieces }, () => null);
-    const report = share.run(
-      command([], FRAME, pieces, still, { speeds: true }),
-    );
+    const clock = { seconds: 12.5, fade: 4.2, rate: 0.4 };
+    const report = share.run(command([], FRAME, pieces, still, { clock }));
+    expect(report.clock).toEqual(clock);
+    expect(report.time).toBe(FRAME);
     expect(report.tipSpeeds).toHaveLength(report.tips.length);
     const dt = FRAME / pieces;
     const stride = 2 * (pieces + 1);
@@ -206,6 +207,7 @@ describe("a share of the twins", () => {
     }
     const plain = share.run(command([], FRAME, 2, [null, null]));
     expect(plain.tipSpeeds).toHaveLength(0);
+    expect(plain.clock).toBeNull();
   });
 
   it("sends back the tips alone, as dust, and no distances unless asked for", () => {
