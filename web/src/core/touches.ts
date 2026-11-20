@@ -1,7 +1,7 @@
 // The fingers on the stage (docs/decisions.md, decision 67). One finger
 // grabs the chain, but not at once: it waits a moment, or until it moves a
 // few pixels, so that a second finger can land and pinch, and two fingers
-// never grab. A finger that lifts within the wait grabs nothing. After a
+// never grab. A finger that lifts within the wait grabs nothing: a tap. After a
 // pinch, the finger left grabs nothing until every finger has lifted; a new
 // one landing beside it pinches again. While one finger holds the chain, the
 // others are left alone.
@@ -63,6 +63,11 @@ export class Touches {
 
   constructor(wait: Wait) {
     this.#wait = wait;
+  }
+
+  /** How many fingers are on the stage. */
+  get count(): number {
+    return this.#spots.size;
   }
 
   /** The finger holding the chain, and where it is. */
@@ -142,16 +147,17 @@ export class Touches {
 
   /**
    * A finger lifts, or the browser takes it back: the chain is let go when
-   * it held it, and a pinch ends when it was one of the two.
+   * it held it, a pinch ends when it was one of the two, and a finger that
+   * lifts within the wait was a tap.
    */
-  up(id: number): "let go" | "end" | "none" {
+  up(id: number): "let go" | "end" | "tap" | "none" {
     if (!this.#spots.delete(id)) return "none";
     const state = this.#state;
     const left: State =
       this.#spots.size > 0 ? { kind: "spent" } : { kind: "idle" };
     if (state.kind === "waiting" && state.id === id) {
       this.#state = left;
-      return "none";
+      return "tap";
     }
     if (state.kind === "holding" && state.id === id) {
       this.#state = left;

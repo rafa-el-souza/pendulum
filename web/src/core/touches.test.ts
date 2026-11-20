@@ -31,10 +31,12 @@ describe("one finger on the stage", () => {
     expect(touches.holder?.spot).toEqual({ x: 150, y: 206 });
   });
 
-  it("grabs nothing when it lifts before the wait is over", () => {
+  it("grabs nothing when it lifts before the wait is over, and says it was a tap", () => {
     const touches = new Touches(wait);
     touches.down(1, { x: 100, y: 200 }, 1000);
-    expect(touches.up(1)).toBe("none");
+    expect(touches.count).toBe(1);
+    expect(touches.up(1)).toBe("tap");
+    expect(touches.count).toBe(0);
     expect(touches.due(2000)).toBe("none");
     expect(touches.holder).toBeNull();
   });
