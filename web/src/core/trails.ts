@@ -48,9 +48,12 @@ void main() {
 // A target's light read in another view (decision 66): each pixel reads the
 // old target where the old view saw the same point of the world (uK and uM,
 // as carryMap gives them), and nothing where it did not. The light is
-// multiplied by the old scale over the new (uRatio, carriedGain); where a
-// pixel covers more than one of the old target's, it reads the mean over the
-// area it covers, so that thin lines are not lost between samples.
+// multiplied by the old scale over the new (uRatio, carriedGain). Where the
+// view grows or only slides, the pixel reads the sixteen texels round the
+// point, each weighed by catmullRom along each axis, which keeps lines
+// sharper than the four of a linear read; where a pixel covers more than one
+// of the old target's, it reads the mean over the area it covers, so that
+// thin lines are not lost between samples.
 const CARRY = `#version 300 es
 precision highp float;
 uniform sampler2D uFrom;
@@ -65,7 +68,24 @@ void main() {
     return;
   }
   if (uRatio <= 1.0) {
-    color = texture(uFrom, uv) * uRatio;
+    ivec2 size = textureSize(uFrom, 0);
+    vec2 p = uv * vec2(size) - 0.5;
+    vec2 base = floor(p);
+    vec2 f = p - base;
+    vec4 sum = vec4(0.0);
+    for (int j = -1; j <= 2; j++) {
+      float ty = abs(float(j) - f.y);
+      float wy = ty < 1.0 ? (1.5 * ty - 2.5) * ty * ty + 1.0 : ((-0.5 * ty + 2.5) * ty - 4.0) * ty + 2.0;
+      for (int i = -1; i <= 2; i++) {
+        float tx = abs(float(i) - f.x);
+        float wx = tx < 1.0 ? (1.5 * tx - 2.5) * tx * tx + 1.0 : ((-0.5 * tx + 2.5) * tx - 4.0) * tx + 2.0;
+        ivec2 at = ivec2(base) + ivec2(i, j);
+        if (any(lessThan(at, ivec2(0))) || any(greaterThanEqual(at, size))) continue;
+        sum += texelFetch(uFrom, at, 0) * (wx * wy);
+      }
+    }
+    // the curve dips a little below none beside a bright line: no light is less than none
+    color = max(sum, vec4(0.0)) * uRatio;
     return;
   }
   int n = int(min(ceil(uRatio), 16.0));
@@ -198,6 +218,21 @@ export function lightCurve(sum: Rgb, white: number): Rgb {
  */
 export function carriedGain(from: View, to: View): number {
   return from.scale / to.scale;
+}
+
+/**
+ * How much a texel weighs in a carried pixel, `t` texels from the point the
+ * pixel reads, where the canvas grows or only slides (decision 66): the
+ * Catmull-Rom curve, as the shader CARRY takes it for each axis over the
+ * four texels round the point. Four weigh to one wherever the point falls;
+ * a texel read at its own centre is read as it is; halfway between two, each
+ * weighs nine sixteenths and the next ones a sixteenth off, which keeps
+ * lines sharper than half of each.
+ */
+export function catmullRom(t: number): number {
+  if (t < 1) return (1.5 * t - 2.5) * t * t + 1;
+  if (t < 2) return ((-0.5 * t + 2.5) * t - 4) * t + 2;
+  return 0;
 }
 
 /** How much of a trail's light is left after `seconds` of simulated time, with a half-life of `halfLife` seconds; none fades with a half-life without end. */
@@ -617,7 +652,7 @@ export class Trails {
     gl.useProgram(program);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, from.texture);
-    // read between texels, in the old target alone
+    // read between texels for the mean over an area, in the old target alone
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     gl.uniform1i(at.uFrom ?? null, 0);

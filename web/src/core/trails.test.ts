@@ -4,6 +4,7 @@ import {
   FADE_STEP,
   FadeBatch,
   carriedGain,
+  catmullRom,
   fadeAfter,
   lightCurve,
 } from "./trails.ts";
@@ -170,5 +171,45 @@ describe("light carried to another view (decision 66)", () => {
       15,
     );
     expect(carriedGain(small, small)).toBe(1);
+  });
+});
+
+describe("the sixteen texels a carried pixel reads where the canvas grows or slides (decision 66)", () => {
+  // the weights of the four texels round a point a fraction f past a texel's
+  // centre, along one axis: the shader takes them for x and for y
+  const taps = (f: number): number[] =>
+    [-1, 0, 1, 2].map((i) => catmullRom(Math.abs(i - f)));
+
+  it("weigh to one wherever the point falls, so that even light stays even", () => {
+    for (const f of [0, 0.1, 0.25, 0.5, 0.73, 0.99]) {
+      expect(taps(f).reduce((a, b) => a + b, 0)).toBeCloseTo(1, 12);
+    }
+  });
+
+  it("read a texel at its own centre as it is", () => {
+    const [a, b, c, d] = taps(0);
+    expect(a).toBeCloseTo(0, 12);
+    expect(b).toBe(1);
+    expect(c).toBeCloseTo(0, 12);
+    expect(d).toBeCloseTo(0, 12);
+  });
+
+  it("halfway between two texels take nine sixteenths of each and a sixteenth off the next ones, sharper than half of each", () => {
+    const [a, b, c, d] = taps(0.5);
+    expect(a).toBeCloseTo(-1 / 16, 12);
+    expect(b).toBeCloseTo(9 / 16, 12);
+    expect(c).toBeCloseTo(9 / 16, 12);
+    expect(d).toBeCloseTo(-1 / 16, 12);
+  });
+
+  it("weigh a texel less the farther it is, a little below none past one texel, and none from two texels off", () => {
+    expect(catmullRom(0)).toBe(1);
+    expect(catmullRom(0.5)).toBeLessThan(1);
+    expect(catmullRom(0.9)).toBeLessThan(catmullRom(0.5));
+    expect(catmullRom(0.9)).toBeGreaterThan(0);
+    expect(catmullRom(1)).toBe(0);
+    expect(catmullRom(1.5)).toBeLessThan(0);
+    expect(catmullRom(2)).toBe(0);
+    expect(catmullRom(2.5)).toBe(0);
   });
 });
