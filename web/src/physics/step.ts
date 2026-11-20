@@ -13,6 +13,16 @@
    unchecked-index rule cannot see. */
 
 import type { Chain, Gravity, Hand } from "./chain.ts";
+import {
+  driveRate,
+  handAt,
+  heatDrag,
+  musicDrag,
+  musicPull,
+  musicTilt,
+  type Drive,
+  type WritableHand,
+} from "./drive.ts";
 
 /** Where a chain is and how it moves: absolute angles from the downward vertical, and their rates. */
 export interface ChainState {
@@ -120,6 +130,10 @@ export interface AdvanceOptions {
   readonly shake?: Shake | null;
   /** Takes each rod's tension over whole periods of the shake (decision 36). */
   readonly periodTension?: PeriodTension | null;
+  /** What the music puts into the physics over the frame (decision 74). */
+  readonly drive?: Drive | null;
+  /** How far into the drive's frame this advance starts, in s. */
+  readonly into?: number;
 }
 
 export interface StepperOptions {
@@ -147,6 +161,13 @@ export class Stepper {
   readonly #theta: Float64Array;
   // gravity in the frame of a shaken pivot, at the stage being taken
   readonly #shaken = { x: 0, y: 0 };
+  // what the music adds to it there, gravity tilted by the music, the hands
+  // a stage pulls with, the visitor's and the music's, and where the music's
+  // are at the stage's instant
+  readonly #pulled = { x: 0, y: 0 };
+  readonly #tilted = { x: 0, y: 0 };
+  readonly #hands: Hand[] = [];
+  readonly #musicHands: WritableHand[] = [];
 
   constructor(chain: Chain, options: StepperOptions = {}) {
     this.chain = chain;
@@ -190,6 +211,12 @@ export class Stepper {
    * instant. A shake, when given, adds its pull to gravity at every stage,
    * and with a `periodTension` meter a substep lands on every whole turn of
    * its phase, where the meter closes a period.
+   *
+   * A drive, when given, puts the music into every stage at that stage's
+   * instant, `into` + the time into the advance from the drive's start
+   * (docs/decisions.md, decision 74): its pull on gravity, its hands with
+   * their targets there, its drag and its thermostat. Its hands and its
+   * kicks add their rates to the substep's, and so does its drag.
    */
   advance(
     state: ChainState,
@@ -202,6 +229,8 @@ export class Stepper {
     const meanTension = options.meanTension ?? null;
     const shake = options.shake ?? null;
     const meter = shake === null ? null : (options.periodTension ?? null);
+    const drive = options.drive ?? null;
+    const into = options.into ?? 0;
     const { chain, fraction, maxStep } = this;
     const n = chain.n;
     const { theta, omega } = state;
@@ -228,16 +257,31 @@ export class Stepper {
       const into = ((shake.phase % turn) + turn) % turn;
       closeAt = (turn - into) / shake.rate;
     }
+    // the hands every stage pulls with: the visitor's alone, or with the
+    // music's (decision 74), and the fastest rate any of them adds
+    const hands =
+      drive === null || drive.hands.length === 0
+        ? hand
+        : this.#handsWith(hand, drive);
+    const handRate = Math.max(
+      hand === null ? 0 : hand.fastest,
+      drive === null ? 0 : driveRate(drive),
+    );
     while (left > 0) {
       const at = dt - left;
-      chain.solve(theta, omega, this.#gravity(g, shake, at), k1, tension, hand);
+      // the music's drag at each stage's instant, its hands moved there
+      let drag =
+        drive === null ? 0 : this.#music(drive, into + at, theta, omega, g);
+      const start = this.#gravity(g, shake, at, drive, into + at);
+      chain.solve(theta, omega, start, k1, tension, hands, drag);
       let spin = 0;
       for (let i = 0; i < n; i++) spin = Math.max(spin, Math.abs(omega[i]!));
       const rate = Math.max(
         chain.fastestVibration(tension),
         spin,
-        hand === null ? 0 : hand.fastest,
+        handRate,
         shake === null ? 0 : shake.rate,
+        Math.abs(drag),
       );
       let h = Math.min(maxStep, fraction / rate);
       // Land on the end of the shake's turn, for the meter.
@@ -255,23 +299,36 @@ export class Stepper {
         th[i] = theta[i]! + half * omega[i]!;
         w2[i] = omega[i]! + half * k1[i]!;
       }
-      const middle = this.#gravity(g, shake, at + half);
-      chain.solve(th, w2, middle, k2, stageTension, hand);
+      if (drive !== null)
+        drag = this.#music(drive, into + at + half, th, w2, g);
+      const middle = this.#gravity(
+        g,
+        shake,
+        at + half,
+        drive,
+        into + at + half,
+      );
+      chain.solve(th, w2, middle, k2, stageTension, hands, drag);
       if (meanTension !== null) addTo(meanTension, stageTension, 2 * sixth);
       if (meter !== null) meter.add(stageTension, 2 * sixth);
       for (let i = 0; i < n; i++) {
         th[i] = theta[i]! + half * w2[i]!;
         w3[i] = omega[i]! + half * k2[i]!;
       }
-      chain.solve(th, w3, middle, k3, stageTension, hand);
+      // the thermostat's drag follows the state, the rest the instant
+      if (drive !== null && drive.heat !== null) {
+        drag = this.#music(drive, into + at + half, th, w3, g);
+      }
+      chain.solve(th, w3, middle, k3, stageTension, hands, drag);
       if (meanTension !== null) addTo(meanTension, stageTension, 2 * sixth);
       if (meter !== null) meter.add(stageTension, 2 * sixth);
       for (let i = 0; i < n; i++) {
         th[i] = theta[i]! + h * w3[i]!;
         w4[i] = omega[i]! + h * k3[i]!;
       }
-      const end = this.#gravity(g, shake, at + h);
-      chain.solve(th, w4, end, k4, stageTension, hand);
+      if (drive !== null) drag = this.#music(drive, into + at + h, th, w4, g);
+      const end = this.#gravity(g, shake, at + h, drive, into + at + h);
+      chain.solve(th, w4, end, k4, stageTension, hands, drag);
       if (meanTension !== null) addTo(meanTension, stageTension, sixth);
       if (meter !== null) meter.add(stageTension, sixth);
       for (let i = 0; i < n; i++) {
@@ -292,8 +349,10 @@ export class Stepper {
     const simulated = dt - Math.max(0, left);
     if (meanTension !== null) {
       if (substeps === 0) {
-        const now = this.#gravity(g, shake, 0);
-        chain.solve(theta, omega, now, k1, meanTension, hand);
+        const drag =
+          drive === null ? 0 : this.#music(drive, into, theta, omega, g);
+        const now = this.#gravity(g, shake, 0, drive, into);
+        chain.solve(theta, omega, now, k1, meanTension, hands, drag);
       } else {
         const inverse = 1 / simulated;
         for (let i = 0; i < n; i++) meanTension[i] = meanTension[i]! * inverse;
@@ -302,17 +361,98 @@ export class Stepper {
     return { substeps, simulated };
   }
 
-  /** Gravity in the frame of the pivot, `at` seconds into the advance: g, and a shake's pull along its line. */
-  #gravity(g: Gravity, shake: Shake | null, at: number): Gravity {
-    if (shake === null) return g;
-    const pull =
-      shake.amplitude *
-      shake.rate *
-      shake.rate *
-      Math.cos(shake.phase + shake.rate * at);
-    this.#shaken.x = g.x + pull * shake.x;
-    this.#shaken.y = g.y + pull * shake.y;
+  /**
+   * Gravity in the frame of the pivot, `at` seconds into the advance and `t`
+   * into the drive's frame: g, what the music adds to it, and a shake's
+   * pull along its line.
+   */
+  #gravity(
+    g: Gravity,
+    shake: Shake | null,
+    at: number,
+    drive: Drive | null,
+    t: number,
+  ): Gravity {
+    if (shake === null && drive === null) return g;
+    let x = g.x;
+    let y = g.y;
+    if (drive !== null) {
+      musicPull(drive, t, this.#pulled);
+      x += this.#pulled.x;
+      y += this.#pulled.y;
+    }
+    if (shake !== null) {
+      const pull =
+        shake.amplitude *
+        shake.rate *
+        shake.rate *
+        Math.cos(shake.phase + shake.rate * at);
+      x += pull * shake.x;
+      y += pull * shake.y;
+    }
+    this.#shaken.x = x;
+    this.#shaken.y = y;
     return this.#shaken;
+  }
+
+  /** The visitor's hand, when there is one, and the music's, which `#music` moves to each stage's instant. */
+  #handsWith(hand: Hand | null, drive: Drive): readonly Hand[] {
+    const music = this.#musicHands;
+    while (music.length < drive.hands.length) {
+      music.push({
+        index: 0,
+        x: 0,
+        y: 0,
+        vx: 0,
+        vy: 0,
+        stiffness: 0,
+        damping: 0,
+        fastest: 0,
+      });
+    }
+    const hands = this.#hands;
+    hands.length = 0;
+    if (hand !== null) hands.push(hand);
+    for (let k = 0; k < drive.hands.length; k++) {
+      const held = music[k]!;
+      handAt(drive.hands[k]!, drive, 0, held);
+      if (held.index >= this.chain.n) {
+        throw new Error(
+          `a chain of ${String(this.chain.n)} masses has no mass ${String(held.index)} for the music's hand`,
+        );
+      }
+      hands.push(held);
+    }
+    return hands;
+  }
+
+  /**
+   * Moves the music's hands to where they are `t` s into the drive's frame,
+   * and returns its drag there, for a chain in this state, in 1/s: the
+   * drag it asks for, and the thermostat's, from the chain's energy above
+   * rest along gravity as the music tilts it.
+   */
+  #music(
+    drive: Drive,
+    t: number,
+    theta: Float64Array,
+    omega: Float64Array,
+    g: Gravity,
+  ): number {
+    const music = this.#musicHands;
+    for (let k = 0; k < drive.hands.length; k++) {
+      handAt(drive.hands[k]!, drive, t, music[k]!);
+    }
+    let drag = musicDrag(drive, t);
+    if (drive.heat !== null) {
+      const tilted = this.#tilted;
+      musicTilt(drive, t, tilted);
+      tilted.x += g.x;
+      tilted.y += g.y;
+      const energy = this.chain.energyAboveRest(theta, omega, tilted);
+      drag += heatDrag(drive.heat, drive, t, energy);
+    }
+    return drag;
   }
 }
 

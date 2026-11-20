@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { Chain, gravity, type Gravity } from "./chain.ts";
+import { Chain, createHand, gravity, type Gravity } from "./chain.ts";
+import { kickPull, type Drive } from "./drive.ts";
 import {
   PeriodTension,
   Stepper,
@@ -625,5 +626,272 @@ describe("each rod's tension over whole periods of the shake (decision 36; PH-4,
     expect(meter.closed).toBe(false);
     advance(4);
     expect(meter.closed).toBe(true);
+  });
+});
+
+// The music's command for a frame (docs/decisions.md, decision 74): forces
+// from outside the chain, which the paper does not have, taken by the tension
+// route as it takes the hand and gravity (PH-4), each stage of RK4 at its own
+// instant, so that the chain and its twins, moving in pieces and steps of
+// their own, feel the same force at the same instant.
+
+/** A frame at 0.8 of real time and 60 frames a second. */
+const FRAME = 0.8 / 60;
+
+/** A command of `span` s with nothing in it. */
+function emptyDrive(span: number): Drive {
+  return {
+    span,
+    tilt: [
+      { x: 0, y: 0 },
+      { x: 0, y: 0 },
+    ],
+    kicks: [],
+    hands: [],
+    drag: [0, 0],
+    heat: null,
+  };
+}
+
+/**
+ * The music at its fullest over the frame that starts `t0` s in: gravity
+ * swaying 0.3 rad either way once a second, the pivot kicked 3 cm sideways
+ * every 0.4 s, a hand on the tip going round a circle of 15 cm in 2 s, and a
+ * drag of 0.2 a second.
+ */
+function music(chain: Chain, t0: number, span: number): Drive {
+  const sway = (t: number): Gravity => {
+    const turned = gravity(G, 0.3 * Math.sin(2 * Math.PI * t));
+    return { x: turned.x - DOWN.x, y: turned.y - DOWN.y };
+  };
+  const kicks = [];
+  const beat = Math.floor(t0 / 0.4);
+  for (let b = beat; b > beat - 4 && b >= 0; b--) {
+    kicks.push({
+      start: 0.4 * b - t0,
+      x: 0.03,
+      y: 0,
+      attack: 0.015,
+      decay: 0.1,
+    });
+  }
+  const tip = createHand(chain, chain.n - 1, 12, 1);
+  const round = (t: number) => ({
+    x: 0.15 * Math.sin(Math.PI * t),
+    y: -0.85 + 0.15 * Math.cos(Math.PI * t),
+  });
+  return {
+    span,
+    tilt: [sway(t0), sway(t0 + span)],
+    kicks,
+    hands: [
+      {
+        index: tip.index,
+        stiffness: tip.stiffness,
+        damping: tip.damping,
+        fastest: tip.fastest,
+        from: round(t0),
+        to: round(t0 + span),
+      },
+    ],
+    drag: [0.2, 0.2],
+    heat: null,
+  };
+}
+
+/** How far apart two chains look, as a share of the length (the twins' measure). */
+function apartOf(chain: Chain, a: ChainState, b: ChainState): number {
+  const n = chain.n;
+  const x = new Float64Array(n);
+  const y = new Float64Array(n);
+  const u = new Float64Array(n);
+  const v = new Float64Array(n);
+  chain.positions(a.theta, x, y);
+  chain.positions(b.theta, u, v);
+  let sum = 0;
+  for (let i = 0; i < n; i++) {
+    sum += ((x[i] ?? 0) - (u[i] ?? 0)) ** 2 + ((y[i] ?? 0) - (v[i] ?? 0)) ** 2;
+  }
+  return Math.sqrt(sum / n) / chain.totalLength;
+}
+
+const NONE: Gravity = { x: 0, y: 0 };
+
+describe("the music's command (decision 74; PH-2, PH-4)", () => {
+  it("left empty, moves the chain as no command does, number for number: free, held and shaken, with the tension's mean", () => {
+    for (const n of [2, 8]) {
+      const chain = Chain.uniform(n);
+      const plain = raised(n);
+      const driven = raised(n);
+      const one = new Stepper(chain);
+      const other = new Stepper(chain);
+      const hand = createHand(chain, n - 1, 20, 0.7);
+      hand.x = 0.3;
+      hand.y = -0.6;
+      hand.vx = 0.4;
+      const plainMean = new Float64Array(n);
+      const drivenMean = new Float64Array(n);
+      for (let frame = 0; frame < 180; frame++) {
+        const held = frame < 60 ? hand : null;
+        const shake =
+          frame >= 120 ? shaken(0.001, 2 * Math.PI * 800, frame * 0.3) : null;
+        for (let piece = 0; piece < 7; piece++) {
+          one.advance(plain, FRAME / 7, DOWN, {
+            hand: held,
+            shake,
+            meanTension: plainMean,
+          });
+          other.advance(driven, FRAME / 7, DOWN, {
+            hand: held,
+            shake,
+            meanTension: drivenMean,
+            drive: emptyDrive(FRAME),
+            into: (piece * FRAME) / 7,
+          });
+        }
+      }
+      expect([...driven.theta]).toEqual([...plain.theta]);
+      expect([...driven.omega]).toEqual([...plain.omega]);
+      expect([...drivenMean]).toEqual([...plainMean]);
+    }
+  });
+
+  it("drags every mass by −c m v: the energy falls by c times twice the kinetic energy over the time", () => {
+    // dE/dt = −c Σ m v², from a swing that stays regular, over 5 s
+    const n = 3;
+    const chain = Chain.uniform(n);
+    const state = restingState(n);
+    state.theta.fill(0.6);
+    const stepper = new Stepper(chain);
+    const c = 0.3;
+    const h = 1 / 4000;
+    const drive: Drive = { ...emptyDrive(h), drag: [c, c] };
+    const start = chain.energy(state.theta, state.omega, DOWN);
+    let twice = 2 * chain.energy(state.theta, state.omega, NONE);
+    let lost = 0;
+    for (let k = 0; k < 4000 * 5; k++) {
+      stepper.advance(state, h, DOWN, { drive });
+      const next = 2 * chain.energy(state.theta, state.omega, NONE);
+      lost += (c * h * (twice + next)) / 2;
+      twice = next;
+    }
+    const end = chain.energy(state.theta, state.omega, DOWN);
+    // most of the swing's energy goes in the 5 s, as it should
+    expect(lost).toBeGreaterThan(
+      0.5 *
+        (start - chain.energy(new Float64Array(n), new Float64Array(n), DOWN)),
+    );
+    expect(Math.abs(start - end - lost)).toBeLessThan(1e-6 * lost);
+  });
+
+  it("kicks the pivot: one pendulum moves as under its pivot accelerating by the kick, seen from the pivot", () => {
+    // l θ'' = −g sin θ − a(t) cos θ for a pivot accelerating by a(t) to the right
+    const size = 0.05;
+    const kick = { start: 0.1, x: size, y: 0, attack: 0.015, decay: 0.1 };
+    const drive: Drive = { ...emptyDrive(1), kicks: [kick] };
+    const state: ChainState = {
+      theta: Float64Array.of(0.3),
+      omega: Float64Array.of(0),
+    };
+    new Stepper(new Chain([1], [1]), { maxStep: 1e-4 }).advance(
+      state,
+      1,
+      DOWN,
+      { drive },
+    );
+    // the same by an RK4 of its own, in steps of 1e-5 s
+    const rate = (t: number, angle: number): number =>
+      -G * Math.sin(angle) -
+      size *
+        kickPull(t - kick.start, kick.attack, kick.decay) *
+        Math.cos(angle);
+    let angle = 0.3;
+    let spin = 0;
+    const h = 1e-5;
+    for (let k = 0; k < 1e5; k++) {
+      const t = k * h;
+      const a1 = rate(t, angle);
+      const a2 = rate(t + h / 2, angle + (h / 2) * spin);
+      const a3 = rate(t + h / 2, angle + (h / 2) * (spin + (h / 2) * a1));
+      const a4 = rate(t + h, angle + h * (spin + (h / 2) * a2));
+      angle += h * (spin + (h / 6) * (a1 + a2 + a3));
+      spin += (h / 6) * (a1 + 2 * a2 + 2 * a3 + a4);
+    }
+    // the kick moved it: unkicked it would be elsewhere
+    const unkicked = { theta: Float64Array.of(0.3), omega: Float64Array.of(0) };
+    new Stepper(new Chain([1], [1]), { maxStep: 1e-4 }).advance(
+      unkicked,
+      1,
+      DOWN,
+    );
+    expect(Math.abs((unkicked.theta[0] ?? 0) - angle)).toBeGreaterThan(1e-3);
+    expect(Math.abs((state.theta[0] ?? Number.NaN) - angle)).toBeLessThan(1e-9);
+    expect(Math.abs((state.omega[0] ?? Number.NaN) - spin)).toBeLessThan(1e-8);
+  });
+
+  it("with the thermostat, brings the energy above rest to its target, from above and from below", () => {
+    const n = 3;
+    const chain = Chain.uniform(n);
+    const scale = lift(chain, G);
+    const cases: [ChainState, number][] = [
+      [raised(n), 0.2],
+      [
+        { theta: new Float64Array(n).fill(0.15), omega: new Float64Array(n) },
+        0.3,
+      ],
+    ];
+    for (const [state, share] of cases) {
+      const target = share * scale;
+      const drive: Drive = {
+        ...emptyDrive(FRAME),
+        heat: { target: [target, target], gain: 3, floor: 0.01 * scale },
+      };
+      const stepper = new Stepper(chain);
+      const before = chain.energyAboveRest(state.theta, state.omega, DOWN);
+      expect(Math.abs(before / target - 1)).toBeGreaterThan(0.5);
+      for (let frame = 0; frame < 75 * 5; frame++) {
+        stepper.advance(state, FRAME, DOWN, { drive });
+      }
+      const after = chain.energyAboveRest(state.theta, state.omega, DOWN);
+      expect(Math.abs(after / target - 1)).toBeLessThan(0.02);
+    }
+  });
+
+  it("keeps a twin born on the chain with it, each moving in its own pieces and steps, as the chain and its twins do", () => {
+    // The chain in 7 pieces a frame of steps up to 1/480 s, the twin in 4 of
+    // steps up to 1/240 s (decision 20), three masses swinging regularly
+    // under the music at its fullest for 10 s: each feels the force of each
+    // instant, so they differ only by their steps. Held over each piece
+    // instead, the force would part them by a few hundredths of the length.
+    const n = 3;
+    const chain = Chain.uniform(n);
+    const own = new Stepper(chain);
+    const twins = new Stepper(chain, { maxStep: 1 / 240 });
+    const state = restingState(n);
+    state.theta.fill(0.3);
+    const twin: ChainState = {
+      theta: Float64Array.from(state.theta),
+      omega: Float64Array.from(state.omega),
+    };
+    let worst = 0;
+    for (let frame = 0; frame < 750; frame++) {
+      const drive = music(chain, frame * FRAME, FRAME);
+      for (let piece = 0; piece < 7; piece++) {
+        own.advance(state, FRAME / 7, DOWN, {
+          drive,
+          into: (piece * FRAME) / 7,
+        });
+      }
+      for (let piece = 0; piece < 4; piece++) {
+        twins.advance(twin, FRAME / 4, DOWN, {
+          drive,
+          into: (piece * FRAME) / 4,
+        });
+      }
+      worst = Math.max(worst, apartOf(chain, state, twin));
+    }
+    expect(worst).toBeLessThan(1e-3);
+    // and the music moved the chain far from where it would be without it
+    expect(Math.abs(state.theta[n - 1] ?? 0)).toBeGreaterThan(0);
   });
 });
