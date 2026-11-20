@@ -554,6 +554,67 @@ test("the trails are cleared when the canvas grows by more than a quarter, and c
   expect(errors).toEqual([]);
 });
 
+test("kept as curves, the trails are drawn anew as the view comes nearer and as the canvas grows, where the image carried clears them, and come back as they were with the whole view (decision 68)", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.setViewportSize({ width: 640, height: 400 });
+  await page.goto("./?twins=0&time=4&trail=600&trails=sharp");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await frames(page, 40);
+  await page.keyboard.press(" ");
+  await frames(page, 3);
+  const before = await lightShown(page);
+  // Z twice, 1.56 times nearer, where the image carried is cleared
+  await page.keyboard.press("z");
+  await page.keyboard.press("z");
+  await frames(page, 3);
+  const nearer = await lightShown(page);
+  // X twice, the whole view again: the same light, remade from the curves
+  await page.keyboard.press("x");
+  await page.keyboard.press("x");
+  await frames(page, 3);
+  const back = await lightShown(page);
+  expect(back).toBeGreaterThan(0.97 * before);
+  expect(back).toBeLessThan(1.03 * before);
+  // a canvas twice as large, where the image carried is cleared
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await frames(page, 3);
+  const grown = await lightShown(page);
+  // nearer and larger, against the chain alone there, as the light switch
+  // leaves it
+  await page.keyboard.press("l");
+  await frames(page, 3);
+  expect(grown).toBeGreaterThan(1.5 * (await lightShown(page)));
+  await page.setViewportSize({ width: 640, height: 400 });
+  await page.keyboard.press("z");
+  await page.keyboard.press("z");
+  await frames(page, 3);
+  expect(nearer).toBeGreaterThan(1.5 * (await lightShown(page)));
+  expect(errors).toEqual([]);
+});
+
+test("the meter says the frames a second and, kept as curves, the last remake, the mechanism and its memory; a strobe's trails go on as the image carried; the address keeps both beside a saved moment (decision 68)", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("./?twins=0&fps=1&trails=sharp");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  const meter = page.locator("output", { hasText: "fps" });
+  await expect(meter).toHaveText(
+    /^\d+(\.\d)? fps · remake (\d+ ms|–) · sharp · \d+ MB$/,
+  );
+  // a strobe's stamps are not kept as curves yet
+  await page.keyboard.press("Shift+Digit8");
+  await expect(meter).toHaveText(/^\d+(\.\d)? fps · B$/);
+  await page.keyboard.press("Shift+Digit7");
+  await expect(meter).toHaveText(/ · sharp · /);
+  // a moment saved keeps them in the address's readable part, as the music
+  await page.keyboard.press("s");
+  await expect(page).toHaveURL(/\?trails=sharp&fps=1#[A-Za-z0-9_-]+$/);
+  expect(errors).toEqual([]);
+});
+
 test("the twins' and the trails' keys change their number, how long the trails last and their style, and the address follows", async ({
   page,
 }) => {
