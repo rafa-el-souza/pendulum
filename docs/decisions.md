@@ -2365,6 +2365,27 @@ beat and eight masses, the masses alone and none of the chain, with and
 without the twins and the trails. With the whole chain, a frame draws what
 it drew before.
 
+## 66. The trails are carried to the canvas's new size
+
+*2026-11-20.* When the canvas changes size, as a phone turns, a window is
+resized or goes full screen, or the browser zooms, the trails and their
+mark (decision 42) are carried to the new size instead of cleared. Each
+new pixel reads the old image where it saw the same point of the world,
+and holds the light a line drawn there anew would have: the old light
+times the old scale over the new, and, where the canvas shrinks, the mean
+over the area the pixel covers. While a window's edge is dragged, the
+image is held as it was when the drag began and every change is read from
+it, so that the trails are resampled once, not once a frame; while a drag
+lasts, the trails are drawn twice.
+
+**Why.** Cleared, the trails were lost whenever a phone turned; read from
+the frame before, a drag blurred them.
+
+**Evidence.** Unit tests of the view, the carry and the runs of changes. A
+browser test, in the three engines, in which the trails keep their light
+through a smaller canvas and a drag. After a drag of 60 frames, the trails
+are identical to those after one change.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
