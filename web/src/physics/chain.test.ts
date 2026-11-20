@@ -308,3 +308,22 @@ describe("where the masses are (PH-1)", () => {
     expect(chain.nearestMass(theta, 0, 5)).toBe(0);
   });
 });
+
+describe("the energy above the chain hanging at rest (PH-2; decision 74)", () => {
+  it("PH-2: is none for a chain hanging at rest along gravity, in any direction, and for one held out level at rest it is the work that lifts it there", () => {
+    const chain = new Chain([0.5, 0.2, 0.3], [0.3, 0.5, 0.2]);
+    const still = new Float64Array(3);
+    for (const turn of [0, 0.7, -2.4, Math.PI]) {
+      const theta = new Float64Array(3).fill(turn);
+      expect(
+        Math.abs(chain.energyAboveRest(theta, still, gravity(9.81, turn))),
+      ).toBeLessThan(1e-12);
+    }
+    // level, at rest: each mass raised by its depth hanging, 0.3, 0.8 and 1 m
+    const level = new Float64Array(3).fill(Math.PI / 2);
+    expect(chain.energyAboveRest(level, still, gravity(9.81))).toBeCloseTo(
+      9.81 * (0.5 * 0.3 + 0.2 * 0.8 + 0.3 * 1),
+      12,
+    );
+  });
+});

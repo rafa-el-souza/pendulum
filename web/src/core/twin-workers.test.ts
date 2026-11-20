@@ -80,6 +80,7 @@ function frame(
     hold: null,
     whole: true,
     clock: null,
+    drive: null,
     budget: 10,
     ...more,
   };

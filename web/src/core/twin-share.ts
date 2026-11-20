@@ -17,6 +17,7 @@
    unchecked-index rule cannot see. */
 
 import { Chain, type Gravity } from "../physics/chain.ts";
+import type { Drive } from "../physics/drive.ts";
 import { resample } from "../physics/resample.ts";
 import {
   Stepper,
@@ -110,6 +111,13 @@ export interface TwinCommand {
   readonly g: Gravity;
   /** The shaken pivot over each piece, from where in its cycle it is as the piece starts (decision 36); null while it is still. */
   readonly shakes: readonly (Shake | null)[];
+  /**
+   * What the music puts into the physics over the command's time, from its
+   * start (decision 74), which each twin feels at every instant of its own
+   * steps, as the chain does at those of its own; null while the music acts
+   * as no force.
+   */
+  readonly drive: Drive | null;
   /**
    * Where the chain's masses are once the time has gone by, every x then
    * every y, to measure how far each twin has gone from it (decision 43);
@@ -235,6 +243,7 @@ export class TwinShare {
     const asked = twins.length;
     const n = this.#chain.n;
     const pieces = command.time > 0 ? Math.max(1, command.pieces) : 0;
+    const step = pieces > 0 ? command.time / pieces : 0;
     const stride = 2 * (pieces + 1);
     const tips = new Float32Array(stride * asked);
     const speeds = command.clock !== null;
@@ -250,8 +259,10 @@ export class TwinShare {
       this.#tip(twin.theta, tips, at);
       if (speeds) this.#tipSpeed(twin, tipSpeeds, at);
       for (let piece = 0; piece < pieces; piece++) {
-        this.#stepper.advance(twin, command.time / pieces, command.g, {
+        this.#stepper.advance(twin, step, command.g, {
           shake: command.shakes[piece] ?? null,
+          drive: command.drive,
+          into: piece * step,
         });
         at += 2;
         this.#tip(twin.theta, tips, at);

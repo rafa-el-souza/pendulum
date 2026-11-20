@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { Chain, gravity } from "../physics/chain.ts";
+import { Chain, createHand, gravity } from "../physics/chain.ts";
+import type { Drive } from "../physics/drive.ts";
 import { resample } from "../physics/resample.ts";
 import { Stepper, restingState, type Shake } from "../physics/step.ts";
 import {
@@ -72,9 +73,46 @@ function command(
     hold: null,
     whole: false,
     clock: null,
+    drive: null,
     budget: 1e9,
     generation: 0,
     ...more,
+  };
+}
+
+/**
+ * The music over the frame that starts `t0` s in (decision 74): gravity
+ * tilted a little more each frame, a kick of the pivot every 0.2 s, a hand
+ * on the tip going round, and a drag.
+ */
+function musicOf(chain: Chain, t0: number, span: number): Drive {
+  const beat = Math.floor(t0 / 0.2);
+  const tip = createHand(chain, chain.n - 1, 12, 1);
+  const round = (t: number) => ({
+    x: 0.15 * Math.sin(Math.PI * t),
+    y: -0.85 + 0.15 * Math.cos(Math.PI * t),
+  });
+  return {
+    span,
+    tilt: [
+      { x: 0.5 * Math.sin(t0), y: 0 },
+      { x: 0.5 * Math.sin(t0 + span), y: 0 },
+    ],
+    kicks: [
+      { start: 0.2 * beat - t0, x: 0.02, y: 0, attack: 0.015, decay: 0.1 },
+    ],
+    hands: [
+      {
+        index: tip.index,
+        stiffness: tip.stiffness,
+        damping: tip.damping,
+        fastest: tip.fastest,
+        from: round(t0),
+        to: round(t0 + span),
+      },
+    ],
+    drag: [0.2, 0.3],
+    heat: null,
   };
 }
 
@@ -134,6 +172,69 @@ describe("a share of the twins", () => {
         ...(reference[j]?.omega ?? []),
       ]);
     }
+  });
+
+  it("advances each twin under the music's command as the piece's loop would, number for number, each piece from its own instant in the frame (decision 74)", () => {
+    const n = 3;
+    const chain = Chain.uniform(n);
+    const start = raised(n);
+    const count = 12;
+    const reference = bornTwins(start, count, 1e-3);
+    const stepper = new Stepper(chain, { maxStep: TWIN_STEP });
+    const shares = [0, 1].map((index) => new TwinShare(index, 2, n));
+    shares.forEach((share, index) =>
+      share.run(command([bornAll(start, count, index, 2, 1e-3)], 0, 0)),
+    );
+    for (let frame = 0; frame < 60; frame++) {
+      const pieces = 1 + (frame % 4);
+      const drive = musicOf(chain, frame * FRAME, FRAME);
+      const step = FRAME / pieces;
+      for (const twin of reference) {
+        for (let piece = 0; piece < pieces; piece++) {
+          stepper.advance(twin, step, g, { drive, into: piece * step });
+        }
+      }
+      for (const share of shares) {
+        share.run(
+          command(
+            [],
+            FRAME,
+            pieces,
+            Array.from({ length: pieces }, () => null),
+            {
+              drive,
+            },
+          ),
+        );
+      }
+    }
+    for (let j = 0; j < count; j++) {
+      const twin = shares[j % 2]?.twins[Math.floor(j / 2)];
+      expect([...(twin?.theta ?? [])]).toEqual([
+        ...(reference[j]?.theta ?? []),
+      ]);
+      expect([...(twin?.omega ?? [])]).toEqual([
+        ...(reference[j]?.omega ?? []),
+      ]);
+    }
+    // and the music moved them: without it they would be elsewhere
+    const free = bornTwins(start, 1, 1e-3)[0];
+    if (free === undefined) throw new Error("a twin is born");
+    for (let frame = 0; frame < 60; frame++) {
+      const pieces = 1 + (frame % 4);
+      for (let piece = 0; piece < pieces; piece++) {
+        stepper.advance(free, FRAME / pieces, g);
+      }
+    }
+    expect(free.theta[n - 1]).not.toBe(reference[0]?.theta[n - 1]);
+  });
+
+  it("takes a command with the music's as plain data, which a worker receives whole", () => {
+    const chain = Chain.uniform(3);
+    const sent = command([], FRAME, 4, [null, null, null, null], {
+      drive: musicOf(chain, 0.3, FRAME),
+    });
+    expect(structuredClone(sent)).toEqual(sent);
   });
 
   it("sends back each twin's tip before the time and after each piece, its masses when whole, and its distance from the chain", () => {
