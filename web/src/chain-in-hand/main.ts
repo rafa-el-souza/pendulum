@@ -19,9 +19,9 @@ import { keyAction, stepValue, type Parameter } from "../core/parameters.ts";
 import {
   SharpTrails,
   keepMeasures,
+  readCurves,
   readKeep,
   readMeter,
-  readTrailsAsked,
   trailMechanism,
   type Mechanism,
 } from "../core/sharp.ts";
@@ -341,18 +341,19 @@ function play({ canvas, gl }: Stage): void {
   const trail = new SegmentBatch(4096);
   // where each mass of the chain was at the end of the last piece of trail
   let ends = new Float64Array(2 * chain.n);
-  // Trails kept as curves, drawn anew in any view, when the address asks for
-  // them (decision 68), beside the image carried to each view; and a meter
+  // Trails kept as curves, drawn anew in any view (decision 68), unless the
+  // address asks for layers, the image carried to each view (decision 71),
+  // which a strobe's trails and a mark still use; and a meter
   // that says what each costs on the device. The curves take each drawing
   // mass's velocity with its place, at the end of each piece and as the
   // first piece of a frame begins; each step of the motion begins at a
   // point of the samples' clock, which the twins computed with it take, and
   // fades the trails by its half-lives.
-  const curvesAsked = readTrailsAsked(location.search);
+  const curvesAsked = readCurves(location.search);
   const sharp = curvesAsked
     ? new SharpTrails(gl, trails, chain.totalLength, readKeep(location.search))
     : null;
-  let mechanism: Mechanism = "B";
+  let mechanism: Mechanism = "layers";
   const fpsMeter = readMeter(location.search) ? new Meter(document.body) : null;
   if (sharp !== null) sharp.measuring = fpsMeter !== null;
   let massSpeeds = new Float64Array(2 * chain.n);

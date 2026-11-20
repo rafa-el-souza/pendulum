@@ -40,7 +40,7 @@ describe("the meter's line", () => {
     ).toBe("7.3 fps · remake 912 ms · sharp · 10 MB · kept 37 s");
   });
 
-  it("says when there was no remake yet, and says only the frames a second for the image carried", () => {
+  it("says when there was no remake yet, and says only the frames a second and layers for the image carried (decision 71)", () => {
     expect(
       meterText({
         perSecond: 60,
@@ -54,10 +54,10 @@ describe("the meter's line", () => {
       meterText({
         perSecond: 59.9,
         remake: null,
-        mechanism: "B",
+        mechanism: "layers",
         megabytes: 0,
         kept: null,
       }),
-    ).toBe("60 fps · B");
+    ).toBe("60 fps · layers");
   });
 });

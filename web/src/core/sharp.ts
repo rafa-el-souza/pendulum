@@ -28,9 +28,13 @@ import { SpanWindow } from "./spans.ts";
 import { GROWTH_LIMIT, LightTarget, type Trails } from "./trails.ts";
 import { SLACK, covers, fitScale, sameView, type View } from "./view.ts";
 
-/** Whether an address asks for trails kept as curves: "?trails=sharp". */
-export function readTrailsAsked(search: string): boolean {
-  return new URLSearchParams(search).get("trails") === "sharp";
+/**
+ * Whether the trails are kept as curves (decision 71): unless the address
+ * asks for layers, the image carried ("?trails=layers"); "?trails=sharp",
+ * as the curves were asked for before they were the default, keeps them.
+ */
+export function readCurves(search: string): boolean {
+  return new URLSearchParams(search).get("trails") !== "layers";
 }
 
 /** Whether an address asks for the meter: "?fps=1". */
@@ -41,13 +45,19 @@ export function readMeter(search: string): boolean {
 /** The most times as many spans an address can ask the curves to keep. */
 export const KEEP_MOST = 20;
 
+/** How many times as many spans the curves keep when the address asks for none (decision 71). */
+export const KEEP_DEFAULT = 10;
+
 /**
  * How many times as many spans an address asks the curves to keep (decision
- * 70): "?keep=3", from one to KEEP_MOST; one when it asks for none.
+ * 70): "?keep=3", from one to KEEP_MOST; KEEP_DEFAULT when it asks for none.
  */
 export function readKeep(search: string): number {
-  const keep = Number(new URLSearchParams(search).get("keep") ?? Number.NaN);
-  return Number.isFinite(keep) ? Math.min(KEEP_MOST, Math.max(1, keep)) : 1;
+  const asked = new URLSearchParams(search).get("keep");
+  const keep = asked === null || asked === "" ? Number.NaN : Number(asked);
+  return Number.isFinite(keep)
+    ? Math.min(KEEP_MOST, Math.max(1, keep))
+    : KEEP_DEFAULT;
 }
 
 /** What of an address's search measures the trails, its mechanism, its window and the meter, kept beside a saved moment as the music is. */
@@ -62,8 +72,8 @@ export function keepMeasures(search: string): string {
   return text === "" ? "" : `?${text}`;
 }
 
-/** How the trails meet a new view: drawn anew from curves, or the image carried (B, decisions 66 and 67). */
-export type Mechanism = "sharp" | "B";
+/** How the trails meet a new view: drawn anew from curves, or the image carried, as layers (decisions 66, 67 and 71). */
+export type Mechanism = "sharp" | "layers";
 
 /** What of the trails the curves cannot keep yet. */
 export interface TrailsDrawn {
@@ -76,14 +86,14 @@ export interface TrailsDrawn {
 }
 
 /**
- * The mechanism the trails use: curves when the address asks for them and
- * the trails are lines, without a mark, in half floats; the image carried
- * otherwise.
+ * The mechanism the trails use: curves when they are asked for (decision
+ * 71) and the trails are lines, without a mark, in half floats; the image
+ * carried, as layers, otherwise.
  */
 export function trailMechanism(asked: boolean, drawn: TrailsDrawn): Mechanism {
   return asked && !drawn.strobe && !drawn.mark && drawn.floating
     ? "sharp"
-    : "B";
+    : "layers";
 }
 
 /**
@@ -315,7 +325,7 @@ export class SharpTrails {
   }
 
   /**
-   * Takes over from the image carried (B): what it shows becomes the first
+   * Takes over from the image carried (layers): what it shows becomes the first
    * snapshot, and the window starts empty after it.
    */
   start(frame: SharpFrame): void {
@@ -339,7 +349,7 @@ export class SharpTrails {
     return changed;
   }
 
-  /** Hands the trails back to the image carried (B), as the image is now. */
+  /** Hands the trails back to the image carried (layers), as the image is now. */
   stop(): void {
     this.clear();
     this.#coarse?.dispose();

@@ -329,8 +329,9 @@ test("the trails stay where the chain drew them when the canvas changes size, on
 }) => {
   const errors = collectErrors(page);
   await page.setViewportSize({ width: 640, height: 400 });
-  // trails that stay, of a chain swinging fast, without twins
-  await page.goto("./?twins=0&time=4&trail=600");
+  // trails that stay, of a chain swinging fast, without twins, kept as
+  // layers, the image carried (decision 71)
+  await page.goto("./?twins=0&time=4&trail=600&trails=layers");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   await frames(page, 40);
   await page.keyboard.press(" ");
@@ -507,7 +508,7 @@ test("the trails are carried while the view comes a quarter nearer than they wer
 }) => {
   const errors = collectErrors(page);
   await page.setViewportSize({ width: 640, height: 400 });
-  await page.goto("./?twins=0&time=4&trail=600");
+  await page.goto("./?twins=0&time=4&trail=600&trails=layers");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   await frames(page, 40);
   await page.keyboard.press(" ");
@@ -536,7 +537,7 @@ test("the trails are carried a quarter nearer again once the light drawn farther
   // Z, the trails left to fade, then Z again: the light then, and the chain's
   // alone, as the light switch leaves it
   const pressedAgain = async (trail: string): Promise<[number, number]> => {
-    await page.goto(`./?twins=0&time=4&trail=${trail}`);
+    await page.goto(`./?twins=0&time=4&trail=${trail}&trails=layers`);
     await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
     await frames(page, 40);
     await page.keyboard.press("z");
@@ -565,7 +566,7 @@ test("the trails are cleared when the canvas grows by more than a quarter, and c
 }) => {
   const errors = collectErrors(page);
   await page.setViewportSize({ width: 640, height: 400 });
-  await page.goto("./?twins=0&time=4&trail=600");
+  await page.goto("./?twins=0&time=4&trail=600&trails=layers");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   await frames(page, 40);
   await page.keyboard.press(" ");
@@ -640,12 +641,29 @@ test("the meter says the frames a second and, kept as curves, the last remake, t
   await expect(meter).toHaveText(/ · kept (0\.[5-9]|[1-9]\d*(\.\d)?) s$/);
   // a strobe's stamps are not kept as curves yet
   await page.keyboard.press("Shift+Digit8");
-  await expect(meter).toHaveText(/^\d+(\.\d)? fps · B$/);
+  await expect(meter).toHaveText(/^\d+(\.\d)? fps · layers$/);
   await page.keyboard.press("Shift+Digit7");
   await expect(meter).toHaveText(/ · sharp · /);
   // a moment saved keeps them in the address's readable part, as the music
   await page.keyboard.press("s");
   await expect(page).toHaveURL(/\?trails=sharp&fps=1&keep=3#[A-Za-z0-9_-]+$/);
+  expect(errors).toEqual([]);
+});
+
+test("the trails are kept as curves unless the address asks for layers, which the meter names and a saved moment keeps (decision 71)", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("./?twins=0&fps=1");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  const meter = page.locator("output", { hasText: "fps" });
+  await expect(meter).toHaveText(/ · sharp · \d+ MB · kept /);
+  await page.goto("./?twins=0&fps=1&trails=layers");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await expect(meter).toHaveText(/^\d+(\.\d)? fps · layers$/);
+  // a moment saved keeps them in the address's readable part
+  await page.keyboard.press("s");
+  await expect(page).toHaveURL(/\?trails=layers&fps=1#[A-Za-z0-9_-]+$/);
   expect(errors).toEqual([]);
 });
 

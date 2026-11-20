@@ -52,7 +52,7 @@ export interface MeterReading {
 export function meterText(reading: MeterReading): string {
   const fps = reading.perSecond;
   const frames = `${fps >= 9.95 ? fps.toFixed(0) : fps.toFixed(1)} fps`;
-  if (reading.mechanism === "B") return `${frames} · B`;
+  if (reading.mechanism === "layers") return `${frames} · layers`;
   const remake =
     reading.remake === null ? "–" : `${reading.remake.toFixed(0)} ms`;
   const seconds = reading.kept ?? 0;
