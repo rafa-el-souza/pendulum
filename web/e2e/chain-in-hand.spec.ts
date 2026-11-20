@@ -354,6 +354,28 @@ test("the trails stay where the chain drew them when the canvas changes size, on
   expect(errors).toEqual([]);
 });
 
+test("the trails are cleared when the canvas grows by more than a quarter, and carried when it grows less (decision 66)", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.setViewportSize({ width: 640, height: 400 });
+  await page.goto("./?twins=0&time=4&trail=600");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await frames(page, 40);
+  await page.keyboard.press(" ");
+  await frames(page, 3);
+  const before = await lightShown(page);
+  // a tenth larger, as a phone turned: carried
+  await page.setViewportSize({ width: 704, height: 440 });
+  await frames(page, 3);
+  expect(await lightShown(page)).toBeGreaterThan(0.5 * before);
+  // twice as large again: cleared, the chain alone left
+  await page.setViewportSize({ width: 1408, height: 880 });
+  await frames(page, 3);
+  expect(await lightShown(page)).toBeLessThan(0.5 * before);
+  expect(errors).toEqual([]);
+});
+
 test("the twins' and the trails' keys change their number, how long the trails last and their style, and the address follows", async ({
   page,
 }) => {
