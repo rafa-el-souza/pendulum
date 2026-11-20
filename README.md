@@ -98,11 +98,14 @@ hanging rope it becomes as n grows.
   − and + in the screen's group, or between two fingers on a touch screen,
   which move it too; on a desktop the middle button, or a drag with Space
   held, moves it. A button beside the zoom, or Shift and X, goes back to
-  the whole view at once. Trails drawn before the view
-  came a quarter nearer, or the window grew as much, are cleared rather
-  than shown stretched, and those drawn after are sharp. One finger waits a
-  moment before it grabs the chain, so that a second can come and pinch, and
-  the address carries the view.
+  the whole view at once. The recent trails are kept as curves and drawn
+  anew, as fine as they were drawn, however near the view comes or large
+  the window grows; light older than the curves keep is stretched at most a
+  quarter, and hidden past it until the view goes farther. A strobe's
+  trails and a mark are carried as an image instead, cleared once the view
+  comes more than a quarter nearer than they were drawn at. One finger
+  waits a moment before it grabs the chain, so that a second can come and
+  pinch, and the address carries the view.
   The controls wait behind one small button in a corner, which opens a thin
   row of icons: the pause, the light, and six groups, time and the start,
   the chain, the twins, the trails, the music and the screen, each opening
