@@ -28,9 +28,12 @@
 // resampled once however long the run; a gesture holds it anew as it sees
 // past what is held. A view that comes more than a quarter nearer than the
 // light was drawn at clears it instead (ViewRuns).
+// Trails kept as curves (decision 68) remake the light instead, in any view:
+// the trails then keep their light divided by a number k, the fade kept as a
+// number, and draw into it, remake it and copy it as sharp.ts asks.
 
 import type { Rgb } from "./color.ts";
-import { ViewRuns, carryMap, type Box, type View } from "./view.ts";
+import { ViewRuns, carryMap, sameView, type Box, type View } from "./view.ts";
 
 const FULL_VERTEX = `#version 300 es
 layout(location = 0) in vec2 corner;
@@ -56,22 +59,29 @@ void main() {
 // point, each weighed by catmullRom along each axis, which keeps lines
 // sharper than the four of a linear read; where a pixel covers more than one
 // of the old target's, it reads the mean over the area it covers, so that
-// thin lines are not lost between samples.
+// thin lines are not lost between samples. Remaking trails kept as curves
+// (decision 68), a snapshot is read so, times uGain, its light faded since
+// it was taken, and where it did not see, a coarse image of the whole disc
+// (uFallback), read the same way.
 const CARRY = `#version 300 es
 precision highp float;
 uniform sampler2D uFrom;
 uniform vec2 uK;
 uniform vec2 uM;
 uniform float uRatio;
+uniform sampler2D uFallback;
+uniform vec2 uFK;
+uniform vec2 uFM;
+uniform float uFRatio;
+uniform float uHasFallback;
+uniform float uGain;
 out vec4 color;
-void main() {
-  vec2 uv = gl_FragCoord.xy * uK + uM;
-  if (any(lessThan(uv, vec2(0.0))) || any(greaterThan(uv, vec2(1.0)))) {
-    color = vec4(0.0);
-    return;
-  }
-  if (uRatio <= 1.0) {
-    ivec2 size = textureSize(uFrom, 0);
+bool inside(vec2 uv) {
+  return all(greaterThanEqual(uv, vec2(0.0))) && all(lessThanEqual(uv, vec2(1.0)));
+}
+vec4 read(sampler2D from, vec2 uv, vec2 k, float ratio) {
+  if (ratio <= 1.0) {
+    ivec2 size = textureSize(from, 0);
     vec2 p = uv * vec2(size) - 0.5;
     vec2 base = floor(p);
     vec2 f = p - base;
@@ -84,25 +94,37 @@ void main() {
         float wx = tx < 1.0 ? (1.5 * tx - 2.5) * tx * tx + 1.0 : ((-0.5 * tx + 2.5) * tx - 4.0) * tx + 2.0;
         ivec2 at = ivec2(base) + ivec2(i, j);
         if (any(lessThan(at, ivec2(0))) || any(greaterThanEqual(at, size))) continue;
-        sum += texelFetch(uFrom, at, 0) * (wx * wy);
+        sum += texelFetch(from, at, 0) * (wx * wy);
       }
     }
     // the curve dips a little below none beside a bright line: no light is less than none
-    color = max(sum, vec4(0.0)) * uRatio;
-    return;
+    return max(sum, vec4(0.0)) * ratio;
   }
-  int n = int(min(ceil(uRatio), 16.0));
-  vec2 step = uK / float(n);
+  int n = int(min(ceil(ratio), 16.0));
+  vec2 step = k / float(n);
   vec2 start = uv - step * (float(n) - 1.0) * 0.5;
   vec4 sum = vec4(0.0);
   for (int j = 0; j < 16; j++) {
     if (j >= n) break;
     for (int i = 0; i < 16; i++) {
       if (i >= n) break;
-      sum += texture(uFrom, start + step * vec2(float(i), float(j)));
+      sum += texture(from, start + step * vec2(float(i), float(j)));
     }
   }
-  color = sum / float(n * n) * uRatio;
+  return sum / float(n * n) * ratio;
+}
+void main() {
+  vec2 uv = gl_FragCoord.xy * uK + uM;
+  if (inside(uv)) {
+    color = read(uFrom, uv, uK, uRatio) * uGain;
+    return;
+  }
+  vec2 fallback = gl_FragCoord.xy * uFK + uFM;
+  if (uHasFallback > 0.5 && inside(fallback)) {
+    color = read(uFallback, fallback, uFK, uFRatio) * uGain;
+    return;
+  }
+  color = vec4(0.0);
 }`;
 
 // The curve, as lightCurve below: with uKeep off, each channel on its own;
@@ -260,6 +282,13 @@ export const SETTLE_FRAMES = 30;
 export const GROWTH_LIMIT = 1.25;
 
 /**
+ * How low k falls, the fade kept as a number by trails kept as curves
+ * (decision 68), before their images are darkened for real: a 64th, well
+ * within what half floats hold.
+ */
+export const KEPT_LEAST = 1 / 64;
+
+/**
  * The least a fade takes off at once: eight times half a step of a half
  * float's precision, so that rounding never undoes it.
  */
@@ -347,23 +376,51 @@ function cutTo(gl: WebGL2RenderingContext, box: Box | null): void {
   gl.scissor(box[0], box[1], box[2], box[3]);
 }
 
-/** Where light is drawn off the canvas: the size of the canvas's drawing buffer. */
+/**
+ * Where light is drawn off the canvas: the size of the canvas's drawing
+ * buffer, or a size of its own, as a snapshot of trails kept as curves and
+ * their coarse image of the whole disc have (decision 68).
+ */
 export class LightTarget {
   readonly #gl: WebGL2RenderingContext;
   #texture: WebGLTexture | null = null;
   #framebuffer: WebGLFramebuffer | null = null;
   #width = 0;
   #height = 0;
+  #fixed: readonly [number, number] | null;
   /** Whether it holds half floats; otherwise eight bits. */
   floating: boolean;
 
-  constructor(gl: WebGL2RenderingContext) {
+  /** A target the drawing buffer's size, or `fixed`, wide and high. */
+  constructor(
+    gl: WebGL2RenderingContext,
+    fixed: readonly [number, number] | null = null,
+  ) {
     this.#gl = gl;
+    this.#fixed = fixed;
     this.floating = gl.getExtension("EXT_color_buffer_float") !== null;
   }
 
   get texture(): WebGLTexture | null {
     return this.#texture;
+  }
+
+  get framebuffer(): WebGLFramebuffer | null {
+    return this.#framebuffer;
+  }
+
+  /** Its size in pixels, once made. */
+  get width(): number {
+    return this.#width;
+  }
+
+  get height(): number {
+    return this.#height;
+  }
+
+  /** A size of its own from now on: made anew, dark, when drawn into, if it differs. */
+  resize(width: number, height: number): void {
+    this.#fixed = [width, height];
   }
 
   /** How much its light is lifted when shown: eight bits stop at one, which the curve would leave grey. */
@@ -376,11 +433,11 @@ export class LightTarget {
     return this.#framebuffer !== null;
   }
 
-  /** Makes it the drawing buffer's size, dark when new. True when it is new. */
+  /** Makes it the drawing buffer's size, or its own, dark when new. True when it is new. */
   fit(): boolean {
     const gl = this.#gl;
-    const width = gl.drawingBufferWidth;
-    const height = gl.drawingBufferHeight;
+    const width = this.#fixed?.[0] ?? gl.drawingBufferWidth;
+    const height = this.#fixed?.[1] ?? gl.drawingBufferHeight;
     if (
       this.#framebuffer !== null &&
       width === this.#width &&
@@ -509,8 +566,17 @@ export class Trails {
   readonly #batch = new FadeBatch();
   // the view the targets are in, and their light as it was when the view
   // began to change, in the view it was in, while the run lasts (decision 66)
-  readonly #runs = new ViewRuns(SETTLE_FRAMES, GROWTH_LIMIT);
+  #runs = new ViewRuns(SETTLE_FRAMES, GROWTH_LIMIT);
   #view: View | null = null;
+  // whether the light is remade in each new view by trails kept as curves
+  // (decision 68), instead of carried
+  #remade = false;
+  /**
+   * The light the trails' image keeps is its own divided by this (decision
+   * 68): the fade kept as a number, with trails kept as curves; 1 while the
+   * light is carried.
+   */
+  k = 1;
   #held: LightTarget | null = null;
   #heldMark: LightTarget | null = null;
   #heldView: View | null = null;
@@ -553,7 +619,18 @@ export class Trails {
       "uMarkGain",
       ...CURVE_UNIFORMS,
     ]);
-    this.#carryPass = link(gl, CARRY, ["uFrom", "uK", "uM", "uRatio"]);
+    this.#carryPass = link(gl, CARRY, [
+      "uFrom",
+      "uK",
+      "uM",
+      "uRatio",
+      "uFallback",
+      "uFK",
+      "uFM",
+      "uFRatio",
+      "uHasFallback",
+      "uGain",
+    ]);
     this.#target = new LightTarget(gl);
     this.#mark = new LightTarget(gl);
     const buffer = gl.createBuffer();
@@ -601,6 +678,7 @@ export class Trails {
     this.#held?.clear();
     this.#heldMark?.clear();
     this.#batch.reset();
+    this.k = 1;
   }
 
   /** Darkens the mark alone. */
@@ -617,6 +695,7 @@ export class Trails {
    * whether it changed.
    */
   see(view: View): boolean {
+    if (this.#remade) return this.look(view);
     const step = this.#runs.see(view);
     this.#view = view;
     if (step === null) return false;
@@ -651,9 +730,11 @@ export class Trails {
     }
     if (this.#held !== null) {
       this.#carry(this.#held, step.from, this.#target, view);
+      this.#target.unbind();
     }
     if (this.#heldMark !== null) {
       this.#carry(this.#heldMark, step.from, this.#mark, view);
+      this.#mark.unbind();
     }
     return true;
   }
@@ -665,26 +746,54 @@ export class Trails {
     return target;
   }
 
-  /** Draws the light of `from`, seen as `fromView`, into `into`, made anew in the drawing buffer's view `to`. */
-  #carry(from: LightTarget, fromView: View, into: LightTarget, to: View): void {
+  /**
+   * Draws the light of `from`, seen as `fromView`, into `into`, made anew in
+   * the view `to`, times `gain`; where `from` did not see, the light of
+   * `fallback`, seen as its view, when given. Leaves `into` bound.
+   */
+  #carry(
+    from: LightTarget,
+    fromView: View,
+    into: LightTarget,
+    to: View,
+    fallback: {
+      readonly target: LightTarget;
+      readonly view: View;
+    } | null = null,
+    gain = 1,
+  ): void {
     const gl = this.#gl;
     into.bind(true);
     gl.disable(gl.BLEND);
     gl.disable(gl.SCISSOR_TEST);
     const { program, at } = this.#carryPass;
     gl.useProgram(program);
+    for (const [unit, target] of [
+      [0, from],
+      [1, fallback?.target ?? from],
+    ] as const) {
+      gl.activeTexture(gl.TEXTURE0 + unit);
+      gl.bindTexture(gl.TEXTURE_2D, target.texture);
+      // read between texels for the mean over an area, in the old target alone
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    }
     gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, from.texture);
-    // read between texels for the mean over an area, in the old target alone
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     gl.uniform1i(at.uFrom ?? null, 0);
+    gl.uniform1i(at.uFallback ?? null, 1);
     const [kx, ky, mx, my] = carryMap(fromView, to);
     gl.uniform2f(at.uK ?? null, kx, ky);
     gl.uniform2f(at.uM ?? null, mx, my);
     gl.uniform1f(at.uRatio ?? null, carriedGain(fromView, to));
+    if (fallback !== null) {
+      const [fkx, fky, fmx, fmy] = carryMap(fallback.view, to);
+      gl.uniform2f(at.uFK ?? null, fkx, fky);
+      gl.uniform2f(at.uFM ?? null, fmx, fmy);
+      gl.uniform1f(at.uFRatio ?? null, carriedGain(fallback.view, to));
+    }
+    gl.uniform1f(at.uHasFallback ?? null, fallback === null ? 0 : 1);
+    gl.uniform1f(at.uGain ?? null, gain);
     this.#fullscreen();
-    into.unbind();
   }
 
   /**
@@ -804,11 +913,159 @@ export class Trails {
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, this.#target.texture);
     gl.uniform1i(at.uTrails ?? null, 0);
-    gl.uniform1f(at.uGain ?? null, this.#target.gain);
+    gl.uniform1f(at.uGain ?? null, this.#target.gain * this.k);
     this.#curve(at);
     cutTo(gl, this.region);
     this.#fullscreen();
     gl.disable(gl.SCISSOR_TEST);
+  }
+
+  /** The image of the trails' light, as it is shown. */
+  get image(): LightTarget {
+    return this.#target;
+  }
+
+  /**
+   * Takes the view of this frame, as see() does, without carrying the light:
+   * trails kept as curves remake it (decision 68). Says whether it changed.
+   */
+  look(view: View): boolean {
+    const last = this.#view;
+    this.#view = view;
+    this.#fit();
+    return last === null || !sameView(last, view);
+  }
+
+  /**
+   * From now on, the light is remade in each new view by trails kept as
+   * curves (decision 68), and kept divided by k; what was held for a run of
+   * changes goes.
+   */
+  keepAsCurves(view: View): void {
+    this.#held?.dispose();
+    this.#heldMark?.dispose();
+    this.#held = null;
+    this.#heldMark = null;
+    this.#heldView = null;
+    this.#remade = true;
+    this.#view = view;
+    this.#fit();
+  }
+
+  /**
+   * From now on, the light is carried to each new view again (decisions 66
+   * and 67), as it is now, its k made light: the runs of changes start again
+   * at the next view.
+   */
+  carryAgain(): void {
+    this.#remade = false;
+    this.#runs = new ViewRuns(SETTLE_FRAMES, GROWTH_LIMIT);
+    this.#view = null;
+    if (this.k !== 1) {
+      this.#fade(this.#target, this.k, null);
+      this.#target.unbind();
+      this.k = 1;
+    }
+  }
+
+  /**
+   * Fades the light by `left` as a number (decision 68): the image and
+   * `others`, which keep light in its units, are darkened for real only once
+   * k has fallen below KEPT_LEAST, and k is 1 again.
+   */
+  fadeKept(left: number, others: readonly LightTarget[]): void {
+    this.k *= left;
+    if (this.k >= KEPT_LEAST) return;
+    for (const target of [this.#target, ...others]) {
+      if (!target.made) continue;
+      this.#fade(target, this.k, null);
+      target.unbind();
+    }
+    this.k = 1;
+  }
+
+  /** Adds to the image what `draw` draws in its view, without a fade. Back to the canvas after. */
+  drawIn(draw: (view: View) => void): void {
+    const view = this.#seen();
+    this.#fit();
+    this.#target.use();
+    draw(view);
+    this.#target.unbind();
+  }
+
+  /** Adds to `target`, at its own size, what `draw` draws. Back to the canvas after. */
+  drawInto(target: LightTarget, draw: () => void): void {
+    target.bind();
+    draw();
+    target.unbind();
+  }
+
+  /**
+   * Makes the image again in this frame's view (decision 68): dark, or the
+   * light of a snapshot read from its view times its gain, where it did not
+   * see its coarse image; then what `draw` draws over it in the view.
+   */
+  remake(
+    from: {
+      readonly image: LightTarget;
+      readonly view: View;
+      readonly coarse: LightTarget;
+      readonly coarseView: View;
+      readonly gain: number;
+    } | null,
+    draw: (view: View) => void,
+  ): void {
+    const view = this.#seen();
+    this.#fit();
+    if (from === null) {
+      this.#target.bind(true);
+    } else {
+      this.#carry(
+        from.image,
+        from.view,
+        this.#target,
+        view,
+        { target: from.coarse, view: from.coarseView },
+        from.gain,
+      );
+    }
+    draw(view);
+    this.#target.unbind();
+  }
+
+  /** Draws the light of `from`, seen as `fromView`, into `into`, made anew, seen as `to`. Back to the canvas after. */
+  carryBetween(
+    from: LightTarget,
+    fromView: View,
+    into: LightTarget,
+    to: View,
+  ): void {
+    this.#carry(from, fromView, into, to);
+    into.unbind();
+  }
+
+  /** Copies the light of `from` into `into`, made its size and kind, pixel for pixel. */
+  copyBetween(from: LightTarget, into: LightTarget): void {
+    const gl = this.#gl;
+    into.floating = from.floating;
+    into.resize(from.width, from.height);
+    into.fit();
+    gl.bindFramebuffer(gl.READ_FRAMEBUFFER, from.framebuffer);
+    gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, into.framebuffer);
+    gl.blitFramebuffer(
+      0,
+      0,
+      from.width,
+      from.height,
+      0,
+      0,
+      from.width,
+      from.height,
+      gl.COLOR_BUFFER_BIT,
+      gl.NEAREST,
+    );
+    gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null);
+    gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
   }
 
   /**
