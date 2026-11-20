@@ -354,6 +354,180 @@ test("the trails stay where the chain drew them when the canvas changes size, on
   expect(errors).toEqual([]);
 });
 
+/** The stage's middle on the page, and its box. */
+async function stageMiddle(
+  page: Page,
+): Promise<{ x: number; y: number; width: number; height: number }> {
+  const box = await page.locator("#stage").boundingBox();
+  if (box === null) throw new Error("the stage is not on the page");
+  return {
+    x: box.x + box.width / 2,
+    y: box.y + box.height / 2,
+    width: box.width,
+    height: box.height,
+  };
+}
+
+/** The camera the page's address carries (decision 67): its zoom and the point it looks at, as written, or none. */
+function cameraOf(page: Page): { zoom: string | null; at: string | null } {
+  const query = new URL(page.url()).searchParams;
+  return { zoom: query.get("zoom"), at: query.get("at") };
+}
+
+/** A finger of a touch screen on the stage, as the page hears one: every engine takes these from the page itself. */
+async function finger(
+  page: Page,
+  type: "pointerdown" | "pointermove" | "pointerup",
+  id: number,
+  x: number,
+  y: number,
+): Promise<void> {
+  await page.evaluate(
+    `document.getElementById("stage").dispatchEvent(new PointerEvent(${JSON.stringify(type)}, { pointerId: ${String(id)}, pointerType: "touch", isPrimary: ${String(id === 1)}, clientX: ${String(x)}, clientY: ${String(y)}, bubbles: true, cancelable: true }))`,
+  );
+}
+
+test("the wheel brings the view nearer about the mouse and back to the whole view, Z and X about the middle, and the address follows once the view stays (decision 67)", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("./?twins=0");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  const middle = await stageMiddle(page);
+  await page.mouse.move(middle.x + 80, middle.y + 60);
+  await page.mouse.wheel(0, -400);
+  await frames(page, 3);
+  // about a point off the middle: the zoom and the point it looks at, its
+  // comma a comma
+  await expect.poll(() => cameraOf(page).at).not.toBeNull();
+  expect(Number(cameraOf(page).zoom)).toBeGreaterThan(1);
+  expect(page.url()).toMatch(/[?&]at=-?[\d.]+,-?[\d.]+(&|$)/);
+  // as far out as the whole view, and no farther: the address as it was
+  await page.mouse.wheel(0, 4000);
+  await expect(page).toHaveURL(/\?twins=0$/);
+  // three steps of 1.25 about the middle, where the pivot stays
+  for (let i = 0; i < 3; i++) await page.keyboard.press("z");
+  await expect.poll(() => cameraOf(page)).toEqual({ zoom: "1.95", at: null });
+  for (let i = 0; i < 3; i++) await page.keyboard.press("x");
+  await expect(page).toHaveURL(/\?twins=0$/);
+  await frames(page, 5);
+  expect(errors).toEqual([]);
+});
+
+test("an address opens the view near, and the middle button moves it without grabbing the chain, the address following (decision 67)", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("./?twins=0&zoom=4&at=0.3,-0.4");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  // paused, so that a grab would show: it sets the chain going again
+  await page.keyboard.press(" ");
+  const resume = page.locator('#controls [aria-label="Resume"]');
+  await expect(resume).toHaveCount(1);
+  const middle = await stageMiddle(page);
+  await page.mouse.move(middle.x, middle.y);
+  await page.mouse.down({ button: "middle" });
+  for (let step = 1; step <= 5; step++) {
+    await page.mouse.move(middle.x + 20 * step, middle.y);
+    await frames(page, 1);
+  }
+  await page.mouse.up({ button: "middle" });
+  // dragged right, the world with it: the view looks farther left
+  await expect.poll(() => cameraOf(page).at).not.toBe("0.3,-0.4");
+  const at = cameraOf(page).at ?? "";
+  expect(Number(at.split(",")[0])).toBeLessThan(0.3);
+  expect(Number(at.split(",")[1])).toBeCloseTo(-0.4, 3);
+  await expect(resume).toHaveCount(1);
+  expect(errors).toEqual([]);
+});
+
+test("Space pauses as it is let go, and held with a drag moves the view instead (decision 67)", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("./?twins=0&zoom=4");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  const resume = page.locator('#controls [aria-label="Resume"]');
+  await page.keyboard.press(" ");
+  await expect(resume).toHaveCount(1);
+  await page.keyboard.press(" ");
+  await expect(resume).toHaveCount(0);
+  const middle = await stageMiddle(page);
+  await page.mouse.move(middle.x, middle.y);
+  await page.keyboard.down(" ");
+  await page.mouse.down();
+  for (let step = 1; step <= 5; step++) {
+    await page.mouse.move(middle.x, middle.y - 20 * step);
+    await frames(page, 1);
+  }
+  await page.mouse.up();
+  await page.keyboard.up(" ");
+  // dragged up, the world with it: the view looks lower
+  await expect.poll(() => cameraOf(page).at).toMatch(/^0,-[\d.]+$/);
+  await frames(page, 3);
+  await expect(resume).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test("two fingers pinch the view nearer without grabbing the chain, and one finger grabs once it has waited (decision 67)", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("./?twins=0");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await page.keyboard.press(" ");
+  const resume = page.locator('#controls [aria-label="Resume"]');
+  await expect(resume).toHaveCount(1);
+  const middle = await stageMiddle(page);
+  // the second finger lands within the first one's wait: a pinch
+  await finger(page, "pointerdown", 1, middle.x - 50, middle.y);
+  await finger(page, "pointerdown", 2, middle.x + 50, middle.y);
+  for (let step = 1; step <= 5; step++) {
+    await finger(page, "pointermove", 1, middle.x - 50 - 20 * step, middle.y);
+    await finger(page, "pointermove", 2, middle.x + 50 + 20 * step, middle.y);
+    await frames(page, 1);
+  }
+  await finger(page, "pointerup", 1, middle.x - 150, middle.y);
+  await finger(page, "pointerup", 2, middle.x + 150, middle.y);
+  // from 100 pixels apart to 300: three times nearer, about the middle
+  await expect.poll(() => cameraOf(page)).toEqual({ zoom: "3", at: null });
+  await frames(page, 3);
+  await expect(resume).toHaveCount(1);
+  // one finger, held past its wait, grabs: the chain goes again
+  await finger(page, "pointerdown", 3, middle.x, middle.y + 40);
+  await page.waitForTimeout(300);
+  await frames(page, 2);
+  await expect(resume).toHaveCount(0);
+  await finger(page, "pointerup", 3, middle.x, middle.y + 40);
+  expect(errors).toEqual([]);
+});
+
+test("the trails are carried while the view comes a quarter nearer than they were drawn at, and cleared past it (decision 67)", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.setViewportSize({ width: 640, height: 400 });
+  await page.goto("./?twins=0&time=4&trail=600");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await frames(page, 40);
+  await page.keyboard.press(" ");
+  await frames(page, 3);
+  const before = await lightShown(page);
+  // Z, a quarter nearer: carried
+  await page.keyboard.press("z");
+  await frames(page, 3);
+  expect(await lightShown(page)).toBeGreaterThan(0.5 * before);
+  // Z again, 1.56 times the scale they were drawn at: cleared, the chain
+  // alone left, as the light switch leaves it
+  await page.keyboard.press("z");
+  await frames(page, 3);
+  const nearer = await lightShown(page);
+  await page.keyboard.press("l");
+  await frames(page, 3);
+  expect(nearer).toBeLessThan(1.2 * (await lightShown(page)));
+  expect(errors).toEqual([]);
+});
+
 test("the trails are cleared when the canvas grows by more than a quarter, and carried when it grows less (decision 66)", async ({
   page,
 }) => {
