@@ -8,9 +8,11 @@
 // group's own row right above it, and an action's icon acts. A parameter's
 // icon opens that one value, with its − and +, right above itself. A key
 // steps its parameter whether the row is open or not, and shows the value it
-// changed: with the row open, in its group. The row, the group and the value
-// stay as the visitor leaves them, and come back so when the row is opened
-// again. On a touch screen, a touch on the controls keeps them in sight for
+// changed: with the row open, in its group. A group may show more than
+// values above its row, as the music's meter and words do while none of its
+// values is chosen, and a key may open it, as W does the music's (decision
+// 76). The row, the group and the value stay as the visitor leaves them, and
+// come back so when the row is opened again. On a touch screen, a touch on the controls keeps them in sight for
 // longer, a touch where they are brings them back without grabbing the
 // chain, and a touch on the stage puts them away. Keyboard focus and a mouse
 // resting on them keep them in sight.
@@ -18,7 +20,13 @@
 import { cssColor, type Rgb } from "./color.ts";
 import { cls } from "./css.ts";
 import styles from "./controls.module.css";
-import { drawIcon, swingingPart, type Icon } from "./icons.ts";
+import {
+  drawBars,
+  drawIcon,
+  setBars,
+  swingingPart,
+  type Icon,
+} from "./icons.ts";
 import type { Parameter } from "./parameters.ts";
 
 /** A button that does one thing, such as pausing. */
@@ -32,6 +40,8 @@ export interface Action {
   readonly keysShown: string;
   /** For a switch, whether it starts on; the button then says so to a screen reader. */
   readonly pressed?: boolean;
+  /** For a switch that shows itself lit while on, as the music's sources do (decision 76). */
+  readonly lights?: boolean;
 }
 
 /** A control in the row: a parameter, stepped down and up, or an action. */
@@ -43,6 +53,11 @@ export interface Group {
   readonly label: string;
   readonly icon: Icon;
   readonly controls: readonly Control[];
+  /** What the group shows right above its row while none of its values is chosen, as the music's meter and words (decision 76). */
+  readonly panel?: HTMLElement;
+  /** The keys that open the group, or shut it, which the piece listens for and `toggleGroup` answers, and how its title shows them. */
+  readonly keys?: readonly string[];
+  readonly keysShown?: string;
 }
 
 /** What the row holds: controls, and groups of them. */
@@ -80,6 +95,10 @@ export interface Controls {
   showAction(id: string, icon: Icon, label: string, pressed?: boolean): void;
   /** Shows an action's button faint while it has nothing to do, as the whole view's while the view is whole, and still there to press. */
   showIdle(id: string, idle: boolean): void;
+  /** Opens the row on the group `id`, as its key does, or shuts the group when it is the one open. */
+  toggleGroup(id: string): void;
+  /** Shows three bars risen to `levels`, from 0 to 1, in place of the group's icon, as the music's while the piece listens; null brings the icon back (decision 76). */
+  showLevels(id: string, levels: readonly number[] | null): void;
 }
 
 /** How long the controls stay in sight after a sign of a visitor on the stage, in ms. */
@@ -185,6 +204,11 @@ export function showKeys(keys: readonly (string | undefined)[]): string {
       return letter === null ? shown(key) : `Shift+${shown(letter)}`;
     })
     .join(" ");
+}
+
+/** A control's title: its name, and its keys where it has any. */
+function titled(label: string, keys: string): string {
+  return keys === "" ? label : `${label} (${keys})`;
 }
 
 function isParameter(control: Control): control is Parameter {
@@ -319,8 +343,15 @@ export function mountControls(
   // each group's icon in the row and its own row, and the group of each control
   const groups = new Map<
     string,
-    { button: HTMLButtonElement; row: HTMLElement }
+    {
+      button: HTMLButtonElement;
+      row: HTMLElement;
+      icon: Icon;
+      panel: HTMLElement | null;
+    }
   >();
+  // the bars shown in place of a group's icon while its levels move
+  const bars = new Map<string, SVGSVGElement>();
   const groupOf = new Map<string, string>();
   let chosen: string | null = null;
   let group: string | null = null;
@@ -338,7 +369,20 @@ export function mountControls(
       entry.reading.hidden = key !== id;
       entry.tool.setAttribute("aria-expanded", String(key === id));
     }
+    showPanels();
     place();
+  }
+
+  /** The open group's panel, in the value's place while none of its values is chosen (decision 76). */
+  function panelShown(): HTMLElement | null {
+    if (!open || group === null || chosen !== null) return null;
+    return groups.get(group)?.panel ?? null;
+  }
+  function showPanels(): void {
+    const shown = panelShown();
+    for (const { panel } of groups.values()) {
+      if (panel !== null) panel.hidden = panel !== shown;
+    }
   }
 
   /** Shows the row of the group `id` above its icon, or none, with the value that was open in it. */
@@ -350,6 +394,7 @@ export function mountControls(
     }
     shelf.hidden = id === null;
     setChosen(id === null ? null : (lastChosen.get(id) ?? null));
+    showPanels();
     place();
   }
 
@@ -381,6 +426,18 @@ export function mountControls(
         innerWidth - EDGE,
       );
       shown.row.style.left = `${String(left - dockLeft)}px`;
+      // the panel above it, centred on the group's icon too
+      const panel = panelShown();
+      if (panel !== null) {
+        const at = centredOver(
+          shown.button.getBoundingClientRect().left +
+            shown.button.offsetWidth / 2,
+          panel.offsetWidth,
+          EDGE,
+          innerWidth - EDGE,
+        );
+        readout.style.left = `${String(at - dockLeft)}px`;
+      }
     }
     if (chosen === null) return;
     const entry = entries.get(chosen);
@@ -418,10 +475,11 @@ export function mountControls(
           handlers.act(action.id);
         },
       );
-      b.title = `${action.label} (${action.keysShown})`;
+      b.title = titled(action.label, action.keysShown);
       if (action.pressed !== undefined) {
         b.setAttribute("aria-pressed", String(action.pressed));
       }
+      if (action.lights === true) b.dataset.lights = "";
       into.append(b);
       actionButtons.set(action.id, {
         button: b,
@@ -534,11 +592,20 @@ export function mountControls(
       own.setAttribute("role", "toolbar");
       own.setAttribute("aria-label", item.label);
       own.hidden = true;
-      const opener = button("tool", drawIcon(item.icon), item.label, [], () => {
-        setGroup(group === item.id ? null : item.id);
-        remember();
-        wake();
-      });
+      const opener = button(
+        "tool",
+        drawIcon(item.icon),
+        item.label,
+        item.keys ?? [],
+        () => {
+          setGroup(group === item.id ? null : item.id);
+          remember();
+          wake();
+        },
+      );
+      if (item.keysShown !== undefined) {
+        opener.title = `${item.label} (${item.keysShown})`;
+      }
       opener.setAttribute("aria-expanded", "false");
       opener.setAttribute("aria-controls", own.id);
       cluster.append(opener);
@@ -547,7 +614,17 @@ export function mountControls(
         add(own, control);
       }
       shelf.append(own);
-      groups.set(item.id, { button: opener, row: own });
+      const panel = item.panel ?? null;
+      if (panel !== null) {
+        panel.hidden = true;
+        readout.append(panel);
+      }
+      groups.set(item.id, {
+        button: opener,
+        row: own,
+        icon: item.icon,
+        panel,
+      });
     }
     row.append(cluster);
   }
@@ -625,7 +702,9 @@ export function mountControls(
     const all: Box[] = [tray.getBoundingClientRect()];
     const shown = group === null ? undefined : groups.get(group);
     if (shown !== undefined) all.push(shown.row.getBoundingClientRect());
-    if (chosen !== null) all.push(readout.getBoundingClientRect());
+    if (chosen !== null || panelShown() !== null) {
+      all.push(readout.getBoundingClientRect());
+    }
     return all;
   }
   // A touch where the controls are, seen or not, is for them: it brings them
@@ -836,12 +915,43 @@ export function mountControls(
       b.setAttribute("aria-label", label);
       if (pressed !== undefined)
         b.setAttribute("aria-pressed", String(pressed));
-      b.title = `${label} (${action.keysShown})`;
+      b.title = titled(label, action.keysShown);
     },
     showIdle(id, idle) {
       const action = actionButtons.get(id);
       if (action === undefined) throw new Error(`no action ${id}`);
       action.button.classList.toggle(faint, idle);
+    },
+    toggleGroup(id) {
+      if (!groups.has(id)) throw new Error(`no group ${id}`);
+      if (open && group === id) setGroup(null);
+      else if (open) setGroup(id);
+      else {
+        lastGroup = id;
+        setOpen(true);
+      }
+      remember();
+      wake();
+    },
+    showLevels(id, levels) {
+      const shown = groups.get(id);
+      if (shown === undefined) throw new Error(`no group ${id}`);
+      let drawn = bars.get(id);
+      if (levels === null) {
+        if (drawn === undefined) return;
+        bars.delete(id);
+        shown.button.replaceChildren(drawIcon(shown.icon));
+        return;
+      }
+      if (drawn === undefined) {
+        drawn = drawBars();
+        bars.set(id, drawn);
+        shown.button.replaceChildren(drawn);
+      }
+      // nothing to see with the row shut; with reduced motion asked for,
+      // the bars stand still halfway, which says the piece listens
+      if (!open) return;
+      setBars(drawn, still.matches ? levels.map(() => 0.5) : levels);
     },
   };
 }

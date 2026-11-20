@@ -2123,23 +2123,38 @@ function toneFile(): Buffer {
   return data;
 }
 
-/** The music card (decision 44), and its parts. */
-function musicCard(page: Page) {
-  const card = page.getByRole("dialog", { name: "Music" });
+/** The music's group of the row (decisions 44 and 76), and its parts, in sight or not. */
+function music(page: Page) {
+  const group = page.locator("#group-music");
+  const panel = page.locator("#music-panel");
   return {
-    card,
-    status: card.getByRole("status"),
-    meter: card.getByRole("meter", { name: "Sound arriving" }),
-    source: (name: string) => card.getByRole("button", { name, exact: true }),
+    group,
+    panel,
+    status: panel.getByRole("status", { includeHidden: true }),
+    meter: panel.getByRole("meter", {
+      name: "Sound arriving",
+      includeHidden: true,
+    }),
+    source: (name: string) =>
+      group.getByRole("button", { name, exact: true, includeHidden: true }),
+    note: icon(page, "Music"),
   };
 }
 
+/** Brings the controls back into sight after a wait, as a visitor's mouse does. */
+async function awaken(page: Page): Promise<void> {
+  const box = await launcher(page).boundingBox();
+  if (box === null) throw new Error("the controls' button is not on the page");
+  await page.mouse.move(box.x + box.width / 2 - 40, box.y + box.height / 2);
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+}
+
 /**
- * Waits until the card's meter shows sound arriving; failing, says what the
- * card said, and the page's errors.
+ * Waits until the panel's meter shows sound arriving; failing, says what the
+ * panel said, and the page's errors.
  */
 async function hearsSound(page: Page, errors: string[]): Promise<void> {
-  const { meter, status } = musicCard(page);
+  const { meter, status } = music(page);
   try {
     await expect
       .poll(async () => Number(await meter.getAttribute("aria-valuenow")), {
@@ -2149,25 +2164,26 @@ async function hearsSound(page: Page, errors: string[]): Promise<void> {
   } catch (error) {
     const said = (await status.textContent()) ?? "";
     throw new Error(
-      `the meter stayed at 0; the card said "${said}"; the page's errors: ${JSON.stringify(errors)}`,
+      `the meter stayed at 0; the panel said "${said}"; the page's errors: ${JSON.stringify(errors)}`,
       { cause: error },
     );
   }
 }
 
-test("the W key and its button open the music card, whose demo beat moves the meter, and off stops it", async ({
+test("the W key and the row's note open the music's group, whose demo beat lights, moves the meter and the note, and stops at a second touch (decisions 44 and 76)", async ({
   page,
 }) => {
   const errors = collectErrors(page);
   await page.goto("./");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
-  const { card, status, meter, source } = musicCard(page);
-  await expect(card).toBeHidden();
+  const { group, panel, status, meter, source, note } = music(page);
+  await expect(group).toBeHidden();
   await page.keyboard.press("w");
-  await expect(card).toBeVisible();
+  await expect(group).toBeVisible();
+  await expect(panel).toBeVisible();
   await expect(status).toHaveText("Not listening.");
-  await expect(card).toContainText("Sound stays on this device.");
-  await expect(source("Off")).toHaveAttribute("aria-pressed", "true");
+  await expect(panel).toContainText("Sound stays on this device.");
+  await expect(source("Demo beat")).toHaveAttribute("aria-pressed", "false");
 
   // the beat plays aloud, or muted where the browser gives no sound
   await source("Demo beat").click();
@@ -2177,32 +2193,85 @@ test("the W key and its button open the music card, whose demo beat moves the me
     { timeout: 10_000 },
   );
   await hearsSound(page, errors);
+  // the note in the row is three bars while the piece listens
+  await expect(note.locator("rect")).toHaveCount(3);
 
-  await source("Off").click();
+  // a second touch stops it, and the note comes back
+  await awaken(page);
+  await source("Demo beat").click();
   await expect(status).toHaveText("Not listening.");
+  await expect(source("Demo beat")).toHaveAttribute("aria-pressed", "false");
   await expect(meter).toHaveAttribute("aria-valuenow", "0");
+  await expect(note.locator("rect")).toHaveCount(0);
 
-  // Escape shuts the card; the row's button opens it again, and its own
-  // button shuts it
+  // W shuts the group and opens it again; Escape shuts it, and the note
+  // opens it
+  await page.keyboard.press("w");
+  await expect(group).toBeHidden();
+  await page.keyboard.press("w");
+  await expect(group).toBeVisible();
   await page.keyboard.press("Escape");
-  await expect(card).toBeHidden();
-  await openControls(page);
-  await icon(page, "Music").click();
-  await expect(card).toBeVisible();
-  await card.getByRole("button", { name: "Close" }).click();
-  await expect(card).toBeHidden();
+  await expect(group).toBeHidden();
+  await note.click();
+  await expect(group).toBeVisible();
   expect(errors).toEqual([]);
 });
 
-test("the music card plays a file of music chosen from the device, and hears it", async ({
+test("the music's panel opens right above its group, in a value's place, and gives way to a value chosen and to another group, so that nothing draws over it (decision 76)", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  for (const width of [1280, 390]) {
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto("./");
+    await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+    const { group, panel, source } = music(page);
+    await page.keyboard.press("w");
+    await source("Demo beat").click();
+    await expect(source("Demo beat")).toHaveAttribute("aria-pressed", "true");
+    const over = await panel.boundingBox();
+    const under = await group.boundingBox();
+    if (over === null || under === null) throw new Error("no panel or group");
+    expect(over.y + over.height).toBeLessThanOrEqual(under.y + 1);
+    expect(over.x).toBeGreaterThanOrEqual(0);
+    expect(over.x + over.width).toBeLessThanOrEqual(width);
+
+    // the mode's value takes the panel's place, and gives it back
+    const mode = icon(page, "What the music does");
+    await mode.click();
+    await expect(panel).toBeHidden();
+    await expect(
+      page.getByRole("group", { name: "What the music does" }),
+    ).toBeVisible();
+    await mode.click();
+    await expect(panel).toBeVisible();
+
+    // another group shuts the music's, panel and all, while the beat plays on
+    await icon(page, "The chain").click();
+    await expect(
+      page.getByRole("toolbar", { name: "The chain" }),
+    ).toBeVisible();
+    await expect(group).toBeHidden();
+    await expect(panel).toBeHidden();
+    await expect(source("Demo beat")).toHaveAttribute("aria-pressed", "true");
+    // and the music's opens again as it was left
+    await awaken(page);
+    await icon(page, "Music").click();
+    await expect(panel).toBeVisible();
+    await source("Demo beat").click();
+  }
+  expect(errors).toEqual([]);
+});
+
+test("the music's group plays a file of music chosen from the device, and hears it", async ({
   page,
 }) => {
   const errors = collectErrors(page);
   await page.goto("./");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   await page.keyboard.press("w");
-  const { card, status, source } = musicCard(page);
-  await card.locator('input[type="file"]').setInputFiles({
+  const { panel, status, source } = music(page);
+  await panel.locator('input[type="file"]').setInputFiles({
     name: "tone.wav",
     mimeType: "audio/wav",
     buffer: toneFile(),
@@ -2211,12 +2280,13 @@ test("the music card plays a file of music chosen from the device, and hears it"
   await expect(status).toHaveText("Playing tone.wav.", { timeout: 10_000 });
   await expect(source("File")).toHaveAttribute("aria-pressed", "true");
   await hearsSound(page, errors);
-  await source("Off").click();
+  await awaken(page);
+  await source("File").click();
   await expect(status).toHaveText("Not listening.");
   expect(errors).toEqual([]);
 });
 
-test("the music card listens through the microphone, and lets it go", async ({
+test("the music's group listens through the microphone, and lets it go", async ({
   page,
   browserName,
 }) => {
@@ -2228,17 +2298,18 @@ test("the music card listens through the microphone, and lets it go", async ({
   await page.goto("./");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   await page.keyboard.press("w");
-  const { status, source } = musicCard(page);
+  const { status, source } = music(page);
   await source("Microphone").click();
   await expect(status).toHaveText(/^Listening through /, { timeout: 10_000 });
   await expect(source("Microphone")).toHaveAttribute("aria-pressed", "true");
   await hearsSound(page, errors);
-  await source("Off").click();
+  await awaken(page);
+  await source("Microphone").click();
   await expect(status).toHaveText("Not listening.");
   expect(errors).toEqual([]);
 });
 
-test("where the browser shares a tab's sound, the music card listens to a share, and elsewhere offers none", async ({
+test("where the browser shares a tab's sound, the music's group listens to a share, and elsewhere offers none", async ({
   page,
   browserName,
 }) => {
@@ -2246,7 +2317,7 @@ test("where the browser shares a tab's sound, the music card listens to a share,
   await page.goto("./");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   await page.keyboard.press("w");
-  const { status, source } = musicCard(page);
+  const { status, source } = music(page);
   const tab = source("Sound of a tab or the screen");
   if (browserName !== "chromium") {
     // Firefox and Safari share pictures without sound (decision 45)
@@ -2259,12 +2330,12 @@ test("where the browser shares a tab's sound, the music card listens to a share,
   await tab.click();
   await expect(status).toHaveText("Listening to the sound of this computer.");
   await expect(tab).toHaveAttribute("aria-pressed", "true");
-  await source("Off").click();
+  await tab.click();
   await expect(status).toHaveText("Not listening.");
   expect(errors).toEqual([]);
 });
 
-test("where there are several microphones, the music card lists them and listens through the one chosen", async ({
+test("where there are several microphones, the music's panel lists them and listens through the one chosen", async ({
   page,
   browserName,
 }) => {
@@ -2276,8 +2347,8 @@ test("where there are several microphones, the music card lists them and listens
   await page.goto("./");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   await page.keyboard.press("w");
-  const { card, status, source } = musicCard(page);
-  const list = card.getByRole("combobox", { name: "microphone" });
+  const { panel, status, source } = music(page);
+  const list = panel.getByRole("combobox", { name: "microphone" });
   await expect(list).toBeHidden();
   await source("Microphone").click();
   await expect(status).toHaveText(/^Listening through /);
@@ -2288,54 +2359,64 @@ test("where there are several microphones, the music card lists them and listens
   await list.selectOption({ label: last });
   await expect(status).toHaveText(`Listening through ${last}.`);
   await hearsSound(page, errors);
-  await source("Off").click();
+  await awaken(page);
+  await source("Microphone").click();
   await expect(list).toBeHidden();
   expect(errors).toEqual([]);
 });
 
-test("the music card's mode and strength are kept in the address, beside a saved moment too, and an address opens with them", async ({
+test("the music's mode and strength, values of its group, are kept in the address, beside a saved moment too, and an address opens with them (decisions 46 and 76)", async ({
   page,
 }) => {
   const errors = collectErrors(page);
   await page.goto("./");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   await page.keyboard.press("w");
-  const { card } = musicCard(page);
-  const mode = card.getByRole("group", { name: "Mode" });
-  const strength = card.getByRole("group", { name: "Strength" });
+  const mode = page.getByRole("group", { name: "What the music does" });
+  const strength = page.getByRole("group", {
+    name: "How strongly the music acts",
+  });
+  const less = (group: Locator, label: string) =>
+    group.getByRole("button", { name: `Less: ${label}` });
+  const more = (group: Locator, label: string) =>
+    group.getByRole("button", { name: `More: ${label}` });
   // the piece opens in the light, at the middle strength
-  await expect(mode).toHaveText(/light/);
-  await expect(
-    strength.getByRole("button", { name: "Strength 3 of 5" }),
-  ).toHaveAttribute("aria-pressed", "true");
+  await icon(page, "What the music does").click();
+  await expect(mode).toContainText("light");
   // the candidates come next (decision 49), and "none" last, round from the
   // first
-  await mode.getByRole("button", { name: "Next mode" }).click();
-  await expect(mode).toHaveText(/glow/);
-  await expect(page).toHaveURL(/[?&]music=glow(&|$)/);
-  await mode.getByRole("button", { name: "Previous mode" }).click();
-  await mode.getByRole("button", { name: "Previous mode" }).click();
-  await expect(mode).toHaveText(/none/);
+  await more(mode, "What the music does").click();
+  await expect(mode).not.toContainText("light");
+  await expect(page).toHaveURL(/[?&]music=[a-z]+(&|$)/);
+  await less(mode, "What the music does").click();
+  await less(mode, "What the music does").click();
+  await expect(mode).toContainText("none");
   await expect(page).toHaveURL(/[?&]music=none(&|$)/);
-  await strength.getByRole("button", { name: "Strength 5 of 5" }).click();
+  await icon(page, "How strongly the music acts").click();
+  await expect(strength).toContainText("●●●○○");
+  await more(strength, "How strongly the music acts").click();
+  await more(strength, "How strongly the music acts").click();
+  await more(strength, "How strongly the music acts").click();
+  await expect(strength).toContainText("●●●●●");
   await expect(page).toHaveURL(/[?&]strength=5(&|$)/);
   // round again to the light, which leaves the address
-  await mode.getByRole("button", { name: "Next mode" }).click();
-  await expect(mode).toHaveText(/light/);
+  await icon(page, "What the music does").click();
+  await more(mode, "What the music does").click();
+  await expect(mode).toContainText("light");
   await expect(page).not.toHaveURL(/music=/);
 
   // a saved moment's code goes after the "#", and the music stays before it
-  await mode.getByRole("button", { name: "Previous mode" }).click();
+  await less(mode, "What the music does").click();
   await page.keyboard.press("s");
   await expect(page).toHaveURL(/\?music=none&strength=5#.+/);
 
   // an address opens with its mode and strength
   await page.goto("./?music=none&strength=2");
   await page.keyboard.press("w");
-  await expect(mode).toHaveText(/none/);
-  await expect(
-    strength.getByRole("button", { name: "Strength 2 of 5" }),
-  ).toHaveAttribute("aria-pressed", "true");
+  await icon(page, "What the music does").click();
+  await expect(mode).toContainText("none");
+  await icon(page, "How strongly the music acts").click();
+  await expect(strength).toContainText("●●○○○");
   expect(errors).toEqual([]);
 });
 

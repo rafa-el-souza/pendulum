@@ -183,12 +183,16 @@
 
 .tool:hover,
 .launcher:hover,
-.tool[aria-expanded="true"] {
+.tool[aria-expanded="true"],
+.tool[data-lights][aria-pressed="true"] {
   color: var(--color-ink);
 }
 
-/* The icon whose value is open above it, marked by a dot beneath. */
-.tool[aria-expanded="true"]::after {
+/* The icon whose value is open above it, marked by a dot beneath; and a
+   switch that lights while on, as a source of the music while it plays
+   (decision 76). */
+.tool[aria-expanded="true"]::after,
+.tool[data-lights][aria-pressed="true"]::after {
   position: absolute;
   bottom: 0.2rem;
   left: 50%;

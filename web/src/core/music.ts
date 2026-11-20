@@ -6,26 +6,28 @@ import {
   type Outcome,
   type Source,
 } from "../audio/source.ts";
+import type { Action } from "./controls.ts";
 import { cls } from "./css.ts";
+import type { Icon } from "./icons.ts";
 import styles from "./music.module.css";
-import { STRENGTHS } from "./routes.ts";
 
-// The music card (docs/decisions.md, decisions 44 and 45): a small card over
-// the controls' corner, opened by the row's music button or the W key, where
-// the piece is told what to listen to and shows what it hears. A meter draws
-// the last seconds of loudness with the attacks marked, and the three bands
-// beside it; the sources are the microphone, which one chosen where there
-// are several, a file, the sound of a tab or of the computer where the
-// browser shares it, and the demonstration beat, each started by a touch;
-// what the music does, its mode, and how strongly, in five steps (decision
-// 46); and the card says that the sound stays on the device. How it looks,
-// where it sits and its words are placeholders, which the author settles by
-// trying.
+// What the piece listens to, in the music's group of the row (docs/
+// decisions.md, decisions 44, 45 and 76): the sources are buttons of the
+// group, lit while they play, each started by a touch and stopped by
+// another: the microphone, a file, the sound of a tab or of the computer
+// where the browser shares it, and the demonstration beat. Above the group,
+// while none of its values is chosen, a panel shows what the piece hears: a
+// meter of the last seconds of loudness with the attacks marked and the
+// three bands beside it, the words of what it is doing, which microphone
+// where there are several, and, before anything plays, that the sound stays
+// on the device. What the music does and how strongly are values of the
+// group (chain-in-hand/parameters.ts). How it looks and its words are
+// placeholders, which the author settles by trying.
 
 /** How many seconds the meter shows, and in how many columns. */
 const METER_SECONDS = 3;
-const COLUMNS = 90;
-/** How often the words under the meter change, in ms, so that they can be read. */
+const COLUMNS = 45;
+/** How often the meter's value for a screen reader changes, in ms. */
 const WORDS_MS = 250;
 
 /** Whether the page runs on an iPhone or an iPad, where opening the microphone stops the music playing on it. */
@@ -37,16 +39,6 @@ function onIos(): boolean {
   );
 }
 
-export interface MusicCard {
-  /** Whether the card is open. */
-  isOpen(): boolean;
-  /** Opens the card, or shuts it; shutting it leaves the music playing. */
-  toggle(): void;
-  /** What the music says this frame, or null while the piece listens to nothing; the meter shows it. */
-  hear(): Signals | null;
-}
-
-/** What the card says while a source plays, or what came of starting it. */
 /** What the card says of how a start came out. */
 export function said(outcome: Outcome): string {
   switch (outcome.kind) {
@@ -95,37 +87,34 @@ export function said(outcome: Outcome): string {
   }
 }
 
-/** What the card offers of what the music does: the piece's modes, the one and the strength it opens at, and what to tell when either changes. */
-export interface MusicChoices {
-  readonly modes: readonly { readonly id: string; readonly name: string }[];
-  readonly mode: string;
-  readonly strength: number;
-  changed(mode: string, strength: number): void;
+/** What the piece listens to: the group's panel and its sources. */
+export interface Music {
+  /** What the music's group shows above its row while none of its values is chosen. */
+  readonly panel: HTMLElement;
+  /** The sources, as the group's buttons, in their order. */
+  readonly sources: readonly Action[];
+  /** A source's button pressed: starts it, or stops it when it is the one playing. */
+  press(id: string): void;
+  /** What the music says this frame, or null while the piece listens to nothing; the meter shows it. */
+  hear(): Signals | null;
+  /** Told which source plays, or none, each time that changes, to light its button. */
+  onPlaying: ((source: Source | null) => void) | null;
 }
 
-export function mountMusicCard(choices: MusicChoices): MusicCard {
+/** The words shown while nothing plays. */
+const RESTING = "Not listening.";
+
+export function mountMusic(): Music {
   const listening = new Listening();
 
-  const card = document.createElement("div");
-  card.className = cls(styles, "card");
-  card.id = "music-card";
-  card.setAttribute("role", "dialog");
-  card.setAttribute("aria-label", "Music");
-  card.hidden = true;
+  const panel = document.createElement("div");
+  panel.className = cls(styles, "panel");
+  panel.id = "music-panel";
+  panel.setAttribute("role", "group");
+  panel.setAttribute("aria-label", "What the music sends");
 
-  const heading = document.createElement("p");
-  heading.className = cls(styles, "heading");
-  heading.textContent = "Music";
-  const close = document.createElement("button");
-  close.type = "button";
-  close.className = cls(styles, "close");
-  close.textContent = "×";
-  close.setAttribute("aria-label", "Close");
-  close.addEventListener("click", () => {
-    card.hidden = true;
-  });
-
-  // the meter: the last seconds of loudness, the attacks marked, and the bands
+  // the meter: the last seconds of loudness, the attacks marked, and the
+  // bands; in sight while a source plays
   const meter = document.createElement("div");
   meter.className = cls(styles, "meter");
   meter.setAttribute("role", "meter");
@@ -133,63 +122,24 @@ export function mountMusicCard(choices: MusicChoices): MusicCard {
   meter.setAttribute("aria-valuemin", "0");
   meter.setAttribute("aria-valuemax", "1");
   meter.setAttribute("aria-valuenow", "0");
+  meter.hidden = true;
   const canvas = document.createElement("canvas");
   canvas.setAttribute("aria-hidden", "true");
-  const loudness = document.createElement("span");
-  loudness.className = cls(styles, "loudness");
   meter.append(canvas);
 
-  // the sources, one pressed at a time
-  const sources = document.createElement("div");
-  sources.className = cls(styles, "sources");
-  sources.setAttribute("role", "group");
-  sources.setAttribute("aria-label", "Source of the sound");
-  const sourceWord = document.createElement("span");
-  sourceWord.className = cls(styles, "label");
-  sourceWord.textContent = "source";
-  sourceWord.setAttribute("aria-hidden", "true");
-  sources.append(sourceWord);
-  const picker = document.createElement("input");
-  picker.type = "file";
-  picker.accept = "audio/*";
-  picker.hidden = true;
-  const buttons = new Map<Source | "off", HTMLButtonElement>();
-  // the sound of a tab where the browser shares it (decision 45)
-  const kinds: [Source | "off", string, string][] = [
-    ["off", "off", "Off"],
-    ["microphone", "mic", "Microphone"],
-    ["file", "file", "File"],
-    ...(sharesSound()
-      ? [
-          ["tab", "tab", "Sound of a tab or the screen"] as [
-            Source,
-            string,
-            string,
-          ],
-        ]
-      : []),
-    ["demo", "demo", "Demo beat"],
-  ];
-  for (const [id, word, name] of kinds) {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.className = cls(styles, "source");
-    b.textContent = word;
-    b.setAttribute("aria-label", name);
-    b.setAttribute("aria-pressed", String(id === "off"));
-    b.addEventListener("click", () => {
-      if (id === "off") stop();
-      else if (id === "file") picker.click();
-      else void begin(id);
-    });
-    buttons.set(id, b);
-    sources.append(b);
-  }
-  picker.addEventListener("change", () => {
-    const file = picker.files?.[0];
-    if (file !== undefined) void begin("file", { file });
-    picker.value = "";
-  });
+  const status = document.createElement("p");
+  status.className = cls(styles, "status");
+  status.setAttribute("role", "status");
+  status.textContent = RESTING;
+  const privacy = document.createElement("span");
+  privacy.className = cls(styles, "note");
+  privacy.textContent = "Sound stays on this device.";
+  const words = document.createElement("div");
+  words.className = cls(styles, "words");
+  words.append(status, privacy);
+  const line = document.createElement("div");
+  line.className = cls(styles, "line");
+  line.append(meter, words);
 
   // which microphone, where there are several (decision 45)
   const microphone = document.createElement("label");
@@ -220,146 +170,93 @@ export function mountMusicCard(choices: MusicChoices): MusicCard {
     microphone.hidden = false;
   }
 
-  // what the music does, and how strongly (decision 46)
-  let modeAt = Math.max(
-    0,
-    choices.modes.findIndex(({ id }) => id === choices.mode),
-  );
-  let strength = choices.strength;
-  const mode = document.createElement("div");
-  mode.className = cls(styles, "row");
-  mode.setAttribute("role", "group");
-  mode.setAttribute("aria-label", "Mode");
-  const modeWord = document.createElement("span");
-  modeWord.className = cls(styles, "label");
-  modeWord.textContent = "mode";
-  modeWord.setAttribute("aria-hidden", "true");
-  // the mode's name, said again when it changes; not a status, which the
-  // card's words are
-  const modeName = document.createElement("span");
-  modeName.className = cls(styles, "name");
-  modeName.setAttribute("aria-live", "polite");
-  const turn = (word: string, label: string, by: number): HTMLButtonElement => {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.className = cls(styles, "turn");
-    b.textContent = word;
-    b.setAttribute("aria-label", label);
-    b.addEventListener("click", () => {
-      const count = choices.modes.length;
-      modeAt = (modeAt + by + count) % count;
-      showMode();
-      tell();
-    });
-    return b;
-  };
-  mode.append(
-    modeWord,
-    turn("‹", "Previous mode", -1),
-    modeName,
-    turn("›", "Next mode", 1),
-  );
-  const strong = document.createElement("div");
-  strong.className = cls(styles, "row");
-  strong.setAttribute("role", "group");
-  strong.setAttribute("aria-label", "Strength");
-  const strongWord = document.createElement("span");
-  strongWord.className = cls(styles, "label");
-  strongWord.textContent = "strength";
-  strongWord.setAttribute("aria-hidden", "true");
-  strong.append(strongWord);
-  const pips = STRENGTHS.map((_, i) => {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.className = cls(styles, "pip");
-    b.setAttribute(
-      "aria-label",
-      `Strength ${String(i + 1)} of ${String(STRENGTHS.length)}`,
-    );
-    b.addEventListener("click", () => {
-      strength = i + 1;
-      showMode();
-      tell();
-    });
-    strong.append(b);
-    return b;
+  // on an iPhone or an iPad, while the microphone listens
+  const ios = document.createElement("p");
+  ios.className = cls(styles, "note");
+  ios.textContent =
+    "On an iPhone or iPad, opening the microphone stops the music playing on it: play the music on another device nearby.";
+  ios.hidden = true;
+
+  const picker = document.createElement("input");
+  picker.type = "file";
+  picker.accept = "audio/*";
+  picker.hidden = true;
+  picker.addEventListener("change", () => {
+    const file = picker.files?.[0];
+    if (file !== undefined) void begin("file", { file });
+    picker.value = "";
   });
-  /** The mode and the strength as they are. */
-  function showMode(): void {
-    modeName.textContent = choices.modes[modeAt]?.name ?? "";
-    pips.forEach((b, i) => {
-      b.textContent = i < strength ? "●" : "○";
-      b.setAttribute("aria-pressed", String(i + 1 === strength));
-    });
-  }
-  function tell(): void {
-    choices.changed(choices.modes[modeAt]?.id ?? "", strength);
-  }
-  showMode();
+  panel.append(line, microphone, ios, picker);
 
-  const status = document.createElement("p");
-  status.className = cls(styles, "status");
-  status.setAttribute("role", "status");
-  status.textContent = "Not listening.";
-  const notes: HTMLElement[] = [];
-  if (onIos()) {
-    const ios = document.createElement("p");
-    ios.className = cls(styles, "note");
-    ios.textContent =
-      "On an iPhone or iPad, opening the microphone stops the music playing on it: play the music on another device nearby.";
-    notes.push(ios);
-  }
-  const privacy = document.createElement("p");
-  privacy.className = cls(styles, "note");
-  privacy.textContent = "Sound stays on this device.";
-  card.append(
-    heading,
-    loudness,
-    close,
-    meter,
+  // the sound of a tab where the browser shares it (decision 45)
+  const offered: { id: Source; label: string; icon: Icon }[] = [
+    { id: "microphone", label: "Microphone", icon: "microphone" },
+    { id: "file", label: "File", icon: "file" },
+    ...(sharesSound()
+      ? [
+          {
+            id: "tab" as const,
+            label: "Sound of a tab or the screen",
+            icon: "tab" as const,
+          },
+        ]
+      : []),
+    { id: "demo", label: "Demo beat", icon: "drum" },
+  ];
+  const sources: Action[] = offered.map((source) => ({
+    ...source,
+    keys: [],
+    keysShown: "",
+    pressed: false,
+    lights: true,
+  }));
+
+  let playing: Source | null = null;
+  const music: Music = {
+    panel,
     sources,
-    microphone,
-    mode,
-    strong,
-    status,
-    ...notes,
-    privacy,
-    picker,
-  );
-  document.body.append(card);
-
-  // Escape shuts the card before anything else hears it.
-  addEventListener(
-    "keydown",
-    (event) => {
-      if (event.key !== "Escape" || card.hidden) return;
-      event.stopImmediatePropagation();
-      card.hidden = true;
+    press(id) {
+      const source = offered.find((s) => s.id === id)?.id;
+      if (source === undefined) return;
+      if (source === playing) stop();
+      else if (source === "file") picker.click();
+      else void begin(source);
     },
-    { capture: true },
-  );
+    hear() {
+      const heard = listening.hear();
+      if (heard === null) return null;
+      record(heard);
+      // drawn while in sight only
+      if (panel.offsetParent !== null) {
+        draw(heard);
+        say(heard);
+      }
+      return heard;
+    },
+    onPlaying: null,
+  };
 
-  function press(id: Source | "off"): void {
-    for (const [key, b] of buttons) {
-      b.setAttribute("aria-pressed", String(key === id));
-    }
+  function light(source: Source | null): void {
+    playing = source;
+    meter.hidden = source === null;
+    privacy.hidden = source !== null;
+    ios.hidden = !(onIos() && source === "microphone");
+    music.onPlaying?.(source);
   }
 
-  // what the card says now, and the source it says it of
-  let words = "Not listening.";
   async function begin(source: Source, choice: Choice = {}): Promise<void> {
-    press(source);
+    light(source);
     forget();
     if (source !== "microphone") microphone.hidden = true;
-    words = "Starting…";
-    status.textContent = words;
+    status.textContent = "Starting…";
     const outcome = await listening.start(source, choice);
     if (outcome === null) return;
-    words = said(outcome);
-    status.textContent = words;
+    status.textContent = said(outcome);
     if (outcome.kind !== "listening" && outcome.kind !== "muted") {
-      press("off");
+      light(null);
       microphone.hidden = true;
+      // what went wrong stays said, and the privacy note waits for it to go
+      privacy.hidden = true;
       if (outcome.kind === "unheard") listening.stop();
     }
     if (outcome.kind === "listening" && source === "microphone") {
@@ -369,20 +266,17 @@ export function mountMusicCard(choices: MusicChoices): MusicCard {
   // a share stopped from the browser's own bar
   listening.onEnd = () => {
     forget();
-    press("off");
-    words = "The share was stopped.";
-    status.textContent = words;
-    loudness.textContent = "";
+    light(null);
+    privacy.hidden = true;
+    status.textContent = "The share was stopped.";
     meter.setAttribute("aria-valuenow", "0");
   };
   function stop(): void {
     listening.stop();
     forget();
     microphone.hidden = true;
-    press("off");
-    words = "Not listening.";
-    status.textContent = words;
-    loudness.textContent = "";
+    light(null);
+    status.textContent = RESTING;
     meter.setAttribute("aria-valuenow", "0");
   }
 
@@ -391,7 +285,7 @@ export function mountMusicCard(choices: MusicChoices): MusicCard {
   const levels = new Float32Array(COLUMNS);
   const attacks = new Uint8Array(COLUMNS);
   let lastColumn = -1;
-  let wordsAt = 0;
+  let saidAt = 0;
   /** The meter starts empty, as a source starts. */
   function forget(): void {
     levels.fill(0);
@@ -460,28 +354,10 @@ export function mountMusicCard(choices: MusicChoices): MusicCard {
 
   function say(heard: Signals): void {
     const now = performance.now();
-    if (now - wordsAt < WORDS_MS) return;
-    wordsAt = now;
+    if (now - saidAt < WORDS_MS) return;
+    saidAt = now;
     meter.setAttribute("aria-valuenow", heard.level.toFixed(2));
-    loudness.textContent = heard.silent
-      ? "silent"
-      : `${heard.loudness < 0 ? "−" : ""}${Math.abs(Math.round(heard.loudness)).toString()} dB`;
   }
 
-  return {
-    isOpen: () => !card.hidden,
-    toggle() {
-      card.hidden = !card.hidden;
-    },
-    hear() {
-      const heard = listening.hear();
-      if (heard === null) return null;
-      record(heard);
-      if (!card.hidden) {
-        draw(heard);
-        say(heard);
-      }
-      return heard;
-    },
-  };
+  return music;
 }

@@ -6,7 +6,7 @@ import { groundAt, mixColors } from "../core/grounds.ts";
 import { Lines, SegmentBatch } from "../core/lines.ts";
 import { mountLinkCard, shareLink } from "../core/link.ts";
 import { Meter } from "../core/meter.ts";
-import { mountMusicCard } from "../core/music.ts";
+import { mountMusic } from "../core/music.ts";
 import {
   Router,
   UNLIT,
@@ -102,6 +102,8 @@ import {
   MASSES,
   MEASURED_WIDEST,
   MODE,
+  MUSIC_MODE,
+  MUSIC_STRENGTH,
   NEAR_SPREAD,
   PALETTE,
   PARAMETERS,
@@ -1030,19 +1032,33 @@ function play({ canvas, gl }: Stage): void {
     light: cssColor(colors.chain),
   };
   const card = mountLinkCard(cardColors);
-  // What the piece listens to, and the card that shows it hearing (decision
-  // 44), with what the music does and how strongly (decision 46).
-  const music = mountMusicCard({
-    modes: MODES,
-    mode: tune.mode,
-    strength: tune.strength,
-    changed(mode, strength) {
-      tune.mode = mode;
-      tune.strength = strength;
-      router = new Router(modeOf(mode), { slow: still.matches });
-      keepAddress();
-    },
-  });
+  // What the piece listens to (decision 44), in the music's group of the
+  // row, which shows it hearing (decision 76).
+  const music = mountMusic();
+  /** Where the music's mode stands among the modes. */
+  function musicModeAt(): number {
+    return Math.max(
+      0,
+      MODES.findIndex(({ id }) => id === tune.mode),
+    );
+  }
+  /** What the music does, or how strongly, stepped in its group (decisions 46 and 76): the routes follow, and the address keeps both. */
+  function stepMusic(parameter: Parameter, direction: 1 | -1): void {
+    if (parameter === MUSIC_MODE) {
+      const at = stepValue(MUSIC_MODE, musicModeAt(), direction);
+      tune.mode = MODES[at]?.id ?? tune.mode;
+    } else {
+      tune.strength = stepValue(MUSIC_STRENGTH, tune.strength, direction);
+    }
+    router = new Router(modeOf(tune.mode), { slow: still.matches });
+    showMusic();
+    keepAddress();
+  }
+  /** The music's mode and strength, as values of its group. */
+  function showMusic(): void {
+    controls.showValue(MUSIC_MODE.id, musicModeAt());
+    controls.showValue(MUSIC_STRENGTH.id, tune.strength);
+  }
 
   /**
    * Dresses the piece in the ground asked for (decision 41): the canvas, the
@@ -1100,6 +1116,10 @@ function play({ canvas, gl }: Stage): void {
   }
 
   function step(parameter: Parameter, direction: 1 | -1): void {
+    if (parameter === MUSIC_MODE || parameter === MUSIC_STRENGTH) {
+      stepMusic(parameter, direction);
+      return;
+    }
     // the zoom's − and +, as X and Z, about the middle (decision 73)
     if (parameter === ZOOM) {
       zoomMiddle(direction > 0 ? ZOOM_STEP : 1 / ZOOM_STEP);
@@ -1277,11 +1297,16 @@ function play({ canvas, gl }: Stage): void {
           controls: [TRAIL, STYLE, RIBBON],
         },
         {
+          // where the sound comes from, what the music does and how
+          // strongly, and above them, while no value is chosen, what the
+          // piece hears (decision 76)
           id: "music",
           label: "Music",
           icon: "music",
           keys: ["w", "W"],
           keysShown: "W",
+          panel: music.panel,
+          controls: [...music.sources, MUSIC_MODE, MUSIC_STRENGTH],
         },
         {
           id: "screen",
@@ -1333,8 +1358,9 @@ function play({ canvas, gl }: Stage): void {
         else if (id === "save") save();
         else if (id === "share") void share();
         else if (id === "qr") card.toggle(location.href, document.title);
-        else if (id === "music") music.toggle();
-        else if (id === "whole") wholeView();
+        else if (music.sources.some((source) => source.id === id)) {
+          music.press(id);
+        } else if (id === "whole") wholeView();
         else start();
       },
     },
@@ -1350,6 +1376,18 @@ function play({ canvas, gl }: Stage): void {
   showWhite();
   showHold();
   showZoom();
+  showMusic();
+  // a source of the music lit while it plays (decision 76)
+  music.onPlaying = (playing) => {
+    for (const source of music.sources) {
+      controls.showAction(
+        source.id,
+        source.icon,
+        source.label,
+        source.id === playing,
+      );
+    }
+  };
   // the switches as the address asks for them
   setLit(lit);
   setTensionShown(tensionShown);
@@ -1727,7 +1765,7 @@ function play({ canvas, gl }: Stage): void {
     } else if (event.key === "g" || event.key === "G") {
       toggle("sketch");
     } else if (event.key === "w" || event.key === "W") {
-      music.toggle();
+      controls.toggleGroup("music");
     } else {
       return;
     }
@@ -2436,6 +2474,12 @@ function play({ canvas, gl }: Stage): void {
       if (look.births > 0) bornOnBeat(look.births);
     }
     showTwins();
+    // the music's icon rises with the sound's three bands while the piece
+    // listens (decision 76)
+    controls.showLevels(
+      "music",
+      heard === null ? null : [heard.bass, heard.mid, heard.treble],
+    );
 
     // The next frame is computed now while there are twins: their workers
     // bring them back by then, and the two are drawn at one instant

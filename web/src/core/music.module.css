@@ -1,135 +1,66 @@
-/* The music card (docs/decisions.md, decision 44). How it looks and where it
-   sits are placeholders, which the author settles by trying. */
+/* What the piece hears, right above the music's group of the row while none
+   of its values is chosen (docs/decisions.md, decisions 44 and 76). How it
+   looks is a placeholder, which the author settles by trying. */
 
-/* Over the controls' corner, above the row, leaving the chain in sight. */
-.card {
-  position: fixed;
-  right: max(var(--space-1), env(safe-area-inset-right));
-  bottom: calc(max(var(--space-1), env(safe-area-inset-bottom)) + 3.25rem);
+/* As wide as its words, up to a phone's width, in the value's place. */
+.panel {
   display: flex;
   flex-direction: column;
-  gap: 0.375rem;
-  width: min(21rem, calc(100vw - 2 * var(--space-1)));
+  gap: 0.25rem;
   box-sizing: border-box;
-  padding: 0.625rem var(--space-2) 0.75rem;
-  color: var(--color-ink-muted);
-  font-family: var(--font-text);
-  font-size: 0.8125rem;
-  background: color-mix(in srgb, var(--color-ground) 92%, transparent);
-  border: 1px solid color-mix(in srgb, var(--color-ink) 14%, transparent);
-  border-radius: 1rem;
+  width: max-content;
+  max-width: min(22rem, calc(100vw - 2 * var(--space-1)));
+  padding: 0 0.5rem 0.25rem;
+  white-space: normal;
 }
 
-.card[hidden] {
+.panel[hidden],
+.meter[hidden],
+.choice[hidden],
+.note[hidden] {
   display: none;
 }
 
-.heading {
-  margin: 0;
-  color: var(--color-ink);
-  font-size: 0.875rem;
+/* The meter and the words of what it is doing, on one line. */
+.line {
+  display: flex;
+  gap: 0.625rem;
+  align-items: center;
+  min-height: 2.5rem;
 }
 
-.close {
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 2.75rem;
-  height: 2.75rem;
-  padding: 0;
-  color: inherit;
-  font: inherit;
-  font-size: 1.25rem;
-  line-height: 1;
-  background: none;
-  border: 0;
-  border-radius: 50%;
-  cursor: pointer;
-}
-
-/* The meter: the history and the bands, and the loudness in its corner. */
+/* The last seconds of loudness, and the bands at its right. */
 .meter {
   --music-bright: var(--color-ink);
+  flex: none;
   color: color-mix(in srgb, var(--color-ink) 45%, transparent);
 }
 
 .meter canvas {
   display: block;
-  width: 100%;
-  height: 2.5rem;
+  width: 5.5rem;
+  height: 1.5rem;
 }
 
-/* How loud the sound arrives, in the heading's line, before the close button. */
-.loudness {
-  position: absolute;
-  top: 0.75rem;
-  right: 2.75rem;
+.words {
+  min-width: 0;
+}
+
+.status {
+  display: inline;
+  margin: 0;
+  color: var(--color-ink);
+  overflow-wrap: anywhere;
+}
+
+.note {
+  margin: 0;
   color: var(--color-ink-muted);
-  font-size: 0.75rem;
-  font-variant-numeric: tabular-nums;
 }
 
-.sources {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem;
-  align-items: center;
-}
-
-.label {
-  margin-right: 0.25rem;
-}
-
-/* The mode, turned either way, and the strength's five pips. */
-.row {
-  display: flex;
-  gap: 0.25rem;
-  align-items: center;
-}
-
-.row .label {
-  min-width: 4.25rem;
-}
-
-.name {
-  min-width: 4rem;
-  color: var(--color-ink);
-  text-align: center;
-}
-
-.turn,
-.pip {
-  min-width: 2rem;
-  min-height: 2rem;
-  padding: 0;
-  color: inherit;
-  font: inherit;
-  background: none;
-  border: 0;
-  border-radius: 1rem;
-  cursor: pointer;
-}
-
-.pip {
-  min-width: 1.75rem;
-  color: var(--color-ink);
-}
-
-.source {
-  min-width: 2.75rem;
-  min-height: 2rem;
-  padding: 0 0.5rem;
-  color: inherit;
-  font: inherit;
-  background: none;
-  border: 1px solid transparent;
-  border-radius: 1rem;
-  cursor: pointer;
-}
-
-.source[aria-pressed="true"] {
-  color: var(--color-ink);
-  border-color: color-mix(in srgb, var(--color-ink) 40%, transparent);
+/* That the sound stays on the device, after the words of a piece at rest. */
+.words .note {
+  margin-left: 0.25em;
 }
 
 /* Which microphone, where there are several. */
@@ -137,10 +68,6 @@
   display: flex;
   gap: 0.5rem;
   align-items: center;
-}
-
-.choice[hidden] {
-  display: none;
 }
 
 .devices {
@@ -154,20 +81,6 @@
   border-radius: 0.5rem;
 }
 
-.close:focus-visible,
-.source:focus-visible,
-.devices:focus-visible,
-.turn:focus-visible,
-.pip:focus-visible {
+.devices:focus-visible {
   outline: 2px solid var(--color-ink-muted);
-}
-
-.status,
-.note {
-  margin: 0;
-}
-
-.status {
-  color: var(--color-ink);
-  overflow-wrap: anywhere;
 }

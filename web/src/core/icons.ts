@@ -362,11 +362,11 @@ const BARS = {
   pitch: 6,
   width: 3,
   floor: 20,
-  least: 3,
+  least: 5,
   most: 17,
 };
 
-/** The heights of the music's bars on the grid, from levels 0 to 1: a stub at the least, so that they read as bars in silence too. */
+/** The heights of the music's bars on the grid, from levels 0 to 1: a short bar at the least, so that in silence they read as bars, not as an ellipsis. */
 export function barHeights(levels: readonly number[]): number[] {
   return levels.map((level) => {
     const kept = Number.isNaN(level) ? 0 : Math.min(1, Math.max(0, level));
