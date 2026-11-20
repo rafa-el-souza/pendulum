@@ -47,7 +47,9 @@ export type Icon =
   | "sketched"
   | "whiten"
   | "near"
-  | "eye";
+  | "eye"
+  | "zoom"
+  | "whole";
 
 const SVG = "http://www.w3.org/2000/svg";
 
@@ -272,6 +274,17 @@ const ICONS: Record<
     fill: "M9.4 12a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0 -5.2 0",
     stroke:
       "M2.5 12c2.5-4.5 6-7 9.5-7s7 2.5 9.5 7c-2.5 4.5-6 7-9.5 7s-7-2.5-9.5-7z",
+  },
+  // a magnifier with a plus in its lens: the zoom (decision 73)
+  zoom: {
+    fill: "",
+    stroke:
+      "M4 10.5a6.5 6.5 0 1 0 13 0a6.5 6.5 0 1 0 -13 0M15.3 15.3L20.5 20.5M7.5 10.5h6M10.5 7.5v6",
+  },
+  // ×1, drawn: the whole view, as the zoom's value shows it (decision 73)
+  whole: {
+    fill: "",
+    stroke: "M3.5 9.5l5 5M8.5 9.5l-5 5M13.5 7.5L16.5 5V19M13.5 19h6",
   },
   left: { fill: "", stroke: "M15 5l-7 7 7 7" },
   right: { fill: "", stroke: "M9 5l7 7-7 7" },

@@ -56,6 +56,7 @@ import {
 } from "../core/twins.ts";
 import { Touches, readWait, type Spot } from "../core/touches.ts";
 import {
+  WHOLE_VIEW,
   bufferView,
   fitScale,
   panBy,
@@ -66,6 +67,7 @@ import {
   withCommas,
   writeCamera,
   zoomAbout,
+  zoomWritten,
   type Camera,
   type PinchStart,
   type View,
@@ -114,6 +116,7 @@ import {
   TRAIL,
   TWIN_COUNT,
   WHITE,
+  ZOOM,
   doublingSaid,
   doublingShown,
   gravityOf,
@@ -160,7 +163,9 @@ import { titleOf } from "./title.ts";
 // The view comes up to sixty-four times nearer, by the wheel, a trackpad's
 // pinch, Z and X, or two fingers, and moves with the middle button, Space and
 // a drag, or two fingers; a finger waits a moment before it grabs, and the
-// address carries the view (decision 67).
+// address carries the view (decision 67). The screen's group shows the zoom,
+// with its − and + as X and Z, and a button for the whole view, which Shift
+// and X bring back too (decision 73).
 
 // A frame longer than this (a hidden tab, a stall) moves the chain by this
 // much only, so that it never jumps.
@@ -1082,6 +1087,11 @@ function play({ canvas, gl }: Stage): void {
   }
 
   function step(parameter: Parameter, direction: 1 | -1): void {
+    // the zoom's − and +, as X and Z, about the middle (decision 73)
+    if (parameter === ZOOM) {
+      zoomMiddle(direction > 0 ? ZOOM_STEP : 1 / ZOOM_STEP);
+      return;
+    }
     // the tension's colours, one control in the row, step the switch and the
     // scale the address keeps apart: off, then each scale (decision 53)
     if (parameter === TENSION) {
@@ -1264,7 +1274,16 @@ function play({ canvas, gl }: Stage): void {
           id: "screen",
           label: "The screen",
           icon: "monitor",
+          // the zoom and the whole view first (decision 73)
           controls: [
+            ZOOM,
+            {
+              id: "whole",
+              label: "The whole view",
+              icon: "whole",
+              keys: ["Shift+KeyX"],
+              keysShown: "Shift X",
+            },
             GROUND,
             {
               id: "sketch",
@@ -1302,6 +1321,7 @@ function play({ canvas, gl }: Stage): void {
         else if (id === "share") void share();
         else if (id === "qr") card.toggle(location.href, document.title);
         else if (id === "music") music.toggle();
+        else if (id === "whole") wholeView();
         else start();
       },
     },
@@ -1316,6 +1336,7 @@ function play({ canvas, gl }: Stage): void {
   showRibbon();
   showWhite();
   showHold();
+  showZoom();
   // the switches as the address asks for them
   setLit(lit);
   setTensionShown(tensionShown);
@@ -1384,6 +1405,13 @@ function play({ canvas, gl }: Stage): void {
   function viewMoved(): void {
     clearTimeout(addressTimer);
     addressTimer = window.setTimeout(keepAddress, 300);
+    showZoom();
+  }
+
+  /** The zoom in its control, and the whole view's button faint while the view is whole (decision 73). */
+  function showZoom(): void {
+    controls.showValue(ZOOM.id, camera.zoom);
+    controls.showIdle("whole", zoomWritten(camera.zoom) <= 1);
   }
 
   /**
@@ -1406,6 +1434,12 @@ function play({ canvas, gl }: Stage): void {
   function zoomMiddle(factor: number): void {
     const box = canvas.getBoundingClientRect();
     zoomAt(box.left + box.width / 2, box.top + box.height / 2, factor);
+  }
+
+  /** The whole view at once, by its button or Shift with X (decision 73). */
+  function wholeView(): void {
+    camera = WHOLE_VIEW;
+    viewMoved();
   }
 
   /**
@@ -1653,10 +1687,15 @@ function play({ canvas, gl }: Stage): void {
         spaceUsed = false;
         if (panning === null) canvas.style.cursor = "grab";
       }
+    } else if (event.shiftKey && event.code === "KeyX") {
+      // held with Shift by where it is, the whole view (decisions 53 and 73)
+      wholeView();
     } else if (event.key === "z" || event.key === "Z") {
       zoomMiddle(ZOOM_STEP);
+      controls.choose(ZOOM.id);
     } else if (event.key === "x" || event.key === "X") {
       zoomMiddle(1 / ZOOM_STEP);
+      controls.choose(ZOOM.id);
     } else if (event.key === "r" || event.key === "R") {
       start();
     } else if (event.key === "s" || event.key === "S") {

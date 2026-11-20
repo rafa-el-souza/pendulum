@@ -246,6 +246,14 @@ export function readCamera(search: string, reach: number): Camera {
 }
 
 /**
+ * The zoom as the address writes it, to a hundredth, as its control shows it
+ * too (decision 73): 1 is the whole view.
+ */
+export function zoomWritten(zoom: number): number {
+  return Number(zoom.toFixed(2));
+}
+
+/**
  * The search part of an address carrying the camera, after whatever else
  * `search` carried: nothing at the whole view; else the zoom to a hundredth,
  * and its point, when it is not the pivot, to ten micrometres.
@@ -254,7 +262,7 @@ export function writeCamera(search: string, camera: Camera): string {
   const query = new URLSearchParams(search);
   query.delete("zoom");
   query.delete("at");
-  const zoom = Number(camera.zoom.toFixed(2));
+  const zoom = zoomWritten(camera.zoom);
   if (zoom > 1) {
     query.set("zoom", String(zoom));
     const cx = Number(camera.cx.toFixed(5)) || 0;

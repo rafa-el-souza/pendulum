@@ -2567,6 +2567,26 @@ stretch. A browser test of the address kept beside a saved moment. Where 512
 masses draw, one wheel step of 1.82 times nearer gave 1.74 times the light
 of the whole view with a quarter, and 2.72 with 2 and with 64.
 
+## 73. The zoom in the screen's group
+
+*2026-11-20.* The screen's group (decision 54) opens on two more icons. The
+zoom's, a magnifier with a plus, opens its value as any value does: ×1 to
+×64, as the address writes it (decision 67), with its − and + a quarter
+farther and nearer about the middle of the screen, as X and Z. The whole
+view's, drawn as ×1, goes back to it at once, and is faint while the view
+is whole; Shift and X do the same, read by where the key is (decision 53).
+With the row shut nothing more shows (decision 31): Z and X show the zoom
+above the button, as a key shows the value it changed.
+
+**Why.** The zoom had no control on the screen: only the wheel, a pinch and
+keys, which nothing on the screen shows.
+
+**Evidence.** A unit test of the value shown, the address's own from ×1 to
+×64. Browser tests: the group's icons in order; the − and + step the view
+and the address follows; the whole view faint while whole, lit after a step
+and after the wheel, and going back with the address; with the row shut, Z
+and X show the zoom alone; Shift and X from an address opened near.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.

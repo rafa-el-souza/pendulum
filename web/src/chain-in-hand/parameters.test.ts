@@ -4,6 +4,7 @@ import { GROUNDS } from "../core/grounds.ts";
 import { FAN_PALETTES } from "../core/palettes.ts";
 import { checkParameters, stepValue } from "../core/parameters.ts";
 import { TENSION_SCALES } from "../core/tension.ts";
+import { MOST_ZOOM, writeCamera } from "../core/view.ts";
 import {
   AMPLITUDE,
   CHAIN,
@@ -41,6 +42,7 @@ import {
   TRAIL,
   TWIN_COUNT,
   WHITE,
+  ZOOM,
   gravityOf,
   handDamping,
   massesDrawn,
@@ -483,6 +485,30 @@ describe("the first piece's parameters", () => {
       expect(TENSION.swatches?.(value)).toEqual(SCALE.swatches?.(value));
     }
     expect(TENSION.icon).toBe("balance");
+  });
+
+  it("show the zoom in the screen's group as the address writes it, from the whole view, ×1, to sixty-four times nearer, its − and + being X and Z; the address keeps the camera apart from the registry (decisions 67 and 73)", () => {
+    expect(ZOOM.id).toBe("zoom");
+    expect(PARAMETERS).not.toContain(ZOOM);
+    expect(ZOOM.values).toEqual([1, MOST_ZOOM]);
+    expect(ZOOM.initial).toBe(1);
+    expect(ZOOM.keys).toEqual({ down: [], up: [] });
+    expect(ZOOM.keysShown).toBe("X Z");
+    expect(ZOOM.icon).toBe("zoom");
+    expect(ZOOM.show(1)).toBe("×1");
+    // a step of Z, two, three, the wheel's and a pinch's, and the nearest
+    for (const zoom of [1.25, 1.5625, 1.953125, 1.27, 11.641532, MOST_ZOOM]) {
+      const written = new URLSearchParams(
+        writeCamera("", { zoom, cx: 0, cy: 0 }),
+      ).get("zoom");
+      expect(ZOOM.show(zoom)).toBe(`×${String(written)}`);
+    }
+    expect(ZOOM.show(1.953125)).toBe("×1.95");
+    expect(ZOOM.show(11.641532)).toBe("×11.64");
+    expect(ZOOM.show(MOST_ZOOM)).toBe("×64");
+    // a hair past the whole view is the whole view, as in the address
+    expect(ZOOM.show(1.001)).toBe("×1");
+    expect(writeCamera("", { zoom: 1.001, cx: 0, cy: 0 })).toBe("");
   });
 
   it("fade a twin to a third of its light three tenths of the chain's length from it, the session's reach, which the author settles by looking (decision 43)", () => {
