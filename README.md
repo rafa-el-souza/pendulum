@@ -94,9 +94,11 @@ hanging rope it becomes as n grows.
   which the chain stands on its head, as Kapitza's pendulum does: up to
   twelve masses; from sixteen, the shake takes the chain apart.
   The view comes up to sixty-four times nearer: about the mouse with the
-  wheel or a trackpad's pinch, about the middle with Z and X, or between two
-  fingers on a touch screen, which move it too; on a desktop the middle
-  button, or a drag with Space held, moves it. Trails drawn before the view
+  wheel or a trackpad's pinch, about the middle with Z and X or the zoom's
+  − and + in the screen's group, or between two fingers on a touch screen,
+  which move it too; on a desktop the middle button, or a drag with Space
+  held, moves it. A button beside the zoom, or Shift and X, goes back to
+  the whole view at once. Trails drawn before the view
   came a quarter nearer, or the window grew as much, are cleared rather
   than shown stretched, and those drawn after are sharp. One finger waits a
   moment before it grabs the chain, so that a second can come and pinch, and
