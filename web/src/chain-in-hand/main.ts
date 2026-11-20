@@ -1,5 +1,6 @@
 import "../styles/base.css";
 
+import type { Signals } from "../audio/signals.ts";
 import { cssColor, type Rgb } from "../core/color.ts";
 import { mountControls } from "../core/controls.ts";
 import { groundAt, mixColors } from "../core/grounds.ts";
@@ -73,7 +74,13 @@ import {
   type View,
 } from "../core/view.ts";
 import { Chain, createHand, type Hand } from "../physics/chain.ts";
-import type { Drive } from "../physics/drive.ts";
+import {
+  handAt,
+  pivotAt,
+  type Drive,
+  type PivotMotion,
+  type WritableHand,
+} from "../physics/drive.ts";
 import { startInMode } from "../physics/modes.ts";
 import { resample } from "../physics/resample.ts";
 import {
@@ -131,6 +138,7 @@ import {
   whiteAfter,
   whiteSwatches,
 } from "./parameters.ts";
+import { MusicForces } from "./forces.ts";
 import { MODES, modeOf } from "./music.ts";
 import { titleOf } from "./title.ts";
 
@@ -399,14 +407,6 @@ function play({ canvas, gl }: Stage): void {
   // What the music put into the physics of the frame computed last
   // (decision 74), which its twins are sent with it.
   let frameDrive: Drive | null = null;
-  /**
-   * What the music puts into the physics of the frame about to be computed
-   * (decision 74): nothing while no mode of the music acts as a force, as
-   * none does yet.
-   */
-  function musicDrive(): Drive | null {
-    return null;
-  }
 
   let hand: Hand | null = null;
   // whether the chain still swings in the mode it started in, the hand not
@@ -460,6 +460,66 @@ function play({ canvas, gl }: Stage): void {
   const still = matchMedia("(prefers-reduced-motion: reduce)");
   let router = new Router(modeOf(tune.mode), { slow: still.matches });
   let look: Look = UNLIT;
+  // The music's forces (decision 75): the speaker's kicks and the dancing
+  // hand, from what the music says this frame; whether they act, which
+  // turns time backwards off; where the pivot is, and how it moves, at the
+  // instant the chain was computed to, which the drawing hangs everything
+  // from; and the music's hand there, while it holds.
+  const forces = new MusicForces({ slow: still.matches });
+  let heardNow: Signals | null = null;
+  let forcing = false;
+  const pivotShown: PivotMotion = { x: 0, y: 0, vx: 0, vy: 0 };
+  const pivotThen: PivotMotion = { x: 0, y: 0, vx: 0, vy: 0 };
+  let musicHand: WritableHand | null = null;
+
+  /**
+   * What the music puts into the physics of the frame about to be computed,
+   * `dt` s of the clock long and `asked` s of the piece's (decision 74): the
+   * force of the music's mode, if it has one, while a source plays.
+   */
+  function musicDrive(dt: number, asked: number): Drive | null {
+    return forces.frame({
+      heard: heardNow,
+      force: router.mode.force,
+      strength: tune.strength,
+      real: dt,
+      span: asked,
+      speed: value(TIME),
+      chain,
+      g,
+      held: hand !== null,
+    });
+  }
+
+  /** Where the music's kicks have taken the pivot `t` s into a frame of `drive`, written to `out`: nowhere without one. */
+  function pivotIn(drive: Drive | null, t: number, out: PivotMotion): void {
+    if (drive === null) {
+      out.x = 0;
+      out.y = 0;
+      out.vx = 0;
+      out.vy = 0;
+    } else {
+      pivotAt(drive, t, out);
+    }
+  }
+
+  /** The chain's masses where the pivot is (decision 75): the positions computed from it, moved by its place. */
+  function hangFrom(pivot: PivotMotion): void {
+    if (pivot.x === 0 && pivot.y === 0) return;
+    for (let i = 0; i < chain.n; i++) {
+      x[i] = (x[i] ?? 0) + pivot.x;
+      y[i] = (y[i] ?? 0) + pivot.y;
+    }
+  }
+
+  /** Each mass's velocity, `out` as massVelocities writes it, with the pivot's added. */
+  function movedWith(pivot: PivotMotion, out: Float64Array): void {
+    if (pivot.vx === 0 && pivot.vy === 0) return;
+    for (let i = 0; i < chain.n; i++) {
+      out[2 * i] = (out[2 * i] ?? 0) + pivot.vx;
+      out[2 * i + 1] = (out[2 * i + 1] ?? 0) + pivot.vy;
+    }
+  }
   // the colour of the note the bass holds, as it eases from the note before
   let noteShown: Rgb | null = null;
 
@@ -485,6 +545,7 @@ function play({ canvas, gl }: Stage): void {
   /** The chain's trails go on from where its masses are now; each twin's goes on from where its worker says it is (decision 51). */
   function resetTrailEnds(): void {
     chain.positions(state.theta, x, y);
+    hangFrom(pivotShown);
     ends = new Float64Array(2 * chain.n);
     for (let i = 0; i < chain.n; i++) {
       ends[2 * i] = x[i] ?? 0;
@@ -595,13 +656,13 @@ function play({ canvas, gl }: Stage): void {
 
   /**
    * The whole chain as it is now, stamped into the trails, as a strobe's
-   * flash leaves it (decision 50): each rod in its colour, brighter as the
-   * music asks.
+   * flash leaves it (decision 50), from where the pivot is (decision 75):
+   * each rod in its colour, brighter as the music asks.
    */
-  function stamp(color: Rgb): void {
+  function stamp(color: Rgb, pivot: PivotMotion): void {
     const music = 1 + Math.min(TRAIL_MOST, look.trail);
-    let ax = 0;
-    let ay = 0;
+    let ax = pivot.x;
+    let ay = pivot.y;
     for (let i = 0; i < chain.n; i++) {
       const bx = x[i] ?? 0;
       const by = y[i] ?? 0;
@@ -755,6 +816,8 @@ function play({ canvas, gl }: Stage): void {
       }
     }
     hand = null;
+    // the music's hand takes hold again, from where its path is (decision 75)
+    forces.letGo();
     inMode = saved === null && mode > 0;
     meter = new PeriodTension(chain.n);
     setBackwards(saved?.backwards ?? false);
@@ -853,6 +916,8 @@ function play({ canvas, gl }: Stage): void {
     twins.rescale(before.n, n);
     twins.keep(twins.affordable());
     twins.resample(n);
+    // the music's hand takes hold of the new chain's tip (decision 75)
+    forces.letGo();
     doubling.clear();
     const carried = Math.min(value(TWIN_COUNT), twins.affordable());
     if (hand === null && twins.count < 0.5 * carried) spawnTwins();
@@ -913,10 +978,12 @@ function play({ canvas, gl }: Stage): void {
   /**
    * Time the other way: the chain and its twins keep their places and move
    * the opposite way, and so retrace their motion (decision 28). Not while
-   * the hand holds the chain, whose damper would give energy backwards.
+   * the hand holds the chain, whose damper would give energy backwards, nor
+   * while the music acts on it as a force, whose drag and hand would
+   * (decision 75).
    */
   function reverseTime(): void {
-    if (hand !== null) return;
+    if (hand !== null || forcing) return;
     reverseMotion(state);
     twins.reverse();
     // differences shrink as time runs back, until chaos takes over again
@@ -1466,10 +1533,13 @@ function play({ canvas, gl }: Stage): void {
     if (backwards) setBackwards(false);
     inMode = false;
     twins.clear();
-    // the nearest mass, wherever the press lands
-    hand = holding(chain.nearestMass(state.theta, px, py), {
-      x: px,
-      y: py,
+    // the nearest mass, wherever the press lands, in the pivot's frame,
+    // where the music's kicks have taken it (decision 75)
+    const hx = px - pivotShown.x;
+    const hy = py - pivotShown.y;
+    hand = holding(chain.nearestMass(state.theta, hx, hy), {
+      x: hx,
+      y: hy,
       vx: 0,
       vy: 0,
     });
@@ -1776,7 +1846,12 @@ function play({ canvas, gl }: Stage): void {
     const region =
       wholeFrame && hand !== null
         ? null
-        : reachBox(view, chain.totalLength * scale + GLOW_REACH * ratio);
+        : reachBox(
+            view,
+            (chain.totalLength + Math.hypot(pivotShown.x, pivotShown.y)) *
+              scale +
+              GLOW_REACH * ratio,
+          );
     trails.region = region;
 
     // The twins, faint, so that many together read as one bright chain and
@@ -1798,19 +1873,20 @@ function play({ canvas, gl }: Stage): void {
       const color = tinted(fanColors[j] ?? colors.chain, "twins");
       if (asDust) {
         const end = 2 * (report.pieces + 1) * (k + 1) - 2;
-        const px = report.tips[end] ?? 0;
-        const py = report.tips[end + 1] ?? 0;
+        const px = (report.tips[end] ?? 0) + pivotShown.x;
+        const py = (report.tips[end + 1] ?? 0) + pivotShown.y;
         dust.push(px, py, px, py, color, speck * shine);
         return;
       }
       const { n, positions } = report;
       const base = 2 * n * k;
       if (positions.length < base + 2 * n) return;
-      let tx = 0;
-      let ty = 0;
+      // from the pivot, where the music's kicks have taken it (decision 75)
+      let tx = pivotShown.x;
+      let ty = pivotShown.y;
       for (let i = 0; i < n; i++) {
-        const bx = positions[base + 2 * i] ?? 0;
-        const by = positions[base + 2 * i + 1] ?? 0;
+        const bx = (positions[base + 2 * i] ?? 0) + pivotShown.x;
+        const by = (positions[base + 2 * i + 1] ?? 0) + pivotShown.y;
         fan.push(tx, ty, bx, by, color, faint * shine);
         tx = bx;
         ty = by;
@@ -1818,6 +1894,7 @@ function play({ canvas, gl }: Stage): void {
     });
 
     chain.positions(state.theta, x, y);
+    hangFrom(pivotShown);
     rods.clear();
     dots.clear();
     spring.clear();
@@ -1828,8 +1905,8 @@ function play({ canvas, gl }: Stage): void {
     const drawn = value(DRAWN);
     const rodLight = rodsDrawn(drawn) ? 1 : Math.min(1, look.glow);
     const massesShown = massesDrawn(drawn);
-    let ax = 0;
-    let ay = 0;
+    let ax = pivotShown.x;
+    let ay = pivotShown.y;
     for (let i = 0; i < chain.n; i++) {
       const bx = x[i] ?? 0;
       const by = y[i] ?? 0;
@@ -1841,35 +1918,43 @@ function play({ canvas, gl }: Stage): void {
       ax = bx;
       ay = by;
     }
-    if (hand !== null) {
+    // the visitor's hand, or the music's while it holds the tip (decision
+    // 75), in the chain's colour
+    const holder = hand ?? musicHand;
+    if (holder !== null) {
       // How hard the hand pulls, in weights of the whole chain on Earth, eased
       // over a few frames so that a jittery pointer does not flicker: a hand
       // that lifts the chain on Earth pulls about one weight, one that whirls
       // it several. Under other gravity the same pull shows the same.
-      chain.handForce(state.theta, state.omega, hand, pull);
+      chain.handForce(state.theta, state.omega, holder, pull);
       const weights =
         Math.hypot(pull[0] ?? 0, pull[1] ?? 0) / (chain.totalMass * EARTH);
       strength += 0.25 * (1 - Math.exp(-weights) - strength);
-      // the spring between the held mass and the hand
-      const hx = x[hand.index] ?? 0;
-      const hy = y[hand.index] ?? 0;
-      spring.push(hx, hy, hand.x, hand.y, colors.hand, 0.35 + 0.65 * strength);
-      dots.push(
-        hand.x,
-        hand.y,
-        hand.x,
-        hand.y,
-        colors.hand,
-        0.6 + 0.4 * strength,
-      );
+      // the spring between the held mass and the hand, which holds in the
+      // pivot's frame
+      const color = hand !== null ? colors.hand : chainColor;
+      const hx = x[holder.index] ?? 0;
+      const hy = y[holder.index] ?? 0;
+      const px = holder.x + pivotShown.x;
+      const py = holder.y + pivotShown.y;
+      spring.push(hx, hy, px, py, color, 0.35 + 0.65 * strength);
+      dots.push(px, py, px, py, color, 0.6 + 0.4 * strength);
     } else {
       strength = 0;
     }
-    // the pivot, drawn as a streak along its line while it shakes
+    // the pivot, where the music's kicks have taken it, drawn as a streak
+    // along its line while it shakes
     const shaking = shakeAt(0);
     const sx = shaking === null ? 0 : PIVOT_STREAK * shaking.x;
     const sy = shaking === null ? 0 : PIVOT_STREAK * shaking.y;
-    dots.push(-sx, -sy, sx, sy, colors.pivot, 0.8);
+    dots.push(
+      pivotShown.x - sx,
+      pivotShown.y - sy,
+      pivotShown.x + sx,
+      pivotShown.y + sy,
+      colors.pivot,
+      0.8,
+    );
 
     // The trails fade by the time that went by and take this frame's pieces;
     // the step that leaves a mark keeps the brightest of them too (decision
@@ -1999,10 +2084,12 @@ function play({ canvas, gl }: Stage): void {
         pointer.vx = 0;
         pointer.vy = 0;
       }
-      hand.x = pointer.x;
-      hand.y = pointer.y;
-      hand.vx = pointer.vx;
-      hand.vy = pointer.vy;
+      // in the pivot's frame, where the music's kicks have taken it (decision
+      // 75)
+      hand.x = pointer.x - pivotShown.x;
+      hand.y = pointer.y - pivotShown.y;
+      hand.vx = pointer.vx - pivotShown.vx;
+      hand.vy = pointer.vy - pivotShown.vy;
     }
     // The chain moves in pieces, each ending in a point of its trail.
     const asked = dt * value(TIME);
@@ -2027,10 +2114,11 @@ function play({ canvas, gl }: Stage): void {
       const { halfLife } = trailFade(value(TRAIL));
       stepClock = curves.clock.begin(halfLife * (1 + look.linger));
       massVelocities(massStarts);
+      movedWith(pivotShown, massStarts);
     }
     // the music's forces over the frame, which each piece feels from where
     // it starts in it, and its twins the same (decision 74)
-    const drive = musicDrive();
+    const drive = musicDrive(dt, asked);
     frameDrive = drive;
     for (let piece = 0; piece < pieces; piece++) {
       const want = asked / pieces;
@@ -2055,12 +2143,17 @@ function play({ canvas, gl }: Stage): void {
             (frameTension[i] ?? 0) + moved.simulated * (pieceTension[i] ?? 0);
         }
       }
+      // where the pivot is at the piece's end, which the trails hang from
+      // (decision 75)
       chain.positions(state.theta, x, y);
+      pivotIn(drive, simulated, pivotThen);
+      hangFrom(pivotThen);
       const seconds = curves?.clock.seconds ?? 0;
       const fade = curves?.clock.fade ?? 0;
       if (curves !== null) {
         curves.clock.advance(moved.simulated);
         massVelocities(massSpeeds);
+        movedWith(pivotThen, massSpeeds);
       }
       for (let i = 0; i < chain.n; i++) {
         const bx = x[i] ?? 0;
@@ -2088,7 +2181,7 @@ function play({ canvas, gl }: Stage): void {
         strobeClock += moved.simulated;
         if (strobeClock >= 1 / STROBE_RATE) {
           strobeClock %= 1 / STROBE_RATE;
-          stamp(chainColor);
+          stamp(chainColor, pivotThen);
           flashed = true;
         }
       }
@@ -2099,9 +2192,29 @@ function play({ canvas, gl }: Stage): void {
     if (curves !== null && stepClock !== null) {
       stepFade += curves.clock.fade - stepClock.fade;
     }
+    // where the pivot is as the frame ends, and the music's hand then
+    // (decision 75)
+    forces.ran(simulated);
+    pivotIn(drive, simulated, pivotShown);
+    const holder = drive?.hands[0];
+    if (drive !== null && holder !== undefined) {
+      musicHand ??= {
+        index: 0,
+        x: 0,
+        y: 0,
+        vx: 0,
+        vy: 0,
+        stiffness: 0,
+        damping: 0,
+        fastest: 0,
+      };
+      handAt(holder, drive, simulated, musicHand);
+    } else {
+      musicHand = null;
+    }
     // on a kick, while the music flashes the strobe
     if (strobe && flashes && look.flash > 0) {
-      stamp(chainColor);
+      stamp(chainColor, pivotShown);
       flashed = true;
     }
     const finite =
@@ -2240,6 +2353,43 @@ function play({ canvas, gl }: Stage): void {
     });
   }
 
+  // Where the pivot was at each instant of the twins' reports, and how it
+  // moved, x then y for each (decision 75): the same for every twin of a
+  // frame, worked out once, for the command they were sent with.
+  let twinPivots = new Float64Array(2);
+  let twinPivotSpeeds = new Float64Array(2);
+  let twinPivotsOf: {
+    drive: Drive | null;
+    pieces: number;
+    time: number;
+  } | null = null;
+
+  /** The pivot at each of a report's instants, under the command of the frame computed last, unless already worked out. */
+  function twinPivotsFor(report: TwinReport): void {
+    const { pieces, time } = report;
+    const known = twinPivotsOf;
+    if (
+      known !== null &&
+      known.drive === frameDrive &&
+      known.pieces === pieces &&
+      known.time === time
+    ) {
+      return;
+    }
+    if (twinPivots.length !== 2 * (pieces + 1)) {
+      twinPivots = new Float64Array(2 * (pieces + 1));
+      twinPivotSpeeds = new Float64Array(2 * (pieces + 1));
+    }
+    for (let piece = 0; piece <= pieces; piece++) {
+      pivotIn(frameDrive, (piece * time) / pieces, pivotThen);
+      twinPivots[2 * piece] = pivotThen.x;
+      twinPivots[2 * piece + 1] = pivotThen.y;
+      twinPivotSpeeds[2 * piece] = pivotThen.vx;
+      twinPivotSpeeds[2 * piece + 1] = pivotThen.vy;
+    }
+    twinPivotsOf = { drive: frameDrive, pieces, time };
+  }
+
   /**
    * What the twins' workers sent back since the last frame (decision 51):
    * each twin's tip along the frame draws its trail, a strobe's flash
@@ -2275,25 +2425,29 @@ function play({ canvas, gl }: Stage): void {
       const shine = fades ? (fading.light[j] ?? 1) : 1;
       const { pieces, tips } = report;
       const at = 2 * (pieces + 1) * k;
+      // where the pivot was at each of the report's instants (decision 75)
+      if (pieces > 0) twinPivotsFor(report);
       const curves = tipLines ? curvesNow() : null;
       if (curves !== null && report.clock !== null && pieces > 0) {
         twinCurve(curves, j, report, at, color, light * shine * music);
       } else if (tipLines) {
         for (let piece = 0; piece < pieces; piece++) {
           const from = at + 2 * piece;
+          const p = 2 * piece;
           trailPiece(
-            tips[from] ?? 0,
-            tips[from + 1] ?? 0,
-            tips[from + 2] ?? 0,
-            tips[from + 3] ?? 0,
+            (tips[from] ?? 0) + (twinPivots[p] ?? 0),
+            (tips[from + 1] ?? 0) + (twinPivots[p + 1] ?? 0),
+            (tips[from + 2] ?? 0) + (twinPivots[p + 2] ?? 0),
+            (tips[from + 3] ?? 0) + (twinPivots[p + 3] ?? 0),
             color,
             light * shine,
           );
         }
       }
       if (flashed && pieces > 0) {
-        const px = tips[at + 2 * pieces] ?? 0;
-        const py = tips[at + 2 * pieces + 1] ?? 0;
+        const p = 2 * pieces;
+        const px = (tips[at + p] ?? 0) + (twinPivots[p] ?? 0);
+        const py = (tips[at + p + 1] ?? 0) + (twinPivots[p + 1] ?? 0);
         trail.push(px, py, px, py, color, 2 * light * shine * music);
       }
       if (fades && k < report.apart.length) {
@@ -2324,16 +2478,18 @@ function play({ canvas, gl }: Stage): void {
     const { pieces, tips, tipSpeeds, clock, time } = report;
     if (clock === null) return;
     const step = time / pieces;
-    const x0 = tips[at] ?? 0;
-    const y0 = tips[at + 1] ?? 0;
+    // each instant's tip where the pivot was then, moving as it moved
+    // (decision 75)
+    const x0 = (tips[at] ?? 0) + (twinPivots[0] ?? 0);
+    const y0 = (tips[at + 1] ?? 0) + (twinPivots[1] ?? 0);
     if (!merger.continues(j, x0, y0, 1e-6)) {
       merger.cut(j, closed);
       merger.sample(
         j,
         x0,
         y0,
-        tipSpeeds[at] ?? 0,
-        tipSpeeds[at + 1] ?? 0,
+        (tipSpeeds[at] ?? 0) + (twinPivotSpeeds[0] ?? 0),
+        (tipSpeeds[at + 1] ?? 0) + (twinPivotSpeeds[1] ?? 0),
         clock.seconds,
         clock.fade,
         light,
@@ -2342,22 +2498,25 @@ function play({ canvas, gl }: Stage): void {
         closed,
       );
     }
+    let bx = x0;
+    let by = y0;
     for (let piece = 1; piece <= pieces; piece++) {
       const q = at + 2 * piece;
-      const x = tips[q] ?? 0;
-      const y = tips[q + 1] ?? 0;
+      const p = 2 * piece;
+      const x = (tips[q] ?? 0) + (twinPivots[p] ?? 0);
+      const y = (tips[q + 1] ?? 0) + (twinPivots[p + 1] ?? 0);
       const seconds = piece * step;
-      if (
-        Math.hypot(x - (tips[q - 2] ?? 0), y - (tips[q - 1] ?? 0)) >= TRAIL_JUMP
-      ) {
+      if (Math.hypot(x - bx, y - by) >= TRAIL_JUMP) {
         merger.cut(j, closed);
       }
+      bx = x;
+      by = y;
       merger.sample(
         j,
         x,
         y,
-        tipSpeeds[q] ?? 0,
-        tipSpeeds[q + 1] ?? 0,
+        (tipSpeeds[q] ?? 0) + (twinPivotSpeeds[p] ?? 0),
+        (tipSpeeds[q + 1] ?? 0) + (twinPivotSpeeds[p + 1] ?? 0),
         clock.seconds + seconds,
         clock.fade + seconds * clock.rate,
         light,
@@ -2386,6 +2545,15 @@ function play({ canvas, gl }: Stage): void {
     // or not, and what it adds to the light, in real time (decision 46)
     const heard = music.hear();
     look = router.look(heard, real, tune.strength);
+    // and to its forces (decision 75), which turn time backwards off while
+    // they act: a mode with a force while a source plays, or kicks going on
+    heardNow = heard;
+    const acting =
+      (router.mode.force !== undefined && heard !== null) || forces.kicking;
+    if (acting !== forcing) {
+      forcing = acting;
+      controls.showIdle("reverse", forcing);
+    }
     // the music flashes a strobe on its kicks while it plays in a mode that
     // does, and not with reduced motion asked for (decision 50)
     const flashes =
