@@ -117,11 +117,14 @@ hanging rope it becomes as n grows.
   makes itself, with a card that shows what it hears; the sound stays on
   the device. The music lights the chain's halo on the kicks, gives its
   trails strength with the loudness, and has twins born again from it on
-  every attack; it does not move the chain yet. The card offers candidates
-  beside that, each changing one thing of it: a stronger halo, twins born
-  again on the hits of drums or on the strongest kicks only, trails that
-  last longer or brighten on the kicks, a fan that opens wider with the
-  loudness, and the note the bass plays colouring the chain or the twins.
+  every attack. The card offers candidates beside that, each changing one
+  thing of it. Two move the chain: the kicks take its pivot aside and back,
+  as a speaker's cone, or a hand of the music swings its tip to the other
+  side on every kick. The others light it differently: a stronger halo,
+  twins born again on the hits of drums or on the strongest kicks only,
+  trails that last longer or brighten on the kicks, a fan that opens wider
+  with the loudness, and the note the bass plays colouring the chain or the
+  twins.
 
 Every piece is meant to run fullscreen in the major browsers.
 
