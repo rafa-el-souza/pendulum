@@ -96,6 +96,20 @@ describe("the twins' budget", () => {
     expect(budget.measured(372, 372, 5.5)).toBe(372);
   });
 
+  it("learns nothing from a frame drawn while the view changes, nor counts it among three over the budget, and still drops the twins it did not reach (decision 67)", () => {
+    const budget = new TwinBudget(4, 0.01);
+    expect(budget.measured(512, 512, 5.5)).toBe(512);
+    expect(budget.measured(512, 512, 5.5)).toBe(512);
+    const learned = budget.cost;
+    // a gesture's frames, slower still, teach nothing
+    expect(budget.measured(512, 512, 9, false)).toBe(512);
+    expect(budget.measured(512, 512, 9, false)).toBe(512);
+    expect(budget.cost).toBe(learned);
+    expect(budget.measured(300, 512, 9, false)).toBe(300);
+    // the count goes on from where the gesture found it
+    expect(budget.measured(512, 512, 5.5)).toBe(372);
+  });
+
   it("expects a twin of more masses to cost more, between linear and quadratic", () => {
     const budget = new TwinBudget(4, 0.01);
     budget.rescale(2, 8);

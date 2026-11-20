@@ -363,9 +363,10 @@ export class TwinWorkers {
    * in the order they came, is shown from now on, its twins are handed to
    * `see` (for their trails and their light), and the time it took is
    * measured. A share that dropped twins, or that its budget cannot carry,
-   * cuts the fan to the first part every share carries.
+   * cuts the fan to the first part every share carries; while the view
+   * changes (`steady` false, decision 67), only one that dropped twins.
    */
-  take(see?: TwinVisit): void {
+  take(see?: TwinVisit, steady = true): void {
     const arrived = this.#arrived;
     this.#arrived = [];
     for (const { share: w, report } of arrived) {
@@ -376,6 +377,7 @@ export class TwinWorkers {
           report.count,
           report.asked,
           report.spent,
+          steady,
         );
         if (keep < report.asked) this.keep(this.#shares * keep + w);
       }

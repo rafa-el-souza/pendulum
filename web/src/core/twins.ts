@@ -325,11 +325,14 @@ export class TwinBudget {
    * After a frame that advanced `done` of `count` twins in `spent` ms: learns
    * their cost, and returns how many to keep. Those the frame did not reach
    * are dropped, and so is what three frames in a row over a quarter past the
-   * budget could not carry.
+   * budget could not carry. A frame that does not `learn`, drawn while the
+   * view changes (decision 67), teaches no cost and counts towards no three:
+   * only those it did not reach are dropped.
    */
-  measured(done: number, count: number, spent: number): number {
-    if (done > 0) this.cost += 0.2 * (spent / done - this.cost);
+  measured(done: number, count: number, spent: number, learn = true): number {
     let keep = Math.min(count, done);
+    if (!learn) return keep;
+    if (done > 0) this.cost += 0.2 * (spent / done - this.cost);
     this.#framesOver = spent > this.budget * 1.25 ? this.#framesOver + 1 : 0;
     if (this.#framesOver >= 3) {
       keep = Math.min(keep, Math.floor((keep * this.budget) / spent));
