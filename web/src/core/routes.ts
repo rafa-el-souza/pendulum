@@ -6,8 +6,9 @@ import type { Signals } from "../audio/signals.ts";
 // becomes a pulse that fades. A mode is a list of routes, as data, and may
 // colour the piece with the note the bass holds; the strength the card sets
 // multiplies them all. What the routes give is a record a frame of what the
-// music adds to the light; it never writes the values of the controls. Only
-// the light so far: forces come later, in their own record.
+// music adds to the light; it never writes the values of the controls. A
+// mode may also name a force, which the piece puts into its physics
+// (decision 75).
 
 /** The signals a route can take: each from 0 to 1. */
 export type Signal =
@@ -65,6 +66,17 @@ export interface Tint {
   readonly depth: number;
 }
 
+/**
+ * A force a mode puts into the physics besides its light (decision 75): the
+ * kicks move the pivot aside and back, as a speaker's cone; or a hand of the
+ * music holds the tip and swings it from side to side on the kicks.
+ */
+export interface Force {
+  readonly kind: "speaker" | "dance";
+  /** At the middle strength: how far a full kick takes the pivot of a chain of a few masses, in m; or how far the hand swings at full loudness, in rad. */
+  readonly depth: number;
+}
+
 /** A way for the music to act on the piece. */
 export interface Mode {
   /** Its key in the address: lowercase letters. */
@@ -73,6 +85,7 @@ export interface Mode {
   readonly name: string;
   readonly routes: readonly Route[];
   readonly tint?: Tint;
+  readonly force?: Force;
 }
 
 /** No light added: the look while the music does nothing. */
