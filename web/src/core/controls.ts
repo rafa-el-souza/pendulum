@@ -26,7 +26,7 @@ export interface Action {
   readonly id: string;
   readonly label: string;
   readonly icon: Icon;
-  /** The keys (KeyboardEvent.key) that do it too. */
+  /** The keys that do it too: what a key types (KeyboardEvent.key), or a key held with Shift by where it is, as "Shift+KeyX" (decision 53). */
   readonly keys: readonly string[];
   /** How the keys are shown beside the button. */
   readonly keysShown: string;
@@ -78,6 +78,8 @@ export interface Controls {
   showValue(id: string, value: number, showing?: Showing): void;
   /** Changes what an action's button shows, as pause becomes resume, and whether a switch is on. */
   showAction(id: string, icon: Icon, label: string, pressed?: boolean): void;
+  /** Shows an action's button faint while it has nothing to do, as the whole view's while the view is whole, and still there to press. */
+  showIdle(id: string, idle: boolean): void;
 }
 
 /** How long the controls stay in sight after a sign of a visitor on the stage, in ms. */
@@ -835,6 +837,11 @@ export function mountControls(
       if (pressed !== undefined)
         b.setAttribute("aria-pressed", String(pressed));
       b.title = `${label} (${action.keysShown})`;
+    },
+    showIdle(id, idle) {
+      const action = actionButtons.get(id);
+      if (action === undefined) throw new Error(`no action ${id}`);
+      action.button.classList.toggle(faint, idle);
     },
   };
 }

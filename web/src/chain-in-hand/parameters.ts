@@ -5,6 +5,7 @@ import type { Parameter } from "../core/parameters.ts";
 import { TENSION_SCALES, tensionScaleAt } from "../core/tension.ts";
 import { lightCurve } from "../core/trails.ts";
 import { twinShine } from "../core/twins.ts";
+import { MOST_ZOOM, zoomWritten } from "../core/view.ts";
 import { gravity, type Gravity } from "../physics/chain.ts";
 import type { Shake } from "../physics/step.ts";
 
@@ -657,6 +658,24 @@ export const TENSION: Parameter = {
   show: (value) => (value < 0 ? "off" : SCALE.show(value)),
   swatches: (value) => (value < 0 ? [] : (SCALE.swatches?.(value) ?? [])),
   icon: "balance",
+};
+
+/**
+ * How near the view is, as the screen's group shows it (decision 73): from
+ * the whole view, ×1, to MOST_ZOOM, as the address writes it. It is not in
+ * the registry: the address keeps the camera apart, with the point it looks
+ * at (decision 67). The control's − and + step it about the middle of the
+ * screen, as X and Z do; the wheel and a pinch reach any zoom between.
+ */
+export const ZOOM: Parameter = {
+  id: "zoom",
+  label: "Zoom",
+  values: [1, MOST_ZOOM],
+  initial: 1,
+  keys: { down: [], up: [] },
+  keysShown: "X Z",
+  show: (zoom) => `×${String(zoomWritten(zoom))}`,
+  icon: "zoom",
 };
 
 /**

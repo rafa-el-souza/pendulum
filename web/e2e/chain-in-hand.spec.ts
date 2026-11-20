@@ -415,6 +415,86 @@ test("the wheel brings the view nearer about the mouse and back to the whole vie
   expect(errors).toEqual([]);
 });
 
+test("with the row shut, Z and X show the zoom above the button, alone, and Shift with X brings the whole view back at once (decision 73)", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("./?twins=0");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  const zoom = page.getByRole("group", { name: "Zoom" });
+  await page.keyboard.press("z");
+  await expect(zoom.locator("output")).toHaveText("×1.25");
+  await expect(zoom).toBeVisible();
+  await expect(page.getByRole("toolbar", { name: "Controls" })).toBeHidden();
+  await expect.poll(() => cameraOf(page)).toEqual({ zoom: "1.25", at: null });
+  await page.keyboard.press("x");
+  await expect(zoom.locator("output")).toHaveText("×1");
+  await expect(page).toHaveURL(/\?twins=0$/);
+  // an address opened near, and the whole view at one key
+  await page.goto("./?twins=0&zoom=8&at=0.3,-0.6");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await page.keyboard.press("Shift+X");
+  await expect(page).toHaveURL(/\?twins=0$/);
+  await page.keyboard.press("z");
+  await expect(zoom.locator("output")).toHaveText("×1.25");
+  await frames(page, 5);
+  expect(errors).toEqual([]);
+});
+
+test("the screen's group opens on the zoom, whose − and + step the view about the middle, and the whole view, faint while the view is whole; the wheel's zoom shows there too, and the address follows (decision 73)", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("./?twins=0");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await openControls(page);
+  await icon(page, "The screen").click();
+  const screen = page.getByRole("toolbar", { name: "The screen" });
+  await expect(screen).toBeVisible();
+  expect(await labels(screen)).toEqual([
+    "Zoom",
+    "The whole view",
+    "Colour of the ground",
+    "The sketch's light",
+    "Share this page's address",
+    "QR code of this page's address",
+  ]);
+  const whole = icon(page, "The whole view");
+  await expect(whole).toHaveAttribute("aria-keyshortcuts", "Shift+X");
+  await expect(whole).toHaveClass(/_idle_/);
+
+  // the zoom's value, with its − and +, as X and Z
+  await icon(page, "Zoom").click();
+  const zoom = page.getByRole("group", { name: "Zoom" });
+  await expect(zoom.locator("output")).toHaveText("×1");
+  const more = zoom.getByRole("button", { name: "More: Zoom" });
+  await more.click();
+  await more.click();
+  await expect(zoom.locator("output")).toHaveText("×1.56");
+  await expect(whole).not.toHaveClass(/_idle_/);
+  await expect.poll(() => cameraOf(page)).toEqual({ zoom: "1.56", at: null });
+  await zoom.getByRole("button", { name: "Less: Zoom" }).click();
+  await expect(zoom.locator("output")).toHaveText("×1.25");
+
+  // the whole view, at once
+  await whole.click();
+  await expect(zoom.locator("output")).toHaveText("×1");
+  await expect(whole).toHaveClass(/_idle_/);
+  await expect(page).toHaveURL(/\?twins=0$/);
+
+  // the wheel's zoom, about the mouse, shows in the value too
+  const middle = await stageMiddle(page);
+  await page.mouse.move(middle.x + 80, middle.y + 60);
+  await page.mouse.wheel(0, -400);
+  await expect.poll(() => cameraOf(page).at).not.toBeNull();
+  await expect(zoom.locator("output")).toHaveText(
+    `×${String(cameraOf(page).zoom)}`,
+  );
+  await expect(whole).not.toHaveClass(/_idle_/);
+  await frames(page, 5);
+  expect(errors).toEqual([]);
+});
+
 test("an address opens the view near, and the middle button moves it without grabbing the chain, the address following (decision 67)", async ({
   page,
 }) => {
