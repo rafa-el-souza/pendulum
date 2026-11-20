@@ -23,6 +23,7 @@ addEventListener("message", (event: MessageEvent<TwinSetup | TwinCommand>) => {
   scope.postMessage(report, [
     report.positions.buffer,
     report.tips.buffer,
+    report.tipSpeeds.buffer,
     report.apart.buffer,
   ]);
 });

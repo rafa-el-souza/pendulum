@@ -79,6 +79,7 @@ function frame(
     chain: null,
     hold: null,
     whole: true,
+    speeds: false,
     budget: 10,
     ...more,
   };

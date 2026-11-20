@@ -110,6 +110,8 @@ export interface TwinCommand {
   readonly hold: TwinHold | null;
   /** Each twin sent back whole, every mass, or its tip alone, as dust (decision 50). */
   readonly whole: boolean;
+  /** Each tip's velocity sent back as well, for trails kept as curves (decision 68). */
+  readonly speeds: boolean;
   /** How long the share may take, in ms; the twins it has not reached by four times this are dropped (decision 20). */
   readonly budget: number;
   /** How many times the fan had been put out when this was sent: a report of an older time is not drawn. */
@@ -130,6 +132,8 @@ export interface TwinReport {
   readonly positions: Float32Array;
   /** Each twin's tip before the time went by and at the end of each piece, 2 (pieces + 1) numbers a twin. */
   readonly tips: Float32Array;
+  /** Each tip's velocity at the same instants, laid out as the tips, in metres a second, when asked for; else none. */
+  readonly tipSpeeds: Float32Array;
   /** Each twin's distance from the chain, as a share of the chain's length (decision 43), when asked for; else none. */
   readonly apart: Float64Array;
   /** How long the command took, in ms. */
@@ -214,6 +218,7 @@ export class TwinShare {
     const pieces = command.time > 0 ? Math.max(1, command.pieces) : 0;
     const stride = 2 * (pieces + 1);
     const tips = new Float32Array(stride * asked);
+    const tipSpeeds = new Float32Array(command.speeds ? stride * asked : 0);
     const giveUp = start + 4 * command.budget;
     let done = 0;
     for (const twin of twins) {
@@ -223,12 +228,14 @@ export class TwinShare {
       if (pieces > 0 && (done & 7) === 0 && this.#clock() > giveUp) break;
       let at = stride * done;
       this.#tip(twin.theta, tips, at);
+      if (command.speeds) this.#tipSpeed(twin, tipSpeeds, at);
       for (let piece = 0; piece < pieces; piece++) {
         this.#stepper.advance(twin, command.time / pieces, command.g, {
           shake: command.shakes[piece] ?? null,
         });
         at += 2;
         this.#tip(twin.theta, tips, at);
+        if (command.speeds) this.#tipSpeed(twin, tipSpeeds, at);
       }
       done++;
     }
@@ -268,6 +275,7 @@ export class TwinShare {
       pieces,
       positions,
       tips,
+      tipSpeeds,
       apart: distances,
       spent: this.#clock() - start,
       stretch: stretch ?? 0,
@@ -366,6 +374,20 @@ export class TwinShare {
   }
 
   /** Where the tip of a chain at these angles is, written to out at `at`. */
+  /** How fast the tip of a twin moves, the rate its place changes, written to out at `at`. */
+  #tipSpeed(twin: ChainState, out: Float32Array, at: number): void {
+    const lengths = this.#chain.lengths;
+    let vx = 0;
+    let vy = 0;
+    for (let i = 0; i < this.#chain.n; i++) {
+      const sweep = lengths[i]! * twin.omega[i]!;
+      vx += sweep * Math.cos(twin.theta[i]!);
+      vy += sweep * Math.sin(twin.theta[i]!);
+    }
+    out[at] = vx;
+    out[at + 1] = vy;
+  }
+
   #tip(theta: Float64Array, out: Float32Array, at: number): void {
     const lengths = this.#chain.lengths;
     let px = 0;

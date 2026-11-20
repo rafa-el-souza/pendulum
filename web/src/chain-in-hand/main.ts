@@ -1989,6 +1989,7 @@ function play({ canvas, gl }: Stage): void {
       chain: at,
       hold,
       whole: value(LOOK) !== 1,
+      speeds: false,
       budget: twins.local ? TWIN_LOCAL_MS : twinBudget,
     });
   }
