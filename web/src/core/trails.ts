@@ -27,7 +27,8 @@
 // held as it was and read from there at every change, so that it is
 // resampled once however long the run; a gesture holds it anew as it sees
 // past what is held. A view that comes more than a quarter nearer than the
-// light was drawn at clears it instead (ViewRuns).
+// light was drawn at clears it instead (ViewRuns), counting only the light
+// that has not faded away since (decision 69).
 // Trails kept as curves (decision 68) remake the light instead, in any view:
 // the trails then keep their light divided by a number k, the fade kept as a
 // number, and draw into it, remake it and copy it as sharp.ts asks.
@@ -266,6 +267,16 @@ export function fadeAfter(seconds: number, halfLife: number): number {
 }
 
 /**
+ * The half-lives a fade to `left` of the light takes (decision 69): none for
+ * light that stays, and, for light put out at once, more than any count
+ * forgets after; none for a fade that is not a number.
+ */
+export function halfLivesOf(left: number): number {
+  if (Number.isNaN(left) || left >= 1) return 0;
+  return Math.min(64, -Math.log2(Math.max(0, left)));
+}
+
+/**
  * How many frames the canvas's size stays before a run of changes ends, and
  * the light held as it was before the run is let go (decision 66): half a
  * second at sixty frames a second.
@@ -280,6 +291,13 @@ export const SETTLE_FRAMES = 30;
  * more they read as wide, soft bands beside the new ones.
  */
 export const GROWTH_LIMIT = 1.25;
+
+/**
+ * Half-lives after which light drawn at a scale no longer counts for
+ * GROWTH_LIMIT (decision 69): a 32nd of it is left, too faint to read as a
+ * band. Trails that stay, and a mark, never fade, and always count.
+ */
+export const FORGET_HALF_LIVES = 5;
 
 /**
  * How low k falls, the fade kept as a number by trails kept as curves
@@ -566,8 +584,12 @@ export class Trails {
   readonly #batch = new FadeBatch();
   // the view the targets are in, and their light as it was when the view
   // began to change, in the view it was in, while the run lasts (decision 66)
-  #runs = new ViewRuns(SETTLE_FRAMES, GROWTH_LIMIT);
+  #runs = new ViewRuns(SETTLE_FRAMES, GROWTH_LIMIT, FORGET_HALF_LIVES);
   #view: View | null = null;
+  // the fade the light has taken, in half-lives, and whether the mark keeps
+  // light that never fades (decision 69)
+  #faded = 0;
+  #marked = false;
   // whether the light is remade in each new view by trails kept as curves
   // (decision 68), instead of carried
   #remade = false;
@@ -679,24 +701,26 @@ export class Trails {
     this.#heldMark?.clear();
     this.#batch.reset();
     this.k = 1;
+    this.#marked = false;
   }
 
   /** Darkens the mark alone. */
   clearMark(): void {
     this.#mark.clear();
     this.#heldMark?.clear();
+    this.#marked = false;
   }
 
   /**
    * Takes the view of this frame, the drawing buffer's or the camera's,
    * before anything is drawn into the trails or shown: when it has changed,
    * the trails and the mark are carried to it (decisions 66 and 67), or
-   * cleared, when it has come nearer than GROWTH_LIMIT allows; and it says
-   * whether it changed.
+   * cleared, when it has come nearer than GROWTH_LIMIT allows of the light
+   * that has not faded away (decision 69); and it says whether it changed.
    */
   see(view: View): boolean {
     if (this.#remade) return this.look(view);
-    const step = this.#runs.see(view);
+    const step = this.#runs.see(view, this.#faded, this.#marked);
     this.#view = view;
     if (step === null) return false;
     if (step.act === "let go" || step.act === "clear") {
@@ -842,6 +866,7 @@ export class Trails {
   add(left: number, draw: (view: View) => void): void {
     const view = this.#seen();
     this.#fit();
+    this.#faded += halfLivesOf(left);
     const now = this.#batch.take(left);
     this.#fade(this.#target, now, this.region);
     draw(view);
@@ -860,6 +885,7 @@ export class Trails {
    */
   addMark(draw: (view: View) => void): void {
     const view = this.#seen();
+    this.#marked = true;
     this.#mark.bind();
     draw(view);
     if (this.#heldMark !== null && this.#heldView !== null) {
@@ -964,7 +990,7 @@ export class Trails {
    */
   carryAgain(): void {
     this.#remade = false;
-    this.#runs = new ViewRuns(SETTLE_FRAMES, GROWTH_LIMIT);
+    this.#runs = new ViewRuns(SETTLE_FRAMES, GROWTH_LIMIT, FORGET_HALF_LIVES);
     this.#view = null;
     if (this.k !== 1) {
       this.#fade(this.#target, this.k, null);
