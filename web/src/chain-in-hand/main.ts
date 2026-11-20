@@ -22,6 +22,7 @@ import {
   readCurves,
   readKeep,
   readMeter,
+  readStretch,
   trailMechanism,
   type Mechanism,
 } from "../core/sharp.ts";
@@ -351,7 +352,13 @@ function play({ canvas, gl }: Stage): void {
   // fades the trails by its half-lives.
   const curvesAsked = readCurves(location.search);
   const sharp = curvesAsked
-    ? new SharpTrails(gl, trails, chain.totalLength, readKeep(location.search))
+    ? new SharpTrails(
+        gl,
+        trails,
+        chain.totalLength,
+        readKeep(location.search),
+        readStretch(location.search),
+      )
     : null;
   let mechanism: Mechanism = "layers";
   const fpsMeter = readMeter(location.search) ? new Meter(document.body) : null;

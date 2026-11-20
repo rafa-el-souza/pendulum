@@ -26,7 +26,14 @@ import {
 } from "./curves.ts";
 import { SpanWindow } from "./spans.ts";
 import { GROWTH_LIMIT, LightTarget, type Trails } from "./trails.ts";
-import { SLACK, covers, fitScale, sameView, type View } from "./view.ts";
+import {
+  MOST_ZOOM,
+  SLACK,
+  covers,
+  fitScale,
+  sameView,
+  type View,
+} from "./view.ts";
 
 /**
  * Whether the trails are kept as curves (decision 71): unless the address
@@ -60,11 +67,25 @@ export function readKeep(search: string): number {
     : KEEP_DEFAULT;
 }
 
-/** What of an address's search measures the trails, its mechanism, its window and the meter, kept beside a saved moment as the music is. */
+/**
+ * How many times the light from before the window may be stretched, read
+ * from the older snapshot, before it is hidden (decision 72): "?stretch=2",
+ * from one to MOST_ZOOM, which never hides it; GROWTH_LIMIT when the address
+ * says none.
+ */
+export function readStretch(search: string): number {
+  const asked = new URLSearchParams(search).get("stretch");
+  const stretch = asked === null || asked === "" ? Number.NaN : Number(asked);
+  return Number.isFinite(stretch)
+    ? Math.min(MOST_ZOOM, Math.max(1, stretch))
+    : GROWTH_LIMIT;
+}
+
+/** What of an address's search measures the trails, its mechanism, its window, how far its old light stretches and the meter, kept beside a saved moment as the music is. */
 export function keepMeasures(search: string): string {
   const query = new URLSearchParams(search);
   const kept = new URLSearchParams();
-  for (const key of ["trails", "fps", "keep"]) {
+  for (const key of ["trails", "fps", "keep", "stretch"]) {
     const value = query.get(key);
     if (value !== null) kept.set(key, value);
   }
@@ -98,12 +119,17 @@ export function trailMechanism(asked: boolean, drawn: TrailsDrawn): Mechanism {
 
 /**
  * Whether light kept as `seen` saw it may be read into `view` (decision
- * 69): while the view is at most GROWTH_LIMIT times nearer, by the camera or
- * a larger canvas, as the image carried is kept; past that, its lines would
- * read as wide, soft bands beside the fine ones.
+ * 69): while the view is at most `stretch` times nearer, by the camera or a
+ * larger canvas, GROWTH_LIMIT as the image carried is kept unless the
+ * address says otherwise (decision 72); past that, its lines would read as
+ * wide, soft bands beside the fine ones.
  */
-export function readable(seen: View, view: View): boolean {
-  return view.scale / seen.scale <= GROWTH_LIMIT * SLACK;
+export function readable(
+  seen: View,
+  view: View,
+  stretch = GROWTH_LIMIT,
+): boolean {
+  return view.scale / seen.scale <= stretch * SLACK;
 }
 
 /** Half-lives of fade between snapshots. */
@@ -235,6 +261,7 @@ export class SharpTrails {
   readonly #trails: Trails;
   readonly #reach: number;
   readonly #keep: number;
+  readonly #stretch: number;
   readonly #lines: SpanLines;
   readonly #window: SpanWindow;
   readonly #open = new SpanBatch(1024);
@@ -269,17 +296,24 @@ export class SharpTrails {
   /** What the last measured remake cost, in ms; none yet. */
   remakeMs: number | null = null;
 
-  /** The curves of `trails`, over the disc `reach` metres from the pivot, the window keeping `keep` times as many spans (decision 70). */
+  /**
+   * The curves of `trails`, over the disc `reach` metres from the pivot, the
+   * window keeping `keep` times as many spans (decision 70), and the light
+   * from before it read while stretched at most `stretch` times (decision
+   * 72).
+   */
   constructor(
     gl: WebGL2RenderingContext,
     trails: Trails,
     reach: number,
     keep = 1,
+    stretch = GROWTH_LIMIT,
   ) {
     this.#gl = gl;
     this.#trails = trails;
     this.#reach = reach;
     this.#keep = keep;
+    this.#stretch = stretch;
     this.#lines = new SpanLines(gl);
     this.#window = new SpanWindow(gl, reach, keep);
   }
@@ -517,13 +551,14 @@ export class SharpTrails {
     // the view goes farther
     const base = this.#base;
     const from =
-      base === null || !readable(base.view, view)
+      base === null || !readable(base.view, view, this.#stretch)
         ? null
         : {
             image: base.image,
             view: base.view,
             coarse:
-              base.coarseView === null || !readable(base.coarseView, view)
+              base.coarseView === null ||
+              !readable(base.coarseView, view, this.#stretch)
                 ? null
                 : { target: base.coarse, view: base.coarseView },
             gain: snapshotGain(base, { k: trails.k, fade: this.#fade }),
