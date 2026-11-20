@@ -19,7 +19,9 @@ export function fitScale(
 
 /**
  * What a target of light sees (decisions 66 and 67): its size in pixels,
- * its pixels per metre, and the point of the world at its centre, in metres.
+ * its pixels per metre, the point of the world at its centre, in metres, and
+ * how many times nearer than the whole view the camera brings it, of which
+ * its scale is the size's own times this.
  */
 export interface View {
   readonly width: number;
@@ -27,6 +29,7 @@ export interface View {
   readonly scale: number;
   readonly cx: number;
   readonly cy: number;
+  readonly zoom: number;
 }
 
 /**
@@ -97,7 +100,14 @@ export function bufferView(
   const scale = fitScale(width, height, reach) * camera.zoom;
   const whole = (at: number): number =>
     scale > 0 ? Math.round(at * scale) / scale : 0;
-  return { width, height, scale, cx: whole(camera.cx), cy: whole(camera.cy) };
+  return {
+    width,
+    height,
+    scale,
+    cx: whole(camera.cx),
+    cy: whole(camera.cy),
+    zoom: camera.zoom,
+  };
 }
 
 /**
@@ -265,10 +275,11 @@ export function writeCamera(search: string, camera: Camera): string {
   return text === "" ? "" : `?${text}`;
 }
 
-/** What a change of view asks of light kept in pixels: to hold it and carry it, to carry it from what is held, or to let what is held go. */
+/** What a change of view asks of light kept in pixels: to hold it and carry it, to carry it from what is held, to let what is held go, or to clear it. */
 export type ViewStep =
   | { readonly act: "hold" | "carry"; readonly from: View }
-  | { readonly act: "let go" };
+  | { readonly act: "let go" }
+  | { readonly act: "clear" };
 
 function sameView(a: View, b: View): boolean {
   return (
@@ -278,6 +289,11 @@ function sameView(a: View, b: View): boolean {
     a.cx === b.cx &&
     a.cy === b.cy
   );
+}
+
+/** The scale a view's size gives it, without the camera's zoom (decision 67). */
+function sized(view: View): number {
+  return view.scale / view.zoom;
 }
 
 /** Whether every point `inner` sees, `outer` sees too. */
@@ -299,7 +315,17 @@ function covers(outer: View, inner: View): boolean {
  * it was in; every change of the run is carried from what is held, so that
  * the light is read once however many changes the run has, instead of once
  * a change, each blurring it a little more; the run ends, and what is held
- * can go, once the view has stayed for `settle` frames.
+ * can go, once the view has stayed for `settle` frames. A canvas grown
+ * more than `limit` times the least scale its size gave the light it would
+ * read asks for the light to be cleared instead: lines drawn a pixel or two
+ * wide come out wider in proportion, and past that they read as wide, soft
+ * bands beside the new ones. The run ends there, and the next change holds
+ * anew. The least scale goes with the light: what is held keeps the least
+ * of the light it held; carried, the light is what was held and what is
+ * drawn on it in the new view; so that runs each growing a little add up,
+ * and a run that shrinks and grows back reads only what was held at the
+ * larger view. The camera's zoom does not count towards the limit
+ * (decision 67).
  *
  * A change of the camera alone, the drawing buffer's size the same, holds
  * the light anew as it last was when the view has come twice as near as
@@ -311,19 +337,27 @@ function covers(outer: View, inner: View): boolean {
  */
 export class ViewRuns {
   readonly #settle: number;
+  readonly #limit: number;
   #last: View | null = null;
   #held: View | null = null;
   #still = 0;
+  // the least scale the light shown, and the light held, were drawn at
+  #least = Number.POSITIVE_INFINITY;
+  #heldLeast = Number.POSITIVE_INFINITY;
 
-  constructor(settle: number) {
+  constructor(settle: number, limit = Number.POSITIVE_INFINITY) {
     this.#settle = settle;
+    this.#limit = limit;
   }
 
   /** Takes the frame's view, and says what its light asks for, if anything. */
   see(view: View): ViewStep | null {
     const last = this.#last;
     this.#last = view;
-    if (last === null) return null;
+    if (last === null) {
+      this.#least = sized(view);
+      return null;
+    }
     if (sameView(last, view)) {
       if (this.#held === null) return null;
       this.#still++;
@@ -332,15 +366,26 @@ export class ViewRuns {
       return { act: "let go" };
     }
     this.#still = 0;
+    const shown = this.#least;
     const held = this.#held;
+    const read = held === null ? shown : this.#heldLeast;
+    if (sized(view) / read > this.#limit) {
+      this.#held = null;
+      this.#least = sized(view);
+      return { act: "clear" };
+    }
     const camera = last.width === view.width && last.height === view.height;
     if (
       held === null ||
       (camera && (view.scale >= 2 * held.scale || !covers(held, view)))
     ) {
+      // the light shown becomes what is held
       this.#held = last;
+      this.#heldLeast = shown;
+      this.#least = Math.min(shown, sized(view));
       return { act: "hold", from: last };
     }
+    this.#least = Math.min(read, sized(view));
     return { act: "carry", from: held };
   }
 }

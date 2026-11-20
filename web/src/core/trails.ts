@@ -250,6 +250,15 @@ export function fadeAfter(seconds: number, halfLife: number): number {
 export const SETTLE_FRAMES = 30;
 
 /**
+ * How many times larger the canvas's view may grow, from the light held,
+ * before the trails are cleared instead of carried (decision 66): carried
+ * lines come out wider in proportion, and past a quarter more they read as
+ * wide, soft bands beside the new ones. The camera's zoom does not count
+ * towards it (decision 67).
+ */
+export const GROWTH_LIMIT = 1.25;
+
+/**
  * The least a fade takes off at once: eight times half a step of a half
  * float's precision, so that rounding never undoes it.
  */
@@ -499,7 +508,7 @@ export class Trails {
   readonly #batch = new FadeBatch();
   // the view the targets are in, and their light as it was when the view
   // began to change, in the view it was in, while the run lasts (decision 66)
-  readonly #runs = new ViewRuns(SETTLE_FRAMES);
+  readonly #runs = new ViewRuns(SETTLE_FRAMES, GROWTH_LIMIT);
   #view: View | null = null;
   #held: LightTarget | null = null;
   #heldMark: LightTarget | null = null;
@@ -602,20 +611,27 @@ export class Trails {
   /**
    * Takes the view of this frame, the drawing buffer's or the camera's,
    * before anything is drawn into the trails or shown: when it has changed,
-   * the trails and the mark are carried to it (decisions 66 and 67), and it
-   * says so.
+   * the trails and the mark are carried to it (decisions 66 and 67), or
+   * cleared, when the canvas has grown past GROWTH_LIMIT (decision 66); and
+   * it says whether it changed.
    */
   see(view: View): boolean {
     const step = this.#runs.see(view);
     this.#view = view;
     if (step === null) return false;
-    if (step.act === "let go") {
+    if (step.act === "let go" || step.act === "clear") {
       this.#held?.dispose();
       this.#heldMark?.dispose();
       this.#held = null;
       this.#heldMark = null;
       this.#heldView = null;
-      return false;
+      if (step.act === "clear") {
+        // the targets made anew, dark, at the new size
+        this.#fit();
+        if (this.#mark.made) this.#mark.fit();
+        this.clear();
+      }
+      return step.act === "clear";
     }
     if (step.act === "hold") {
       // the targets as they are become what is held, and new ones take the
