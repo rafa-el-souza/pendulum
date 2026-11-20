@@ -2369,22 +2369,28 @@ it drew before.
 
 *2026-11-20.* When the canvas changes size, as a phone turns, a window is
 resized or goes full screen, or the browser zooms, the trails and their
-mark (decision 42) are carried to the new size instead of cleared. Each
-new pixel reads the old image where it saw the same point of the world,
-and holds the light a line drawn there anew would have: the old light
-times the old scale over the new, and, where the canvas shrinks, the mean
-over the area the pixel covers. While a window's edge is dragged, the
-image is held as it was when the drag began and every change is read from
-it, so that the trails are resampled once, not once a frame; while a drag
-lasts, the trails are drawn twice.
+mark (decision 42) are carried to the new size instead of cleared. Each new
+pixel reads the old image where it saw the same point of the world, and
+holds the light a line drawn there anew would have: the old light times the
+old scale over the new. Where the canvas grows or only slides, a pixel
+reads the sixteen old pixels round that point, which keeps lines sharper
+than four; where it shrinks, the mean over the area it covers. Lines drawn
+before still come out wider in a larger canvas. While a window's edge is
+dragged, the image is held as it was when the drag began and every change
+is read from it, so that the trails are resampled once, not once a frame;
+while a drag lasts, the trails are drawn twice.
 
 **Why.** Cleared, the trails were lost whenever a phone turned; read from
-the frame before, a drag blurred them.
+the frame before, a drag blurred them; read from four pixels, a larger
+canvas softened them more.
 
-**Evidence.** Unit tests of the view, the carry and the runs of changes. A
-browser test, in the three engines, in which the trails keep their light
-through a smaller canvas and a drag. After a drag of 60 frames, the trails
-are identical to those after one change.
+**Evidence.** Unit tests of the view, the carry, the weights of the sixteen
+pixels and the runs of changes. A browser test, in the three engines, in
+which the trails keep their light through a smaller canvas and a drag.
+After a drag of 60 frames, the trails are identical to those after one
+change. In a canvas made 1.5 times larger, the carried trails keep 84% of
+the sharpness of trails drawn there anew, against 76% read from four
+pixels.
 
 ## Open
 
