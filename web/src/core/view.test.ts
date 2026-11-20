@@ -28,9 +28,8 @@ function viewOf(
   scale = 1,
   cx = 0,
   cy = 0,
-  zoom = 1,
 ): View {
-  return { width, height, scale, cx, cy, zoom };
+  return { width, height, scale, cx, cy };
 }
 
 /** What a camera sees on a canvas, its point exactly at the centre. */
@@ -46,7 +45,6 @@ function seenBy(
     fitScale(width, height, reach) * camera.zoom,
     camera.cx,
     camera.cy,
-    camera.zoom,
   );
 }
 
@@ -123,7 +121,6 @@ describe("the view a target of light sees (decision 66)", () => {
       scale: fitScale(1170, 2532, 1),
       cx: 0,
       cy: 0,
-      zoom: 1,
     });
     expect(view.scale).toBeCloseTo(3 * fitScale(390, 844, 1), 9);
   });
@@ -368,15 +365,27 @@ describe("a gesture's changes of view (decision 67)", () => {
   const at = (zoom: number, cx = 0, cy = 0): View =>
     bufferView(1280, 720, 1, { zoom, cx, cy });
 
-  it("carries a run that comes nearer from what it held, until twice as near, and then holds the light anew as it last was", () => {
-    const runs = new ViewRuns(3);
+  it("clears the light once the camera comes nearer than the limit from the least scale it was drawn at, and holds anew the light drawn after", () => {
+    const runs = new ViewRuns(3, 1.25);
     runs.see(at(1));
-    expect(runs.see(at(1.3))).toEqual({ act: "hold", from: at(1) });
-    expect(runs.see(at(1.7))).toEqual({ act: "carry", from: at(1) });
-    expect(runs.see(at(1.95))).toEqual({ act: "carry", from: at(1) });
-    // twice as near as what is held: the last view's light is held instead
-    expect(runs.see(at(2.1))).toEqual({ act: "hold", from: at(1.95) });
-    expect(runs.see(at(3.5))).toEqual({ act: "carry", from: at(1.95) });
+    expect(runs.see(at(1.2))).toEqual({ act: "hold", from: at(1) });
+    expect(runs.see(at(1.3))).toEqual({ act: "clear" });
+    expect(runs.see(at(1.5))).toEqual({ act: "hold", from: at(1.3) });
+    // a quarter nearer than the light drawn at 1.3 times
+    expect(runs.see(at(1.7))).toEqual({ act: "clear" });
+  });
+
+  it("carries a camera that goes farther and comes back, and clears once it comes nearer than the light drawn farther", () => {
+    const runs = new ViewRuns(2, 1.25);
+    runs.see(at(8));
+    expect(runs.see(at(4))).toEqual({ act: "hold", from: at(8) });
+    // back within the run: the light read is the light held, drawn at eight times
+    expect(runs.see(at(8))).toEqual({ act: "carry", from: at(8) });
+    runs.see(at(4));
+    runs.see(at(4));
+    expect(runs.see(at(4))).toEqual({ act: "let go" });
+    // settled at four times, the light drawn there would be stretched twice
+    expect(runs.see(at(8))).toEqual({ act: "clear" });
   });
 
   it("holds the light anew at every change that sees past what is held, as it moves or goes farther", () => {
@@ -398,16 +407,12 @@ describe("a gesture's changes of view (decision 67)", () => {
     });
   });
 
-  it("carries a camera that comes nearer however near, the canvas's growth limit counting the canvas's size alone, and clears a canvas grown past it whatever the zoom", () => {
+  it("counts the canvas's size and the camera's zoom together: at eight times, a window a tenth wider is carried, and half as large again cleared", () => {
     const runs = new ViewRuns(3, 1.25);
-    runs.see(at(1));
-    expect(runs.see(at(1.2))).toEqual({ act: "hold", from: at(1) });
-    expect(runs.see(at(1.9))).toEqual({ act: "carry", from: at(1) });
-    expect(runs.see(at(8))).toEqual({ act: "hold", from: at(1.9) });
-    // a window a tenth wider at eight times: carried
+    runs.see(at(8));
+    // 1280 and 1408 by 720 are both fitted by their height: the same scale
     const wider = bufferView(1408, 720, 1, { zoom: 8, cx: 0, cy: 0 });
-    expect(runs.see(wider)).toEqual({ act: "carry", from: at(1.9) });
-    // and half as large again as it was: cleared
+    expect(runs.see(wider)).toEqual({ act: "hold", from: at(8) });
     const larger = bufferView(1920, 1080, 1, { zoom: 8, cx: 0, cy: 0 });
     expect(runs.see(larger)).toEqual({ act: "clear" });
   });
@@ -433,7 +438,6 @@ describe("a canvas that grows too much, as runs (decision 66)", () => {
     scale: a.scale * k,
     cx: 0,
     cy: 0,
-    zoom: 1,
   });
 
   it("asks for the light to be cleared, not held, when a change grows the view more than the limit", () => {

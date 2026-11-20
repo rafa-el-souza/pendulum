@@ -1227,7 +1227,6 @@ function play({ canvas, gl }: Stage): void {
       scale: fitScale(width, height, chain.totalLength) * camera.zoom,
       cx: camera.cx,
       cy: camera.cy,
-      zoom: camera.zoom,
     };
   }
 

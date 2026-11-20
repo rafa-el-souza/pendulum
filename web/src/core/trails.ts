@@ -25,8 +25,9 @@
 // the same point of the world, with the light a line drawn there anew would
 // have. Over a run of changes, as a window's edge is dragged, the light is
 // held as it was and read from there at every change, so that it is
-// resampled once however long the run; a gesture holds it anew as it comes
-// twice as near, or sees past what is held (ViewRuns).
+// resampled once however long the run; a gesture holds it anew as it sees
+// past what is held. A view that comes more than a quarter nearer than the
+// light was drawn at clears it instead (ViewRuns).
 
 import type { Rgb } from "./color.ts";
 import { ViewRuns, carryMap, type Box, type View } from "./view.ts";
@@ -250,11 +251,11 @@ export function fadeAfter(seconds: number, halfLife: number): number {
 export const SETTLE_FRAMES = 30;
 
 /**
- * How many times larger the canvas's view may grow, from the light held,
- * before the trails are cleared instead of carried (decision 66): carried
- * lines come out wider in proportion, and past a quarter more they read as
- * wide, soft bands beside the new ones. The camera's zoom does not count
- * towards it (decision 67).
+ * How many times nearer the view may come, by a larger canvas (decision 66)
+ * or the camera's zoom (decision 67), than the least scale the light it
+ * would read was drawn at, before the trails are cleared instead of
+ * carried: carried lines come out wider in proportion, and past a quarter
+ * more they read as wide, soft bands beside the new ones.
  */
 export const GROWTH_LIMIT = 1.25;
 
@@ -612,8 +613,8 @@ export class Trails {
    * Takes the view of this frame, the drawing buffer's or the camera's,
    * before anything is drawn into the trails or shown: when it has changed,
    * the trails and the mark are carried to it (decisions 66 and 67), or
-   * cleared, when the canvas has grown past GROWTH_LIMIT (decision 66); and
-   * it says whether it changed.
+   * cleared, when it has come nearer than GROWTH_LIMIT allows; and it says
+   * whether it changed.
    */
   see(view: View): boolean {
     const step = this.#runs.see(view);

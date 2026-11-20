@@ -502,6 +502,32 @@ test("two fingers pinch the view nearer without grabbing the chain, and one fing
   expect(errors).toEqual([]);
 });
 
+test("the trails are carried while the view comes a quarter nearer than they were drawn at, and cleared past it (decision 67)", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.setViewportSize({ width: 640, height: 400 });
+  await page.goto("./?twins=0&time=4&trail=600");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await frames(page, 40);
+  await page.keyboard.press(" ");
+  await frames(page, 3);
+  const before = await lightShown(page);
+  // Z, a quarter nearer: carried
+  await page.keyboard.press("z");
+  await frames(page, 3);
+  expect(await lightShown(page)).toBeGreaterThan(0.5 * before);
+  // Z again, 1.56 times the scale they were drawn at: cleared, the chain
+  // alone left, as the light switch leaves it
+  await page.keyboard.press("z");
+  await frames(page, 3);
+  const nearer = await lightShown(page);
+  await page.keyboard.press("l");
+  await frames(page, 3);
+  expect(nearer).toBeLessThan(1.2 * (await lightShown(page)));
+  expect(errors).toEqual([]);
+});
+
 test("the trails are cleared when the canvas grows by more than a quarter, and carried when it grows less (decision 66)", async ({
   page,
 }) => {

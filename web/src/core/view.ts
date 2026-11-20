@@ -19,9 +19,7 @@ export function fitScale(
 
 /**
  * What a target of light sees (decisions 66 and 67): its size in pixels,
- * its pixels per metre, the point of the world at its centre, in metres, and
- * how many times nearer than the whole view the camera brings it, of which
- * its scale is the size's own times this.
+ * its pixels per metre, and the point of the world at its centre, in metres.
  */
 export interface View {
   readonly width: number;
@@ -29,7 +27,6 @@ export interface View {
   readonly scale: number;
   readonly cx: number;
   readonly cy: number;
-  readonly zoom: number;
 }
 
 /**
@@ -100,14 +97,7 @@ export function bufferView(
   const scale = fitScale(width, height, reach) * camera.zoom;
   const whole = (at: number): number =>
     scale > 0 ? Math.round(at * scale) / scale : 0;
-  return {
-    width,
-    height,
-    scale,
-    cx: whole(camera.cx),
-    cy: whole(camera.cy),
-    zoom: camera.zoom,
-  };
+  return { width, height, scale, cx: whole(camera.cx), cy: whole(camera.cy) };
 }
 
 /**
@@ -291,11 +281,6 @@ function sameView(a: View, b: View): boolean {
   );
 }
 
-/** The scale a view's size gives it, without the camera's zoom (decision 67). */
-function sized(view: View): number {
-  return view.scale / view.zoom;
-}
-
 /** Whether every point `inner` sees, `outer` sees too. */
 function covers(outer: View, inner: View): boolean {
   const slack = 1 + 1e-9;
@@ -315,25 +300,22 @@ function covers(outer: View, inner: View): boolean {
  * it was in; every change of the run is carried from what is held, so that
  * the light is read once however many changes the run has, instead of once
  * a change, each blurring it a little more; the run ends, and what is held
- * can go, once the view has stayed for `settle` frames. A canvas grown
- * more than `limit` times the least scale its size gave the light it would
- * read asks for the light to be cleared instead: lines drawn a pixel or two
- * wide come out wider in proportion, and past that they read as wide, soft
- * bands beside the new ones. The run ends there, and the next change holds
- * anew. The least scale goes with the light: what is held keeps the least
- * of the light it held; carried, the light is what was held and what is
- * drawn on it in the new view; so that runs each growing a little add up,
- * and a run that shrinks and grows back reads only what was held at the
- * larger view. The camera's zoom does not count towards the limit
- * (decision 67).
+ * can go, once the view has stayed for `settle` frames. A view more than
+ * `limit` times nearer than the least scale the light it would read was
+ * drawn at, by a larger canvas or the camera's zoom (decision 67), asks for
+ * the light to be cleared instead: lines drawn a pixel or two wide come out
+ * wider in proportion, and past that they read as wide, soft bands beside
+ * the new ones. The run ends there, and the next change holds anew. The
+ * least scale goes with the light: what is held keeps the least of the
+ * light it held; carried, the light is what was held and what is drawn on
+ * it in the new view; so that runs each growing a little add up, and a run
+ * that shrinks and grows back reads only what was held at the larger view.
  *
- * A change of the camera alone, the drawing buffer's size the same, holds
- * the light anew as it last was when the view has come twice as near as
- * what is held, or sees past it (decision 67): light drawn during a gesture
- * that nears is then kept at no less than half the view's resolution, and
- * light drawn where the held view did not see, as the view moves or goes
- * farther, is kept at all. Moved at the same scale, light moves by whole
- * pixels (bufferView), and is carried as it is.
+ * A change of the camera alone, the drawing buffer's size the same, that
+ * sees past what is held, as the view moves or goes farther, holds the light
+ * anew as it last was (decision 67), so that light drawn where the held view
+ * did not see is kept. Moved at the same scale, light moves by whole pixels
+ * (bufferView), and is carried as it is.
  */
 export class ViewRuns {
   readonly #settle: number;
@@ -355,7 +337,7 @@ export class ViewRuns {
     const last = this.#last;
     this.#last = view;
     if (last === null) {
-      this.#least = sized(view);
+      this.#least = view.scale;
       return null;
     }
     if (sameView(last, view)) {
@@ -369,23 +351,20 @@ export class ViewRuns {
     const shown = this.#least;
     const held = this.#held;
     const read = held === null ? shown : this.#heldLeast;
-    if (sized(view) / read > this.#limit) {
+    if (view.scale / read > this.#limit) {
       this.#held = null;
-      this.#least = sized(view);
+      this.#least = view.scale;
       return { act: "clear" };
     }
     const camera = last.width === view.width && last.height === view.height;
-    if (
-      held === null ||
-      (camera && (view.scale >= 2 * held.scale || !covers(held, view)))
-    ) {
+    if (held === null || (camera && !covers(held, view))) {
       // the light shown becomes what is held
       this.#held = last;
       this.#heldLeast = shown;
-      this.#least = Math.min(shown, sized(view));
+      this.#least = Math.min(shown, view.scale);
       return { act: "hold", from: last };
     }
-    this.#least = Math.min(read, sized(view));
+    this.#least = Math.min(read, view.scale);
     return { act: "carry", from: held };
   }
 }
