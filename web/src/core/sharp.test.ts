@@ -8,10 +8,12 @@ import {
   keepMeasures,
   readMeter,
   readTrailsAsked,
+  readable,
   snapshotDue,
   snapshotGain,
   trailMechanism,
 } from "./sharp.ts";
+import { bufferView } from "./view.ts";
 
 // Trails kept as curves, drawn anew in any view, beside the image carried
 // to it (docs/decisions.md, decision 68).
@@ -104,5 +106,25 @@ describe("the snapshots", () => {
       15,
     );
     expect(snapshotGain({ k: 1, fade: 4 }, { k: 1, fade: 4 })).toBe(1);
+  });
+});
+
+describe("the light before the older snapshot, read nearer (decision 69)", () => {
+  const at = (zoom: number) => bufferView(1280, 720, 1, { zoom, cx: 0, cy: 0 });
+
+  it("is read from a snapshot, or its coarse image, while the view is at most a quarter nearer than it saw, and again as the view goes farther", () => {
+    // Z once from the whole view, then twice
+    expect(readable(at(1), at(1.25))).toBe(true);
+    expect(readable(at(1), at(1.5625))).toBe(false);
+    expect(readable(at(8), at(10))).toBe(true);
+    expect(readable(at(8), at(10.1))).toBe(false);
+    // farther, however much
+    expect(readable(at(8), at(1))).toBe(true);
+  });
+
+  it("counts a larger canvas as nearer, as the image carried does", () => {
+    const small = bufferView(640, 400, 1);
+    expect(readable(small, bufferView(704, 440, 1))).toBe(true);
+    expect(readable(small, bufferView(1280, 800, 1))).toBe(false);
   });
 });
