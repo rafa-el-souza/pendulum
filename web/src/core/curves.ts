@@ -223,7 +223,6 @@ uniform vec2 uCenter;
 uniform float uScale;
 uniform float uRadius;
 uniform float uNow;
-uniform float uAged;
 uniform float uGain;
 uniform float uTol;
 uniform int uMost;
@@ -256,8 +255,9 @@ void main() {
   float r = uRadius + 1.0;
   vAcross = side * r;
   // the light at birth, faded by the half-lives since, as the trails' fade
-  // has taken the light drawn then (decision 21)
-  float faded = uAged > 0.5 ? exp2(-max(uNow - mix(clock.x, clock.y, u), 0.0)) : 1.0;
+  // has taken the light drawn then (decision 21): drawn as they come, and
+  // drawn again from the window, spans hold the same light
+  float faded = exp2(-max(uNow - mix(clock.x, clock.y, u), 0.0));
   vTint = vec4(tint.rgb, mix(light.x, light.y, u) * faded * uGain);
   gl_Position = vec4((p + vec2(-t.y, t.x) * side * r) / uHalfView, 0.0, 1.0);
 }`;
@@ -296,11 +296,8 @@ function compile(
 export interface SpanStyle {
   /** Half the width of the band, in the target's pixels. */
   readonly radius: number;
-  /**
-   * The fade clock now, in half-lives, from which each span's light is faded
-   * by its age; null draws each at the light it was born with.
-   */
-  readonly now: number | null;
+  /** The fade clock now, in half-lives, from which each span's light is faded by its age. */
+  readonly now: number;
   /** What the light is multiplied by: one over the k the target's light is kept divided by. */
   readonly gain: number;
   /** The most pieces a span is cut into (mostPieces). */
@@ -313,7 +310,6 @@ const UNIFORMS = [
   "uScale",
   "uRadius",
   "uNow",
-  "uAged",
   "uGain",
   "uTol",
   "uMost",
@@ -362,8 +358,7 @@ export class SpanLines {
     gl.uniform2f(at.uCenter ?? null, view.cx, view.cy);
     gl.uniform1f(at.uScale ?? null, view.scale);
     gl.uniform1f(at.uRadius ?? null, style.radius);
-    gl.uniform1f(at.uNow ?? null, style.now ?? 0);
-    gl.uniform1f(at.uAged ?? null, style.now === null ? 0 : 1);
+    gl.uniform1f(at.uNow ?? null, style.now);
     gl.uniform1f(at.uGain ?? null, style.gain);
     gl.uniform1f(at.uTol ?? null, PIECE_TOLERANCE);
     gl.uniform1i(at.uMost ?? null, style.most);

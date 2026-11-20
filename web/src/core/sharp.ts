@@ -310,9 +310,9 @@ export class SharpTrails {
       }
       this.#coarseLive = true;
     }
-    const style = (view: View, aged: boolean): SpanStyle => ({
+    const style = (view: View): SpanStyle => ({
       radius: frame.radius,
-      now: aged ? this.#fade : null,
+      now: this.#fade,
       gain: 1 / trails.k,
       most: mostPieces(
         view.scale / fitScale(view.width, view.height, this.#reach),
@@ -334,7 +334,7 @@ export class SharpTrails {
         // window alone, so that no interval reaches it twice
         trails.drawInto(coarse, () => {
           this.#lines.begin(coarseView, {
-            ...style(coarseView, false),
+            ...style(coarseView),
             most: 2,
           });
           this.#lines.batch(this.fresh);
@@ -349,7 +349,7 @@ export class SharpTrails {
         // the snapshots, and at a snapshot every open span is closed first
         trails.drawInto(coarse, () => {
           this.#lines.begin(coarseView, {
-            ...style(coarseView, true),
+            ...style(coarseView),
             most: 2,
           });
           this.#lines.batch(this.closed);
@@ -360,7 +360,7 @@ export class SharpTrails {
     if (!this.#remake) {
       // the new intervals, as they were drawn
       trails.drawIn((into) => {
-        this.#lines.begin(into, style(into, false));
+        this.#lines.begin(into, style(into));
         this.#lines.batch(this.fresh);
         this.#lines.end();
       });
@@ -378,7 +378,7 @@ export class SharpTrails {
       if (this.#coarseLive && coarse !== null && coarseView !== null) {
         trails.drawInto(coarse, () => {
           this.#lines.begin(coarseView, {
-            ...style(coarseView, true),
+            ...style(coarseView),
             most: 2,
           });
           this.#lines.batch(this.#open);
@@ -400,7 +400,7 @@ export class SharpTrails {
   #remakeImage(
     view: View,
     whole: boolean,
-    style: (view: View, aged: boolean) => SpanStyle,
+    style: (view: View) => SpanStyle,
     now: number,
   ): void {
     const trails = this.#trails;
@@ -422,7 +422,7 @@ export class SharpTrails {
             gain: snapshotGain(base, { k: trails.k, fade: this.#fade }),
           };
     trails.remake(from, (into) => {
-      const drawn = style(into, true);
+      const drawn = style(into);
       this.#window.draw(this.#lines, into, drawn);
       this.#open.clear();
       this.chain.openSpans(this.#open);
