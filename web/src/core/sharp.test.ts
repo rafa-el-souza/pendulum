@@ -5,6 +5,7 @@ import {
   SNAPSHOT_SPANS,
   TrailClock,
   clockAt,
+  keepMeasures,
   readMeter,
   readTrailsAsked,
   snapshotDue,
@@ -22,6 +23,14 @@ describe("which trails an address asks for", () => {
     expect(readTrailsAsked("?trails=b")).toBe(false);
     expect(readTrailsAsked("?trails=")).toBe(false);
     expect(readTrailsAsked("")).toBe(false);
+  });
+
+  it("keeps the trails' mechanism and the meter, and nothing else, beside a saved moment", () => {
+    expect(keepMeasures("?n=3&trails=sharp&zoom=2&fps=1")).toBe(
+      "?trails=sharp&fps=1",
+    );
+    expect(keepMeasures("?fps=1")).toBe("?fps=1");
+    expect(keepMeasures("?n=3&zoom=2")).toBe("");
   });
 
   it("shows the meter with ?fps=1", () => {

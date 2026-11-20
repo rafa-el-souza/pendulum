@@ -21,7 +21,7 @@ import {
 } from "./curves.ts";
 import { SpanWindow } from "./spans.ts";
 import { LightTarget, type Trails } from "./trails.ts";
-import { fitScale, type View } from "./view.ts";
+import { fitScale, sameView, type View } from "./view.ts";
 
 /** Whether an address asks for trails kept as curves: "?trails=sharp". */
 export function readTrailsAsked(search: string): boolean {
@@ -31,6 +31,18 @@ export function readTrailsAsked(search: string): boolean {
 /** Whether an address asks for the meter: "?fps=1". */
 export function readMeter(search: string): boolean {
   return new URLSearchParams(search).get("fps") === "1";
+}
+
+/** What of an address's search measures the trails, its mechanism and the meter, kept beside a saved moment as the music is. */
+export function keepMeasures(search: string): string {
+  const query = new URLSearchParams(search);
+  const kept = new URLSearchParams();
+  for (const key of ["trails", "fps"]) {
+    const value = query.get(key);
+    if (value !== null) kept.set(key, value);
+  }
+  const text = kept.toString();
+  return text === "" ? "" : `?${text}`;
 }
 
 /** How the trails meet a new view: drawn anew from curves, or the image carried (B, decisions 66 and 67). */
@@ -238,11 +250,21 @@ export class SharpTrails {
    */
   start(frame: SharpFrame): void {
     this.clear();
-    this.#trails.keepAsCurves(frame.view);
-    const snapshot = this.#snapshot(frame.view, frame.whole);
-    this.#base = snapshot;
-    this.#imageView = frame.view;
-    this.#imageWhole = frame.whole;
+    // the image as it was last drawn, in the view it was drawn in
+    const view = this.#trails.view ?? frame.view;
+    const whole = sameView(view, frame.view) && frame.whole;
+    this.#trails.keepAsCurves(view);
+    this.#fitCoarse(view);
+    this.#base = this.#snapshot(view, whole);
+    this.#imageView = view;
+    this.#imageWhole = whole;
+  }
+
+  /** Takes the view of this frame, before anything is drawn: says whether it changed, and then the image is remade. */
+  see(view: View): boolean {
+    const changed = this.#trails.look(view);
+    if (changed) this.#remake = true;
+    return changed;
   }
 
   /** Hands the trails back to the image carried (B), as the image is now. */
@@ -271,7 +293,6 @@ export class SharpTrails {
   frame(frame: SharpFrame, now: number): void {
     const trails = this.#trails;
     const { view, whole } = frame;
-    if (trails.look(view)) this.#remake = true;
     this.#fitCoarse(view);
     // the coarse image takes spans only away from the whole view; leaving
     // it, it is made from the image, which saw the whole disc

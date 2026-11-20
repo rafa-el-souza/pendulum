@@ -925,6 +925,11 @@ export class Trails {
     return this.#target;
   }
 
+  /** The view the image was last taken in; none before the first. */
+  get view(): View | null {
+    return this.#view;
+  }
+
   /**
    * Takes the view of this frame, as see() does, without carrying the light:
    * trails kept as curves remake it (decision 68). Says whether it changed.
