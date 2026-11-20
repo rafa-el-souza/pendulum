@@ -24,6 +24,9 @@ import {
   type WritableHand,
 } from "./drive.ts";
 
+/** How many instants of the music's pull a stepper keeps: the stages of the last few substeps. */
+const PULLS_KEPT = 16;
+
 /** Where a chain is and how it moves: absolute angles from the downward vertical, and their rates. */
 export interface ChainState {
   readonly theta: Float64Array;
@@ -168,6 +171,15 @@ export class Stepper {
   readonly #tilted = { x: 0, y: 0 };
   readonly #hands: Hand[] = [];
   readonly #musicHands: WritableHand[] = [];
+  // The music's pull at the instants met last, for the command they belong
+  // to (decision 75): the twins of a worker, stepped one after another
+  // through the same frame, meet the same instants while they take the same
+  // substeps, and every kick costs exponentials at each.
+  #memoDrive: Drive | null = null;
+  readonly #memoT = new Float64Array(PULLS_KEPT).fill(Number.NaN);
+  readonly #memoX = new Float64Array(PULLS_KEPT);
+  readonly #memoY = new Float64Array(PULLS_KEPT);
+  #memoNext = 0;
 
   constructor(chain: Chain, options: StepperOptions = {}) {
     this.chain = chain;
@@ -377,7 +389,7 @@ export class Stepper {
     let x = g.x;
     let y = g.y;
     if (drive !== null) {
-      musicPull(drive, t, this.#pulled);
+      this.#pullAt(drive, t);
       x += this.#pulled.x;
       y += this.#pulled.y;
     }
@@ -393,6 +405,38 @@ export class Stepper {
     this.#shaken.x = x;
     this.#shaken.y = y;
     return this.#shaken;
+  }
+
+  /**
+   * The music's pull on gravity `t` s into the drive's frame, written to
+   * `#pulled`: kept for the last few instants met, which give the same
+   * numbers when met again, by the next twin through the same frame.
+   */
+  #pullAt(drive: Drive, t: number): void {
+    const pulled = this.#pulled;
+    if (drive.kicks.length === 0) {
+      musicPull(drive, t, pulled);
+      return;
+    }
+    const times = this.#memoT;
+    if (drive !== this.#memoDrive) {
+      this.#memoDrive = drive;
+      times.fill(Number.NaN);
+      this.#memoNext = 0;
+    }
+    for (let k = 0; k < PULLS_KEPT; k++) {
+      if (times[k] === t) {
+        pulled.x = this.#memoX[k]!;
+        pulled.y = this.#memoY[k]!;
+        return;
+      }
+    }
+    musicPull(drive, t, pulled);
+    const k = this.#memoNext;
+    times[k] = t;
+    this.#memoX[k] = pulled.x;
+    this.#memoY[k] = pulled.y;
+    this.#memoNext = (k + 1) % PULLS_KEPT;
   }
 
   /** The visitor's hand, when there is one, and the music's, which `#music` moves to each stage's instant. */

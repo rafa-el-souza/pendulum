@@ -4,9 +4,12 @@ import {
   handAt,
   kickPlace,
   kickPull,
+  kickSpeed,
   musicDrag,
   musicPull,
+  pivotAt,
   type Drive,
+  type PivotMotion,
   type WritableHand,
 } from "./drive.ts";
 
@@ -60,6 +63,56 @@ describe("a kick of the pivot (decision 74)", () => {
         1e-5 * most,
       );
     }
+  });
+});
+
+describe("where the kicks take the pivot (decision 75)", () => {
+  it("moves it at the derivative of where it takes it", () => {
+    expect(kickSpeed(0, ATTACK, DECAY)).toBe(0);
+    expect(kickSpeed(-0.01, ATTACK, DECAY)).toBe(0);
+    let most = 0;
+    for (let s = 0.0005; s < 0.6; s += 0.0005) {
+      most = Math.max(most, Math.abs(kickSpeed(s, ATTACK, DECAY)));
+    }
+    const h = 1e-6;
+    for (let s = 0.0005; s < 0.6; s += 0.0005) {
+      const slope =
+        (kickPlace(s + h, ATTACK, DECAY) - kickPlace(s - h, ATTACK, DECAY)) /
+        (2 * h);
+      expect(Math.abs(slope - kickSpeed(s, ATTACK, DECAY))).toBeLessThan(
+        1e-6 * most,
+      );
+    }
+    // still at its height
+    const height = ATTACK * Math.log(1 + (3 * DECAY) / ATTACK);
+    expect(Math.abs(kickSpeed(height, ATTACK, DECAY))).toBeLessThan(
+      1e-9 * most,
+    );
+  });
+
+  it("adds every kick's place and speed along its line, and leaves it in place with none", () => {
+    const drive: Drive = {
+      span: 0.02,
+      tilt: [
+        { x: 0, y: 0 },
+        { x: 0, y: 0 },
+      ],
+      kicks: [
+        { start: -0.03, x: 0.04, y: 0, attack: ATTACK, decay: DECAY },
+        { start: 0.005, x: 0, y: -0.01, attack: 0.01, decay: 0.05 },
+      ],
+      hands: [],
+      drag: [0, 0],
+      heat: null,
+    };
+    const out: PivotMotion = { x: 1, y: 1, vx: 1, vy: 1 };
+    pivotAt(drive, 0.01, out);
+    expect(out.x).toBeCloseTo(0.04 * kickPlace(0.04, ATTACK, DECAY), 15);
+    expect(out.y).toBeCloseTo(-0.01 * kickPlace(0.005, 0.01, 0.05), 15);
+    expect(out.vx).toBeCloseTo(0.04 * kickSpeed(0.04, ATTACK, DECAY), 12);
+    expect(out.vy).toBeCloseTo(-0.01 * kickSpeed(0.005, 0.01, 0.05), 12);
+    pivotAt({ ...drive, kicks: [] }, 0.01, out);
+    expect(out).toEqual({ x: 0, y: 0, vx: 0, vy: 0 });
   });
 });
 
