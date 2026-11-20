@@ -5,7 +5,9 @@ import {
   SNAPSHOT_SPANS,
   TrailClock,
   clockAt,
+  KEEP_MOST,
   keepMeasures,
+  readKeep,
   readMeter,
   readTrailsAsked,
   readable,
@@ -28,12 +30,26 @@ describe("which trails an address asks for", () => {
     expect(readTrailsAsked("")).toBe(false);
   });
 
-  it("keeps the trails' mechanism and the meter, and nothing else, beside a saved moment", () => {
+  it("keeps the trails' mechanism, their window and the meter, and nothing else, beside a saved moment", () => {
     expect(keepMeasures("?n=3&trails=sharp&zoom=2&fps=1")).toBe(
       "?trails=sharp&fps=1",
     );
     expect(keepMeasures("?fps=1")).toBe("?fps=1");
     expect(keepMeasures("?n=3&zoom=2")).toBe("");
+    expect(keepMeasures("?keep=3&n=3&trails=sharp")).toBe(
+      "?trails=sharp&keep=3",
+    );
+  });
+
+  it("asks the curves to keep as many times more spans as ?keep= says, from one to twenty (decision 70)", () => {
+    expect(readKeep("")).toBe(1);
+    expect(readKeep("?keep=3")).toBe(3);
+    expect(readKeep("?n=3&keep=2.5&trails=sharp")).toBe(2.5);
+    expect(KEEP_MOST).toBe(20);
+    expect(readKeep("?keep=50")).toBe(20);
+    expect(readKeep("?keep=0.5")).toBe(1);
+    expect(readKeep("?keep=")).toBe(1);
+    expect(readKeep("?keep=many")).toBe(1);
   });
 
   it("shows the meter with ?fps=1", () => {
@@ -97,6 +113,13 @@ describe("the snapshots", () => {
     expect(snapshotDue(0.1, SNAPSHOT_SPANS)).toBe(true);
     // trails that stay never fade: the count alone brings one
     expect(snapshotDue(0, SNAPSHOT_SPANS)).toBe(true);
+  });
+
+  it("come after as many times more spans as the window keeps (decision 70)", () => {
+    expect(snapshotDue(0.1, SNAPSHOT_SPANS, 3)).toBe(false);
+    expect(snapshotDue(0.1, 3 * SNAPSHOT_SPANS - 1, 3)).toBe(false);
+    expect(snapshotDue(0.1, 3 * SNAPSHOT_SPANS, 3)).toBe(true);
+    expect(snapshotDue(3, 0, 3)).toBe(true);
   });
 
   it("wait while the image lacks light from before the window, which a copy would lose, unless the window is full; then the copy is made with that light (decision 70)", () => {

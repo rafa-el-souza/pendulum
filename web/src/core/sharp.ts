@@ -15,7 +15,7 @@
 // quarter nearer than they saw, as the image carried is (decision 69); while
 // the image lacks what they hold, the next snapshot waits, since a copy would
 // lose it, unless the window is full: that copy is made with it (decision
-// 70).
+// 70). The address can ask the window to keep more spans (decision 70).
 
 import {
   Merger,
@@ -38,11 +38,23 @@ export function readMeter(search: string): boolean {
   return new URLSearchParams(search).get("fps") === "1";
 }
 
-/** What of an address's search measures the trails, its mechanism and the meter, kept beside a saved moment as the music is. */
+/** The most times as many spans an address can ask the curves to keep. */
+export const KEEP_MOST = 20;
+
+/**
+ * How many times as many spans an address asks the curves to keep (decision
+ * 70): "?keep=3", from one to KEEP_MOST; one when it asks for none.
+ */
+export function readKeep(search: string): number {
+  const keep = Number(new URLSearchParams(search).get("keep") ?? Number.NaN);
+  return Number.isFinite(keep) ? Math.min(KEEP_MOST, Math.max(1, keep)) : 1;
+}
+
+/** What of an address's search measures the trails, its mechanism, its window and the meter, kept beside a saved moment as the music is. */
 export function keepMeasures(search: string): string {
   const query = new URLSearchParams(search);
   const kept = new URLSearchParams();
-  for (const key of ["trails", "fps"]) {
+  for (const key of ["trails", "fps", "keep"]) {
     const value = query.get(key);
     if (value !== null) kept.set(key, value);
   }
@@ -95,9 +107,9 @@ export const SNAPSHOT_HALF_LIVES = 3;
  */
 export const SNAPSHOT_SPANS = 200_000;
 
-/** Whether a snapshot is due, `fade` half-lives and `spans` spans after the last. */
-export function snapshotDue(fade: number, spans: number): boolean {
-  return fade >= SNAPSHOT_HALF_LIVES || spans >= SNAPSHOT_SPANS;
+/** Whether a snapshot is due, `fade` half-lives and `spans` spans after the last, the window keeping `keep` times as many (decision 70). */
+export function snapshotDue(fade: number, spans: number, keep = 1): boolean {
+  return fade >= SNAPSHOT_HALF_LIVES || spans >= SNAPSHOT_SPANS * keep;
 }
 
 /**
@@ -210,6 +222,7 @@ export class SharpTrails {
   readonly #gl: WebGL2RenderingContext;
   readonly #trails: Trails;
   readonly #reach: number;
+  readonly #keep: number;
   readonly #lines: SpanLines;
   readonly #window: SpanWindow;
   readonly #open = new SpanBatch(1024);
@@ -241,12 +254,19 @@ export class SharpTrails {
   /** What the last measured remake cost, in ms; none yet. */
   remakeMs: number | null = null;
 
-  constructor(gl: WebGL2RenderingContext, trails: Trails, reach: number) {
+  /** The curves of `trails`, over the disc `reach` metres from the pivot, the window keeping `keep` times as many spans (decision 70). */
+  constructor(
+    gl: WebGL2RenderingContext,
+    trails: Trails,
+    reach: number,
+    keep = 1,
+  ) {
     this.#gl = gl;
     this.#trails = trails;
     this.#reach = reach;
+    this.#keep = keep;
     this.#lines = new SpanLines(gl);
-    this.#window = new SpanWindow(gl, reach);
+    this.#window = new SpanWindow(gl, reach, keep);
   }
 
   /** The bytes the curves take on the card: the window, the coarse image and the snapshots. */
@@ -418,7 +438,11 @@ export class SharpTrails {
     this.fresh.clear();
     this.closed.clear();
     const when = snapshotWhen(
-      snapshotDue(this.#fade - this.#lastSnapshot, this.#spansSince),
+      snapshotDue(
+        this.#fade - this.#lastSnapshot,
+        this.#spansSince,
+        this.#keep,
+      ),
       this.#lacking,
       this.#window.full,
     );

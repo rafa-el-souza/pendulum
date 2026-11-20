@@ -19,6 +19,7 @@ import { keyAction, stepValue, type Parameter } from "../core/parameters.ts";
 import {
   SharpTrails,
   keepMeasures,
+  readKeep,
   readMeter,
   readTrailsAsked,
   trailMechanism,
@@ -349,7 +350,7 @@ function play({ canvas, gl }: Stage): void {
   // fades the trails by its half-lives.
   const curvesAsked = readTrailsAsked(location.search);
   const sharp = curvesAsked
-    ? new SharpTrails(gl, trails, chain.totalLength)
+    ? new SharpTrails(gl, trails, chain.totalLength, readKeep(location.search))
     : null;
   let mechanism: Mechanism = "B";
   const fpsMeter = readMeter(location.search) ? new Meter(document.body) : null;
