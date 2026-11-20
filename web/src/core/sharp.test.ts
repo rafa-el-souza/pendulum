@@ -5,11 +5,12 @@ import {
   SNAPSHOT_SPANS,
   TrailClock,
   clockAt,
+  KEEP_DEFAULT,
   KEEP_MOST,
   keepMeasures,
+  readCurves,
   readKeep,
   readMeter,
-  readTrailsAsked,
   readable,
   snapshotDue,
   snapshotGain,
@@ -19,15 +20,17 @@ import {
 import { bufferView } from "./view.ts";
 
 // Trails kept as curves, drawn anew in any view, beside the image carried
-// to it (docs/decisions.md, decision 68).
+// to it (docs/decisions.md, decision 68), which the address asks for as
+// layers (decision 71).
 
 describe("which trails an address asks for", () => {
-  it("asks for trails kept as curves with ?trails=sharp, and for the image carried otherwise", () => {
-    expect(readTrailsAsked("?trails=sharp")).toBe(true);
-    expect(readTrailsAsked("?n=3&trails=sharp&zoom=2")).toBe(true);
-    expect(readTrailsAsked("?trails=b")).toBe(false);
-    expect(readTrailsAsked("?trails=")).toBe(false);
-    expect(readTrailsAsked("")).toBe(false);
+  it("keeps the trails as curves unless the address asks for layers, the image carried (decision 71)", () => {
+    expect(readCurves("")).toBe(true);
+    expect(readCurves("?trails=sharp")).toBe(true);
+    expect(readCurves("?n=3&trails=sharp&zoom=2")).toBe(true);
+    expect(readCurves("?trails=")).toBe(true);
+    expect(readCurves("?trails=layers")).toBe(false);
+    expect(readCurves("?n=3&trails=layers&zoom=2")).toBe(false);
   });
 
   it("keeps the trails' mechanism, their window and the meter, and nothing else, beside a saved moment", () => {
@@ -39,17 +42,20 @@ describe("which trails an address asks for", () => {
     expect(keepMeasures("?keep=3&n=3&trails=sharp")).toBe(
       "?trails=sharp&keep=3",
     );
+    expect(keepMeasures("?trails=layers&n=3")).toBe("?trails=layers");
   });
 
-  it("asks the curves to keep as many times more spans as ?keep= says, from one to twenty (decision 70)", () => {
-    expect(readKeep("")).toBe(1);
+  it("asks the curves to keep as many times more spans as ?keep= says, from one to twenty, and ten times when it says none (decisions 70 and 71)", () => {
+    expect(KEEP_DEFAULT).toBe(10);
+    expect(readKeep("")).toBe(10);
     expect(readKeep("?keep=3")).toBe(3);
     expect(readKeep("?n=3&keep=2.5&trails=sharp")).toBe(2.5);
     expect(KEEP_MOST).toBe(20);
     expect(readKeep("?keep=50")).toBe(20);
     expect(readKeep("?keep=0.5")).toBe(1);
-    expect(readKeep("?keep=")).toBe(1);
-    expect(readKeep("?keep=many")).toBe(1);
+    expect(readKeep("?keep=1")).toBe(1);
+    expect(readKeep("?keep=")).toBe(10);
+    expect(readKeep("?keep=many")).toBe(10);
   });
 
   it("shows the meter with ?fps=1", () => {
@@ -67,11 +73,11 @@ describe("the trails' mechanism", () => {
     expect(trailMechanism(true, lines)).toBe("sharp");
   });
 
-  it("carries the image when not asked, and where the curves cannot yet: a strobe's, a mark, eight bits", () => {
-    expect(trailMechanism(false, lines)).toBe("B");
-    expect(trailMechanism(true, { ...lines, strobe: true })).toBe("B");
-    expect(trailMechanism(true, { ...lines, mark: true })).toBe("B");
-    expect(trailMechanism(true, { ...lines, floating: false })).toBe("B");
+  it("carries the image, as layers, when asked, and where the curves cannot yet: a strobe's, a mark, eight bits (decision 71)", () => {
+    expect(trailMechanism(false, lines)).toBe("layers");
+    expect(trailMechanism(true, { ...lines, strobe: true })).toBe("layers");
+    expect(trailMechanism(true, { ...lines, mark: true })).toBe("layers");
+    expect(trailMechanism(true, { ...lines, floating: false })).toBe("layers");
   });
 });
 
