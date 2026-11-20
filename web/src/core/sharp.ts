@@ -189,6 +189,8 @@ interface Snapshot {
   mark: Float64Array;
   k: number;
   fade: number;
+  /** The seconds of motion on the samples' clock when it was taken. */
+  seconds: number;
 }
 
 /** The coarse image reaches this many times the chain's reach from the pivot. */
@@ -247,6 +249,9 @@ export class SharpTrails {
   // whether the image lacks light from before the window, left out of the
   // last remake (decision 69), which a copy of it would lose (decision 70)
   #lacking = false;
+  // the seconds of motion when the window began to keep every span, while
+  // no snapshot is older
+  #since = 0;
   #measured = Number.NEGATIVE_INFINITY;
   readonly #pixel = new Uint8Array(4);
   /** Whether to measure what a remake costs, the card's work waited for, every half second. */
@@ -284,6 +289,11 @@ export class SharpTrails {
     return this.#window.count;
   }
 
+  /** The seconds of motion the curves keep: since the older snapshot, or since they began. */
+  get kept(): number {
+    return this.clock.seconds - (this.#base?.seconds ?? this.#since);
+  }
+
   /** Lets every trail go: the light was cleared. */
   clear(): void {
     this.chain.forget();
@@ -301,6 +311,7 @@ export class SharpTrails {
     this.#spansSince = 0;
     this.#remake = true;
     this.#lacking = false;
+    this.#since = this.clock.seconds;
   }
 
   /**
@@ -625,6 +636,7 @@ export class SharpTrails {
       mark: this.#window.mark(),
       k: trails.k,
       fade: this.#fade,
+      seconds: this.clock.seconds,
     };
   }
 }

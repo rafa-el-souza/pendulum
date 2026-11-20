@@ -44,16 +44,20 @@ export interface MeterReading {
   readonly mechanism: Mechanism;
   /** The memory the curves take on the card, in MB. */
   readonly megabytes: number;
+  /** The seconds of motion the curves keep (decision 70); none for the image carried. */
+  readonly kept: number | null;
 }
 
-/** The meter's line: the frames a second, and, with curves, the last remake, the mechanism and its memory. */
+/** The meter's line: the frames a second, and, with curves, the last remake, the mechanism, its memory and the seconds of motion they keep. */
 export function meterText(reading: MeterReading): string {
   const fps = reading.perSecond;
   const frames = `${fps >= 9.95 ? fps.toFixed(0) : fps.toFixed(1)} fps`;
   if (reading.mechanism === "B") return `${frames} · B`;
   const remake =
     reading.remake === null ? "–" : `${reading.remake.toFixed(0)} ms`;
-  return `${frames} · remake ${remake} · sharp · ${reading.megabytes.toFixed(0)} MB`;
+  const seconds = reading.kept ?? 0;
+  const kept = seconds >= 9.95 ? seconds.toFixed(0) : seconds.toFixed(1);
+  return `${frames} · remake ${remake} · sharp · ${reading.megabytes.toFixed(0)} MB · kept ${kept} s`;
 }
 
 /** The meter on the page, in the top left corner. */

@@ -2355,6 +2355,7 @@ function play({ canvas, gl }: Stage): void {
       remake: sharp?.remakeMs ?? null,
       mechanism,
       megabytes: (sharp?.bytes ?? 0) / 1e6,
+      kept: mechanism === "sharp" ? (sharp?.kept ?? null) : null,
     });
 
     // Twins are born once the frame is drawn, of the chain as it is then:
