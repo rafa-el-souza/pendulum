@@ -2,12 +2,14 @@ import { GROUNDS, groundAt } from "../core/grounds.ts";
 import type { Rgb } from "../core/color.ts";
 import { FAN_PALETTES, fanPalette } from "../core/palettes.ts";
 import type { Parameter } from "../core/parameters.ts";
+import { STRENGTHS, STRENGTH_INITIAL } from "../core/routes.ts";
 import { TENSION_SCALES, tensionScaleAt } from "../core/tension.ts";
 import { lightCurve } from "../core/trails.ts";
 import { twinShine } from "../core/twins.ts";
 import { MOST_ZOOM, zoomWritten } from "../core/view.ts";
 import { gravity, type Gravity } from "../physics/chain.ts";
 import type { Shake } from "../physics/step.ts";
+import { MODES } from "./music.ts";
 
 // The first piece's parameters (docs/decisions.md, decision 10). Each feeds
 // its control on screen, its keys and the shareable address.
@@ -676,6 +678,40 @@ export const ZOOM: Parameter = {
   keysShown: "X Z",
   show: (zoom) => `×${String(zoomWritten(zoom))}`,
   icon: "zoom",
+};
+
+/**
+ * What the music does, in the music's group of the row (decision 76): the
+ * modes in their order, the piece opening in the first, coming round from
+ * either end, each shown by its name. Not in the registry: the address
+ * keeps it in words, "?music=glow", outside a saved moment's code (decision
+ * 46). No keys yet: they wait for the modes that stay.
+ */
+export const MUSIC_MODE: Parameter = {
+  id: "music",
+  label: "What the music does",
+  values: MODES.map((_, i) => i),
+  initial: 0,
+  keys: { down: [], up: [] },
+  show: (i) => MODES[i]?.name ?? "",
+  icon: "sparkles",
+  cyclic: true,
+};
+
+/**
+ * How strongly the music acts, in the music's group (decision 76): the five
+ * steps of decision 46, shown as five dots, as many lit as the step, and
+ * said in words. Not in the registry, as the mode.
+ */
+export const MUSIC_STRENGTH: Parameter = {
+  id: "strength",
+  label: "How strongly the music acts",
+  values: STRENGTHS.map((_, i) => i + 1),
+  initial: STRENGTH_INITIAL,
+  keys: { down: [], up: [] },
+  show: (step) => "●".repeat(step) + "○".repeat(STRENGTHS.length - step),
+  speak: (step) => `${String(step)} of ${String(STRENGTHS.length)}`,
+  icon: "wedge",
 };
 
 /**
