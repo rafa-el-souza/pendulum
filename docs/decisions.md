@@ -2671,6 +2671,47 @@ the next twin meets. In the browser, the modes come in order in the card and
 the address, and time backwards is faded and refused while the dance plays
 the demo beat, and back with the music off.
 
+## 76. The music's controls in the row
+
+*2026-11-20.* The music card (decision 44) becomes a group of the row, as
+the others are (decision 54): its note, or W, opens the music's own row
+above it, and shuts it.
+
+- **The sources** are icons in that row: a microphone, a file, the sound of
+  a tab or the screen where the browser shares it (decision 45), and the
+  demo beat. The one playing is lit, with a dot beneath; touched again, it
+  stops. There is no "off".
+- **The mode and the strength** are values of the group, opened as any
+  value is, with their − and + (decision 46). They have no keys yet.
+- **What the piece hears** shows above the group's row, in a value's place,
+  while none of the group's values is chosen: a meter of the last three
+  seconds with the bands beside it, and what the piece is doing in words;
+  before anything plays, "Sound stays on this device."; which microphone,
+  where there are several; on an iPhone or an iPad, while the microphone
+  listens, that it stops music playing on the device. The loudness in
+  decibels is gone.
+- **While a source plays,** the note in the first level is three bars that
+  rise with the sound's three bands; with reduced motion they stand still
+  halfway.
+
+Another group, a value chosen or the row put away takes the music's row and
+what it hears out of sight, as for any group; the music plays on.
+
+**Why.** The card sat where a group's row and its value open, and they drew
+over it; it stayed in sight when the row was put away; and it was the one
+place of the row with words and no − and +. On a phone 390 × 844 it took
+256 px, 30 % of the height; the music's row with what the piece hears
+takes 84 px, 10 %.
+
+**Evidence.** Browser tests: W and the note open and shut the group; the
+demo beat lights, moves the meter and the bars, and stops at a second touch;
+what the piece hears sits above the group's row and within the screen at
+1280 and 390 px, gives way to a value chosen and comes back, and goes with
+another group while the beat plays on; a file, the microphone, a share and a
+choice of microphones start and stop from their icons; the mode and the
+strength reach the address. Unit tests: the values' words, the mode round
+from either end; the bars' heights.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
