@@ -8,7 +8,7 @@ import type { Signals } from "../audio/signals.ts";
 // group sets multiplies them all. What the routes give is a record a frame
 // of what the music adds to the light; it never writes the values of the
 // controls. A mode may also name a force, which the piece puts into its
-// physics (decision 75).
+// physics (decisions 75 and 77).
 
 /** The signals a route can take: each from 0 to 1. */
 export type Signal =
@@ -67,13 +67,20 @@ export interface Tint {
 }
 
 /**
- * A force a mode puts into the physics besides its light (decision 75): the
- * kicks move the pivot aside and back, as a speaker's cone; or a hand of the
- * music holds the tip and swings it from side to side on the kicks.
+ * A force a mode puts into the physics besides its light: the kicks move the
+ * pivot aside and back, as a speaker's cone; or a hand of the music holds the
+ * tip and swings it from side to side on the kicks (decision 75); or the
+ * loudness gives the chain energy, which it loses in silence; or gravity
+ * leans from side to side on the kicks (decision 77).
  */
 export interface Force {
-  readonly kind: "speaker" | "dance";
-  /** At the middle strength: how far a full kick takes the pivot of a chain of a few masses, in m; or how far the hand swings at full loudness, in rad. */
+  readonly kind: "speaker" | "dance" | "breath" | "sway";
+  /**
+   * At the middle strength: how far a full kick takes the pivot of a chain of
+   * a few masses, in m; how far the hand swings, or gravity leans, at full
+   * loudness, in rad; or the energy the chain is drawn to at full loudness,
+   * in shares of the energy that lifts it, hanging, level.
+   */
   readonly depth: number;
 }
 

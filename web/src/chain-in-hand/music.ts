@@ -3,9 +3,9 @@ import type { Mode, Route } from "../core/routes.ts";
 // The first piece's ways for the music to act (docs/decisions.md, decisions
 // 46 and 49): candidates, which the author settles by seeing and hearing
 // them. "light" is the first; each of the others changes one thing of it,
-// so that they can be told apart side by side: the next two add a force
-// (decision 75), the rest change the light. In every one, where the trails
-// are a strobe's, a kick flashes it (decision 50).
+// so that they can be told apart side by side: the next four add a force
+// (decisions 75 and 77), the rest change the light. In every one, where the
+// trails are a strobe's, a kick flashes it (decision 50).
 
 /** A kick lights the chain's halo. */
 const HALO: Route = {
@@ -75,6 +75,32 @@ export const DANCE: Mode = {
   name: "dance",
   routes: LIGHT.routes,
   force: { kind: "dance", depth: (40 * Math.PI) / 180 },
+};
+
+/**
+ * As light, with the music giving the chain energy (decision 77): it is drawn
+ * to the energy that lifts it, hanging, level, times the loudness at the
+ * middle strength, so that it swings wider the louder the music is than it
+ * has been, and comes to rest in its silence.
+ */
+export const BREATH: Mode = {
+  id: "breath",
+  name: "breath",
+  routes: LIGHT.routes,
+  force: { kind: "breath", depth: 1 },
+};
+
+/**
+ * As light, with gravity leaning to the other side on each kick (decision
+ * 77), crossing over the time since the kick before, 30° from straight down
+ * at full loudness and the middle strength: some 15° for music as loud as it
+ * has been, less on chains of more than three masses.
+ */
+export const SWAY: Mode = {
+  id: "sway",
+  name: "sway",
+  routes: LIGHT.routes,
+  force: { kind: "sway", depth: (30 * Math.PI) / 180 },
 };
 
 /** As light, with a halo three times as strong on the kicks, and a little slower to go. */
@@ -187,6 +213,8 @@ export const MODES: readonly Mode[] = [
   LIGHT,
   SPEAKER,
   DANCE,
+  BREATH,
+  SWAY,
   GLOW,
   HITS,
   KICKS,

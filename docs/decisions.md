@@ -2712,6 +2712,54 @@ choice of microphones start and stop from their icons; the mode and the
 strength reach the address. Unit tests: the values' words, the mode round
 from either end; the bars' heights.
 
+## 77. The music gives the chain energy, or leans its gravity
+
+*2026-11-20.* Two more candidates of the music's group add a force to the
+light of "light", after "dance": **breath** and **sway**. As decision 75's,
+they act only while a source plays and the piece runs, and time backwards
+does nothing meanwhile.
+
+- **Breath.** Decision 74's thermostat draws the chain's energy above rest
+  to the loudness times the energy that lifts the hanging chain level, at
+  the middle strength, with a gain of 3 a second; in the music's silence, to
+  rest. Without gravity, Earth's sets that energy. It lets go while the
+  visitor's hand holds the chain and takes hold again over a second. A chain
+  hanging at rest has no motion for it to grow: gravity leans 0.01 rad for a
+  frame to set it going.
+- **Sway.** On each kick gravity sets off to lean to the other side, over
+  the time since the kick before (0.25 to 1.5 s; 0.5 s on the first), eased
+  in and out, as far as 30° times the loudness at the middle strength,
+  × √(3/n) on chains of more than three masses, at most 60°. Its drag is the
+  speaker's; in the music's silence gravity goes back to straight down. With
+  reduced motion asked for, it crosses over a second at least.
+
+The strength's steps multiply both. The sizes and times are placeholders.
+
+**Why.** The probe of the music's physics found the thermostat holding any
+energy within 1% with no drag, and gravity swaying up to 30° bounded under a
+light drag. A lean that crosses in 0.12 s, as the hand does, gave a fifth of
+the energy in a loud passage.
+
+**Evidence.** The demo beat heard by the page's own analysis, in passages:
+the beat, 12 s at −12 dB, 12 s at full again, 8 s of silence; ×0.8, the
+middle strength. Under the breath the energy above rest is 0.58 of the one
+that lifts the chain level through the beat, 0.42 in the quiet passage and
+0.85 in the loud one after it, the same on 3, 8 and 16 masses, and falls to
+a hundredth within 2.6 s of silence. Under the sway the tip of two masses
+swings up to 55° from straight down through the beat, 41° in the quiet
+passage and 114° in the loud one, of eight masses 44°, 34° and 76°, and it
+calms within 3.5 s of silence. A twin of two masses costs 2.7 times as much
+under the breath and 1.5 under the sway (of eight, 2.2 and 1.3). Taking the
+chain's energy once a substep instead of at every stage would cost 2.1
+times, but moves a twin born on the chain 2e-4 to 8e-4 of the length from it
+in 10 s, against 1e-8: the fan would open without chaos. Unit tests: the
+breath's target, letting go and seed; gravity's crossings, their length and
+size, its strength kept and its drag; frames cut short; the energy held at
+its target and calmed in silence on 2 and 8 masses, a chain at rest set
+going, and the swaying chain bounded. In the browser, the modes come in
+order in the group and the address, and time backwards is faded and refused
+under each force.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.

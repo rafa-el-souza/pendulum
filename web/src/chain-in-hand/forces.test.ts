@@ -9,26 +9,36 @@ import {
   type Drive,
   type PivotMotion,
 } from "../physics/drive.ts";
-import { restingState, Stepper } from "../physics/step.ts";
+import { restingState, Stepper, type ChainState } from "../physics/step.ts";
 import {
+  BREATH_FLOOR,
+  BREATH_GAIN,
   CROSS,
   DANCE_GRIP,
   DRAG_PLAYING,
   DRAG_SILENT,
+  FIRST_CROSS,
   KICK_ATTACK,
   KICK_DECAY,
+  LEAST_CROSS,
+  MOST_CROSS,
   MusicForces,
+  SEED_LEAN,
+  SLOW_CROSS,
   TAKE_HOLD,
+  WIDEST_SWING,
   type ForceFrame,
 } from "./forces.ts";
 import { handDamping } from "./parameters.ts";
 
-// The music's forces on the first piece (docs/decisions.md, decision 75):
-// forces from outside the chain, which the tension route (PH-4) takes as it
-// takes the hand and gravity, in the pivot's frame.
+// The music's forces on the first piece (docs/decisions.md, decisions 75 and
+// 77): forces from outside the chain, which the tension route (PH-4) takes as
+// it takes the hand and gravity, in the pivot's frame.
 
 const SPEAKER: Force = { kind: "speaker", depth: 0.04 };
 const DANCE: Force = { kind: "dance", depth: 0.7 };
+const BREATH: Force = { kind: "breath", depth: 1 };
+const SWAY: Force = { kind: "sway", depth: (30 * Math.PI) / 180 };
 const DOWN: Gravity = { x: 0, y: -9.81 };
 const FRAME = 1 / 60;
 const SPEED = 0.8;
@@ -56,7 +66,14 @@ function heard(over: Partial<Signals> = {}): Signals {
   };
 }
 
-/** A frame at 60 Hz and ×0.8 of a chain of `n` masses on Earth, at the middle strength. */
+/** A chain of `n` masses swinging, every rod 0.3 rad from straight down, at rest for an instant. */
+function swinging(n: number): ChainState {
+  const state = restingState(n);
+  state.theta.fill(0.3);
+  return state;
+}
+
+/** A frame at 60 Hz and ×0.8 of a chain of `n` masses on Earth, swinging, at the middle strength. */
 function frame(over: Partial<ForceFrame> & { n?: number } = {}): ForceFrame {
   const { n = 2, ...rest } = over;
   return {
@@ -67,6 +84,7 @@ function frame(over: Partial<ForceFrame> & { n?: number } = {}): ForceFrame {
     span: FRAME * SPEED,
     speed: SPEED,
     chain: Chain.uniform(n),
+    state: swinging(n),
     g: DOWN,
     held: false,
     ...rest,
@@ -297,6 +315,262 @@ describe("the dancing hand (decision 75)", () => {
   });
 });
 
+/** The energy that lifts a chain of `n` masses, hanging on Earth, level: the breath's unit. */
+function lift(n: number): number {
+  return 9.81 * Chain.uniform(n).hangingMoment;
+}
+
+describe("the breath (decision 77)", () => {
+  it("draws the chain's energy to the music's loudness times the energy that lifts it level, at the middle strength, with a gain of 3 a second", () => {
+    const forces = new MusicForces();
+    const drive = run(forces, 120, frame({ force: BREATH }));
+    expect(drive?.heat?.target[0]).toBeCloseTo(0.5 * lift(2), 12);
+    expect(drive?.heat?.target[1]).toBeCloseTo(0.5 * lift(2), 12);
+    expect(drive?.heat?.gain).toBe(BREATH_GAIN);
+    expect(BREATH_GAIN).toBe(3);
+    expect(drive?.heat?.floor).toBeCloseTo(BREATH_FLOOR * lift(2), 12);
+    // no force of the others: no kicks, hands, drag, nor any lean of
+    // gravity on a chain that moves
+    expect(drive?.kicks).toEqual([]);
+    expect(drive?.hands).toEqual([]);
+    expect(drive?.drag).toEqual([0, 0]);
+    expect(drive?.tilt).toEqual([
+      { x: 0, y: 0 },
+      { x: 0, y: 0 },
+    ]);
+    // louder, and stronger: the target follows within a frame, from where
+    // the frame before left it
+    const louder = forces.frame(
+      frame({ force: BREATH, heard: heard({ level: 0.9 }) }),
+    );
+    forces.ran(FRAME * SPEED);
+    expect(louder?.heat?.target[0]).toBeCloseTo(0.5 * lift(2), 12);
+    expect(louder?.heat?.target[1]).toBeCloseTo(0.9 * lift(2), 12);
+    const stronger = run(forces, 2, frame({ force: BREATH, strength: 5 }));
+    expect(stronger?.heat?.target[1]).toBeCloseTo(2.25 * 0.5 * lift(2), 12);
+    // eight masses: the energy that lifts them level
+    const eight = run(new MusicForces(), 120, frame({ force: BREATH, n: 8 }));
+    expect(eight?.heat?.target[1]).toBeCloseTo(0.5 * lift(8), 12);
+  });
+
+  it("aims at no energy in the music's silence, and puts nothing into the physics without a source", () => {
+    const forces = new MusicForces();
+    run(forces, 120, frame({ force: BREATH }));
+    const silent = run(
+      forces,
+      2,
+      frame({ force: BREATH, heard: heard({ silent: true, level: 0.5 }) }),
+    );
+    expect(silent?.heat?.target[1]).toBe(0);
+    expect(silent?.drag).toEqual([0, 0]);
+    expect(forces.frame(frame({ force: BREATH, heard: null }))).toBeNull();
+  });
+
+  it("lets go while the visitor's hand holds the chain, and takes hold again over a second", () => {
+    const forces = new MusicForces();
+    run(forces, 120, frame({ force: BREATH }));
+    expect(run(forces, 10, frame({ force: BREATH, held: true }))).toBeNull();
+    const again = forces.frame(frame({ force: BREATH }));
+    forces.ran(FRAME * SPEED);
+    expect(again?.heat?.gain).toBeCloseTo(
+      (BREATH_GAIN * FRAME) / TAKE_HOLD,
+      12,
+    );
+    const held = run(
+      forces,
+      Math.ceil(TAKE_HOLD / FRAME),
+      frame({ force: BREATH }),
+    );
+    expect(held?.heat?.gain).toBe(BREATH_GAIN);
+  });
+
+  it("with no gravity, aims at the energy that would lift the chain level on Earth", () => {
+    const drive = run(
+      new MusicForces(),
+      120,
+      frame({ force: BREATH, g: { x: 0, y: 0 } }),
+    );
+    expect(drive?.heat?.target[1]).toBeCloseTo(0.5 * lift(2), 12);
+    expect(drive?.heat?.floor).toBeCloseTo(BREATH_FLOOR * lift(2), 12);
+  });
+
+  it("leans gravity a hundredth of a radian for a frame where the chain hangs at rest, which no drag could set going", () => {
+    const forces = new MusicForces();
+    const still = run(
+      forces,
+      120,
+      frame({ force: BREATH, state: restingState(2) }),
+    );
+    expect(SEED_LEAN).toBe(0.01);
+    const [start, end] = still?.tilt ?? [];
+    expect(start?.x).toBeCloseTo(9.81 * Math.sin(SEED_LEAN), 12);
+    expect(start?.y).toBeCloseTo(9.81 * (1 - Math.cos(SEED_LEAN)), 12);
+    expect(end).toEqual(start);
+    // not in the silence, which aims at rest
+    const quiet = forces.frame(
+      frame({
+        force: BREATH,
+        state: restingState(2),
+        heard: heard({ silent: true }),
+      }),
+    );
+    expect(quiet?.tilt[1]).toEqual({ x: 0, y: 0 });
+  });
+});
+
+/** How far gravity leans at the end of a command, from straight down along `g` towards its side, in rad: positive to the right as one looks down. */
+function leanOf(drive: Drive | null, g: Gravity = DOWN): number {
+  const tilt = drive?.tilt[1] ?? { x: 0, y: 0 };
+  const x = g.x + tilt.x;
+  const y = g.y + tilt.y;
+  const strength = Math.hypot(g.x, g.y);
+  const down = { x: g.x / strength, y: g.y / strength };
+  const side = { x: -down.y, y: down.x };
+  return Math.atan2(x * side.x + y * side.y, x * down.x + y * down.y);
+}
+
+describe("the swaying gravity (decision 77)", () => {
+  const swing = ((30 * Math.PI) / 180) * 0.5;
+
+  it("leans gravity to the other side on each kick, crossing over the time since the kick before, as far as the loudness: 15° at the middle strength for music half as loud as it has been", () => {
+    const forces = new MusicForces();
+    // straight down until the first kick
+    expect(leanOf(run(forces, 900, frame({ force: SWAY })))).toBeCloseTo(0, 12);
+    // the first kick: to the right, over FIRST_CROSS
+    forces.frame(frame({ force: SWAY, heard: heard({ kick: 1 }) }));
+    forces.ran(FRAME * SPEED);
+    const going = leanOf(
+      run(
+        forces,
+        Math.round(FIRST_CROSS / FRAME / 2) - 1,
+        frame({ force: SWAY }),
+      ),
+    );
+    expect(going).toBeCloseTo(swing / 2, 2);
+    const there = leanOf(
+      run(forces, Math.round(FIRST_CROSS / FRAME / 2), frame({ force: SWAY })),
+    );
+    expect(there).toBeCloseTo(swing, 9);
+    // a kick 0.8 s after it: back to the left over 0.8 s, halfway at 0.4 s
+    run(forces, 48 - Math.round(FIRST_CROSS / FRAME), frame({ force: SWAY }));
+    forces.frame(frame({ force: SWAY, heard: heard({ kick: 1 }) }));
+    forces.ran(FRAME * SPEED);
+    expect(leanOf(run(forces, 23, frame({ force: SWAY })))).toBeCloseTo(0, 2);
+    expect(leanOf(run(forces, 24, frame({ force: SWAY })))).toBeCloseTo(
+      -swing,
+      9,
+    );
+    // louder, wider
+    const loud = run(
+      forces,
+      600,
+      frame({ force: SWAY, heard: heard({ level: 0.9 }) }),
+    );
+    expect(leanOf(loud)).toBeCloseTo((-swing * 0.9) / 0.5, 6);
+  });
+
+  it("crosses over no less than a quarter of a second and no more than a second and a half, and over a second at least where reduced motion is asked for", () => {
+    const crossing = (apart: number, slow = false) => {
+      const forces = new MusicForces({ slow });
+      run(forces, 1800, frame({ force: SWAY }));
+      forces.frame(frame({ force: SWAY, heard: heard({ kick: 1 }) }));
+      forces.ran(FRAME * SPEED);
+      run(forces, apart - 1, frame({ force: SWAY }));
+      forces.frame(frame({ force: SWAY, heard: heard({ kick: 1 }) }));
+      forces.ran(FRAME * SPEED);
+      // the frames until the lean is back across, to the left
+      for (let k = 1; k < 600; k++) {
+        const drive = forces.frame(frame({ force: SWAY }));
+        forces.ran(FRAME * SPEED);
+        if (leanOf(drive) <= -swing * (1 - 1e-6)) return (k + 1) * FRAME;
+      }
+      return Number.POSITIVE_INFINITY;
+    };
+    expect(LEAST_CROSS).toBe(0.25);
+    expect(MOST_CROSS).toBe(1.5);
+    expect(crossing(6)).toBeCloseTo(LEAST_CROSS, 1);
+    expect(crossing(36)).toBeCloseTo(0.6, 1);
+    expect(crossing(180)).toBeCloseTo(MOST_CROSS, 1);
+    expect(crossing(36, true)).toBeCloseTo(SLOW_CROSS, 1);
+  });
+
+  it("leans as far as the strength asks, less on chains of more than three masses, and never past 60°", () => {
+    const settled = (over: Partial<ForceFrame> & { n?: number }) => {
+      const forces = new MusicForces();
+      const kick = { ...(over.heard ?? heard()), kick: 1 };
+      forces.frame(frame({ force: SWAY, ...over, heard: kick }));
+      forces.ran(FRAME * SPEED);
+      return leanOf(run(forces, 900, frame({ force: SWAY, ...over })));
+    };
+    expect(settled({ n: 3 })).toBeCloseTo(swing, 9);
+    expect(settled({ n: 12 })).toBeCloseTo(swing / 2, 9);
+    expect(settled({ strength: 1 })).toBeCloseTo(swing / 4, 9);
+    expect(WIDEST_SWING).toBeCloseTo(Math.PI / 3, 15);
+    expect(settled({ strength: 5, heard: heard({ level: 1 }) })).toBeCloseTo(
+      WIDEST_SWING,
+      9,
+    );
+  });
+
+  it("turns the visitor's gravity, whichever way it points, and keeps its strength", () => {
+    const right: Gravity = { x: 24.79, y: 0 };
+    const forces = new MusicForces();
+    forces.frame(frame({ force: SWAY, g: right, heard: heard({ kick: 1 }) }));
+    forces.ran(FRAME * SPEED);
+    const drive = run(forces, 900, frame({ force: SWAY, g: right }));
+    expect(leanOf(drive, right)).toBeCloseTo(swing, 9);
+    const tilt = drive?.tilt[1] ?? { x: 0, y: 0 };
+    expect(Math.hypot(right.x + tilt.x, right.y + tilt.y)).toBeCloseTo(
+      24.79,
+      12,
+    );
+    // and with no gravity, nothing leans
+    const none = run(
+      new MusicForces(),
+      60,
+      frame({ force: SWAY, g: { x: 0, y: 0 }, heard: heard({ kick: 1 }) }),
+    );
+    expect(none?.tilt).toEqual([
+      { x: 0, y: 0 },
+      { x: 0, y: 0 },
+    ]);
+  });
+
+  it("drags as the speaker does, goes back to straight down in the music's silence, and puts nothing in without a source", () => {
+    const forces = new MusicForces();
+    forces.frame(frame({ force: SWAY, heard: heard({ kick: 1 }) }));
+    forces.ran(FRAME * SPEED);
+    const playing = run(forces, 120, frame({ force: SWAY }));
+    expect(playing?.drag[1]).toBeCloseTo(DRAG_PLAYING, 3);
+    const quiet = run(
+      forces,
+      300,
+      frame({ force: SWAY, heard: heard({ silent: true }) }),
+    );
+    expect(Math.abs(leanOf(quiet))).toBeLessThan(1e-4);
+    expect(quiet?.drag[1]).toBeCloseTo(DRAG_SILENT, 3);
+    forces.frame(frame({ force: SWAY, heard: null }));
+    forces.ran(FRAME * SPEED);
+    expect(forces.frame(frame({ force: SWAY, heard: null }))).toBeNull();
+  });
+
+  it("leans from where the frame before left it, also when that frame was cut short", () => {
+    const forces = new MusicForces();
+    forces.frame(frame({ force: SWAY, heard: heard({ kick: 1 }) }));
+    forces.ran(FRAME * SPEED);
+    const first = forces.frame(frame({ force: SWAY }));
+    forces.ran((FRAME * SPEED) / 2);
+    const second = forces.frame(frame({ force: SWAY }));
+    const [a0, a1] = first?.tilt ?? [];
+    const [b0] = second?.tilt ?? [];
+    if (a0 === undefined || a1 === undefined || b0 === undefined) {
+      throw new Error("gravity leans");
+    }
+    expect(b0.x).toBeCloseTo((a0.x + a1.x) / 2, 15);
+    expect(b0.y).toBeCloseTo((a0.y + a1.y) / 2, 15);
+  });
+});
+
 /**
  * The music on a chain as the piece moves it: 60 frames a second at ×0.8, a
  * frame in 7 pieces, a kick every half second (120 beats a minute) for
@@ -309,16 +583,19 @@ function song(
   force: Force,
   playing: number,
   silence: number,
-): { most: number; calm: number; reference: number } {
+  from: "seed" | "rest" = "seed",
+): { most: number; calm: number; reference: number; late: number } {
   const chain = Chain.uniform(n);
   const stepper = new Stepper(chain);
   const state = restingState(n);
   // a seed, as the probe's: a chain hanging at rest has no motion to grow
-  state.theta.fill(0.02);
+  if (from === "seed") state.theta.fill(0.02);
   const forces = new MusicForces();
   const reference = 9.81 * chain.hangingMoment;
   let most = 0;
   let calm = Number.POSITIVE_INFINITY;
+  let late = 0;
+  let lateFrames = 0;
   const frames = Math.round((playing + silence) / FRAME);
   for (let k = 0; k < frames; k++) {
     const time = k * FRAME;
@@ -336,6 +613,7 @@ function song(
       span: FRAME * SPEED,
       speed: SPEED,
       chain,
+      state,
       g: DOWN,
       held: false,
     });
@@ -346,6 +624,10 @@ function song(
     }
     forces.ran(FRAME * SPEED);
     const energy = chain.energyAboveRest(state.theta, state.omega, DOWN);
+    if (!quiet && time >= playing - 5) {
+      late += energy;
+      lateFrames++;
+    }
     if (!quiet) most = Math.max(most, energy);
     else if (energy < most / 100 && calm === Number.POSITIVE_INFINITY) {
       calm = time - playing;
@@ -353,10 +635,10 @@ function song(
       calm = Number.POSITIVE_INFINITY;
     }
   }
-  return { most, calm, reference };
+  return { most, calm, reference, late: late / lateFrames };
 }
 
-describe("the music's forces on the chain, against the probe of the music's physics (decision 75; PH-4)", () => {
+describe("the music's forces on the chain, against the probe of the music's physics (decisions 75 and 77; PH-4)", () => {
   it("the speaker keeps two and eight masses within bounds while it plays, and calms them within a few seconds of silence", () => {
     for (const n of [2, 8]) {
       const { most, calm, reference } = song(n, SPEAKER, 20, 8);
@@ -372,6 +654,30 @@ describe("the music's forces on the chain, against the probe of the music's phys
       expect(most).toBeGreaterThan(0.01 * reference);
       expect(most).toBeLessThan(5 * reference);
       expect(calm).toBeLessThan(3);
+    }
+  });
+
+  it("the breath draws two and eight masses to its target while the music plays, half the energy that lifts them level for music half as loud as it has been, and calms them within a few seconds of silence", () => {
+    for (const n of [2, 8]) {
+      const { most, calm, reference, late } = song(n, BREATH, 20, 8);
+      expect(late / reference).toBeGreaterThan(0.45);
+      expect(late / reference).toBeLessThan(0.55);
+      expect(most).toBeLessThan(0.8 * reference);
+      expect(calm).toBeLessThan(4);
+    }
+  });
+
+  it("the breath sets a chain hanging at rest going, by its seed", () => {
+    const { late, reference } = song(2, BREATH, 10, 0, "rest");
+    expect(late / reference).toBeGreaterThan(0.45);
+  });
+
+  it("the swaying gravity keeps two and eight masses within bounds while it plays, and calms them within a few seconds of silence", () => {
+    for (const n of [2, 8]) {
+      const { most, calm, reference } = song(n, SWAY, 20, 8);
+      expect(most).toBeGreaterThan(0.01 * reference);
+      expect(most).toBeLessThan(2 * reference);
+      expect(calm).toBeLessThan(5);
     }
   });
 });
