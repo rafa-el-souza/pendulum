@@ -2396,6 +2396,47 @@ those after one change. Against trails drawn anew at the new size, carried
 trails keep 93% of their sharpness in a canvas 1.1 times larger, 84% at 1.5
 times and 71% at twice (85%, 76% and 64% read from four pixels).
 
+## 67. The view comes up to 64 times nearer
+
+*2026-11-20.* The view comes up to sixty-four times nearer than the whole
+view, and moves; the piece draws, grabs and cuts its passes in the view
+seen. The wheel, and a trackpad's pinch, zoom about the mouse, Z and X 1.25
+times about the middle, and two fingers on a touch screen zoom and move it;
+the middle button, or a drag with Space held, moves it, and Space pauses as
+it is let go, unless it moved the view. The point it looks at stays within
+the disc the chain reaches, at most 1 - 1/zoom of the chain's length from
+the pivot, so the whole view always looks at the pivot. Once the view
+stays, the address carries it beside the music, outside a saved moment's
+code: `zoom=8&at=0.12345,-0.85432`, nothing at the whole view. One finger
+waits 120 ms, or until it has moved 10 CSS pixels, before it grabs the
+chain, so that a second can land and pinch; two never grab, and a finger
+lifted within the wait grabs nothing; while the wait is tried, the address
+can ask for another (`?wait=200`). The trails keep decision 66's limit with
+the camera too: carried while the view is at most a quarter nearer than
+the least scale they were drawn at, cleared past it. A view that moves or
+goes farther carries them, held anew as it sees past what is held, and
+moves them by whole pixels. While the view changes, and for the next frame,
+the twins' workers keep their budget: those frames teach neither the
+screen's rhythm nor a twin's cost, and three of them over it cut nothing.
+
+**Why.** Stretched from the whole view, trails read as stepped, soft bands
+at four times nearer and a blur at sixteen. The first finger grabbed at
+once and ended the twins, so no pinch could begin. A gesture's slow frames
+shrank the twins' budget and cut the fan for good where twins stay, are
+held or are leashed.
+
+**Evidence.** Unit tests of the camera, its bounds, zooming about a point,
+the drag, the pinch, the address, the finger's wait, the runs of a gesture
+and the twins' budget. Browser tests, in the three engines: the wheel, Z
+and X; an address that opens near, and the middle button; Space; two
+fingers, and one that waits; trails carried a quarter nearer and cleared
+past it. Against the same moment drawn anew at the new zoom, trails
+stretched from the whole view keep 76% of their sharpness at twice, 55% at
+four times and 22% at sixteen. Without a graphics card, at 1280 by 720
+(medians of six rounds taken in turn), 10.8 frames a second at the whole
+view against 11.1 before, 10.9 held at twenty times, and 7.2 during a
+gesture of the wheel, which reads the trails anew every frame.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
