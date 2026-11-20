@@ -2383,13 +2383,18 @@ test("the music's mode and strength, values of its group, are kept in the addres
   // the piece opens in the light, at the middle strength
   await icon(page, "What the music does").click();
   await expect(mode).toContainText("light");
-  // the candidates come next (decision 49), and "none" last, round from the
-  // first
+  // the candidates come next, the forces first (decisions 49 and 75), and
+  // "none" last, round from the first
   await more(mode, "What the music does").click();
-  await expect(mode).not.toContainText("light");
-  await expect(page).toHaveURL(/[?&]music=[a-z]+(&|$)/);
-  await less(mode, "What the music does").click();
-  await less(mode, "What the music does").click();
+  await expect(mode).toContainText("speaker");
+  await expect(page).toHaveURL(/[?&]music=speaker(&|$)/);
+  await more(mode, "What the music does").click();
+  await expect(mode).toContainText("dance");
+  await expect(page).toHaveURL(/[?&]music=dance(&|$)/);
+  await more(mode, "What the music does").click();
+  await expect(mode).toContainText("glow");
+  await expect(page).toHaveURL(/[?&]music=glow(&|$)/);
+  for (let i = 0; i < 4; i++) await less(mode, "What the music does").click();
   await expect(mode).toContainText("none");
   await expect(page).toHaveURL(/[?&]music=none(&|$)/);
   await icon(page, "How strongly the music acts").click();
@@ -2417,6 +2422,39 @@ test("the music's mode and strength, values of its group, are kept in the addres
   await expect(mode).toContainText("none");
   await icon(page, "How strongly the music acts").click();
   await expect(strength).toContainText("●●○○○");
+  expect(errors).toEqual([]);
+});
+
+test("while the music acts on the chain as a force, time does not run backwards and its button is faded; with the music off, it runs backwards again (decision 75)", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("./?music=dance");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  const { source } = music(page);
+  // the music's group opens the row; Escape shuts the group, and the row
+  // stays open
+  await page.keyboard.press("w");
+  await source("Demo beat").click();
+  await hearsSound(page, errors);
+  await page.keyboard.press("Escape");
+  await awaken(page);
+  const backwards = await reveal(page, "Run time backwards");
+  await expect(backwards).toHaveClass(/_idle_/);
+  await page.keyboard.press("b");
+  await frames(page, 3);
+  await expect(backwards).toBeAttached();
+  await expect(icon(page, "Run time forwards")).toHaveCount(0);
+
+  // the music off, by its source touched again: the button lights, and B
+  // runs time backwards
+  await page.keyboard.press("w");
+  await awaken(page);
+  await source("Demo beat").click();
+  await page.keyboard.press("Escape");
+  await expect(backwards).not.toHaveClass(/_idle_/);
+  await page.keyboard.press("b");
+  await expect(icon(page, "Run time forwards")).toBeAttached();
   expect(errors).toEqual([]);
 });
 
