@@ -73,6 +73,7 @@ import {
   type View,
 } from "../core/view.ts";
 import { Chain, createHand, type Hand } from "../physics/chain.ts";
+import type { Drive } from "../physics/drive.ts";
 import { startInMode } from "../physics/modes.ts";
 import { resample } from "../physics/resample.ts";
 import {
@@ -393,6 +394,18 @@ function play({ canvas, gl }: Stage): void {
   /** The shake the controls ask for, from `phase`, or none while the pivot is still. */
   function shakeAt(phase: number): Shake | null {
     return shakeOf(value(SHAKE), value(TILT), phase);
+  }
+
+  // What the music put into the physics of the frame computed last
+  // (decision 74), which its twins are sent with it.
+  let frameDrive: Drive | null = null;
+  /**
+   * What the music puts into the physics of the frame about to be computed
+   * (decision 74): nothing while no mode of the music acts as a force, as
+   * none does yet.
+   */
+  function musicDrive(): Drive | null {
+    return null;
   }
 
   let hand: Hand | null = null;
@@ -2015,6 +2028,10 @@ function play({ canvas, gl }: Stage): void {
       stepClock = curves.clock.begin(halfLife * (1 + look.linger));
       massVelocities(massStarts);
     }
+    // the music's forces over the frame, which each piece feels from where
+    // it starts in it, and its twins the same (decision 74)
+    const drive = musicDrive();
+    frameDrive = drive;
     for (let piece = 0; piece < pieces; piece++) {
       const want = asked / pieces;
       const shake = shakeAt(shakePhase);
@@ -2024,6 +2041,8 @@ function play({ canvas, gl }: Stage): void {
         meanTension: tensionShown && shake === null ? pieceTension : null,
         shake,
         periodTension: tensionShown ? meter : null,
+        drive,
+        into: simulated,
       });
       simulated += moved.simulated;
       if (shake !== null) {
@@ -2145,7 +2164,8 @@ function play({ canvas, gl }: Stage): void {
   /**
    * Sends the twins' workers the frame just computed (decision 51): the
    * time it simulated, in pieces for their trails, shaken as the chain was
-   * from where the shake stood as it began (decision 36); where the chain is
+   * from where the shake stood as it began (decision 36), and under the
+   * music's forces as it was (decision 74); where the chain is
    * at its end, for the light of twins that fade (decision 43); and the time
    * each worker may take: the frame's free time until a little before the
    * screen's next frame, none while the frames come late, and then at
@@ -2214,6 +2234,8 @@ function play({ canvas, gl }: Stage): void {
       // kept as curves, each tip's velocity with its place, and the step's
       // instant (decision 68)
       clock: curvesNow() !== null && value(LOOK) !== 1 ? stepClock : null,
+      // the music's forces over the same time (decision 74)
+      drive: simulated > 0 ? frameDrive : null,
       budget: twins.local ? TWIN_LOCAL_MS : twinBudget,
     });
   }
