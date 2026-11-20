@@ -520,3 +520,127 @@ describe("a canvas that grows too much, as runs (decision 66)", () => {
     expect(runs.see(at(2.7))).toEqual({ act: "hold", from: a });
   });
 });
+
+describe("light that has faded, no longer counted by the limit (decision 69)", () => {
+  const at = (zoom: number): View =>
+    bufferView(1280, 720, 1, { zoom, cx: 0, cy: 0 });
+
+  /** A view that stays `frames` frames, the light fading `each` half-lives a frame from `faded`; the fade reached. */
+  function stay(
+    runs: ViewRuns,
+    view: View,
+    faded: number,
+    frames: number,
+    each: number,
+    kept = false,
+  ): number {
+    let now = faded;
+    for (let frame = 0; frame < frames; frame++) {
+      now += each;
+      runs.see(view, now, kept);
+    }
+    return now;
+  }
+
+  it("forgets a scale once the light drawn at it has faded the half-lives asked, so that a Z pressed after it carries the trails", () => {
+    const runs = new ViewRuns(2, 1.25, 5);
+    runs.see(at(1), 0);
+    // Z: the light stops being drawn at the whole view at the fade 0
+    expect(runs.see(at(1.25), 0)).toEqual({ act: "hold", from: at(1) });
+    runs.see(at(1.25), 0.1);
+    expect(runs.see(at(1.25), 0.2)).toEqual({ act: "let go" });
+    // five half-lives later, Z again: what the whole view drew is forgotten
+    expect(runs.see(at(1.5625), 5)).toEqual({ act: "hold", from: at(1.25) });
+  });
+
+  it("still counts a scale whose light has faded fewer half-lives than asked", () => {
+    const runs = new ViewRuns(2, 1.25, 5);
+    runs.see(at(1), 0);
+    runs.see(at(1.25), 0);
+    runs.see(at(1.25), 0.1);
+    runs.see(at(1.25), 0.2);
+    expect(runs.see(at(1.5625), 4.9)).toEqual({ act: "clear" });
+  });
+
+  it("carries Z pressed once a minute every time, the trails faded between; trails that stay are cleared every other time, as before", () => {
+    const presses = (each: number): (string | undefined)[] => {
+      const runs = new ViewRuns(30, 1.25, 5);
+      let zoom = 1;
+      let faded = 0;
+      runs.see(at(zoom), faded);
+      const acts: (string | undefined)[] = [];
+      for (let press = 0; press < 6; press++) {
+        // a minute at sixty frames a second, the half-life 2.5 s
+        faded = stay(runs, at(zoom), faded, 3600, each);
+        zoom *= 1.25;
+        acts.push(runs.see(at(zoom), faded)?.act);
+      }
+      return acts;
+    };
+    expect(presses(1 / 150)).toEqual(Array(6).fill("hold"));
+    expect(presses(0)).toEqual([
+      "hold",
+      "clear",
+      "hold",
+      "clear",
+      "hold",
+      "clear",
+    ]);
+  });
+
+  it("forgets nothing while some light is kept from fading, as a mark keeps it, and what has faded once none is", () => {
+    const pressed = (kept: boolean): string | undefined => {
+      const runs = new ViewRuns(2, 1.25, 5);
+      runs.see(at(1), 0, true);
+      runs.see(at(1.25), 0, true);
+      const faded = stay(runs, at(1.25), 0, 60, 0.1, true);
+      return runs.see(at(1.5625), faded, kept)?.act;
+    };
+    expect(pressed(true)).toBe("clear");
+    expect(pressed(false)).toBe("hold");
+  });
+
+  it("clears a gesture that goes on past the limit however long it lasts, as the light held is drawn into while it goes", () => {
+    const runs = new ViewRuns(30, 1.25, 5);
+    runs.see(at(1), 0);
+    expect(runs.see(at(1.22), 0)).toEqual({ act: "hold", from: at(1) });
+    // ten half-lives within the run, the light held drawn at the whole view
+    expect(runs.see(at(1.3), 10)).toEqual({ act: "clear" });
+  });
+
+  it("keeps in the light held the fade at which each scale stopped being drawn", () => {
+    const back = (faded: number): string | undefined => {
+      const runs = new ViewRuns(2, 1.25, 5);
+      runs.see(at(1), 0);
+      runs.see(at(1.2), 0);
+      runs.see(at(1.2), 0.1);
+      runs.see(at(1.2), 0.2);
+      // farther first: the light shown is held, the whole view's stopped at 0
+      runs.see(at(1.1), 4);
+      // nearer, within the run
+      return runs.see(at(1.4), faded)?.act;
+    };
+    expect(back(4.5)).toBe("clear");
+    expect(back(5)).toBe("carry");
+  });
+
+  it("forgets for a canvas that grows too: two growths each within the limit carry, the trails faded between", () => {
+    const a = bufferView(1280, 720, 1);
+    const grown = (k: number): View => ({
+      width: 1280 * k,
+      height: 720 * k,
+      scale: a.scale * k,
+      cx: 0,
+      cy: 0,
+    });
+    const runs = new ViewRuns(2, 1.25, 5);
+    runs.see(a, 0);
+    expect(runs.see(grown(1.2), 0)).toEqual({ act: "hold", from: a });
+    runs.see(grown(1.2), 0.1);
+    expect(runs.see(grown(1.2), 0.2)).toEqual({ act: "let go" });
+    expect(runs.see(grown(1.44), 6)).toEqual({
+      act: "hold",
+      from: grown(1.2),
+    });
+  });
+});
