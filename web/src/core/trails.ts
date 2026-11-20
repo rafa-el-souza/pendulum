@@ -1066,14 +1066,23 @@ export class Trails {
     this.#target.unbind();
   }
 
-  /** Draws the light of `from`, seen as `fromView`, into `into`, made anew, seen as `to`. Back to the canvas after. */
+  /**
+   * Draws the light of `from`, seen as `fromView`, into `into`, made anew,
+   * seen as `to`, times `gain`; where `from` did not see, the light of
+   * `fallback`, seen as its view, when given. Back to the canvas after.
+   */
   carryBetween(
     from: LightTarget,
     fromView: View,
     into: LightTarget,
     to: View,
+    fallback: {
+      readonly target: LightTarget;
+      readonly view: View;
+    } | null = null,
+    gain = 1,
   ): void {
-    this.#carry(from, fromView, into, to);
+    this.#carry(from, fromView, into, to, fallback, gain);
     into.unbind();
   }
 

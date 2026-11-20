@@ -114,6 +114,11 @@ export class SpanPages {
     return this.#capacity - this.#free.length;
   }
 
+  /** The pages still to be taken, grown into if need be, before one leaves early. */
+  get free(): number {
+    return this.most - this.used;
+  }
+
   /** The spans held. */
   get count(): number {
     return this.#count;
@@ -246,11 +251,25 @@ const FIRST_PAGES = 40;
  */
 const MOST_PAGES = 1200;
 
+/** The most pages of a window that keeps `keep` times as many spans (decision 70). */
+export function mostPages(keep: number): number {
+  return Math.ceil(MOST_PAGES * keep);
+}
+
+/**
+ * Whether a window with `free` pages left is full: fewer than the squares
+ * that may each ask for a page, so that one more frame could make a page
+ * leave early (decision 70).
+ */
+export function windowFull(free: number): boolean {
+  return free < CELLS;
+}
+
 /** The window: the spans since a snapshot, on the graphics card, square by square. */
 export class SpanWindow {
   readonly #gl: WebGL2RenderingContext;
   readonly #half: number;
-  readonly #pages = new SpanPages(PAGE, FIRST_PAGES, MOST_PAGES);
+  readonly #pages: SpanPages;
   #pool: WebGLBuffer;
   #capacity = 0;
   #u8: Uint8Array;
@@ -261,10 +280,14 @@ export class SpanWindow {
   /** The spans drawn in the last draw. */
   drawn = 0;
 
-  /** A window over the disc reaching `reach` metres from the pivot. */
-  constructor(gl: WebGL2RenderingContext, reach: number) {
+  /**
+   * A window over the disc reaching `reach` metres from the pivot, with room
+   * for `keep` times as many spans (decision 70).
+   */
+  constructor(gl: WebGL2RenderingContext, reach: number, keep = 1) {
     this.#gl = gl;
     this.#half = 1.25 * reach;
+    this.#pages = new SpanPages(PAGE, FIRST_PAGES, mostPages(keep));
     this.#pool = gl.createBuffer();
     this.#u8 = new Uint8Array(0);
     this.#fit();
@@ -278,6 +301,11 @@ export class SpanWindow {
   /** The spans that left before their time. */
   get early(): number {
     return this.#pages.early;
+  }
+
+  /** Whether the window is full: a page may soon leave before its time. */
+  get full(): boolean {
+    return windowFull(this.#pages.free);
   }
 
   /** The bytes the pool takes on the graphics card. */

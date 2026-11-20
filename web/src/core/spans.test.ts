@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { GRID, LONG, SpanPages, cellOf, meets } from "./spans.ts";
+import {
+  GRID,
+  LONG,
+  SpanPages,
+  cellOf,
+  meets,
+  mostPages,
+  windowFull,
+} from "./spans.ts";
 import { bufferView } from "./view.ts";
 
 // The window of trails kept as curves (docs/decisions.md, decision 68): the
@@ -61,6 +69,25 @@ describe("the squares a view draws", () => {
 });
 
 describe("the window's pages", () => {
+  it("count the pages still to be taken before one leaves early (decision 70)", () => {
+    const pages = new SpanPages(2, 1, 4);
+    expect(pages.free).toBe(4);
+    pages.add(0);
+    pages.add(0);
+    pages.add(1);
+    expect(pages.free).toBe(2);
+    pages.add(2);
+    pages.add(3);
+    expect(pages.free).toBe(0);
+  });
+
+  it("are full once fewer are free than squares that may each ask for one, and are as many as the window keeps times more (decision 70)", () => {
+    expect(windowFull(LONG)).toBe(true);
+    expect(windowFull(LONG + 1)).toBe(false);
+    expect(mostPages(1)).toBe(1200);
+    expect(mostPages(2.5)).toBe(3000);
+  });
+
   it("fill each square's pages in order, a page from the pool once the last is full", () => {
     const pages = new SpanPages(4, 4, 4);
     const slots = Array.from({ length: 6 }, () => pages.add(5));

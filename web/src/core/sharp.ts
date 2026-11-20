@@ -12,7 +12,10 @@
 // 64th. Each span keeps the fade clock at its ends, in half-lives, not the
 // time, so that its light is right however the half-life changed since.
 // The snapshot, and its coarse image, are read only into a view at most a
-// quarter nearer than they saw, as the image carried is (decision 69).
+// quarter nearer than they saw, as the image carried is (decision 69); while
+// the image lacks what they hold, the next snapshot waits, since a copy would
+// lose it, unless the window is full: that copy is made with it (decision
+// 70). The address can ask the window to keep more spans (decision 70).
 
 import {
   Merger,
@@ -23,7 +26,7 @@ import {
 } from "./curves.ts";
 import { SpanWindow } from "./spans.ts";
 import { GROWTH_LIMIT, LightTarget, type Trails } from "./trails.ts";
-import { SLACK, fitScale, sameView, type View } from "./view.ts";
+import { SLACK, covers, fitScale, sameView, type View } from "./view.ts";
 
 /** Whether an address asks for trails kept as curves: "?trails=sharp". */
 export function readTrailsAsked(search: string): boolean {
@@ -35,11 +38,23 @@ export function readMeter(search: string): boolean {
   return new URLSearchParams(search).get("fps") === "1";
 }
 
-/** What of an address's search measures the trails, its mechanism and the meter, kept beside a saved moment as the music is. */
+/** The most times as many spans an address can ask the curves to keep. */
+export const KEEP_MOST = 20;
+
+/**
+ * How many times as many spans an address asks the curves to keep (decision
+ * 70): "?keep=3", from one to KEEP_MOST; one when it asks for none.
+ */
+export function readKeep(search: string): number {
+  const keep = Number(new URLSearchParams(search).get("keep") ?? Number.NaN);
+  return Number.isFinite(keep) ? Math.min(KEEP_MOST, Math.max(1, keep)) : 1;
+}
+
+/** What of an address's search measures the trails, its mechanism, its window and the meter, kept beside a saved moment as the music is. */
 export function keepMeasures(search: string): string {
   const query = new URLSearchParams(search);
   const kept = new URLSearchParams();
-  for (const key of ["trails", "fps"]) {
+  for (const key of ["trails", "fps", "keep"]) {
     const value = query.get(key);
     if (value !== null) kept.set(key, value);
   }
@@ -92,9 +107,25 @@ export const SNAPSHOT_HALF_LIVES = 3;
  */
 export const SNAPSHOT_SPANS = 200_000;
 
-/** Whether a snapshot is due, `fade` half-lives and `spans` spans after the last. */
-export function snapshotDue(fade: number, spans: number): boolean {
-  return fade >= SNAPSHOT_HALF_LIVES || spans >= SNAPSHOT_SPANS;
+/** Whether a snapshot is due, `fade` half-lives and `spans` spans after the last, the window keeping `keep` times as many (decision 70). */
+export function snapshotDue(fade: number, spans: number, keep = 1): boolean {
+  return fade >= SNAPSHOT_HALF_LIVES || spans >= SNAPSHOT_SPANS * keep;
+}
+
+/**
+ * Whether a snapshot is taken now (decision 70): when `due`, by copying the
+ * image, unless the image is `lacking` light from before the window, which a
+ * copy would lose for good; then it waits for the view to read it again,
+ * unless the window is `full`, and that snapshot is composed with it.
+ */
+export function snapshotWhen(
+  due: boolean,
+  lacking: boolean,
+  full: boolean,
+): "no" | "copy" | "compose" {
+  if (!due) return "no";
+  if (!lacking) return "copy";
+  return full ? "compose" : "no";
 }
 
 /** The light kept divided by `k`, at the fade clock `fade`. */
@@ -158,6 +189,8 @@ interface Snapshot {
   mark: Float64Array;
   k: number;
   fade: number;
+  /** The seconds of motion on the samples' clock when it was taken. */
+  seconds: number;
 }
 
 /** The coarse image reaches this many times the chain's reach from the pivot. */
@@ -191,6 +224,7 @@ export class SharpTrails {
   readonly #gl: WebGL2RenderingContext;
   readonly #trails: Trails;
   readonly #reach: number;
+  readonly #keep: number;
   readonly #lines: SpanLines;
   readonly #window: SpanWindow;
   readonly #open = new SpanBatch(1024);
@@ -212,6 +246,12 @@ export class SharpTrails {
   #lastSnapshot = 0;
   #spansSince = 0;
   #remake = true;
+  // whether the image lacks light from before the window, left out of the
+  // last remake (decision 69), which a copy of it would lose (decision 70)
+  #lacking = false;
+  // the seconds of motion when the window began to keep every span, while
+  // no snapshot is older
+  #since = 0;
   #measured = Number.NEGATIVE_INFINITY;
   readonly #pixel = new Uint8Array(4);
   /** Whether to measure what a remake costs, the card's work waited for, every half second. */
@@ -219,12 +259,19 @@ export class SharpTrails {
   /** What the last measured remake cost, in ms; none yet. */
   remakeMs: number | null = null;
 
-  constructor(gl: WebGL2RenderingContext, trails: Trails, reach: number) {
+  /** The curves of `trails`, over the disc `reach` metres from the pivot, the window keeping `keep` times as many spans (decision 70). */
+  constructor(
+    gl: WebGL2RenderingContext,
+    trails: Trails,
+    reach: number,
+    keep = 1,
+  ) {
     this.#gl = gl;
     this.#trails = trails;
     this.#reach = reach;
+    this.#keep = keep;
     this.#lines = new SpanLines(gl);
-    this.#window = new SpanWindow(gl, reach);
+    this.#window = new SpanWindow(gl, reach, keep);
   }
 
   /** The bytes the curves take on the card: the window, the coarse image and the snapshots. */
@@ -240,6 +287,11 @@ export class SharpTrails {
   /** The spans the window keeps. */
   get spans(): number {
     return this.#window.count;
+  }
+
+  /** The seconds of motion the curves keep: since the older snapshot, or since they began. */
+  get kept(): number {
+    return this.clock.seconds - (this.#base?.seconds ?? this.#since);
   }
 
   /** Lets every trail go: the light was cleared. */
@@ -258,6 +310,8 @@ export class SharpTrails {
     this.#lastSnapshot = this.#fade;
     this.#spansSince = 0;
     this.#remake = true;
+    this.#lacking = false;
+    this.#since = this.clock.seconds;
   }
 
   /**
@@ -394,7 +448,16 @@ export class SharpTrails {
     }
     this.fresh.clear();
     this.closed.clear();
-    if (snapshotDue(this.#fade - this.#lastSnapshot, this.#spansSince)) {
+    const when = snapshotWhen(
+      snapshotDue(
+        this.#fade - this.#lastSnapshot,
+        this.#spansSince,
+        this.#keep,
+      ),
+      this.#lacking,
+      this.#window.full,
+    );
+    if (when !== "no") {
       // no span runs across a snapshot: those open end here
       this.#open.clear();
       this.chain.splitAll(this.#open);
@@ -410,7 +473,11 @@ export class SharpTrails {
           this.#lines.end();
         });
       }
-      const snapshot = this.#snapshot(view, whole);
+      const snapshot = this.#snapshot(
+        view,
+        whole,
+        when === "compose" ? style(view) : null,
+      );
       if (this.#newest !== null) {
         // the newer becomes the one the window keeps the spans after
         this.#letGo(this.#base);
@@ -451,6 +518,14 @@ export class SharpTrails {
                 : { target: base.coarse, view: base.coarseView },
             gain: snapshotGain(base, { k: trails.k, fade: this.#fade }),
           };
+    // left out, where the view sees: the snapshot, or its coarse image
+    // past what the snapshot saw
+    this.#lacking =
+      base !== null &&
+      (from === null ||
+        (base.coarseView !== null &&
+          from.coarse === null &&
+          !covers(base.view, view)));
     trails.remake(from, (into) => {
       const drawn = style(into);
       this.#window.draw(this.#lines, into, drawn);
@@ -506,15 +581,42 @@ export class SharpTrails {
 
   /**
    * A snapshot of the image as it is, in `view`, and, away from the whole
-   * view, of the coarse image: the live one, or made from the image.
+   * view, of the coarse image: the live one, or made from the image. With
+   * `composed`, the style the spans are drawn in, the image is not copied
+   * but made again with all its light (decision 70): the older snapshot and
+   * its coarse image read in any view, and the window over them.
    */
-  #snapshot(view: View, whole: boolean): Snapshot {
+  #snapshot(
+    view: View,
+    whole: boolean,
+    composed: SpanStyle | null = null,
+  ): Snapshot {
     const trails = this.#trails;
     const { width, height } = view;
     const reused = this.#spare.pop();
     const image = reused?.image ?? new LightTarget(this.#gl, [width, height]);
     const coarse = reused?.coarse ?? new LightTarget(this.#gl, [1, 1]);
-    trails.copyBetween(trails.image, image);
+    const base = this.#base;
+    if (composed !== null && base !== null) {
+      image.floating = trails.image.floating;
+      image.resize(width, height);
+      image.fit();
+      trails.carryBetween(
+        base.image,
+        base.view,
+        image,
+        view,
+        base.coarseView === null
+          ? null
+          : { target: base.coarse, view: base.coarseView },
+        snapshotGain(base, { k: trails.k, fade: this.#fade }),
+      );
+      trails.drawInto(image, () => {
+        this.#window.draw(this.#lines, view, composed);
+      });
+    } else {
+      trails.copyBetween(trails.image, image);
+    }
     const coarseView = whole ? null : this.#coarseView;
     if (coarseView === null) {
       coarse.dispose();
@@ -534,6 +636,7 @@ export class SharpTrails {
       mark: this.#window.mark(),
       k: trails.k,
       fade: this.#fade,
+      seconds: this.clock.seconds,
     };
   }
 }

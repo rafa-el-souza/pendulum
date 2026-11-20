@@ -19,23 +19,25 @@ describe("the frames a second", () => {
 });
 
 describe("the meter's line", () => {
-  it("says the frames a second, the last remake, the mechanism and its memory", () => {
+  it("says the frames a second, the last remake, the mechanism, its memory and the seconds of motion the curves keep (decision 70)", () => {
     expect(
       meterText({
         perSecond: 58.4,
         remake: 12.6,
         mechanism: "sharp",
         megabytes: 41.2,
+        kept: 1.43,
       }),
-    ).toBe("58 fps · remake 13 ms · sharp · 41 MB");
+    ).toBe("58 fps · remake 13 ms · sharp · 41 MB · kept 1.4 s");
     expect(
       meterText({
         perSecond: 7.25,
         remake: 912,
         mechanism: "sharp",
         megabytes: 9.6,
+        kept: 37.4,
       }),
-    ).toBe("7.3 fps · remake 912 ms · sharp · 10 MB");
+    ).toBe("7.3 fps · remake 912 ms · sharp · 10 MB · kept 37 s");
   });
 
   it("says when there was no remake yet, and says only the frames a second for the image carried", () => {
@@ -45,14 +47,16 @@ describe("the meter's line", () => {
         remake: null,
         mechanism: "sharp",
         megabytes: 3,
+        kept: 0,
       }),
-    ).toBe("60 fps · remake – · sharp · 3 MB");
+    ).toBe("60 fps · remake – · sharp · 3 MB · kept 0.0 s");
     expect(
       meterText({
         perSecond: 59.9,
         remake: null,
         mechanism: "B",
         megabytes: 0,
+        kept: null,
       }),
     ).toBe("60 fps · B");
   });
