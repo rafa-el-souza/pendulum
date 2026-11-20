@@ -528,6 +528,38 @@ test("the trails are carried while the view comes a quarter nearer than they wer
   expect(errors).toEqual([]);
 });
 
+test("the trails are carried a quarter nearer again once the light drawn farther has faded, and cleared while a mark keeps it (decision 69)", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.setViewportSize({ width: 640, height: 400 });
+  // Z, the trails left to fade, then Z again: the light then, and the chain's
+  // alone, as the light switch leaves it
+  const pressedAgain = async (trail: string): Promise<[number, number]> => {
+    await page.goto(`./?twins=0&time=4&trail=${trail}`);
+    await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+    await frames(page, 40);
+    await page.keyboard.press("z");
+    // at four times real time, more than five half-lives of 0.5 s go by
+    await frames(page, 90);
+    await page.keyboard.press(" ");
+    await frames(page, 3);
+    await page.keyboard.press("z");
+    await frames(page, 3);
+    const nearer = await lightShown(page);
+    await page.keyboard.press("l");
+    await frames(page, 3);
+    return [nearer, await lightShown(page)];
+  };
+  // trails of half a second: what the whole view drew has faded away
+  const [faded, fadedAlone] = await pressedAgain("0.5");
+  expect(faded).toBeGreaterThan(1.5 * fadedAlone);
+  // a mark keeps what the whole view drew: cleared, as before
+  const [marked, markedAlone] = await pressedAgain("100");
+  expect(marked).toBeLessThan(1.2 * markedAlone);
+  expect(errors).toEqual([]);
+});
+
 test("the trails are cleared when the canvas grows by more than a quarter, and carried when it grows less (decision 66)", async ({
   page,
 }) => {
