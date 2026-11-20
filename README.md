@@ -93,6 +93,13 @@ hanging rope it becomes as n grows.
   pivot can shake, a millimetre either way hundreds of times a second, on
   which the chain stands on its head, as Kapitza's pendulum does: up to
   twelve masses; from sixteen, the shake takes the chain apart.
+  The view comes up to sixty-four times nearer: about the mouse with the
+  wheel or a trackpad's pinch, about the middle with Z and X, or between two
+  fingers on a touch screen, which move it too; on a desktop the middle
+  button, or a drag with Space held, moves it. Trails drawn before the view
+  came nearer are enlarged as they were kept, softer; those drawn after are
+  sharp. One finger waits a moment before it grabs the chain, so that a
+  second can come and pinch, and the address carries the view.
   The controls wait behind one small button in a corner, which opens a thin
   row of icons: the pause, the light, and six groups, time and the start,
   the chain, the twins, the trails, the music and the screen, each opening
