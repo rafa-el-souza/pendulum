@@ -33,6 +33,9 @@ export function gravity(g: number, turn = 0): Gravity {
   return { x: g * Math.sin(turn), y: -g * Math.cos(turn) };
 }
 
+/** No hands at all. */
+const NO_HANDS: readonly Hand[] = [];
+
 /** A chain of n point masses on n massless rods, hanging from a fixed pivot. */
 export class Chain {
   /** The number of rods, and of masses. */
@@ -43,6 +46,8 @@ export class Chain {
   readonly lengths: Float64Array;
   readonly totalMass: number;
   readonly totalLength: number;
+  /** Each mass times its depth below the pivot as the chain hangs straight, summed, in kg m. */
+  readonly hangingMoment: number;
 
   readonly #inverseMass: Float64Array;
   readonly #inverseLength: Float64Array;
@@ -54,8 +59,11 @@ export class Chain {
   readonly #cos: Float64Array;
   readonly #rhs: Float64Array;
   readonly #inversePivot: Float64Array;
-  // and the hand's pull on the mass it holds
+  // and a hand's pull on the mass it holds, the part of the hands' pulls
+  // that lies across each rod, and a list of one hand
   readonly #pull = new Float64Array(2);
+  readonly #across: Float64Array;
+  readonly #one: Hand[] = [];
 
   constructor(masses: ArrayLike<number>, lengths: ArrayLike<number>) {
     const n = masses.length;
@@ -79,6 +87,11 @@ export class Chain {
     }
     this.totalMass = this.masses.reduce((sum, m) => sum + m, 0);
     this.totalLength = this.lengths.reduce((sum, l) => sum + l, 0);
+    let depth = 0;
+    this.hangingMoment = this.masses.reduce((sum, m, i) => {
+      depth += this.lengths[i]!;
+      return sum + m * depth;
+    }, 0);
     this.#inverseMass = this.masses.map((m) => 1 / m);
     this.#inverseLength = this.lengths.map((l) => 1 / l);
     this.#ratio = this.masses.map((m, i) =>
@@ -88,6 +101,7 @@ export class Chain {
     this.#cos = new Float64Array(n);
     this.#rhs = new Float64Array(n);
     this.#inversePivot = new Float64Array(n);
+    this.#across = new Float64Array(n);
   }
 
   /** The paper's refinement family: n equal masses on n equal rods. */
@@ -101,7 +115,9 @@ export class Chain {
   /**
    * The angular accelerations and the rod tensions of one state (PH-4) under
    * gravity g, written to alpha and tension. Every array has length n. A
-   * hand, when given, pulls on the mass it holds.
+   * hand, or several, each pulls on the mass it holds, and a drag of `drag`
+   * per second, when given, slows every mass in proportion to it
+   * (docs/decisions.md, decision 74).
    */
   solve(
     theta: Float64Array,
@@ -109,7 +125,8 @@ export class Chain {
     g: Gravity,
     alpha: Float64Array,
     tension: Float64Array,
-    hand: Hand | null = null,
+    hands: Hand | readonly Hand[] | null = null,
+    drag = 0,
   ): void {
     const n = this.n;
     const m = this.masses;
@@ -120,6 +137,16 @@ export class Chain {
     const ratio = this.#ratio;
     const inverseMass = this.#inverseMass;
     const inverseLength = this.#inverseLength;
+    const acrossRods = this.#across;
+    let held: readonly Hand[];
+    if (hands === null) {
+      held = NO_HANDS;
+    } else if ("index" in hands) {
+      this.#one[0] = hands;
+      held = this.#one;
+    } else {
+      held = hands;
+    }
 
     // The joints enter only through the sine and cosine of theta[i + 1] - theta[i].
     // That difference is exact near zero but rounded near pi and for large
@@ -152,11 +179,11 @@ export class Chain {
 
     // A force F on mass k is an acceleration f = F / m_k of that mass alone.
     // It enters rod k as +f and rod k + 1 as -f: along the rod in the tension
-    // system, across the rod in the angular acceleration.
-    const k = hand === null ? -1 : hand.index;
-    let acrossHeld = 0;
-    let acrossBelow = 0;
-    if (hand !== null) {
+    // system, across the rod in the angular acceleration, which waits for
+    // the tensions and adds each rod's once, however many hands touch it.
+    for (let h = 0; h < held.length; h++) {
+      const hand = held[h]!;
+      const k = hand.index;
       const pull = this.#pull;
       this.handForce(theta, omega, hand, pull);
       const fx = pull[0]! * inverseMass[k]!;
@@ -164,12 +191,12 @@ export class Chain {
       const s = Math.sin(theta[k]!);
       const c = Math.cos(theta[k]!);
       rhs[k] = rhs[k]! + fx * s - fy * c;
-      acrossHeld = fx * c + fy * s;
+      acrossRods[k] = acrossRods[k]! + (fx * c + fy * s);
       if (k + 1 < n) {
         const sb = Math.sin(theta[k + 1]!);
         const cb = Math.cos(theta[k + 1]!);
         rhs[k + 1] = rhs[k + 1]! - (fx * sb - fy * cb);
-        acrossBelow = -(fx * cb + fy * sb);
+        acrossRods[k + 1] = acrossRods[k + 1]! - (fx * cb + fy * sb);
       }
     }
 
@@ -205,12 +232,38 @@ export class Chain {
       carry = -tension[i]! * across;
     }
     alpha[n - 1] = carry * inverseLength[n - 1]!;
-    if (k >= 0) {
-      alpha[k] = alpha[k]! + acrossHeld * inverseLength[k]!;
-      if (k + 1 < n) {
-        alpha[k + 1] = alpha[k + 1]! + acrossBelow * inverseLength[k + 1]!;
+    for (let h = 0; h < held.length; h++) {
+      const k = held[h]!.index;
+      for (let i = k; i <= k + 1 && i < n; i++) {
+        const pulled = acrossRods[i]!;
+        if (pulled !== 0) {
+          alpha[i] = alpha[i]! + pulled * inverseLength[i]!;
+          acrossRods[i] = 0;
+        }
       }
     }
+
+    // A drag of −drag m_i v_i on every mass: mass i's less mass i − 1's is
+    // −drag l_i omega_i n_i, across rod i alone, so it changes no tension
+    // and takes drag omega_i from alpha_i, exactly.
+    if (drag !== 0) {
+      for (let i = 0; i < n; i++) alpha[i] = alpha[i]! - drag * omega[i]!;
+    }
+  }
+
+  /**
+   * The energy above the chain hanging at rest along gravity g (PH-2), in J:
+   * its energy, less that of every mass hanging straight below the pivot
+   * along g, at rest.
+   */
+  energyAboveRest(
+    theta: Float64Array,
+    omega: Float64Array,
+    g: Gravity,
+  ): number {
+    return (
+      this.energy(theta, omega, g) + Math.hypot(g.x, g.y) * this.hangingMoment
+    );
   }
 
   /**
