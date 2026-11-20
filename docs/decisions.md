@@ -2587,6 +2587,37 @@ and the address follows; the whole view faint while whole, lit after a step
 and after the wheel, and going back with the address; with the row shut, Z
 and X show the zoom alone; Shift and X from an address opened near.
 
+## 74. The physics takes forces from a record of the music
+
+*2026-11-20.* Besides the hand and the shake, the chain's physics takes one
+record a frame of what the music puts into it: gravity tilted within the
+frame, kicks of the pivot, hands on any masses, a drag in proportion to each
+mass, and a thermostat that draws the chain's energy above rest to a target.
+Each is a function of the time into the frame, which the chain and its twins
+evaluate at every stage of their own steps; the twins are sent the record
+with the frame. Nothing gives one yet, and without it the motion is the same
+as before, number for number.
+
+The drag, −c m v on every mass in the pivot's frame, changes no tension and
+takes c ω from each rod's angular acceleration, exactly (`PH-4`); the
+thermostat is a drag with a sign, gain × (E − target) / max(E, floor). A
+kick takes the pivot out and back, (1 − e^(−s/a))³ e^(−s/d) of its size over
+that curve's height, and enters as gravity in the pivot's frame, as the
+shake does (decision 36).
+
+**Why.** The music is to move the chain through forces, within the paper's
+equations (decision 46). The twins show chaos only if they feel the chain's
+force at the same instant, and they move in fewer, longer pieces than the
+chain (decision 20).
+
+**Evidence.** A twin born on the chain, three masses under every force for
+10 s: 2.6e-4 of the length apart with the force taken at every stage,
+2.4e-2 with it held over each piece. Unit tests: Newton's law with several
+hands and the drag; the energy the drag takes; a kick against a pendulum
+integrated on its own; the thermostat from above and from below; an empty
+record giving the numbers of none; the twins under the record as the loop
+would move them.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
