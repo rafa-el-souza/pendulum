@@ -21,7 +21,7 @@ export default defineConfig({
       use: {
         ...devices["Desktop Chrome"],
         // a microphone that the page may use without asking, which hears a
-        // beep the browser makes, for the music card's test (decision 44)
+        // beep the browser makes, for the music's tests (decisions 44 and 76)
         launchOptions: {
           args: [
             "--use-fake-ui-for-media-stream",
@@ -40,7 +40,7 @@ export default defineConfig({
         // renderer, which Firefox refuses by default. A visitor's Firefox
         // draws on a GPU and needs neither.
         headless: !process.env.CI,
-        // The same fake microphone, without asking, for the music card.
+        // The same fake microphone, without asking, for the music's tests.
         launchOptions: {
           firefoxUserPrefs: {
             "webgl.force-enabled": true,

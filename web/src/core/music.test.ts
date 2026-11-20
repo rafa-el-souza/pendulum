@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import { said } from "./music.ts";
 
-// What the music card says when a share comes without sound (decision 49):
+// What the music's panel says when a share comes without sound (decision 49):
 // what to do depends on what was shared, since a browser shares a tab's
 // sound everywhere, a screen's only on some systems, and a window's nowhere.
-describe("the music card's words for a share without sound", () => {
+describe("the music's panel's words for a share without sound", () => {
   it("asks for the tab's audio when a tab was shared", () => {
     expect(said({ kind: "soundless", surface: "browser" })).toBe(
       "The tab was shared without its sound. In the browser's dialog, tick the box that shares the tab's audio.",

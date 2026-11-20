@@ -179,7 +179,7 @@ export const TWIN_HUE: Mode = {
   tint: { to: "twins", depth: 0.8 },
 };
 
-/** The music does nothing: the card only shows what the piece hears. */
+/** The music does nothing: its group only shows what the piece hears. */
 export const NONE: Mode = { id: "none", name: "none", routes: [] };
 
 /** The modes, the one the piece opens in first. */

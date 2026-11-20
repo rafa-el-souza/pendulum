@@ -52,7 +52,10 @@ import {
   trailFade,
   whiteAfter,
   whiteSwatches,
+  MUSIC_MODE,
+  MUSIC_STRENGTH,
 } from "./parameters.ts";
+import { MODES } from "./music.ts";
 
 describe("the first piece's parameters", () => {
   it("are a valid registry: distinct ids and keys, increasing values", () => {
@@ -485,6 +488,33 @@ describe("the first piece's parameters", () => {
       expect(TENSION.swatches?.(value)).toEqual(SCALE.swatches?.(value));
     }
     expect(TENSION.icon).toBe("balance");
+  });
+
+  it("show the music's mode and its strength in the music's group: the mode by its name, round from either end, and the strength as five dots, said in words; the address keeps both apart from the registry (decisions 46 and 76)", () => {
+    expect(PARAMETERS).not.toContain(MUSIC_MODE);
+    expect(PARAMETERS).not.toContain(MUSIC_STRENGTH);
+    // the address's own words for them, "?music=none&strength=4"
+    expect(MUSIC_MODE.id).toBe("music");
+    expect(MUSIC_STRENGTH.id).toBe("strength");
+    expect(MUSIC_MODE.values).toEqual(MODES.map((_, i) => i));
+    expect(MUSIC_MODE.initial).toBe(0);
+    expect(MUSIC_MODE.cyclic).toBe(true);
+    expect(MUSIC_MODE.show(0)).toBe(MODES[0]?.name);
+    expect(MUSIC_MODE.show(0)).toBe("light");
+    expect(MUSIC_MODE.show(MODES.length - 1)).toBe("none");
+    expect(stepValue(MUSIC_MODE, 0, -1)).toBe(MODES.length - 1);
+    expect(stepValue(MUSIC_MODE, MODES.length - 1, 1)).toBe(0);
+    expect(MUSIC_STRENGTH.values).toEqual([1, 2, 3, 4, 5]);
+    expect(MUSIC_STRENGTH.initial).toBe(3);
+    expect(MUSIC_STRENGTH.cyclic).toBeUndefined();
+    expect(MUSIC_STRENGTH.show(3)).toBe("●●●○○");
+    expect(MUSIC_STRENGTH.show(5)).toBe("●●●●●");
+    expect(MUSIC_STRENGTH.speak?.(1)).toBe("1 of 5");
+    expect(stepValue(MUSIC_STRENGTH, 5, 1)).toBe(5);
+    expect(stepValue(MUSIC_STRENGTH, 1, -1)).toBe(1);
+    // no keys yet: they wait for the modes that stay
+    expect(MUSIC_MODE.keys).toEqual({ down: [], up: [] });
+    expect(MUSIC_STRENGTH.keys).toEqual({ down: [], up: [] });
   });
 
   it("show the zoom in the screen's group as the address writes it, from the whole view, ×1, to sixty-four times nearer, its − and + being X and Z; the address keeps the camera apart from the registry (decisions 67 and 73)", () => {

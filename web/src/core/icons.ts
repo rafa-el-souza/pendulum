@@ -49,7 +49,13 @@ export type Icon =
   | "near"
   | "eye"
   | "zoom"
-  | "whole";
+  | "whole"
+  | "microphone"
+  | "file"
+  | "tab"
+  | "drum"
+  | "sparkles"
+  | "wedge";
 
 const SVG = "http://www.w3.org/2000/svg";
 
@@ -235,6 +241,34 @@ const ICONS: Record<
     fill: "M4.6 18.6c0-1.3 1.3-2.4 2.9-2.4c1.1 0 1.9.6 1.9 1.5c0 1.3-1.3 2.4-2.9 2.4c-1.1 0-1.9-.6-1.9-1.5zM14.6 16.6c0-1.3 1.3-2.4 2.9-2.4c1.1 0 1.9.6 1.9 1.5c0 1.3-1.3 2.4-2.9 2.4c-1.1 0-1.9-.6-1.9-1.5zM9.4 5l10-2v3l-10 2z",
     stroke: "M9.4 17.5V6M19.4 15.5V4",
   },
+  // The music's group (decision 76): where the sound comes from, a
+  // microphone, a file of music, the sound of a tab or the screen (a window
+  // with a wave in it, not a loudspeaker, which names one of the music's
+  // modes) and the demonstration beat (a snare drum and its sticks); then
+  // what the music does, sparkles, and how strongly, a wedge.
+  microphone: {
+    fill: "",
+    stroke:
+      "M9 6.5a3 3 0 0 1 6 0v5a3 3 0 0 1-6 0zM6 11a6 6 0 0 0 12 0M12 17v3.5M9 20.5h6",
+  },
+  file: {
+    fill: "M8.7 16.6a1.7 1.7 0 1 0 3.4 0a1.7 1.7 0 1 0-3.4 0z",
+    stroke: "M6 3.5h8l4 4v13H6zM14 3.5v4h4M12.1 16.6V10.5l2.8 1",
+  },
+  tab: {
+    fill: "M5.3 7.3a.9.9 0 1 0 1.8 0a.9.9 0 1 0-1.8 0zM8.1 7.3a.9.9 0 1 0 1.8 0a.9.9 0 1 0-1.8 0z",
+    stroke: "M3.5 4.5h17v15h-17zM3.5 10h17M8 15q2-2.6 4 0t4 0",
+  },
+  drum: {
+    fill: "",
+    stroke:
+      "M4.5 11c0-1.4 3.4-2.5 7.5-2.5s7.5 1.1 7.5 2.5-3.4 2.5-7.5 2.5S4.5 12.4 4.5 11zM4.5 11v6c0 1.4 3.4 2.5 7.5 2.5s7.5-1.1 7.5-2.5v-6M8 3.5l3.5 5M16 3.5l-3.5 5",
+  },
+  sparkles: {
+    fill: "M11 3.5l1.9 5.6 5.6 1.9-5.6 1.9L11 18.5l-1.9-5.6-5.6-1.9 5.6-1.9zM18 14.5l.9 2.6 2.6.9-2.6.9-.9 2.6-.9-2.6-2.6-.9 2.6-.9z",
+    stroke: "",
+  },
+  wedge: { fill: "M3.5 18.5L20.5 5.5v13z", stroke: "" },
   // Three of the groups of the row (decision 54); the chain's and the
   // trails' take the icons of their first controls. A clock: time and the
   // start.
@@ -319,6 +353,54 @@ export function drawIcon(name: Icon): SVGSVGElement {
     svg.append(group);
   }
   return svg;
+}
+
+/** The bars of the music's live icon (decision 76): how many, and where on the grid. */
+const BARS = {
+  count: 3,
+  left: 4.5,
+  pitch: 6,
+  width: 3,
+  floor: 20,
+  least: 8,
+  most: 17,
+};
+
+/** The heights of the music's bars on the grid, from levels 0 to 1: a short bar at the least, so that in silence they read as bars, not as an ellipsis. */
+export function barHeights(levels: readonly number[]): number[] {
+  return levels.map((level) => {
+    const kept = Number.isNaN(level) ? 0 : Math.min(1, Math.max(0, level));
+    return BARS.least + kept * (BARS.most - BARS.least);
+  });
+}
+
+/** Three bars in place of an icon, for one whose levels move, as the music's while the piece listens; `setBars` raises them. */
+export function drawBars(): SVGSVGElement {
+  const svg = document.createElementNS(SVG, "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("width", "20");
+  svg.setAttribute("height", "20");
+  svg.setAttribute("aria-hidden", "true");
+  for (let i = 0; i < BARS.count; i++) {
+    const bar = document.createElementNS(SVG, "rect");
+    bar.setAttribute("x", String(BARS.left + i * BARS.pitch));
+    bar.setAttribute("width", String(BARS.width));
+    bar.setAttribute("rx", String(BARS.width / 2));
+    bar.setAttribute("fill", "currentColor");
+    svg.append(bar);
+  }
+  setBars(svg, new Array<number>(BARS.count).fill(0));
+  return svg;
+}
+
+/** Raises the bars drawn by `drawBars` to `levels`, from 0 to 1. */
+export function setBars(svg: SVGSVGElement, levels: readonly number[]): void {
+  const heights = barHeights(levels);
+  svg.querySelectorAll("rect").forEach((bar, i) => {
+    const h = heights[i] ?? BARS.least;
+    bar.setAttribute("y", (BARS.floor - h).toFixed(2));
+    bar.setAttribute("height", h.toFixed(2));
+  });
 }
 
 /** The part of an icon drawn by `drawIcon` that swings about its pivot, if it has one. */
