@@ -282,17 +282,71 @@ export function sameView(a: View, b: View): boolean {
   );
 }
 
+/**
+ * A rounding's slack: a view within a few parts in a billion of a bound is
+ * within it, so that Z pressed again and again, each time a quarter nearer,
+ * stays within a quarter.
+ */
+export const SLACK = 1 + 1e-9;
+
 /** Whether every point `inner` sees, `outer` sees too. */
 function covers(outer: View, inner: View): boolean {
-  const slack = 1 + 1e-9;
   const ox = outer.width / 2 / outer.scale;
   const oy = outer.height / 2 / outer.scale;
   const ix = inner.width / 2 / inner.scale;
   const iy = inner.height / 2 / inner.scale;
   return (
-    Math.abs(inner.cx - outer.cx) + ix <= ox * slack &&
-    Math.abs(inner.cy - outer.cy) + iy <= oy * slack
+    Math.abs(inner.cx - outer.cx) + ix <= ox * SLACK &&
+    Math.abs(inner.cy - outer.cy) + iy <= oy * SLACK
   );
+}
+
+/** A scale light was drawn at, and the fade, in half-lives, at which it stopped being drawn there. */
+interface Drawn {
+  readonly scale: number;
+  readonly until: number;
+}
+
+/** Scales kept at most, beyond which the two oldest are taken as one. */
+const MOST_DRAWN = 32;
+
+/**
+ * The scales `drawn` and `scale`, drawn until `until`, the latest fade: those
+ * no smaller than `scale` go, as it counts longer. What is left is in the
+ * order it was drawn, from the least scale up; at most MOST_DRAWN, the two
+ * oldest taken as the smaller drawn until the later, which counts longer.
+ */
+function noting(
+  drawn: readonly Drawn[],
+  scale: number,
+  until: number,
+): readonly Drawn[] {
+  const kept = drawn.filter((d) => d.scale < scale);
+  kept.push({ scale, until });
+  while (kept.length > MOST_DRAWN) {
+    const [first, second] = kept;
+    if (first === undefined || second === undefined) break;
+    kept.splice(0, 2, { scale: first.scale, until: second.until });
+  }
+  return kept;
+}
+
+/**
+ * The scales of `drawn` still counted at the fade `faded`: all of them while
+ * some light is `kept` from fading; else those that stopped being drawn
+ * fewer than `forget` half-lives before, the newest of them, as the oldest
+ * are first.
+ */
+function counted(
+  drawn: readonly Drawn[],
+  faded: number,
+  forget: number,
+  kept: boolean,
+): readonly Drawn[] {
+  // a fade that is not a number forgets nothing
+  if (kept || Number.isNaN(faded)) return drawn;
+  const first = drawn.findIndex((d) => faded - d.until < forget);
+  return first < 0 ? [] : drawn.slice(first);
 }
 
 /**
@@ -307,10 +361,16 @@ function covers(outer: View, inner: View): boolean {
  * the light to be cleared instead: lines drawn a pixel or two wide come out
  * wider in proportion, and past that they read as wide, soft bands beside
  * the new ones. The run ends there, and the next change holds anew. The
- * least scale goes with the light: what is held keeps the least of the
- * light it held; carried, the light is what was held and what is drawn on
- * it in the new view; so that runs each growing a little add up, and a run
- * that shrinks and grows back reads only what was held at the larger view.
+ * scales go with the light: what is held keeps those of the light it held;
+ * carried, the light is what was held and what is drawn on it in the new
+ * view; so that runs each growing a little add up, and a run that shrinks
+ * and grows back reads only what was held at the larger view.
+ *
+ * A scale stops counting once the light drawn at it has faded `forget`
+ * half-lives since it stopped being drawn there (decision 69): its light is
+ * then too faint to read as a band. The fade is a clock in half-lives that
+ * each frame gives; while some of the light never fades, as a mark keeps
+ * it, every scale counts.
  *
  * A change of the camera alone, the drawing buffer's size the same, that
  * sees past what is held, as the view moves or goes farther, holds the light
@@ -321,24 +381,36 @@ function covers(outer: View, inner: View): boolean {
 export class ViewRuns {
   readonly #settle: number;
   readonly #limit: number;
+  readonly #forget: number;
   #last: View | null = null;
   #held: View | null = null;
   #still = 0;
-  // the least scale the light shown, and the light held, were drawn at
-  #least = Number.POSITIVE_INFINITY;
-  #heldLeast = Number.POSITIVE_INFINITY;
+  // the scales the light shown was drawn at before the view it is drawn in
+  // now, and the light held before the view it is held in, which it is
+  // drawn in while the run lasts
+  #shown: readonly Drawn[] = [];
+  #heldDrawn: readonly Drawn[] = [];
 
-  constructor(settle: number, limit = Number.POSITIVE_INFINITY) {
+  constructor(
+    settle: number,
+    limit = Number.POSITIVE_INFINITY,
+    forget = Number.POSITIVE_INFINITY,
+  ) {
     this.#settle = settle;
     this.#limit = limit;
+    this.#forget = forget;
   }
 
-  /** Takes the frame's view, and says what its light asks for, if anything. */
-  see(view: View): ViewStep | null {
+  /**
+   * Takes the frame's view, before anything is drawn in it, with the fade
+   * the light has taken so far, in half-lives, and whether some of it is
+   * kept from fading; says what its light asks for, if anything.
+   */
+  see(view: View, faded = 0, kept = false): ViewStep | null {
     const last = this.#last;
     this.#last = view;
     if (last === null) {
-      this.#least = view.scale;
+      this.#shown = [];
       return null;
     }
     if (sameView(last, view)) {
@@ -346,26 +418,34 @@ export class ViewRuns {
       this.#still++;
       if (this.#still < this.#settle) return null;
       this.#held = null;
+      this.#heldDrawn = [];
       return { act: "let go" };
     }
     this.#still = 0;
-    const shown = this.#least;
+    const forget = this.#forget;
+    this.#shown = counted(this.#shown, faded, forget, kept);
+    this.#heldDrawn = counted(this.#heldDrawn, faded, forget, kept);
+    // the least scale counted of the light that would be read
     const held = this.#held;
-    const read = held === null ? shown : this.#heldLeast;
-    if (view.scale / read > this.#limit) {
+    const read =
+      held === null
+        ? Math.min(last.scale, this.#shown[0]?.scale ?? last.scale)
+        : Math.min(held.scale, this.#heldDrawn[0]?.scale ?? held.scale);
+    if (view.scale / read > this.#limit * SLACK) {
       this.#held = null;
-      this.#least = view.scale;
+      this.#heldDrawn = [];
+      this.#shown = [];
       return { act: "clear" };
     }
     const camera = last.width === view.width && last.height === view.height;
     if (held === null || (camera && !covers(held, view))) {
       // the light shown becomes what is held
       this.#held = last;
-      this.#heldLeast = shown;
-      this.#least = Math.min(shown, view.scale);
+      this.#heldDrawn = this.#shown;
+      this.#shown = noting(this.#heldDrawn, last.scale, faded);
       return { act: "hold", from: last };
     }
-    this.#least = Math.min(read, view.scale);
+    this.#shown = noting(this.#heldDrawn, held.scale, faded);
     return { act: "carry", from: held };
   }
 }

@@ -11,6 +11,8 @@
 // their light divided by k, darkened for real only once k falls below a
 // 64th. Each span keeps the fade clock at its ends, in half-lives, not the
 // time, so that its light is right however the half-life changed since.
+// The snapshot, and its coarse image, are read only into a view at most a
+// quarter nearer than they saw, as the image carried is (decision 69).
 
 import {
   Merger,
@@ -20,8 +22,8 @@ import {
   type SpanStyle,
 } from "./curves.ts";
 import { SpanWindow } from "./spans.ts";
-import { LightTarget, type Trails } from "./trails.ts";
-import { fitScale, sameView, type View } from "./view.ts";
+import { GROWTH_LIMIT, LightTarget, type Trails } from "./trails.ts";
+import { SLACK, fitScale, sameView, type View } from "./view.ts";
 
 /** Whether an address asks for trails kept as curves: "?trails=sharp". */
 export function readTrailsAsked(search: string): boolean {
@@ -67,6 +69,16 @@ export function trailMechanism(asked: boolean, drawn: TrailsDrawn): Mechanism {
   return asked && !drawn.strobe && !drawn.mark && drawn.floating
     ? "sharp"
     : "B";
+}
+
+/**
+ * Whether light kept as `seen` saw it may be read into `view` (decision
+ * 69): while the view is at most GROWTH_LIMIT times nearer, by the camera or
+ * a larger canvas, as the image carried is kept; past that, its lines would
+ * read as wide, soft bands beside the fine ones.
+ */
+export function readable(seen: View, view: View): boolean {
+  return view.scale / seen.scale <= GROWTH_LIMIT * SLACK;
 }
 
 /** Half-lives of fade between snapshots. */
@@ -423,15 +435,18 @@ export class SharpTrails {
       this.#wait();
       began = performance.now();
     }
+    // the light before the window, from the older snapshot and its coarse
+    // image, each while the view is near enough to read it; it comes back as
+    // the view goes farther
     const base = this.#base;
     const from =
-      base === null
+      base === null || !readable(base.view, view)
         ? null
         : {
             image: base.image,
             view: base.view,
             coarse:
-              base.coarseView === null
+              base.coarseView === null || !readable(base.coarseView, view)
                 ? null
                 : { target: base.coarse, view: base.coarseView },
             gain: snapshotGain(base, { k: trails.k, fade: this.#fade }),

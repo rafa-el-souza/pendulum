@@ -2470,6 +2470,37 @@ copies, with twins and a fade, a remade image holds the light of the image
 kept frame by frame to 0.01%. Without a graphics card, at 1280 by 720, the
 piece without the address draws as many frames a second as before.
 
+## 69. Light that has faded no longer counts against the limit
+
+*2026-11-20.* The limit of decisions 66 and 67 counts only light that has
+not faded away: a scale the trails were drawn at stops counting once the
+light drawn there has faded three half-lives since the view left it, counted
+by the fade the trails take, which their length and the music's linger set.
+Trails that stay, and a mark, never fade, so every scale they were drawn at
+still counts. A view exactly a quarter nearer is within the limit however
+its scale rounds. Kept as curves (decision 68), the light from before the
+older snapshot, read from the snapshot or its coarse image, is read only
+into a view at most a quarter nearer than they saw, and comes back as the
+view goes farther; the spans since are drawn anew as before.
+
+**Why.** The limit kept the least scale the trails were drawn at until they
+were cleared, so light long faded cleared the trails drawn since: Z pressed
+once a minute cleared them every other time. Z after Z rounded past a
+quarter at some zooms. Read nearer, the light from before the snapshot came
+out in wide, soft bands under the fine lines.
+
+**Evidence.** Unit tests: Z pressed once a minute, the trails fading
+between, carries them every time, and trails that stay are cleared every
+other time, as before; a scale counts until it has faded the half-lives
+asked; nothing is forgotten while a mark keeps light; a gesture past the
+limit clears however long it lasts; a canvas grown twice, faded between,
+carries; a view a quarter nearer is within the limit at 24 zooms a quarter
+apart; the half-lives of a fade; a snapshot read nearer. A browser test, in
+the three engines: Z, the trails left to fade, then Z again carries them,
+and clears them with a mark. At the opening, side by side, Z pressed every
+18 s carries the trails at every press, and every 14 s too; before, every
+other press cleared them.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.

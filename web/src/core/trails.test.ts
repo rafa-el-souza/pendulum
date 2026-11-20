@@ -6,6 +6,7 @@ import {
   carriedGain,
   catmullRom,
   fadeAfter,
+  halfLivesOf,
   lightCurve,
 } from "./trails.ts";
 import { bufferView } from "./view.ts";
@@ -29,6 +30,21 @@ describe("a trail's light", () => {
 
   it("does not fade with a half-life without end, as a trail that stays", () => {
     expect(fadeAfter(1000, Number.POSITIVE_INFINITY)).toBe(1);
+  });
+});
+
+describe("the fade a trail's light takes, in half-lives (decision 69)", () => {
+  it("counts a frame's fade as the half-lives it took, however long the half-life, and none while the trails stay", () => {
+    expect(halfLivesOf(fadeAfter(1, 2.5))).toBeCloseTo(0.4, 12);
+    expect(halfLivesOf(fadeAfter(0.1 / 60, 10))).toBeCloseTo(1 / 6000, 12);
+    expect(halfLivesOf(0.25)).toBe(2);
+    expect(halfLivesOf(fadeAfter(1000, Number.POSITIVE_INFINITY))).toBe(0);
+  });
+
+  it("counts light put out at once as faded far past any count, and a fade that is not a number as none", () => {
+    expect(halfLivesOf(0)).toBeGreaterThanOrEqual(64);
+    expect(Number.isFinite(halfLivesOf(0))).toBe(true);
+    expect(halfLivesOf(Number.NaN)).toBe(0);
   });
 });
 
