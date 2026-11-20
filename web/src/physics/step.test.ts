@@ -894,4 +894,35 @@ describe("the music's command (decision 74; PH-2, PH-4)", () => {
     // and the music moved the chain far from where it would be without it
     expect(Math.abs(state.theta[n - 1] ?? 0)).toBeGreaterThan(0);
   });
+
+  it("moves twins stepped one after another by one stepper as each moves alone, number for number, the kicks' pull kept per instant (decision 75)", () => {
+    const n = 2;
+    const chain = Chain.uniform(n);
+    const shared = new Stepper(chain, { maxStep: 1 / 240 });
+    const alone = [0, 1, 2].map(() => new Stepper(chain, { maxStep: 1 / 240 }));
+    const born = (k: number): ChainState => ({
+      theta: Float64Array.from([0.3 + 1e-3 * k, 0.2]),
+      omega: Float64Array.from([0, 0.1 * k]),
+    });
+    const together = [0, 1, 2].map(born);
+    const apart = [0, 1, 2].map(born);
+    for (let frame = 0; frame < 120; frame++) {
+      const drive = music(chain, frame * FRAME, FRAME);
+      expect(drive.kicks.length).toBeGreaterThan(0);
+      together.forEach((twin, k) => {
+        const own = alone[k];
+        const theirs = apart[k];
+        if (own === undefined || theirs === undefined) return;
+        for (let piece = 0; piece < 4; piece++) {
+          const options = { drive, into: (piece * FRAME) / 4 };
+          shared.advance(twin, FRAME / 4, DOWN, options);
+          own.advance(theirs, FRAME / 4, DOWN, options);
+        }
+      });
+    }
+    together.forEach((twin, k) => {
+      expect(Array.from(twin.theta)).toEqual(Array.from(apart[k]?.theta ?? []));
+      expect(Array.from(twin.omega)).toEqual(Array.from(apart[k]?.omega ?? []));
+    });
+  });
 });

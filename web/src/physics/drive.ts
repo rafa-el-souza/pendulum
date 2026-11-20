@@ -10,7 +10,8 @@
 // hand pulls on the mass it holds; a drag slows every mass in proportion to
 // it. Every value that changes within the frame changes linearly, from its
 // value as the frame starts to its value as it ends, save the kicks, whose
-// shape is a formula of the time since each began.
+// shape is a formula of the time since each began. The kicks move the pivot
+// itself, which the drawing shows (decision 75).
 
 import type { Gravity, Hand } from "./chain.ts";
 
@@ -95,6 +96,49 @@ export function kickPlace(s: number, attack: number, decay: number): number {
     ((1 - Math.exp(-s / attack)) ** 3 * Math.exp(-s / decay)) /
     kickHeight(attack, decay)
   );
+}
+
+/** How fast a kick moves the pivot `s` s after it began, per metre of its size, in 1/s: the derivative of `kickPlace`. */
+export function kickSpeed(s: number, attack: number, decay: number): number {
+  if (!(s > 0)) return 0;
+  const rise = Math.exp(-s / attack);
+  const up = 1 - rise;
+  return (
+    (Math.exp(-s / decay) *
+      ((3 * up * up * rise) / attack - (up * up * up) / decay)) /
+    kickHeight(attack, decay)
+  );
+}
+
+/** Where the pivot is, from its place, and how fast it moves, in m and m/s, x then y, y up. */
+export interface PivotMotion {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+}
+
+/**
+ * Where the music's kicks have taken the pivot `t` s into the frame, and how
+ * fast it moves there, written to out (decision 75): the sum of every kick's
+ * place and speed along its line. The physics runs in the pivot's frame; the
+ * drawing adds this, so that the chain, its twins and their trails hang
+ * from where the pivot is.
+ */
+export function pivotAt(drive: Drive, t: number, out: PivotMotion): void {
+  out.x = 0;
+  out.y = 0;
+  out.vx = 0;
+  out.vy = 0;
+  for (const kick of drive.kicks) {
+    const s = t - kick.start;
+    const place = kickPlace(s, kick.attack, kick.decay);
+    const speed = kickSpeed(s, kick.attack, kick.decay);
+    out.x += place * kick.x;
+    out.y += place * kick.y;
+    out.vx += speed * kick.x;
+    out.vy += speed * kick.y;
+  }
 }
 
 /** How a kick accelerates the pivot `s` s after it began, per metre of its size, in 1/s²: the second derivative of `kickPlace`. */

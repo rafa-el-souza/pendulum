@@ -2618,6 +2618,59 @@ integrated on its own; the thermostat from above and from below; an empty
 record giving the numbers of none; the twins under the record as the loop
 would move them.
 
+## 75. The music moves the pivot, or holds the tip
+
+*2026-11-20.* Two candidates of the music card (decision 49) add a force to
+the light of "light": **speaker** and **dance**. They keep the music's pace:
+a kick lasts as long on the clock at any speed of the piece, so that in slow
+motion the chain feels it shorter. No force acts without a source playing,
+nor while the piece is paused.
+
+- **Speaker.** Each kick takes the pivot aside, across gravity, and back
+  (decision 74's kick, rising over 15 ms and falling over 100 ms of the
+  clock), as far as the kick is strong: 4 cm at the middle strength on
+  chains of up to three masses, 4 cm × √(3/n) on longer ones. Its drag is
+  0.2 per second while the music plays and 2 in its silence.
+- **Dance.** A hand of the music with a grip of 12 (decision 18) holds the
+  tip. On each kick its target crosses to the other side of the arc the tip
+  reaches, in 0.12 s, as far from straight down as 40° times the loudness at
+  the middle strength, at most 60°. No drag while the music plays; in its
+  silence the target goes back to rest, under the speaker's drag. The
+  visitor's hand takes the chain from it, and it takes hold again over a
+  second once let go. Its spring is drawn as the visitor's, in the chain's
+  colour.
+- **The pivot drawn where it is.** The physics runs in the pivot's frame;
+  the chain, its twins, their trails and the visitor's hand are drawn from
+  where the kicks have taken the pivot at each instant.
+- **Time backwards** does nothing while a mode with a force has a source
+  playing, or kicks go on, and its button is faded.
+- **Reduced motion:** no kicks, and the hand crosses over a second.
+
+The strength's steps multiply the forces as they do the light. The sizes,
+times and the grip are placeholders.
+
+**Why.** The music is to act on the chain as a force (decision 46), each
+way with its own dissipation. A probe of the physics found the kick sideways
+and the hand on the tip the ways that stay bounded: kicks along gravity pull
+the rods with 17 to 82 times the weight each beat, and without drag the
+kicks pump the fast motions of chains of eight masses or more. Until the
+piece follows the beat, the kicks are what the hand can keep time with.
+
+**Evidence.** A kick every half second for 20 s, then 8 s of silence, at
+×0.8: the speaker keeps the energy above rest under 0.31 of the energy that
+lifts the hanging chain level, on 2 and 8 masses, and the dance under 3.3;
+both calm to a hundredth of it within 2.5 s of silence. The hand alone,
+without drag in the silence, leaves 16 masses swinging past 10 s. A twin of
+two masses costs 1.5 times as much under the speaker (2.75 times without the
+pull kept per instant) and 2.5 times under the hand, so that fewer twins fit
+while they act. Unit tests: the kicks' sizes, directions and times on the
+piece's clock; the drag; the hand's crossings, letting go and taking hold; a
+frame cut short; twins stepped one after another by one stepper moving as
+each alone, number for number, with the kicks' pull kept for the instants
+the next twin meets. In the browser, the modes come in order in the card and
+the address, and time backwards is faded and refused while the dance plays
+the demo beat, and back with the music off.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.

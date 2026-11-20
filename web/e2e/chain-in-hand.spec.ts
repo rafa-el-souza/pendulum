@@ -2308,11 +2308,19 @@ test("the music card's mode and strength are kept in the address, beside a saved
   await expect(
     strength.getByRole("button", { name: "Strength 3 of 5" }),
   ).toHaveAttribute("aria-pressed", "true");
-  // the candidates come next (decision 49), and "none" last, round from the
-  // first
+  // the candidates come next, the forces first (decisions 49 and 75), and
+  // "none" last, round from the first
+  await mode.getByRole("button", { name: "Next mode" }).click();
+  await expect(mode).toHaveText(/speaker/);
+  await expect(page).toHaveURL(/[?&]music=speaker(&|$)/);
+  await mode.getByRole("button", { name: "Next mode" }).click();
+  await expect(mode).toHaveText(/dance/);
+  await expect(page).toHaveURL(/[?&]music=dance(&|$)/);
   await mode.getByRole("button", { name: "Next mode" }).click();
   await expect(mode).toHaveText(/glow/);
   await expect(page).toHaveURL(/[?&]music=glow(&|$)/);
+  await mode.getByRole("button", { name: "Previous mode" }).click();
+  await mode.getByRole("button", { name: "Previous mode" }).click();
   await mode.getByRole("button", { name: "Previous mode" }).click();
   await mode.getByRole("button", { name: "Previous mode" }).click();
   await expect(mode).toHaveText(/none/);
@@ -2336,6 +2344,35 @@ test("the music card's mode and strength are kept in the address, beside a saved
   await expect(
     strength.getByRole("button", { name: "Strength 2 of 5" }),
   ).toHaveAttribute("aria-pressed", "true");
+  expect(errors).toEqual([]);
+});
+
+test("while the music acts on the chain as a force, time does not run backwards and its button is faded; with the music off, it runs backwards again (decision 75)", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("./?music=dance");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  const { source } = musicCard(page);
+  await page.keyboard.press("w");
+  await source("Demo beat").click();
+  await hearsSound(page, errors);
+  await page.keyboard.press("Escape");
+  await openControls(page);
+  const backwards = await reveal(page, "Run time backwards");
+  await expect(backwards).toHaveClass(/_idle_/);
+  await page.keyboard.press("b");
+  await frames(page, 3);
+  await expect(backwards).toBeAttached();
+  await expect(icon(page, "Run time forwards")).toHaveCount(0);
+
+  // the music off: the button lights, and B runs time backwards
+  await page.keyboard.press("w");
+  await source("Off").click();
+  await page.keyboard.press("Escape");
+  await expect(backwards).not.toHaveClass(/_idle_/);
+  await page.keyboard.press("b");
+  await expect(icon(page, "Run time forwards")).toBeAttached();
   expect(errors).toEqual([]);
 });
 
