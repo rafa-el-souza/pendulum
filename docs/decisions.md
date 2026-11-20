@@ -2527,6 +2527,29 @@ masses drawing and the wheel in and out: the dark rectangle where a snapshot
 had been taken at six times nearer is gone. With `?keep=10`, the curves kept
 11 s of motion after 14 s, the window at 275 MB, against 1.4 s and 40 MB.
 
+## 71. Trails kept as curves are the default
+
+*2026-11-20.* The trails are kept as curves and drawn anew in any view
+(decision 68) unless the address asks for layers, `?trails=layers`: the
+image carried to each new view (decisions 66, 67 and 69), where a view that
+comes nearer clears the light it would stretch and one that goes farther
+keeps only what it saw, around which the trails go on. `?trails=sharp` still
+asks for the curves. The curves keep ten times as many spans when the
+address asks for none (decision 70). A strobe's trails, a mark and browsers
+without half floats still go on as layers, and the meter names them so.
+
+**Why.** Kept as an image, the trails were cleared by a fast zoom and cut to
+the old view by zooming out; the curves keep both. Layers stay for what they
+draw: going farther step by step stacks what each view kept.
+
+**Evidence.** Unit tests of the address, the default window and the
+mechanism's name. Browser tests, in the three engines: the trails kept as
+curves without the address and as layers with it, named by the meter and
+kept beside a saved moment; the tests of the image carried open it as
+layers. Without a graphics card, at 1280 by 720, medians of six rounds in
+each order: 13.4 and 12.4 frames a second at the opening against 12.9 and
+12.7 before, and 59.6 and 59.9 with 4 096 twins against 55.4 and 54.1.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
