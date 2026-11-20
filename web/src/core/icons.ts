@@ -362,7 +362,7 @@ const BARS = {
   pitch: 6,
   width: 3,
   floor: 20,
-  least: 5,
+  least: 8,
   most: 17,
 };
 

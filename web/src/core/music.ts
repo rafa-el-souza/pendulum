@@ -111,7 +111,7 @@ export function mountMusic(): Music {
   panel.className = cls(styles, "panel");
   panel.id = "music-panel";
   panel.setAttribute("role", "group");
-  panel.setAttribute("aria-label", "What the music sends");
+  panel.setAttribute("aria-label", "What the piece hears");
 
   // the meter: the last seconds of loudness, the attacks marked, and the
   // bands; in sight while a source plays
