@@ -43,7 +43,22 @@ import {
   twinShine,
   widened,
 } from "../core/twins.ts";
-import { bufferView, reachBox, toWorld, type View } from "../core/view.ts";
+import { Touches, readWait, type Spot } from "../core/touches.ts";
+import {
+  bufferView,
+  fitScale,
+  panBy,
+  pinched,
+  readCamera,
+  reachBox,
+  toWorld,
+  withCommas,
+  writeCamera,
+  zoomAbout,
+  type Camera,
+  type PinchStart,
+  type View,
+} from "../core/view.ts";
 import { Chain, createHand, type Hand } from "../physics/chain.ts";
 import { startInMode } from "../physics/modes.ts";
 import { resample } from "../physics/resample.ts";
@@ -131,10 +146,17 @@ import { titleOf } from "./title.ts";
 // The piece can listen to music, from the microphone, a file, a tab's sound
 // or a beat of its own, and a card shows what it hears (decisions 44 and
 // 45); the music lights the chain, its trails and its twins (decision 46).
+// The view comes up to sixty-four times nearer, by the wheel, a trackpad's
+// pinch, Z and X, or two fingers, and moves with the middle button, Space and
+// a drag, or two fingers; a finger waits a moment before it grabs, and the
+// address carries the view (decision 67).
 
 // A frame longer than this (a hidden tab, a stall) moves the chain by this
 // much only, so that it never jumps.
 const LONGEST_FRAME = 1 / 30;
+// How much nearer Z brings the camera, and X farther, about the middle of the
+// canvas (decision 67).
+const ZOOM_STEP = 1.25;
 // A pointer that has sent no move for this long has stopped moving.
 const STILL_AFTER_MS = 60;
 // The physics of one frame may take this long; past it, time runs slower
@@ -360,6 +382,20 @@ function play({ canvas, gl }: Stage): void {
   // time the twins' workers may take (decision 51)
   const rhythm = new FrameRhythm();
   const pointer = { id: -1, x: 0, y: 0, vx: 0, vy: 0, at: 0 };
+  // How the piece is looked at (decision 67): the camera the address asks
+  // for, the whole view otherwise; the fingers on the stage, which wait
+  // before they grab so that two can pinch; a drag that moves the view; and
+  // how many frames have gone by since the view last changed, while which
+  // the twins' budget learns nothing.
+  let camera: Camera = readCamera(location.search, chain.totalLength);
+  const touches = new Touches(readWait(location.search));
+  let pinch: PinchStart | null = null;
+  let panning: { id: number; x: number; y: number } | null = null;
+  let spaceHeld = false;
+  let spaceUsed = false;
+  let safariPinch: { zoom: number } | null = null;
+  let viewStill = Number.POSITIVE_INFINITY;
+  let addressTimer = 0;
   // What the music does (decision 46): its mode and strength, from the
   // address, the routes that follow it, and what they add to the light this
   // frame. With reduced motion asked for, pulses become slow waves.
@@ -825,11 +861,21 @@ function play({ canvas, gl }: Stage): void {
     // the music's mode and strength stay in the readable part, outside the
     // saved moment's code (decision 46)
     const ids = MODES.map(({ id }) => id);
-    const search = writeMusic(ids, location.search, tune.mode, tune.strength);
+    // and so does the camera, with its comma as a comma (decision 67)
+    const search = writeCamera(
+      writeMusic(ids, location.search, tune.mode, tune.strength),
+      camera,
+    );
     const part = addressOf(values, switches(), saved, search);
     const tuned =
-      saved === null ? "" : writeMusic(ids, "", tune.mode, tune.strength);
-    history.replaceState(null, "", `${location.pathname}${tuned}${part}`);
+      saved === null
+        ? ""
+        : writeCamera(writeMusic(ids, "", tune.mode, tune.strength), camera);
+    history.replaceState(
+      null,
+      "",
+      `${location.pathname}${withCommas(tuned)}${withCommas(part)}`,
+    );
     showTitle();
     showSave();
     card.update(location.href, document.title);
@@ -1154,36 +1200,97 @@ function play({ canvas, gl }: Stage): void {
   // the button shows for a moment as the piece opens, so that it is found
   controls.wake();
 
-  /** The view the frame is drawn in: the drawing buffer's alone (decision 66). */
+  /**
+   * The view the frame is drawn in: the drawing buffer's alone (decision
+   * 66), as the camera sees it (decision 67).
+   */
   function seen(): View {
     return bufferView(
       gl.drawingBufferWidth,
       gl.drawingBufferHeight,
       chain.totalLength,
+      camera,
     );
   }
 
-  function world(event: PointerEvent): [number, number] {
-    // the drawing buffer's pixel under the pointer, as the canvas shows it,
-    // in the view the frame is drawn in
+  /**
+   * The camera's own view, its point exactly at the centre, which the
+   * gestures work in, so that a point held under the mouse or the fingers
+   * does not drift by the whole pixels the drawn view is moved to.
+   */
+  function cameraView(): View {
+    const width = gl.drawingBufferWidth;
+    const height = gl.drawingBufferHeight;
+    return {
+      width,
+      height,
+      scale: fitScale(width, height, chain.totalLength) * camera.zoom,
+      cx: camera.cx,
+      cy: camera.cy,
+    };
+  }
+
+  /** The drawing buffer's pixel under a point of the page, as the canvas shows it. */
+  function bufferPoint(clientX: number, clientY: number): [number, number] {
     const box = canvas.getBoundingClientRect();
-    const view = seen();
-    return toWorld(
-      box.width > 0 ? ((event.clientX - box.left) * view.width) / box.width : 0,
-      box.height > 0
-        ? ((event.clientY - box.top) * view.height) / box.height
+    return [
+      box.width > 0
+        ? ((clientX - box.left) * gl.drawingBufferWidth) / box.width
         : 0,
-      view,
-    );
+      box.height > 0
+        ? ((clientY - box.top) * gl.drawingBufferHeight) / box.height
+        : 0,
+    ];
   }
 
-  canvas.addEventListener("pointerdown", (event) => {
-    if (pointer.id !== -1) return;
-    event.preventDefault();
-    canvas.setPointerCapture(event.pointerId);
-    const [px, py] = world(event);
-    // Grabbing the chain sets it going again, if it was paused, forwards, and
-    // ends its twins; letting it go gives it new ones.
+  /** The point of the world under a point of the page, in the view the frame is drawn in. */
+  function world(at: Spot): [number, number] {
+    return toWorld(...bufferPoint(at.x, at.y), seen());
+  }
+
+  /** Where a pointer is on the page. */
+  function spotOf(event: PointerEvent): Spot {
+    return { x: event.clientX, y: event.clientY };
+  }
+
+  /**
+   * The camera has moved (decision 67): the address follows once it stays,
+   * not at every frame of a gesture.
+   */
+  function viewMoved(): void {
+    clearTimeout(addressTimer);
+    addressTimer = window.setTimeout(keepAddress, 300);
+  }
+
+  /**
+   * Whether the view has stayed for the last two frames: a frame that
+   * changed it, and the next, take longer than the screen's rhythm, and
+   * would teach the twins' budget to carry fewer of them (decision 67).
+   */
+  function steady(): boolean {
+    return viewStill >= 2;
+  }
+
+  /** The camera `factor` times nearer about a point of the page, which stays under it. */
+  function zoomAt(clientX: number, clientY: number, factor: number): void {
+    const [wx, wy] = toWorld(...bufferPoint(clientX, clientY), cameraView());
+    camera = zoomAbout(camera, wx, wy, factor, chain.totalLength);
+    viewMoved();
+  }
+
+  /** The camera nearer or farther about the middle of the canvas, by Z and X. */
+  function zoomMiddle(factor: number): void {
+    const box = canvas.getBoundingClientRect();
+    zoomAt(box.left + box.width / 2, box.top + box.height / 2, factor);
+  }
+
+  /**
+   * A press, or a finger that has waited, grabs the chain where it is: it
+   * sets the chain going again, if it was paused, forwards, and ends its
+   * twins; letting it go gives it new ones.
+   */
+  function grab(id: number, at: Spot, time: number): void {
+    const [px, py] = world(at);
     if (paused) setPaused(false);
     if (backwards) setBackwards(false);
     inMode = false;
@@ -1195,23 +1302,38 @@ function play({ canvas, gl }: Stage): void {
       vx: 0,
       vy: 0,
     });
-    Object.assign(pointer, {
-      id: event.pointerId,
-      x: px,
-      y: py,
-      vx: 0,
-      vy: 0,
-      at: event.timeStamp,
-    });
-  });
+    Object.assign(pointer, { id, x: px, y: py, vx: 0, vy: 0, at: time });
+  }
 
-  canvas.addEventListener("pointermove", (event) => {
-    if (event.pointerId !== pointer.id) {
-      // a pointer moving over the stage, not holding the chain, wakes the controls
-      if (event.pointerType === "mouse") controls.wake();
-      return;
-    }
-    const [px, py] = world(event);
+  /** Two fingers begin to pinch: the point of the world between them stays between them. */
+  function beginPinch(): void {
+    const pair = touches.pair;
+    if (pair === null) return;
+    pinch = {
+      camera,
+      world: toWorld(...bufferPoint(pair.x, pair.y), cameraView()),
+      distance: pair.distance,
+    };
+  }
+
+  /** The camera the two fingers ask for now. */
+  function followPinch(): void {
+    const pair = touches.pair;
+    if (pair === null || pinch === null) return;
+    camera = pinched(
+      pinch,
+      ...bufferPoint(pair.x, pair.y),
+      pair.distance,
+      gl.drawingBufferWidth,
+      gl.drawingBufferHeight,
+      chain.totalLength,
+    );
+    viewMoved();
+  }
+
+  /** The hand follows the pointer that holds the chain, with a smoothed velocity. */
+  function follow(event: PointerEvent): void {
+    const [px, py] = world(spotOf(event));
     const dt = Math.max(1e-3, (event.timeStamp - pointer.at) / 1000);
     // A smoothed velocity, so that the throw has the speed of the gesture.
     const blend = Math.min(1, dt / 0.03);
@@ -1220,9 +1342,98 @@ function play({ canvas, gl }: Stage): void {
     pointer.x = px;
     pointer.y = py;
     pointer.at = event.timeStamp;
+  }
+
+  /** Holds `event`'s pointer to the canvas, which a pointer the page made up cannot be. */
+  function capture(event: PointerEvent): void {
+    try {
+      canvas.setPointerCapture(event.pointerId);
+    } catch {
+      // a pointer no device made, as a test's
+    }
+  }
+
+  canvas.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    // a finger waits before it grabs, so that a second can pinch (decision 67)
+    if (event.pointerType === "touch") {
+      capture(event);
+      if (
+        touches.down(event.pointerId, spotOf(event), event.timeStamp) ===
+        "pinch"
+      ) {
+        beginPinch();
+      }
+      return;
+    }
+    if (pointer.id !== -1 || panning !== null) return;
+    capture(event);
+    // the middle button, or any with Space held, moves the view and does
+    // not grab (decision 67)
+    if (event.button === 1 || spaceHeld) {
+      panning = { id: event.pointerId, x: event.clientX, y: event.clientY };
+      spaceUsed = true;
+      canvas.style.cursor = "grabbing";
+      return;
+    }
+    grab(event.pointerId, spotOf(event), event.timeStamp);
+  });
+
+  // the middle button scrolls the page by itself in some browsers
+  canvas.addEventListener("mousedown", (event) => {
+    if (event.button === 1) event.preventDefault();
+  });
+
+  canvas.addEventListener("pointermove", (event) => {
+    if (panning !== null && event.pointerId === panning.id) {
+      const box = canvas.getBoundingClientRect();
+      const kx = box.width > 0 ? gl.drawingBufferWidth / box.width : 1;
+      const ky = box.height > 0 ? gl.drawingBufferHeight / box.height : 1;
+      camera = panBy(
+        camera,
+        (event.clientX - panning.x) * kx,
+        (event.clientY - panning.y) * ky,
+        cameraView().scale,
+        chain.totalLength,
+      );
+      panning.x = event.clientX;
+      panning.y = event.clientY;
+      viewMoved();
+      return;
+    }
+    if (event.pointerType === "touch") {
+      const asked = touches.move(event.pointerId, spotOf(event));
+      if (asked === "grab") {
+        const holder = touches.holder;
+        if (holder !== null) grab(holder.id, holder.spot, event.timeStamp);
+        return;
+      }
+      if (asked === "pinch") {
+        followPinch();
+        return;
+      }
+    }
+    if (event.pointerId !== pointer.id) {
+      // a pointer moving over the stage, not holding the chain, wakes the controls
+      if (event.pointerType === "mouse") controls.wake();
+      return;
+    }
+    follow(event);
   });
 
   const letGo = (event: PointerEvent): void => {
+    if (panning !== null && event.pointerId === panning.id) {
+      panning = null;
+      canvas.style.cursor = spaceHeld ? "grab" : "";
+      return;
+    }
+    if (event.pointerType === "touch") {
+      const lifted = touches.up(event.pointerId);
+      if (lifted === "end") pinch = null;
+      // a tap, too short to grab, wakes the controls as a lifted finger does
+      if (lifted === "tap") controls.wake();
+      if (lifted !== "let go") return;
+    }
     if (event.pointerId !== pointer.id) return;
     pointer.id = -1;
     hand = null;
@@ -1232,6 +1443,63 @@ function play({ canvas, gl }: Stage): void {
   };
   canvas.addEventListener("pointerup", letGo);
   canvas.addEventListener("pointercancel", letGo);
+
+  // The wheel, and a trackpad's pinch, which comes as the wheel with Ctrl,
+  // zoom about the mouse (decision 67); sliding two fingers on a trackpad
+  // zooms too.
+  canvas.addEventListener(
+    "wheel",
+    (event) => {
+      event.preventDefault();
+      if (safariPinch !== null) return;
+      const per = event.ctrlKey
+        ? 0.01
+        : event.deltaMode === 1
+          ? 0.05
+          : event.deltaMode === 2
+            ? 1
+            : 0.002;
+      zoomAt(event.clientX, event.clientY, Math.exp(-event.deltaY * per));
+    },
+    { passive: false },
+  );
+
+  // Safari on a Mac gives a trackpad's pinch events of its own, with how
+  // far the fingers have spread since they began; on a touch screen the
+  // fingers themselves pinch.
+  interface SafariPinch extends Event {
+    readonly scale: number;
+    readonly clientX: number;
+    readonly clientY: number;
+  }
+  canvas.addEventListener("gesturestart", (event) => {
+    event.preventDefault();
+    if (touches.count === 0) safariPinch = { zoom: camera.zoom };
+  });
+  canvas.addEventListener("gesturechange", (event) => {
+    event.preventDefault();
+    if (safariPinch === null) return;
+    const { scale, clientX, clientY } = event as SafariPinch;
+    if (!(scale > 0)) return;
+    zoomAt(clientX, clientY, (safariPinch.zoom * scale) / camera.zoom);
+  });
+  canvas.addEventListener("gestureend", (event) => {
+    event.preventDefault();
+    safariPinch = null;
+  });
+
+  // Space pauses as it is let go, unless it moved the view while held
+  // (decision 67); a window left with Space held forgets it.
+  addEventListener("keyup", (event) => {
+    if (event.key !== " " || !spaceHeld) return;
+    spaceHeld = false;
+    if (panning === null) canvas.style.cursor = "";
+    if (!spaceUsed) setPaused(!paused);
+  });
+  addEventListener("blur", () => {
+    spaceHeld = false;
+    if (panning === null) canvas.style.cursor = "";
+  });
 
   addEventListener("keydown", (event) => {
     if (event.metaKey || event.ctrlKey || event.altKey) return;
@@ -1256,7 +1524,15 @@ function play({ canvas, gl }: Stage): void {
     }
     if (event.key === " ") {
       event.preventDefault();
-      setPaused(!paused);
+      if (!event.repeat) {
+        spaceHeld = true;
+        spaceUsed = false;
+        if (panning === null) canvas.style.cursor = "grab";
+      }
+    } else if (event.key === "z" || event.key === "Z") {
+      zoomMiddle(ZOOM_STEP);
+    } else if (event.key === "x" || event.key === "X") {
+      zoomMiddle(1 / ZOOM_STEP);
     } else if (event.key === "r" || event.key === "R") {
       start();
     } else if (event.key === "s" || event.key === "S") {
@@ -1290,7 +1566,7 @@ function play({ canvas, gl }: Stage): void {
     // when it changed (decision 66). In the frame where the window has
     // changed and the buffer not yet, the buffer's view is the one shown.
     const view = seen();
-    trails.see(view);
+    viewStill = trails.see(view) ? 0 : viewStill + 1;
     const scale = view.scale;
     const rodPixels = (chain.totalLength / chain.n) * (scale / ratio);
     // Every mass, twin and trail stays within the chain's length of the
@@ -1702,7 +1978,8 @@ function play({ canvas, gl }: Stage): void {
       rhythm.late,
       { least: TWIN_LEAST_MS, most: TWIN_MOST_MS, floor: TWIN_LOCAL_MS },
     );
-    twinBudget += 0.1 * (free - twinBudget);
+    // a gesture's frames do not move it (decision 67)
+    if (steady()) twinBudget += 0.1 * (free - twinBudget);
     twins.setBudget(twins.local ? TWIN_LOCAL_MS : twinBudget);
     twins.send({
       time: simulated,
@@ -1772,7 +2049,7 @@ function play({ canvas, gl }: Stage): void {
       if (fades && k < report.apart.length) {
         fading.see(j, report.apart[k] ?? 0, FADE_REACH);
       }
-    });
+    }, steady());
     if (measured > 0 && value(FADE) === HELD_STEP) {
       doubling.add(stretch / measured, stretchTime / measured);
     }
@@ -1783,8 +2060,15 @@ function play({ canvas, gl }: Stage): void {
     requestAnimationFrame(frame);
     const dt = Math.min(LONGEST_FRAME, Math.max(0, (now - last) / 1000));
     const real = Math.min(0.25, Math.max(0, (now - last) / 1000));
-    rhythm.frame(now - last);
+    // a frame that followed a change of the view is no measure of the
+    // screen's rhythm (decision 67)
+    if (steady()) rhythm.frame(now - last);
     last = now;
+    // a finger that has waited long enough grabs the chain (decision 67)
+    if (touches.due(now) === "grab") {
+      const holder = touches.holder;
+      if (holder !== null) grab(holder.id, holder.spot, now);
+    }
     // what the music says this frame, which the card's meter shows, paused
     // or not, and what it adds to the light, in real time (decision 46)
     const heard = music.hear();
