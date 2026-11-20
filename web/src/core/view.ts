@@ -290,7 +290,7 @@ export function sameView(a: View, b: View): boolean {
 export const SLACK = 1 + 1e-9;
 
 /** Whether every point `inner` sees, `outer` sees too. */
-function covers(outer: View, inner: View): boolean {
+export function covers(outer: View, inner: View): boolean {
   const ox = outer.width / 2 / outer.scale;
   const oy = outer.height / 2 / outer.scale;
   const ix = inner.width / 2 / inner.scale;

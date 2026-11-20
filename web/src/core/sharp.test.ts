@@ -11,6 +11,7 @@ import {
   readable,
   snapshotDue,
   snapshotGain,
+  snapshotWhen,
   trailMechanism,
 } from "./sharp.ts";
 import { bufferView } from "./view.ts";
@@ -96,6 +97,15 @@ describe("the snapshots", () => {
     expect(snapshotDue(0.1, SNAPSHOT_SPANS)).toBe(true);
     // trails that stay never fade: the count alone brings one
     expect(snapshotDue(0, SNAPSHOT_SPANS)).toBe(true);
+  });
+
+  it("wait while the image lacks light from before the window, which a copy would lose, unless the window is full; then the copy is made with that light (decision 70)", () => {
+    expect(snapshotWhen(false, false, false)).toBe("no");
+    expect(snapshotWhen(false, true, true)).toBe("no");
+    expect(snapshotWhen(true, false, false)).toBe("copy");
+    expect(snapshotWhen(true, false, true)).toBe("copy");
+    expect(snapshotWhen(true, true, false)).toBe("no");
+    expect(snapshotWhen(true, true, true)).toBe("compose");
   });
 
   it("are read with their light faded since they were taken, in the units the image holds now", () => {
