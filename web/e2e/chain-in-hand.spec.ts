@@ -369,10 +369,14 @@ test("the trails are cleared when the canvas grows by more than a quarter, and c
   await page.setViewportSize({ width: 704, height: 440 });
   await frames(page, 3);
   expect(await lightShown(page)).toBeGreaterThan(0.5 * before);
-  // twice as large again: cleared, the chain alone left
+  // twice as large again: cleared, the chain alone left, as the light switch
+  // leaves it, whatever light the chain itself adds at this size
   await page.setViewportSize({ width: 1408, height: 880 });
   await frames(page, 3);
-  expect(await lightShown(page)).toBeLessThan(0.5 * before);
+  const grown = await lightShown(page);
+  await page.keyboard.press("l");
+  await frames(page, 3);
+  expect(grown).toBeLessThan(1.2 * (await lightShown(page)));
   expect(errors).toEqual([]);
 });
 
