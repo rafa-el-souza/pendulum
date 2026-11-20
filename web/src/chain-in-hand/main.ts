@@ -5,6 +5,7 @@ import { mountControls } from "../core/controls.ts";
 import { groundAt, mixColors } from "../core/grounds.ts";
 import { Lines, SegmentBatch } from "../core/lines.ts";
 import { mountLinkCard, shareLink } from "../core/link.ts";
+import { Meter } from "../core/meter.ts";
 import { mountMusicCard } from "../core/music.ts";
 import {
   Router,
@@ -15,6 +16,14 @@ import {
 } from "../core/routes.ts";
 import { fanPalette, noteColor } from "../core/palettes.ts";
 import { keyAction, stepValue, type Parameter } from "../core/parameters.ts";
+import {
+  SharpTrails,
+  keepMeasures,
+  readMeter,
+  readTrailsAsked,
+  trailMechanism,
+  type Mechanism,
+} from "../core/sharp.ts";
 import { mountStage, type Stage } from "../core/stage.ts";
 import {
   EARTH,
@@ -24,7 +33,7 @@ import {
   tensionScaleAt,
 } from "../core/tension.ts";
 import { LightTarget, Trails, fadeAfter } from "../core/trails.ts";
-import type { TwinHold } from "../core/twin-share.ts";
+import type { TwinClock, TwinHold, TwinReport } from "../core/twin-share.ts";
 import {
   FrameRhythm,
   TwinWorkers,
@@ -331,6 +340,24 @@ function play({ canvas, gl }: Stage): void {
   const trail = new SegmentBatch(4096);
   // where each mass of the chain was at the end of the last piece of trail
   let ends = new Float64Array(2 * chain.n);
+  // Trails kept as curves, drawn anew in any view, when the address asks for
+  // them (decision 68), beside the image carried to each view; and a meter
+  // that says what each costs on the device. The curves take each drawing
+  // mass's velocity with its place, at the end of each piece and as the
+  // first piece of a frame begins; each step of the motion begins at a
+  // point of the samples' clock, which the twins computed with it take, and
+  // fades the trails by its half-lives.
+  const curvesAsked = readTrailsAsked(location.search);
+  const sharp = curvesAsked
+    ? new SharpTrails(gl, trails, chain.totalLength)
+    : null;
+  let mechanism: Mechanism = "B";
+  const fpsMeter = readMeter(location.search) ? new Meter(document.body) : null;
+  if (sharp !== null) sharp.measuring = fpsMeter !== null;
+  let massSpeeds = new Float64Array(2 * chain.n);
+  let massStarts = new Float64Array(2 * chain.n);
+  let stepClock: TwinClock | null = null;
+  let stepFade = 0;
   // The colour of the tension (decision 35), off until it is switched on:
   // each rod's tension averaged over the motion of the frame, or of the
   // instant when no time went by, in Earth weights of what the rod holds.
@@ -422,6 +449,12 @@ function play({ canvas, gl }: Stage): void {
   // the simulated time since a strobe last stamped the chain (decision 50)
   let strobeClock = 0;
 
+  /** Every trail put out at once, and the curves kept of them (decision 68). */
+  function clearTrails(): void {
+    trails.clear();
+    sharp?.clear();
+  }
+
   /** The chain's trails go on from where its masses are now; each twin's goes on from where its worker says it is (decision 51). */
   function resetTrailEnds(): void {
     chain.positions(state.theta, x, y);
@@ -458,6 +491,79 @@ function play({ canvas, gl }: Stage): void {
       const music = 1 + Math.min(TRAIL_MOST, look.trail);
       trail.push(ax, ay, bx, by, color, light * music);
     }
+  }
+
+  /** The trails kept as curves, while they are the trails' mechanism and are drawn (decision 68); none otherwise. */
+  function curvesNow(): SharpTrails | null {
+    return mechanism === "sharp" && lit && value(TRAIL) > 0 ? sharp : null;
+  }
+
+  /** Each mass's velocity now, into `out`, x then y for each: how fast positions() changes. */
+  function massVelocities(out: Float64Array): void {
+    let vx = 0;
+    let vy = 0;
+    for (let i = 0; i < chain.n; i++) {
+      const sweep = (chain.lengths[i] ?? 0) * (state.omega[i] ?? 0);
+      vx += sweep * Math.cos(state.theta[i] ?? 0);
+      vy += sweep * Math.sin(state.theta[i] ?? 0);
+      out[2 * i] = vx;
+      out[2 * i + 1] = vy;
+    }
+  }
+
+  /**
+   * Mass `i`'s piece of trail as samples of a curve (decision 68), from where
+   * it was, at `seconds` and `fade` on the samples' clock, to where it is now;
+   * a mass that jumped starts its trail anew, and one whose trail does not go
+   * on from where the piece starts begins it there.
+   */
+  function curvePiece(
+    curves: SharpTrails,
+    i: number,
+    ax: number,
+    ay: number,
+    bx: number,
+    by: number,
+    seconds: number,
+    fade: number,
+    color: Rgb,
+    light: number,
+  ): void {
+    const merger = curves.chain;
+    const { fresh, closed, clock } = curves;
+    // stronger as the music asks (decision 46)
+    const shine = light * (1 + Math.min(TRAIL_MOST, look.trail));
+    if (Math.hypot(bx - ax, by - ay) >= TRAIL_JUMP) {
+      merger.cut(i, closed);
+    } else if (!merger.continues(i, ax, ay, 1e-9)) {
+      merger.cut(i, closed);
+      merger.sample(
+        i,
+        ax,
+        ay,
+        massStarts[2 * i] ?? 0,
+        massStarts[2 * i + 1] ?? 0,
+        seconds,
+        fade,
+        shine,
+        color,
+        fresh,
+        closed,
+      );
+    }
+    merger.sample(
+      i,
+      bx,
+      by,
+      massSpeeds[2 * i] ?? 0,
+      massSpeeds[2 * i + 1] ?? 0,
+      clock.seconds,
+      clock.fade,
+      shine,
+      color,
+      fresh,
+      closed,
+    );
   }
 
   /**
@@ -625,7 +731,7 @@ function play({ canvas, gl }: Stage): void {
     inMode = saved === null && mode > 0;
     meter = new PeriodTension(chain.n);
     setBackwards(saved?.backwards ?? false);
-    trails.clear();
+    clearTrails();
     // the frame computed ahead, and the twins, belong to the motion before
     ahead = null;
     trail.clear();
@@ -743,7 +849,7 @@ function play({ canvas, gl }: Stage): void {
       if (hand === null) spawnTwins();
     } else {
       twins.clear();
-      trails.clear();
+      clearTrails();
       trail.clear();
     }
     controls.showAction("light", on ? "light" : "dark", LIGHT_LABEL, on);
@@ -867,10 +973,19 @@ function play({ canvas, gl }: Stage): void {
       camera,
     );
     const part = addressOf(values, switches(), saved, search);
+    // and so do the trails' mechanism and the meter (decision 68)
     const tuned =
       saved === null
         ? ""
-        : writeCamera(writeMusic(ids, "", tune.mode, tune.strength), camera);
+        : writeCamera(
+            writeMusic(
+              ids,
+              keepMeasures(location.search),
+              tune.mode,
+              tune.strength,
+            ),
+            camera,
+          );
     history.replaceState(
       null,
       "",
@@ -1000,7 +1115,7 @@ function play({ canvas, gl }: Stage): void {
     // another lens measures afresh (decision 64)
     if (parameter === HOLD) doubling.clear();
     if (parameter === TRAIL && next === 0) {
-      trails.clear();
+      clearTrails();
       trail.clear();
     }
     // leaving the step that leaves a mark puts the mark out (decision 42)
@@ -1565,8 +1680,32 @@ function play({ canvas, gl }: Stage): void {
     // The view from the drawing buffer alone, and the trails carried to it
     // when it changed (decision 66). In the frame where the window has
     // changed and the buffer not yet, the buffer's view is the one shown.
+    // Kept as curves (decision 68), the trails are remade in it instead,
+    // unless the curves cannot keep them yet: a strobe's, a mark, or eight
+    // bits; the image shown then goes on as the image carried, and back.
     const view = seen();
-    viewStill = trails.see(view) ? 0 : viewStill + 1;
+    const trailStep = lit ? value(TRAIL) : 0;
+    const { halfLife, mark } = trailFade(trailStep);
+    const whole = camera.zoom <= 1;
+    if (sharp !== null) {
+      const wanted = trailMechanism(true, {
+        strobe: value(STYLE) === 1,
+        mark,
+        floating: trails.image.floating,
+      });
+      if (wanted !== mechanism) {
+        const frame = { view, whole, fade: 0, radius: 0.9 * ratio };
+        if (wanted === "sharp") sharp.start(frame);
+        else sharp.stop();
+        mechanism = wanted;
+        stepFade = 0;
+      }
+    }
+    const changed =
+      mechanism === "sharp" && sharp !== null
+        ? sharp.see(view)
+        : trails.see(view);
+    viewStill = changed ? 0 : viewStill + 1;
     const scale = view.scale;
     const rodPixels = (chain.totalLength / chain.n) * (scale / ratio);
     // Every mass, twin and trail stays within the chain's length of the
@@ -1673,10 +1812,18 @@ function play({ canvas, gl }: Stage): void {
 
     // The trails fade by the time that went by and take this frame's pieces;
     // the step that leaves a mark keeps the brightest of them too (decision
-    // 42).
-    const trailStep = lit ? value(TRAIL) : 0;
-    const { halfLife, mark } = trailFade(trailStep);
-    if (simulated > 0 && trailStep > 0) {
+    // 42). Kept as curves, they fade by the half-lives of the step drawn,
+    // take its spans and intervals, and are remade if the view changed
+    // (decision 68).
+    if (mechanism === "sharp" && sharp !== null) {
+      if (trailStep > 0) {
+        sharp.frame(
+          { view, whole, fade: stepFade, radius: 0.9 * ratio },
+          performance.now(),
+        );
+      }
+      stepFade = 0;
+    } else if (simulated > 0 && trailStep > 0) {
       // they last longer as the music asks (decision 49)
       trails.add(fadeAfter(simulated, halfLife * (1 + look.linger)), (into) => {
         lines.draw(trail, into, { radius: 0.9 * ratio, roundEnds: false });
@@ -1808,6 +1955,18 @@ function play({ canvas, gl }: Stage): void {
     const strobe = lit && value(TRAIL) > 0 && value(STYLE) === 1;
     let flashed = false;
     const ribbonLight = 0.55 * Math.min(1, 2.2 / Math.sqrt(chain.n));
+    // kept as curves (decision 68), the step begins on the samples' clock,
+    // fading as long as the trails last, longer as the music asks
+    const curves = curvesNow();
+    if (curves !== null) {
+      if (massSpeeds.length !== 2 * chain.n) {
+        massSpeeds = new Float64Array(2 * chain.n);
+        massStarts = new Float64Array(2 * chain.n);
+      }
+      const { halfLife } = trailFade(value(TRAIL));
+      stepClock = curves.clock.begin(halfLife * (1 + look.linger));
+      massVelocities(massStarts);
+    }
     for (let piece = 0; piece < pieces; piece++) {
       const want = asked / pieces;
       const shake = shakeAt(shakePhase);
@@ -1830,6 +1989,12 @@ function play({ canvas, gl }: Stage): void {
         }
       }
       chain.positions(state.theta, x, y);
+      const seconds = curves?.clock.seconds ?? 0;
+      const fade = curves?.clock.fade ?? 0;
+      if (curves !== null) {
+        curves.clock.advance(moved.simulated);
+        massVelocities(massSpeeds);
+      }
       for (let i = 0; i < chain.n; i++) {
         const bx = x[i] ?? 0;
         const by = y[i] ?? 0;
@@ -1841,11 +2006,16 @@ function play({ canvas, gl }: Stage): void {
           const color = tensionShown
             ? (rodColors[i] ?? colors.chain)
             : chainColor;
-          trailPiece(ax, ay, bx, by, color, light);
+          if (curves !== null) {
+            curvePiece(curves, i, ax, ay, bx, by, seconds, fade, color, light);
+          } else {
+            trailPiece(ax, ay, bx, by, color, light);
+          }
         }
         ends[2 * i] = bx;
         ends[2 * i + 1] = by;
       }
+      if (curves !== null) massStarts.set(massSpeeds);
       // at even times of the motion, unless the music flashes the strobe
       if (strobe && !flashes) {
         strobeClock += moved.simulated;
@@ -1857,6 +2027,10 @@ function play({ canvas, gl }: Stage): void {
       }
       // out of time: the rest of the frame is slow motion (decision 15)
       if (moved.simulated < want * 0.999) break;
+    }
+    // the half-lives the step fades the trails by, once it is drawn
+    if (curves !== null && stepClock !== null) {
+      stepFade += curves.clock.fade - stepClock.fade;
     }
     // on a kick, while the music flashes the strobe
     if (strobe && flashes && look.flash > 0) {
@@ -1989,6 +2163,9 @@ function play({ canvas, gl }: Stage): void {
       chain: at,
       hold,
       whole: value(LOOK) !== 1,
+      // kept as curves, each tip's velocity with its place, and the step's
+      // instant (decision 68)
+      clock: curvesNow() !== null && value(LOOK) !== 1 ? stepClock : null,
       budget: twins.local ? TWIN_LOCAL_MS : twinBudget,
     });
   }
@@ -2028,7 +2205,10 @@ function play({ canvas, gl }: Stage): void {
       const shine = fades ? (fading.light[j] ?? 1) : 1;
       const { pieces, tips } = report;
       const at = 2 * (pieces + 1) * k;
-      if (tipLines) {
+      const curves = tipLines ? curvesNow() : null;
+      if (curves !== null && report.clock !== null && pieces > 0) {
+        twinCurve(curves, j, report, at, color, light * shine * music);
+      } else if (tipLines) {
         for (let piece = 0; piece < pieces; piece++) {
           const from = at + 2 * piece;
           trailPiece(
@@ -2052,6 +2232,69 @@ function play({ canvas, gl }: Stage): void {
     }, steady());
     if (measured > 0 && value(FADE) === HELD_STEP) {
       doubling.add(stretch / measured, stretchTime / measured);
+    }
+  }
+
+  /**
+   * Twin `j`'s tip along a report as samples of a curve (decision 68), each
+   * piece at the instant its report's clock gives it: a twin whose trail
+   * does not go on from where the report starts begins it there, and one
+   * that jumped, born again, starts it anew.
+   */
+  function twinCurve(
+    curves: SharpTrails,
+    j: number,
+    report: TwinReport,
+    at: number,
+    color: Rgb,
+    light: number,
+  ): void {
+    const merger = curves.twins;
+    const { fresh, closed } = curves;
+    const { pieces, tips, tipSpeeds, clock, time } = report;
+    if (clock === null) return;
+    const step = time / pieces;
+    const x0 = tips[at] ?? 0;
+    const y0 = tips[at + 1] ?? 0;
+    if (!merger.continues(j, x0, y0, 1e-6)) {
+      merger.cut(j, closed);
+      merger.sample(
+        j,
+        x0,
+        y0,
+        tipSpeeds[at] ?? 0,
+        tipSpeeds[at + 1] ?? 0,
+        clock.seconds,
+        clock.fade,
+        light,
+        color,
+        fresh,
+        closed,
+      );
+    }
+    for (let piece = 1; piece <= pieces; piece++) {
+      const q = at + 2 * piece;
+      const x = tips[q] ?? 0;
+      const y = tips[q + 1] ?? 0;
+      const seconds = piece * step;
+      if (
+        Math.hypot(x - (tips[q - 2] ?? 0), y - (tips[q - 1] ?? 0)) >= TRAIL_JUMP
+      ) {
+        merger.cut(j, closed);
+      }
+      merger.sample(
+        j,
+        x,
+        y,
+        tipSpeeds[q] ?? 0,
+        tipSpeeds[q + 1] ?? 0,
+        clock.seconds + seconds,
+        clock.fade + seconds * clock.rate,
+        light,
+        color,
+        fresh,
+        closed,
+      );
     }
   }
 
@@ -2107,6 +2350,11 @@ function play({ canvas, gl }: Stage): void {
     }
     takeTwins(flashed);
     draw(simulated);
+    fpsMeter?.frame(now, {
+      remake: sharp?.remakeMs ?? null,
+      mechanism,
+      megabytes: (sharp?.bytes ?? 0) / 1e6,
+    });
 
     // Twins are born once the frame is drawn, of the chain as it is then:
     // those asked for, those gone dark, and the music's (decisions 43, 46).

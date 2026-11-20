@@ -1,0 +1,15 @@
+/* The meter an address can ask for (docs/decisions.md, decision 68): small,
+   in the top left corner, over the piece, out of the way of the controls in
+   the bottom right. */
+
+.meter {
+  position: fixed;
+  top: max(var(--space-1), env(safe-area-inset-top));
+  left: max(var(--space-1), env(safe-area-inset-left));
+  color: var(--color-ink-muted);
+  font-family: var(--font-text);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  user-select: none;
+}

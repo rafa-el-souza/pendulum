@@ -271,7 +271,8 @@ export type ViewStep =
   | { readonly act: "let go" }
   | { readonly act: "clear" };
 
-function sameView(a: View, b: View): boolean {
+/** Whether two views see the same, at the same size. */
+export function sameView(a: View, b: View): boolean {
   return (
     a.width === b.width &&
     a.height === b.height &&
