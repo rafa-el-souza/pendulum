@@ -137,7 +137,11 @@ interface Snapshot {
   readonly image: LightTarget;
   readonly coarse: LightTarget;
   view: View;
-  coarseView: View;
+  /**
+   * The coarse image's view; none, its target let go, for a snapshot taken
+   * in the whole view, which sees the whole disc.
+   */
+  coarseView: View | null;
   /** Where the window's spans after it begin. */
   mark: Float64Array;
   k: number;
@@ -250,12 +254,14 @@ export class SharpTrails {
    */
   start(frame: SharpFrame): void {
     this.clear();
-    // the image as it was last drawn, in the view it was drawn in
-    const view = this.#trails.view ?? frame.view;
+    // the image as it was last drawn, in the view it was drawn in; none
+    // before the first frame, when there is nothing to keep
+    const drawn = this.#trails.view;
+    const view = drawn ?? frame.view;
     const whole = sameView(view, frame.view) && frame.whole;
     this.#trails.keepAsCurves(view);
     this.#fitCoarse(view);
-    this.#base = this.#snapshot(view, whole);
+    if (drawn !== null) this.#base = this.#snapshot(view, whole);
     this.#imageView = view;
     this.#imageWhole = whole;
   }
@@ -294,14 +300,21 @@ export class SharpTrails {
     const trails = this.#trails;
     const { view, whole } = frame;
     this.#fitCoarse(view);
-    // the coarse image takes spans only away from the whole view; leaving
-    // it, it is made from the image, which saw the whole disc
+    // the coarse image takes spans only away from the whole view, and is let
+    // go there; leaving it, it is made from the image, which saw the whole
+    // disc
     let coarseNew = false;
-    const coarse = this.#coarse;
-    const coarseView = this.#coarseView;
     if (whole) {
       this.#coarseLive = false;
-    } else if (!this.#coarseLive && coarse !== null && coarseView !== null) {
+      this.#coarse?.dispose();
+    } else if (!this.#coarseLive && this.#coarseView !== null) {
+      const side = this.#coarseView.width;
+      this.#coarse ??= new LightTarget(this.#gl, [side, side]);
+      this.#coarse.fit();
+    }
+    const coarse = this.#coarse;
+    const coarseView = this.#coarseView;
+    if (!whole && !this.#coarseLive && coarse !== null && coarseView !== null) {
       if (this.#imageView !== null && this.#imageWhole) {
         trails.carryBetween(trails.image, this.#imageView, coarse, coarseView);
         coarseNew = true;
@@ -417,8 +430,10 @@ export class SharpTrails {
         : {
             image: base.image,
             view: base.view,
-            coarse: base.coarse,
-            coarseView: base.coarseView,
+            coarse:
+              base.coarseView === null
+                ? null
+                : { target: base.coarse, view: base.coarseView },
             gain: snapshotGain(base, { k: trails.k, fade: this.#fade }),
           };
     trails.remake(from, (into) => {
@@ -462,33 +477,36 @@ export class SharpTrails {
       cx: 0,
       cy: 0,
     };
-    const coarse = new LightTarget(this.#gl, [side, side]);
-    coarse.floating = true;
-    coarse.fit();
     const old = this.#coarse;
     if (old !== null && before !== null && this.#coarseLive) {
+      const coarse = new LightTarget(this.#gl, [side, side]);
       this.#trails.carryBetween(old, before, coarse, coarseView);
+      this.#coarse = coarse;
+    } else {
+      this.#coarse = null;
     }
     old?.dispose();
-    this.#coarse = coarse;
     this.#coarseView = coarseView;
   }
 
-  /** A snapshot of the image as it is, in `view`, and of the coarse image: live, or made from the image at the whole view. */
+  /**
+   * A snapshot of the image as it is, in `view`, and, away from the whole
+   * view, of the coarse image: the live one, or made from the image.
+   */
   #snapshot(view: View, whole: boolean): Snapshot {
     const trails = this.#trails;
-    const coarseView = this.#coarseView ?? view;
     const { width, height } = view;
     const reused = this.#spare.pop();
     const image = reused?.image ?? new LightTarget(this.#gl, [width, height]);
-    const coarse =
-      reused?.coarse ??
-      new LightTarget(this.#gl, [coarseView.width, coarseView.height]);
-    coarse.resize(coarseView.width, coarseView.height);
+    const coarse = reused?.coarse ?? new LightTarget(this.#gl, [1, 1]);
     trails.copyBetween(trails.image, image);
-    if (this.#coarseLive && this.#coarse !== null && !whole) {
+    const coarseView = whole ? null : this.#coarseView;
+    if (coarseView === null) {
+      coarse.dispose();
+    } else if (this.#coarseLive && this.#coarse !== null) {
       trails.copyBetween(this.#coarse, coarse);
     } else {
+      coarse.resize(coarseView.width, coarseView.height);
       trails.carryBetween(trails.image, view, coarse, coarseView);
     }
     this.#lastSnapshot = this.#fade;

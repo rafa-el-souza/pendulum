@@ -1014,8 +1014,10 @@ export class Trails {
     from: {
       readonly image: LightTarget;
       readonly view: View;
-      readonly coarse: LightTarget;
-      readonly coarseView: View;
+      readonly coarse: {
+        readonly target: LightTarget;
+        readonly view: View;
+      } | null;
       readonly gain: number;
     } | null,
     draw: (view: View) => void,
@@ -1030,7 +1032,7 @@ export class Trails {
         from.view,
         this.#target,
         view,
-        { target: from.coarse, view: from.coarseView },
+        from.coarse,
         from.gain,
       );
     }
