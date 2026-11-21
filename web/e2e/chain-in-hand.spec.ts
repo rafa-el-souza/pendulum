@@ -2131,6 +2131,7 @@ function music(page: Page) {
     group,
     panel,
     status: panel.getByRole("status", { includeHidden: true }),
+    tempo: panel.locator("#music-tempo"),
     meter: panel.getByRole("meter", {
       name: "Sound arriving",
       includeHidden: true,
@@ -2319,23 +2320,34 @@ test("the music's group plays a file of music chosen from the device, and hears 
   expect(errors).toEqual([]);
 });
 
-test("the music's panel says the demo beat's tempo once the beat clock is sure of it (decision 78)", async ({
+test("the music's panel says the demo beat's tempo once the beat clock is sure of it, and stays on a phone's screen (decision 78)", async ({
   page,
 }) => {
   const errors = collectErrors(page);
+  await page.setViewportSize({ width: 390, height: 800 });
   await page.goto("./");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   await page.keyboard.press("w");
-  const { status, source } = music(page);
+  const { panel, status, tempo, source } = music(page);
   await source("Demo beat").click();
-  // aloud or muted, the beat's clock hears it from the beat's function
   await expect(status).toHaveText(
-    /^(Playing the demo beat\.|The demo beat, muted[^]*) 120 bpm\.$/,
-    { timeout: 20_000 },
+    /^(Playing the demo beat\.|The demo beat, muted)/,
+    { timeout: 10_000 },
   );
+  // aloud or muted, the beat's clock hears it from the beat's function
+  await expect(tempo).toHaveText("120 bpm.", { timeout: 20_000 });
+  await expect(tempo).toBeVisible();
+  // the panel grows with it, and stays on a phone's screen
+  await expect
+    .poll(async () => {
+      const box = await panel.boundingBox();
+      return box !== null && box.x >= 0 && box.x + box.width <= 390;
+    })
+    .toBe(true);
   await awaken(page);
   await source("Demo beat").click();
   await expect(status).toHaveText("Not listening.");
+  await expect(tempo).toBeHidden();
   expect(errors).toEqual([]);
 });
 
@@ -2346,16 +2358,14 @@ test("the beat clock on the audio line hears a file of clicks, and the panel say
   await page.goto("./");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   await page.keyboard.press("w");
-  const { panel, status, source } = music(page);
+  const { panel, status, tempo, source } = music(page);
   await panel.locator('input[type="file"]').setInputFiles({
     name: "clicks.wav",
     mimeType: "audio/wav",
     buffer: clicksFile(100),
   });
   await expect(status).toHaveText("Playing clicks.wav.", { timeout: 10_000 });
-  await expect(status).toHaveText("Playing clicks.wav. 100 bpm.", {
-    timeout: 20_000,
-  });
+  await expect(tempo).toHaveText("100 bpm.", { timeout: 20_000 });
   await awaken(page);
   await source("File").click();
   await expect(status).toHaveText("Not listening.");

@@ -106,11 +106,19 @@ export interface Music {
 /** The words shown while nothing plays. */
 const RESTING = "Not listening.";
 
-/** The words of a source playing, with the music's tempo where the beat clock is sure of it and the music sounds. */
-export function withTempo(words: string, heard: Signals): string {
+/** How much less sure than SURE the beat clock may grow before a tempo shown goes. */
+const UNSURE_BY = 0.2;
+
+/**
+ * The music's tempo in words, beside those of the source playing: where the
+ * beat clock is sure of it and the music sounds, or, `shown` already, until
+ * the clock is UNSURE_BY less sure than that; else nothing.
+ */
+export function tempoWords(heard: Signals, shown: boolean): string {
   const beat = heard.beat;
-  if (beat === null || heard.silent || beat.confidence < SURE) return words;
-  return `${words} ${String(Math.round(beat.bpm))} bpm.`;
+  const least = shown ? SURE - UNSURE_BY : SURE;
+  if (beat === null || heard.silent || beat.confidence < least) return "";
+  return `${String(Math.round(beat.bpm))} bpm.`;
 }
 
 export function mountMusic(): Music {
@@ -140,12 +148,18 @@ export function mountMusic(): Music {
   status.className = cls(styles, "status");
   status.setAttribute("role", "status");
   status.textContent = RESTING;
+  // the tempo, beside the words and out of what a screen reader announces,
+  // since it changes as the clock follows the music
+  const tempo = document.createElement("span");
+  tempo.className = cls(styles, "tempo");
+  tempo.id = "music-tempo";
+  tempo.hidden = true;
   const privacy = document.createElement("span");
   privacy.className = cls(styles, "note");
   privacy.textContent = "Sound stays on this device.";
   const words = document.createElement("div");
   words.className = cls(styles, "words");
-  words.append(status, privacy);
+  words.append(status, tempo, privacy);
   const line = document.createElement("div");
   line.className = cls(styles, "line");
   line.append(meter, words);
@@ -258,13 +272,9 @@ export function mountMusic(): Music {
     forget();
     if (source !== "microphone") microphone.hidden = true;
     status.textContent = "Starting…";
-    playingWords = "";
     const outcome = await listening.start(source, choice);
     if (outcome === null) return;
     status.textContent = said(outcome);
-    if (outcome.kind === "listening" || outcome.kind === "muted") {
-      playingWords = said(outcome);
-    }
     if (outcome.kind !== "listening" && outcome.kind !== "muted") {
       light(null);
       microphone.hidden = true;
@@ -278,7 +288,6 @@ export function mountMusic(): Music {
   }
   // a share stopped from the browser's own bar
   listening.onEnd = () => {
-    playingWords = "";
     forget();
     light(null);
     privacy.hidden = true;
@@ -287,7 +296,6 @@ export function mountMusic(): Music {
   };
   function stop(): void {
     listening.stop();
-    playingWords = "";
     forget();
     microphone.hidden = true;
     light(null);
@@ -301,10 +309,10 @@ export function mountMusic(): Music {
   const attacks = new Uint8Array(COLUMNS);
   let lastColumn = -1;
   let saidAt = 0;
-  /** The words of the source playing, which the tempo joins; empty while none plays. */
-  let playingWords = "";
   /** The meter starts empty, as a source starts. */
   function forget(): void {
+    tempo.textContent = "";
+    tempo.hidden = true;
     levels.fill(0);
     attacks.fill(0);
     lastColumn = -1;
@@ -374,10 +382,9 @@ export function mountMusic(): Music {
     if (now - saidAt < WORDS_MS) return;
     saidAt = now;
     meter.setAttribute("aria-valuenow", heard.level.toFixed(2));
-    if (playingWords !== "") {
-      const words = withTempo(playingWords, heard);
-      if (status.textContent !== words) status.textContent = words;
-    }
+    const bpm = tempoWords(heard, !tempo.hidden);
+    if (tempo.textContent !== bpm) tempo.textContent = bpm;
+    tempo.hidden = bpm === "";
   }
 
   return music;
