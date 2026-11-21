@@ -2520,6 +2520,28 @@ test("the music's mode and strength, values of its group, are kept in the addres
   expect(errors).toEqual([]);
 });
 
+test("the dance's choreography is kept in the address, beside the music's mode and a saved moment too, and what the address does not know leaves it (decision 83)", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  const composed = "figure=eight&lead=clock&beats=2&feel=smooth&showhand=1";
+  await page.goto(`./?music=dance&${composed}&place=under`);
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  // another mode of the music keeps the choreography, and drops the place it
+  // does not know
+  await page.keyboard.press("w");
+  await icon(page, "What the music does").click();
+  const mode = page.getByRole("group", { name: "What the music does" });
+  await mode.getByRole("button", { name: "More: What the music does" }).click();
+  await expect(mode).toContainText("breath");
+  await expect(page).toHaveURL(new RegExp(`\\?music=breath&${composed}$`));
+  // a saved moment's code goes after the "#", and the choreography stays
+  // before it, with the music
+  await page.keyboard.press("s");
+  await expect(page).toHaveURL(new RegExp(`\\?music=breath&${composed}#.+`));
+  expect(errors).toEqual([]);
+});
+
 test("while the music acts on the chain as a force, time does not run backwards and its button is faded; with the music off, it runs backwards again (decisions 75 and 77)", async ({
   page,
 }) => {

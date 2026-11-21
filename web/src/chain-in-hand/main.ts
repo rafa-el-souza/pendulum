@@ -77,6 +77,7 @@ import type { Drive, PivotMotion } from "../physics/drive.ts";
 import { startInMode } from "../physics/modes.ts";
 import { PIECES } from "../pieces.ts";
 import { addressOf, openingOf, type Saved } from "./address.ts";
+import { readChoreography, writeChoreography } from "./forces/choreography.ts";
 import {
   AMPLITUDE,
   DRAWN,
@@ -428,6 +429,8 @@ function play({ canvas, gl }: Stage): void {
     location.search,
   );
   let router = new Router(modeOf(tune.mode), { slow: still.matches });
+  // How the music's hand dances (decision 83), from the address too.
+  const choreography = readChoreography(location.search);
   let look: Look = UNLIT;
   // What the music says this frame, which its forces take (decisions 75 and
   // 77, in the motion); and whether they act, which turns time backwards off.
@@ -947,9 +950,13 @@ function play({ canvas, gl }: Stage): void {
     // the music's mode and strength stay in the readable part, outside the
     // saved moment's code (decision 46)
     const ids = MODES.map(({ id }) => id);
-    // and so does the camera, with its comma as a comma (decision 67)
+    // and so do the dance's choreography (decision 83), and the camera, with
+    // its comma as a comma (decision 67)
     const search = writeCamera(
-      writeMusic(ids, location.search, tune.mode, tune.strength),
+      writeChoreography(
+        writeMusic(ids, location.search, tune.mode, tune.strength),
+        choreography,
+      ),
       camera,
     );
     const part = addressOf(values, switches(), saved, search);
@@ -958,11 +965,14 @@ function play({ canvas, gl }: Stage): void {
       saved === null
         ? ""
         : writeCamera(
-            writeMusic(
-              ids,
-              keepMeasures(location.search),
-              tune.mode,
-              tune.strength,
+            writeChoreography(
+              writeMusic(
+                ids,
+                keepMeasures(location.search),
+                tune.mode,
+                tune.strength,
+              ),
+              choreography,
             ),
             camera,
           );
@@ -1846,8 +1856,10 @@ function play({ canvas, gl }: Stage): void {
       ay = by;
     }
     // the visitor's hand, or the music's while it holds the tip (decision
-    // 75), in the chain's colour
-    const holder = motion.hand ?? motion.musicHand;
+    // 75), in the chain's colour, where its choreography shows it (decision
+    // 83): hidden, the chain dances by itself
+    const holder =
+      motion.hand ?? (choreography.shown ? motion.musicHand : null);
     if (holder !== null) {
       // How hard the hand pulls, in weights of the whole chain on Earth, eased
       // over a few frames so that a jittery pointer does not flicker: a hand
@@ -2026,6 +2038,7 @@ function play({ canvas, gl }: Stage): void {
       heard: heardNow,
       force: router.mode.force,
       strength: tune.strength,
+      dance: choreography,
       pointer,
       tension: tensionShown,
       speeds: curves !== null,
