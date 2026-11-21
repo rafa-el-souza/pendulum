@@ -3137,6 +3137,53 @@ the kicks were kept, and a twentieth to a third of the false kicks
 remained. A bass that leaps down a fourth or more can fall as far as a kick,
 and be heard as one.
 
+## 87. The dancing hand lets go, and its figure changes, over the bars
+
+*2026-11-21.* The choreography of decisions 83 and 85 gains the dance's long
+time. Over the bars the beat clock counts, whatever leads the hand, and while
+the clock is sure:
+
+- **the hand lets go** of the chain every 1, 2 or 4 bars, on the bar's first
+  beat, and the chain flies with no hand and no drag; on the bar's third beat
+  the hand catches the mass where it is, closing over a tenth of a second,
+  and brings it back to its figure over a beat (`toss=`);
+- **the figure changes** on the bar's first beat: every 1, 2, 4 or 8 bars to
+  the next figure; or to the one the last bar's loudness picks, the first for
+  a quiet bar and the last for a loud one, a bar near the line between them
+  keeping the one it has; the new figure glides in from the old over a beat
+  (`vary=`). The figures it changes through are those the address lists,
+  joined by hyphens (`figure=swing-circle-eight`), or, where it names one,
+  all eight in their order from it.
+
+A hand that has let go catches the mass at once where the clock is no longer
+sure, or the music falls silent. The dance counts its bars by the beats, one
+a turn of the clock's beat, from the bar's first beat as the clock gives it
+once sure, and moves that first beat only where the clock has held another
+for two bars, gliding there over a beat. The dance opens as it did.
+
+**Why.** A dance held one figure throughout. Letting go and catching gives a
+bar a free flight and a catch, and figures that follow one another compose
+over the bars. Which beat begins a bar is the clock's guess, the beat that
+brought the most bass over the last bars, and it wavers: in the demo beat,
+whose first and third beats both carry a kick and a bass note, it named every
+second beat the first between 5.6 and 8 s, and in an electronic piece it
+moved ten times in 41 s while sure. Counted by that guess, the dance missed
+those bars, and a figure led by the clock went back to its start every
+second.
+
+**Evidence.** Unit tests for the address and for each layer, and for a clock
+whose bar wavers, moves, or draws its beat back over a bar's first beat.
+Opened as before, the tests of the dance's motion from decisions 75, 83 and
+85 pass unchanged, and the replay test of decision 81 ends where it ended,
+bit for bit. In the browser, the new layers stay in the address beside the
+music's mode and a saved moment. On the page's path, with the demo beat, the
+hand first let go at 7.0 s, against 10.0 s counted by the clock's bar, and a
+circle led by the clock went round without going back to its start; with the
+electronic piece, it let go on 17 bars in 39 s. Varying between two figures
+with the loudness, the demo beat's figure changed as its quiet bars came and
+went, a bar after them, twice every 16 s, and the electronic piece's once,
+as it began.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
