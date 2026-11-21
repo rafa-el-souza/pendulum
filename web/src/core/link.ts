@@ -4,10 +4,12 @@
 // there is none, saying so a moment. The card shows the address as a QR code
 // in the middle of the screen, to open it on a phone, with the title under
 // it; an address longer than a code holds says so instead. The code's module
-// loads only when a card first asks for it.
+// loads only when a card first asks for it. Under the title, faint, the card
+// says that visits are counted, or that this device is not (decision 84).
 
 import { cls } from "./css.ts";
 import styles from "./link.module.css";
+import { countNote } from "./visits.ts";
 
 const SVG = "http://www.w3.org/2000/svg";
 /** How long the word that a link was copied stays, in ms. */
@@ -75,6 +77,9 @@ export function mountLinkCard(colors: {
   code.setAttribute("aria-label", "QR code of this page's address");
   const title = document.createElement("p");
   title.className = cls(styles, "title");
+  const note = document.createElement("p");
+  note.className = cls(styles, "note");
+  note.textContent = countNote();
   const close = document.createElement("button");
   close.type = "button";
   close.className = cls(styles, "close");
@@ -83,7 +88,7 @@ export function mountLinkCard(colors: {
   close.addEventListener("click", () => {
     shut();
   });
-  card.append(code, title, close);
+  card.append(code, title, note, close);
 
   const said = document.createElement("p");
   said.className = cls(styles, "said");
