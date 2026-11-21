@@ -280,11 +280,14 @@ export class Dance implements MusicForce {
   // The beats counted, one a turn of the clock's beat, and where in the beat
   // the frame before heard it, or null before the clock had a beat; the beat
   // its bars begin on, counted the same way, or null before the clock was
-  // sure; and the first beat the clock holds instead, as how many beats
-  // later, 0 for none, and for how long, in s.
+  // sure; how far the bars' events have been taken, in beats, so that the
+  // clock drawing its beat back over a bar's first does not bring it twice;
+  // and the first beat the clock holds instead, as how many beats later, 0
+  // for none, and for how long, in s.
   #beats = 0;
   #lastPhase: number | null = null;
   #first: number | null = null;
+  #taken: number | null = null;
   #other = 0;
   #otherFor = 0;
   // Led by the clock: how far into its figure the hand is (0 to 1), how many
@@ -532,6 +535,7 @@ export class Dance implements MusicForce {
     if (beat === null) {
       this.#lastPhase = null;
       this.#first = null;
+      this.#taken = null;
       return;
     }
     // how many whole beats the clock's bar has gone since its first
@@ -544,6 +548,7 @@ export class Dance implements MusicForce {
     const clocks = this.#beats - into;
     if (this.#first === null) {
       this.#first = clocks;
+      this.#taken = null;
       return;
     }
     const later = (((clocks - this.#first) % 4) + 4) % 4;
@@ -557,6 +562,7 @@ export class Dance implements MusicForce {
     // the nearer way round: on by one or two beats, or back by one
     const by = later <= 2 ? later : later - 4;
     this.#first += by;
+    if (this.#taken !== null) this.#taken -= by;
     this.#other = 0;
     this.#otherFor = 0;
     this.#figureWas = this.#figure;
@@ -589,8 +595,10 @@ export class Dance implements MusicForce {
     const sure = beat !== null && !heard.silent && beat.confidence >= SURE;
     const perBeat = beat === null ? 0 : beat.bpm / 60;
     const at = (t: number) => (beat === null ? 0 : this.#beatsAt(beat, t));
-    const start = at(input.from);
+    // from where the events were taken to, never back
     const end = at(input.from + real);
+    const start = this.#first === null ? end : (this.#taken ?? at(input.from));
+    if (this.#first !== null) this.#taken = Math.max(start, end);
     if (this.#free) {
       const third = sure ? reached(start, end, 4, 2) : null;
       if (!sure || third !== null) {

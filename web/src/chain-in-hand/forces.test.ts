@@ -1044,6 +1044,31 @@ describe("the dancing hand's long time (decision 87)", () => {
     expect(most).toBeLessThan(0.05);
   });
 
+  it("acts on a bar's first beat once, though the clock, drawing its beat to the music's, has it a little earlier the frame after", () => {
+    // the frame after the one that crosses the bar's first beat at 2 s hears
+    // the beat a hundredth of a beat back, as the clock's hand is drawn back
+    // to the comb
+    const drawn = (t: number): BeatAt => {
+      const back = Math.abs(t - 2) < 1e-9 ? 0.01 : 0;
+      const beats = 2 * t - back;
+      const turn = (x: number) => x - Math.floor(x);
+      return {
+        bpm: 120,
+        phase: turn(beats),
+        bar: turn(beats / 4),
+        confidence: 1,
+        at: t,
+      };
+    };
+    const forces = new MusicForces();
+    const asked = { ...clock, then: ["bounce"], vary: 1 } as const;
+    // the bounce came in once: a beat on, at its fold
+    const drives = danceWith(forces, 0, 149, asked, drawn);
+    const fold = placedAt(0, 1, size);
+    expect(targetOf(drives[149] ?? null)?.x).toBeCloseTo(fold.x, 4);
+    expect(targetOf(drives[149] ?? null)?.y).toBeCloseTo(fold.y, 4);
+  });
+
   it("led by a sound, varies on the bars the clock counts all the same", () => {
     const forces = new MusicForces();
     const asked = { then: ["bounce"], vary: 1 } as const;
