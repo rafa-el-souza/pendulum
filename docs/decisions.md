@@ -2824,6 +2824,57 @@ six beats after the music stops; a record moved on in time; the panel's
 words. In the browser, the demo beat's panel says "120 bpm.", and a file of
 clicks at 100 a minute, heard on the audio line, "100 bpm.".
 
+## 79. The music tunes the chain to its bars
+
+*2026-11-21.* One more candidate of the music's group adds a force to the
+light of "light", after "sway": **tuned**. While the beat clock (decision
+78) is sure of the beat, it sets gravity's strength for the chain's slowest
+mode to swing once a bar of four, and pushes the pivot across gravity on the
+beats, two beats to one side and two to the other. As decision 75's forces,
+it acts only while a source plays and the piece runs, and time backwards
+does nothing meanwhile.
+
+- **Gravity.** The slowest mode of an equal chain swings at a squared
+  frequency of λ₁ g / l, l a rod's length and λ₁ the first zero of the
+  Laguerre polynomial of the chain's degree (PH-7). Gravity's strength is
+  set for that swing to last a bar at the piece's speed: 13.2 m/s² for two
+  masses at 120 beats a minute and ×0.8, 11.3 for eight. It eases there over
+  about a second, along the visitor's gravity, whose direction it keeps;
+  where the clock is unsure or the music silent, it eases back to the
+  visitor's. Where once a bar would ask for more than Jupiter's, the chain
+  swings once every two bars, or four.
+- **The pushes.** At each beat's moment within the frame, 3 mm at the middle
+  strength, each coming back over about half a second, so that the next
+  beat's comes before it is back. None with reduced motion asked for.
+- **Drag.** 0.1 a second while the music plays, 2 in its silence.
+
+**Why.** The probe of the music's physics found a mode tuned to the tempo
+growing over 22 to 38 beats, as long as the tempo is within 2%; the beat
+clock gives it within 0.5%. Swinging once a bar, the whole chain moves: the
+tip of two masses by 9.7% of the chain's length by 40 s, where the probe's
+mode 2, once every two beats and pushed alike, moves the middle mass by 4.7%
+and the tip by 1.6%. Measured on the piece's own step, which takes each
+push's pull at every stage, a push gives half of what the probe found by
+holding it over a substep; one that comes back over half a second gives
+about twice what one as short as a kick's gives.
+
+**Evidence.** The piece's step at 120 beats a minute and ×0.8, from near
+rest, the tip's reach as a share of the chain's length by 10, 20 and 40 s:
+two masses 3.9, 6.6 and 9.7% (with pushes as short as a kick's, 1.8, 3.0 and
+4.3%; twice as far and as short, 3.5, 5.9 and 8.6%); three masses 4.2, 7.1
+and 10.4%; eight 4.6, 8.0 and 11.6%, other modes moving too. A twin costs
+1.7 times as much under it on two masses, 1.3 on eight and 2.3 on sixteen,
+with fourteen pushes alive in a frame. Unit tests: gravity's strength for
+two and eight masses, at 90 and 120 beats a minute, along a turned gravity;
+once every two bars past Jupiter's; each push at its beat's moment in a
+frame, run a frame ahead or ending at the moment heard, two to a side, as
+far as the strength asks; nothing pushed and gravity given back where the
+clock is unsure or absent, the drag in play and in silence, nothing pushed
+with reduced motion; two and three masses swinging once a bar, crossing the
+middle twice a bar over the last 10 s of 30, at more than half their reach
+by 20 s (PH-7). In the browser, the mode comes after "sway" in the group and
+the address.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
