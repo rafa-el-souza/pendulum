@@ -115,7 +115,8 @@ hanging rope it becomes as n grows.
   music, through the microphone, from a file, from the sound of a browser
   tab or of the whole screen in desktop Chrome and Edge, or from a beat it
   makes itself, chosen in the music's own group of the row, which shows
-  what it hears; the sound stays on the device. The music lights the
+  what it hears and, once it is sure of it, the music's tempo; the sound
+  stays on the device. The music lights the
   chain's halo on the kicks, gives its trails strength with the loudness,
   and has twins born again from it on every attack. Its group offers candidates beside that, each changing one
   thing of it. Four move the chain: the kicks take its pivot aside and back,
