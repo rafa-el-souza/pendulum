@@ -2452,9 +2452,12 @@ test("where there are several microphones, the music's panel lists them and list
   expect(errors).toEqual([]);
 });
 
-test("the music's mode and strength, values of its group, are kept in the address, beside a saved moment too, and an address opens with them (decisions 46, 76 and 77)", async ({
+test("the music's mode and strength, values of its group, are kept in the address, beside a saved moment too, and an address opens with them (decisions 46, 76, 77 and 79)", async ({
   page,
 }) => {
+  // it steps through the modes one by one, each mode a step more: on
+  // Chromium in the CI it took 24 of its 30 s before the tuned chain came
+  test.slow();
   const errors = collectErrors(page);
   await page.goto("./");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
