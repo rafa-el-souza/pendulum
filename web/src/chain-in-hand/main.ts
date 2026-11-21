@@ -73,6 +73,7 @@ import {
   type PinchStart,
   type View,
 } from "../core/view.ts";
+import { countVisit } from "../core/visits.ts";
 import type { Drive, PivotMotion } from "../physics/drive.ts";
 import { startInMode } from "../physics/modes.ts";
 import { PIECES } from "../pieces.ts";
@@ -240,6 +241,10 @@ const notice = document.getElementById("notice");
 if (!(canvas instanceof HTMLCanvasElement) || notice === null) {
   throw new Error("the page lacks its #stage canvas or its #notice");
 }
+
+// The visit is counted, or not (decision 84), and the address's switch for
+// counting leaves the address before the piece reads it.
+countVisit();
 
 // The light's colors come from the stylesheet, which the browser may still be
 // applying when this module runs (WebKit did so in CI, and a token read as
