@@ -24,6 +24,7 @@ import {
 import { DANCE_OPENS, type Choreography } from "./forces/choreography.ts";
 import {
   BASS_TURN,
+  CATCH,
   CROSS,
   DANCE_GRIP,
   ENGAGE,
@@ -811,6 +812,155 @@ describe("the dancing hand's expression and body (decision 85)", () => {
     const full = createHand(Chain.uniform(8), 3, DANCE_GRIP, 0.6).stiffness;
     expect(again?.index).toBe(3);
     expect(again?.stiffness).toBeCloseTo((full * FRAME) / TAKE_HOLD, 6);
+  });
+});
+
+describe("the dancing hand's long time (decision 87)", () => {
+  // at the middle strength, for music half as loud as it has been
+  const size = 0.7 * 0.5;
+  const clock = { lead: "clock" } as const;
+  // the tip of two masses swinging, every rod 0.3 rad from straight down
+  const tip = { x: Math.sin(0.3), y: -Math.cos(0.3) };
+
+  it("tossing every bar, lets go on the bar's first beat, led by the clock or by a sound, and takes hold again on its third of the mass where it is, gripping over a tenth of a second and bringing it back to its figure over a beat", () => {
+    for (const lead of ["clock", "kick"] as const) {
+      const forces = new MusicForces();
+      const asked = { lead, toss: 1 } as const;
+      expect(targetOf(dance(forces, 0, 118, asked)), lead).not.toBeNull();
+      // the frame that ends on the bar's first beat, and those until its third
+      expect(dance(forces, 119, 119, asked)?.hands ?? [], lead).toEqual([]);
+      expect(dance(forces, 120, 178, asked)?.hands ?? [], lead).toEqual([]);
+      const caught = dance(forces, 179, 179, asked);
+      const hand = caught?.hands[0];
+      expect(hand?.from.x, lead).toBeCloseTo(tip.x, 9);
+      expect(hand?.from.y, lead).toBeCloseTo(tip.y, 9);
+      const full = createHand(Chain.uniform(2), 1, DANCE_GRIP, 0.6).stiffness;
+      expect(hand?.stiffness, lead).toBeCloseTo((full * FRAME) / CATCH, 6);
+      expect(targetOf(dance(forces, 180, 184, asked))?.stiffness).toBeCloseTo(
+        full,
+        6,
+      );
+    }
+    // led by the clock, a beat on, the hand is back on its figure: the swing,
+    // at the other side on the bar's fourth beat
+    const forces = new MusicForces();
+    const asked = { ...clock, toss: 1 } as const;
+    dance(forces, 0, 178, asked);
+    const back = targetOf(dance(forces, 179, 209, asked));
+    expect(back?.x).toBeCloseTo(-Math.sin(size), 4);
+    expect(back?.y).toBeCloseTo(-Math.cos(size), 4);
+  });
+
+  it("tossing every second or fourth bar, lets go on the first beat of those bars alone", () => {
+    const tossed = (toss: 2 | 4, bar: number) => {
+      const forces = new MusicForces();
+      const asked = { ...clock, toss } as const;
+      dance(forces, 0, 120 * bar - 2, asked);
+      return (dance(forces, 120 * bar - 1, 120 * bar - 1, asked)?.hands ?? [])
+        .length;
+    };
+    expect(tossed(2, 1)).toBe(1);
+    expect(tossed(2, 2)).toBe(0);
+    expect(tossed(2, 3)).toBe(1);
+    expect(tossed(4, 2)).toBe(1);
+    expect(tossed(4, 4)).toBe(0);
+  });
+
+  it("lets go only while the clock is sure, and takes hold again as soon as it is not, or the music falls silent", () => {
+    const unsure = { ...beatAtTime(0), confidence: 0.5 };
+    const forces = new MusicForces();
+    const asked = { ...clock, toss: 1 } as const;
+    // never let go while the clock is not sure
+    for (let k = 0; k <= 130; k++) {
+      const drive = forces.frame(
+        frame({
+          force: DANCE,
+          dance: { ...DANCE_OPENS, ...asked },
+          heard: heard({ beat: { ...beatAtTime(k * FRAME), confidence: 0.5 } }),
+        }),
+      );
+      forces.ran(FRAME * SPEED);
+      expect(drive?.hands.length, String(k)).toBe(1);
+    }
+    for (const over of [{ beat: unsure }, { silent: true }]) {
+      const again = new MusicForces();
+      dance(again, 0, 119, asked);
+      expect(dance(again, 120, 120, asked)?.hands ?? []).toEqual([]);
+      const caught = dance(again, 121, 121, asked, over);
+      expect(caught?.hands[0]?.from.x).toBeCloseTo(tip.x, 9);
+    }
+  });
+
+  it("varying every bar, brings the next figure in on the bar's first beat, gliding from the one before over a beat, through the figures listed and round again", () => {
+    const forces = new MusicForces();
+    const asked = { ...clock, then: ["bounce"], vary: 1 } as const;
+    // the swing, at one side on the bar's first beat, as the bounce comes in
+    const one = targetOf(dance(forces, 0, 119, asked));
+    expect(one?.x).toBeCloseTo(Math.sin(size), 4);
+    // halfway through the glide, halfway from the swing's side to the
+    // bounce's full reach, straight across; a beat on, at the bounce's fold
+    const half = targetOf(dance(forces, 120, 134, asked));
+    const side = placedAt(1, 0, size);
+    const reach = placedAt(0, 0, size);
+    expect(half?.x).toBeCloseTo((side.x + reach.x) / 2, 4);
+    expect(half?.y).toBeCloseTo((side.y + reach.y) / 2, 4);
+    const fold = targetOf(dance(forces, 135, 149, asked));
+    const folded = placedAt(0, 1, size);
+    expect(fold?.x).toBeCloseTo(folded.x, 4);
+    expect(fold?.y).toBeCloseTo(folded.y, 4);
+    // on the next bar's first beat the swing comes back, a beat on at its
+    // other side
+    const next = targetOf(dance(forces, 150, 269, asked));
+    expect(next?.x).toBeCloseTo(-Math.sin(size), 4);
+  });
+
+  it("varying every second bar, keeps each figure two bars; with one figure, varies through all eight in their order", () => {
+    const forces = new MusicForces();
+    const asked = { ...clock, figure: "bounce", vary: 2 } as const;
+    // the bounce through the first two bars: at its fold on a bar's second beat
+    const fold = placedAt(0, 1, size);
+    expect(targetOf(dance(forces, 0, 149, asked))?.y).toBeCloseTo(fold.y, 4);
+    // on the second bar's first beat, the poses come in: a beat on, high on
+    // one side
+    const pose = targetOf(dance(forces, 150, 269, asked));
+    const high = placedAt(-1, 0.6, size);
+    expect(pose?.x).toBeCloseTo(high.x, 4);
+    expect(pose?.y).toBeCloseTo(high.y, 4);
+  });
+
+  it("varying with the loudness, brings in the figure the last bar's loudness picks: the first listed for a quiet bar, the last for a loud one, and keeps it for a bar near the line between them", () => {
+    const forces = new MusicForces();
+    const asked = { ...clock, then: ["bounce"], vary: "level" } as const;
+    const fold = placedAt(0, 1, size * 1.8);
+    // a loud bar brings the bounce in, a beat on at its fold
+    dance(forces, 0, 119, asked, { level: 0.9 });
+    const loud = targetOf(dance(forces, 120, 149, asked, { level: 0.9 }));
+    expect(loud?.x).toBeCloseTo(fold.x, 4);
+    expect(loud?.y).toBeCloseTo(fold.y, 4);
+    // a bar a little quieter than the line keeps it
+    dance(forces, 150, 239, asked, { level: 0.52 });
+    const kept = targetOf(dance(forces, 240, 269, asked, { level: 0.52 }));
+    expect(kept?.x).toBeCloseTo(0, 4);
+    // a quiet bar brings the swing back: at its other side a beat on
+    dance(forces, 270, 359, asked, { level: 0.2 });
+    const quiet = targetOf(dance(forces, 360, 389, asked, { level: 0.2 }));
+    expect(quiet?.x).toBeCloseTo(-Math.sin(0.7 * 0.2), 4);
+  });
+
+  it("led by a sound, varies on the bars the clock counts all the same", () => {
+    const forces = new MusicForces();
+    const asked = { then: ["bounce"], vary: 1 } as const;
+    // led by the kicks, with none heard, the hand rests in the middle while
+    // the bounce comes in on the bar's first beat; two kicks on, it is at the
+    // bounce's fold, where the swing would have it at a side
+    dance(forces, 0, 150, asked);
+    dance(forces, 151, 151, asked, { kick: 1 });
+    dance(forces, 152, 170, asked);
+    dance(forces, 171, 171, asked, { kick: 1 });
+    const fold = targetOf(dance(forces, 172, 190, asked));
+    const folded = placedAt(0, 1, size);
+    expect(fold?.x).toBeCloseTo(folded.x, 4);
+    expect(fold?.y).toBeCloseTo(folded.y, 4);
   });
 });
 

@@ -1,4 +1,4 @@
-import { SURE } from "../../audio/beat.ts";
+import { SURE, type BeatAt } from "../../audio/beat.ts";
 import type { Signals } from "../../audio/signals.ts";
 import { createHand, type Chain, type Gravity } from "../../physics/chain.ts";
 import type { Point } from "../../physics/drive.ts";
@@ -12,6 +12,7 @@ import {
   alongFigure,
   heldMass,
   pointsOf,
+  sequenceOf,
   type Choreography,
   type Figure,
   type Grab,
@@ -30,8 +31,8 @@ import {
 } from "./common.ts";
 import { SLOW_CROSS, SLOW_SWING_EASE, WIDEST_SWING } from "./swing.ts";
 
-// The dancing hand (docs/decisions.md, decisions 75, 83 and 85): a hand of
-// the music holds a mass of the chain and leads it round a figure, as the
+// The dancing hand (docs/decisions.md, decisions 75, 83, 85 and 87): a hand
+// of the music holds a mass of the chain and leads it round a figure, as the
 // choreography asks. Led by a sound heard, it sets off for the figure's next
 // point on the sound; led by the beat clock, it reaches each point on its
 // beat. The figure swings as far as the loudness, or what else the
@@ -39,9 +40,12 @@ import { SLOW_CROSS, SLOW_SWING_EASE, WIDEST_SWING } from "./swing.ts";
 // to a side, held level, or above, standing, and the music can turn its
 // middle further. The hand grips the mass as firmly as its step asks, or
 // pulsing on the beat, with its target as far from the pivot as the mass
-// hangs, or nearer by the slack. It lets go while the visitor's hand holds
-// the chain, and takes hold again over a second. As the dance opens, it is
-// decision 75's swing: the tip, a side on each kick, crossing in a snap.
+// hangs, or nearer by the slack. Over the bars the clock counts, it can let
+// go of the chain on a bar's first beat and catch the mass where it is on
+// the third, and bring in the next figure on a bar's first beat. It lets go
+// while the visitor's hand holds the chain, and takes hold again over a
+// second. As the dance opens, it is decision 75's swing: the tip, a side on
+// each kick, crossing in a snap, held throughout, the figure kept.
 
 /** The dancing hand's grip as the dance opens, a step of the visitor's (decision 18): elastic enough to swing the chain, firm enough to calm it. */
 export const DANCE_GRIP = 12;
@@ -81,6 +85,21 @@ const BASS_MEMORY = 8;
 export const LIFT = Math.PI / 2;
 /** How fast the lift follows the loudness, in s. */
 const LIFT_EASE = 0.5;
+/** How long the hand takes to close on the mass it catches, in s of real time. */
+export const CATCH = 0.1;
+/** How many beats the hand takes to bring the mass it caught back to its figure, and to glide from one figure to the next. */
+const GLIDE = 1;
+/**
+ * Varying with the loudness, the bar's mean level at which the first figure
+ * is picked, and the last: between them, the figures share the levels
+ * evenly, and a bar within LEVEL_HOLD of the share of the figure it has keeps
+ * it.
+ */
+const QUIET_BAR = 0.3;
+const LOUD_BAR = 0.8;
+const LEVEL_HOLD = 0.05;
+/** A beat reached this little after a frame's end is reached in it, against the sums' rounding, in beats. */
+const REACHED = 1e-9;
 /** The middle of a figure's plane: the chain hanging along the place, at its full reach. */
 const MIDDLE: Point = { x: 0, y: 0 };
 /** How far round from straight down each place turns the figure, in rad. */
@@ -154,6 +173,40 @@ function onFigure(figure: Figure, p: number): Point {
 /** The point the share `s` of the way from `a` to `b`. */
 function between(a: Point, b: Point, s: number): Point {
   return { x: a.x + (b.x - a.x) * s, y: a.y + (b.y - a.y) * s };
+}
+
+/** The count of the beat `at` from the first, and every `every` after, that the span from `start` to `end`, in beats, reaches; null where it reaches none. */
+function reached(
+  start: number,
+  end: number,
+  every: number,
+  at: number,
+): number | null {
+  const k = Math.floor((end - at) / every + REACHED);
+  return k * every + at > start + REACHED ? k : null;
+}
+
+/** The figure of `n` that a bar as loud as `level` picks, keeping `now` where the level is within LEVEL_HOLD of its share. */
+function picked(level: number, n: number, now: number): number {
+  const width = (LOUD_BAR - QUIET_BAR) / n;
+  const low = now === 0 ? -Infinity : QUIET_BAR + now * width - LEVEL_HOLD;
+  const high =
+    now === n - 1 ? Infinity : QUIET_BAR + (now + 1) * width + LEVEL_HOLD;
+  if (level >= low && level < high) return now;
+  return Math.min(n - 1, Math.max(0, Math.floor((level - QUIET_BAR) / width)));
+}
+
+/** Where along the chain, from the pivot, its mass `index` is, in m. */
+function massAt(chain: Chain, theta: Float64Array, index: number): Point {
+  let x = 0;
+  let y = 0;
+  for (let i = 0; i <= index; i++) {
+    const l = chain.lengths[i] ?? 0;
+    const angle = theta[i] ?? 0;
+    x += l * Math.sin(angle);
+    y -= l * Math.cos(angle);
+  }
+  return { x, y };
 }
 
 /**
@@ -230,9 +283,26 @@ export class Dance implements MusicForce {
   #apart = 1;
   #added = 0;
   #perBeat = 2;
-  // How firmly it holds, from 0 to 1; where its target got to at the end of
-  // the frame run last, and the frame being run.
+  // Over the bars the clock counts: the figure the hand traces, and its place
+  // among those it varies through; the figure it glides from, how long ago
+  // the glide began as the frame ends and how long it lasts, in s; the bar's
+  // loudness, summed over the time it was heard, in s; whether the hand has
+  // let go of the chain; and where it caught the mass, and how long ago, in s.
+  #figure: Figure = DANCE_OPENS.figure;
+  #index = 0;
+  #figureWas: Figure = DANCE_OPENS.figure;
+  #gliding = Number.POSITIVE_INFINITY;
+  #glide = GLIDE / 2;
+  #barLevel = 0;
+  #barHeard = 0;
+  #free = false;
+  #caught: Point | null = null;
+  #catching = Number.POSITIVE_INFINITY;
+  // How firmly it holds, from 0 to 1, and how long it takes to close, in s;
+  // where its target got to at the end of the frame run last, and the frame
+  // being run.
   #grip = 0;
+  #closing = TAKE_HOLD;
   #target: Point | null = null;
   #running: { span: number; from: Point; to: Point } | null = null;
 
@@ -249,10 +319,10 @@ export class Dance implements MusicForce {
     const dance = input.dance ?? DANCE_OPENS;
     const { real, span, chain } = input;
     const { heard } = reading;
-    const asked = `${dance.figure} ${dance.lead} ${String(dance.beats)} ${dance.feel}`;
+    const asked = `${dance.figure} ${dance.then.join(" ")} ${dance.lead} ${String(dance.beats)} ${dance.feel}`;
     if (asked !== this.#was) {
       this.#was = asked;
-      this.#afresh();
+      this.#afresh(dance);
     }
     // asked to hold another mass, it lets go, to take hold of it again
     if (dance.grab !== this.#grabbed) {
@@ -260,21 +330,34 @@ export class Dance implements MusicForce {
       this.letGo();
     }
 
-    // where in its figure the hand is as the frame starts and as it ends,
-    // how far it swings then, and where its middle is
+    // the bars the clock counts, and, over them, the figure and the hand
+    // letting go and taking hold again
+    this.#count(heard.beat);
+    this.#overBars(dance, input, heard);
+
+    // where in its figure, and in the figure it glides from, the hand is as
+    // the frame starts and as it ends, how far it swings then, and where its
+    // middle is
     let before: Point;
     let after: Point;
+    let beforeWas: Point | null = null;
+    let afterWas: Point | null = null;
     let engagedBefore = 1;
     let engagedAfter = 1;
     const sizeBefore = this.#size;
     const centreBefore = this.#centre;
+    const glidedBefore = Math.max(0, (this.#gliding - real) / this.#glide);
+    const glidedAfter = this.#gliding / this.#glide;
+    const gliding = glidedBefore < 1;
     if (dance.lead === "clock") {
       engagedBefore = this.#engaged;
       const [start, end] = this.#clock(dance, input, heard);
       engagedAfter = this.#engaged;
-      before = this.#clockPlace(dance, start);
+      before = this.#clockPlace(dance, this.#figure, start);
+      if (gliding) beforeWas = this.#clockPlace(dance, this.#figureWas, start);
       this.#express(dance, heard, reading, real);
-      after = this.#clockPlace(dance, end);
+      after = this.#clockPlace(dance, this.#figure, end);
+      if (gliding) afterWas = this.#clockPlace(dance, this.#figureWas, end);
     } else {
       this.#sinceSound += real;
       if (sounded(dance.lead, heard)) {
@@ -282,42 +365,86 @@ export class Dance implements MusicForce {
         if (this.#heard % Math.max(1, every) === 0) this.#turn(dance);
         this.#heard++;
       }
-      before = this.#soundPlace(dance);
+      before = this.#soundPlace(dance, this.#figure);
+      if (gliding) beforeWas = this.#soundPlace(dance, this.#figureWas);
       this.#crossed = Math.min(1, this.#crossed + real / this.#cross);
       this.#express(dance, heard, reading, real);
-      after = this.#soundPlace(dance);
+      after = this.#soundPlace(dance, this.#figure);
+      if (gliding) afterWas = this.#soundPlace(dance, this.#figureWas);
     }
 
-    // the hand, which lets go while the visitor's holds
+    // the hand, which lets go while the visitor's holds, and where it has
+    // let go of the chain over the bars
     this.#running = null;
     if (input.held) {
+      this.#grip = 0;
+      this.#closing = TAKE_HOLD;
+      this.#target = null;
+      this.#free = false;
+      this.#caught = null;
+      return {};
+    }
+    if (this.#free) {
       this.#grip = 0;
       this.#target = null;
       return {};
     }
-    this.#grip = Math.min(1, this.#grip + real / TAKE_HOLD);
+    this.#grip = Math.min(1, this.#grip + real / this.#closing);
     const held = heldMass(dance.grab, chain.n);
     const reach = reachOf(chain, held) * (1 - (SLACKS[dance.slack] ?? 0));
     const size = (s: number, engaged: number) =>
       dance.lead === "clock" ? s * engaged : s;
-    const from =
-      this.#target ??
-      this.#world(
+    // the point, gliding from where the figure before would have it
+    const place = (
+      now: Point,
+      was: Point | null,
+      glided: number,
+      swing: number,
+      centre: number,
+    ): Point => {
+      const point = this.#world(
         dance,
-        before,
-        size(sizeBefore, engagedBefore),
-        centreBefore,
+        this.#figure,
+        now,
+        swing,
+        centre,
         reach,
         reading,
       );
-    const to = this.#world(
-      dance,
+      if (was === null || glided >= 1) return point;
+      const old = this.#world(
+        dance,
+        this.#figureWas,
+        was,
+        swing,
+        centre,
+        reach,
+        reading,
+      );
+      return between(old, point, smoothstep(glided));
+    };
+    const from =
+      this.#target ??
+      place(
+        before,
+        beforeWas,
+        glidedBefore,
+        size(sizeBefore, engagedBefore),
+        centreBefore,
+      );
+    let to = place(
       after,
+      afterWas,
+      glidedAfter,
       size(this.#size, engagedAfter),
       this.#centre,
-      reach,
-      reading,
     );
+    // a mass caught, brought back from where it was to the figure
+    if (this.#caught !== null) {
+      const back = this.#catching / this.#glide;
+      if (back < 1) to = between(this.#caught, to, smoothstep(back));
+      else this.#caught = null;
+    }
     const rate = GRIPS[dance.grip - 1] ?? DANCE_GRIP;
     const grip = createHand(chain, held, rate, gripDamping(rate));
     const hold = this.#grip * this.#pulse(dance, input, heard);
@@ -348,12 +475,18 @@ export class Dance implements MusicForce {
 
   letGo(): void {
     this.#grip = 0;
+    this.#closing = TAKE_HOLD;
     this.#target = null;
+    this.#caught = null;
     this.#running = null;
   }
 
-  /** The figure begins afresh: led by sounds, from the middle; led by the clock, coming into it as the clock is sure. */
-  #afresh(): void {
+  /** The figure begins afresh, the first of those it varies through: led by sounds, from the middle; led by the clock, coming into it as the clock is sure. */
+  #afresh(dance: Choreography): void {
+    this.#figure = dance.figure;
+    this.#figureWas = dance.figure;
+    this.#index = 0;
+    this.#gliding = Number.POSITIVE_INFINITY;
     this.#heard = 0;
     this.#step = -1;
     this.#from = MIDDLE;
@@ -365,6 +498,84 @@ export class Dance implements MusicForce {
     this.#sinceSound = Number.POSITIVE_INFINITY;
     this.#engaged = 0;
     this.#along = null;
+  }
+
+  /** The bars the clock has counted, from the bar it hears the beat in. */
+  #count(beat: BeatAt | null): void {
+    if (beat === null) return;
+    if (this.#lastBar !== null) {
+      if (beat.bar < this.#lastBar - 0.5) this.#bars++;
+      else if (beat.bar > this.#lastBar + 0.5) this.#bars--;
+    }
+    this.#lastBar = beat.bar;
+  }
+
+  /**
+   * Over the bars, while the clock is sure: on a bar's first beat, the next
+   * figure comes in, or the one the bar's loudness picks, and the hand lets
+   * go of the chain, as the choreography asks; on the bar's third beat, or as
+   * soon as the clock is not sure, the hand that let go catches the mass it
+   * held where it is.
+   */
+  #overBars(dance: Choreography, input: ForceFrame, heard: Signals): void {
+    const { real } = input;
+    this.#gliding += real;
+    this.#catching += real;
+    if (!heard.silent) {
+      this.#barLevel += heard.level * real;
+      this.#barHeard += real;
+    }
+    const beat = heard.beat;
+    const sure = beat !== null && !heard.silent && beat.confidence >= SURE;
+    const perBeat = beat === null ? 0 : beat.bpm / 60;
+    const at = (t: number) =>
+      beat === null ? 0 : 4 * (this.#bars + beat.bar) + t * perBeat;
+    const start = at(input.from);
+    const end = at(input.from + real);
+    if (this.#free) {
+      const third = sure ? reached(start, end, 4, 2) : null;
+      if (!sure || third !== null) {
+        const { chain, state } = input;
+        this.#free = false;
+        this.#caught = massAt(
+          chain,
+          state.theta,
+          heldMass(dance.grab, chain.n),
+        );
+        this.#target = this.#caught;
+        this.#catching = third === null ? 0 : (end - (4 * third + 2)) / perBeat;
+        this.#grip = 0;
+        this.#closing = CATCH;
+      }
+    }
+    if (!sure) return;
+    const one = reached(start, end, 4, 0);
+    if (one === null) return;
+    const since = (end - 4 * one) / perBeat;
+    const level = this.#barHeard > 0 ? this.#barLevel / this.#barHeard : 0;
+    this.#barLevel = 0;
+    this.#barHeard = 0;
+    if (dance.vary !== 0) {
+      const sequence = sequenceOf(dance);
+      const next =
+        dance.vary === "level"
+          ? picked(level, sequence.length, this.#index)
+          : one % dance.vary === 0
+            ? (this.#index + 1) % sequence.length
+            : this.#index;
+      if (next !== this.#index) {
+        this.#index = next;
+        this.#figureWas = this.#figure;
+        this.#figure = sequence[next] ?? dance.figure;
+        this.#gliding = since;
+        this.#glide = GLIDE / perBeat;
+      }
+    }
+    if (dance.toss !== 0 && one % dance.toss === 0) {
+      this.#free = true;
+      this.#caught = null;
+      this.#glide = GLIDE / perBeat;
+    }
   }
 
   /**
@@ -469,9 +680,9 @@ export class Dance implements MusicForce {
   /** On a sound, the hand sets off for the figure's next point from where it is. */
   #turn(dance: Choreography): void {
     if (dance.feel === "snap") {
-      this.#from = this.#soundPlace(dance);
+      this.#from = this.#soundPlace(dance, this.#figure);
       this.#step += 1;
-      this.#to = pointAt(dance.figure, this.#step);
+      this.#to = pointAt(this.#figure, this.#step);
       this.#crossed = 0;
       this.#cross = this.#snap();
     } else {
@@ -494,8 +705,8 @@ export class Dance implements MusicForce {
     return this.#fromAlong + (this.#toAlong - this.#fromAlong) * done;
   }
 
-  /** Where in the figure's plane the hand led by sounds is. */
-  #soundPlace(dance: Choreography): Point {
+  /** Where in the plane of `figure` the hand led by sounds is. */
+  #soundPlace(dance: Choreography, figure: Figure): Point {
     if (dance.feel === "snap") {
       const u = this.#crossed;
       return {
@@ -503,7 +714,7 @@ export class Dance implements MusicForce {
         y: this.#from.y + (this.#to.y - this.#from.y) * u * u * (3 - 2 * u),
       };
     }
-    return onFigure(dance.figure, this.#soundAlong(dance));
+    return onFigure(figure, this.#soundAlong(dance));
   }
 
   /**
@@ -517,13 +728,6 @@ export class Dance implements MusicForce {
     heard: Signals,
   ): [number | null, number | null] {
     const beat = heard.beat;
-    if (beat !== null) {
-      if (this.#lastBar !== null) {
-        if (beat.bar < this.#lastBar - 0.5) this.#bars++;
-        else if (beat.bar > this.#lastBar + 0.5) this.#bars--;
-      }
-      this.#lastBar = beat.bar;
-    }
     const sure = beat !== null && !heard.silent && beat.confidence >= SURE;
     if (!sure) {
       this.#engaged = Math.max(0, this.#engaged - input.real / ENGAGE);
@@ -540,7 +744,7 @@ export class Dance implements MusicForce {
             input.g,
             beat.bpm,
             input.speed,
-            pointsOf(dance.figure).length,
+            pointsOf(this.#figure).length,
           )
         : dance.beats;
     if (this.#engaged === 0 || this.#along === null) {
@@ -569,24 +773,25 @@ export class Dance implements MusicForce {
     return [first, last];
   }
 
-  /** Where in the figure's plane the hand led by the clock is, `p` points along it: the middle before the clock was ever sure. */
-  #clockPlace(dance: Choreography, p: number | null): Point {
+  /** Where in the plane of `figure` the hand led by the clock is, `p` points along it: the middle before the clock was ever sure. */
+  #clockPlace(dance: Choreography, figure: Figure, p: number | null): Point {
     if (p === null) return MIDDLE;
     const k = Math.floor(p);
     const f = p - k;
-    if (dance.feel === "smooth") return onFigure(dance.figure, p);
-    if (dance.feel === "ictus") return onFigure(dance.figure, k + ictus(f));
+    if (dance.feel === "smooth") return onFigure(figure, p);
+    if (dance.feel === "ictus") return onFigure(figure, k + ictus(f));
     // a snap, which arrives on the point's beat
     const window = Math.min(1, (this.#snap() * this.#perBeat) / this.#apart);
-    const a = pointAt(dance.figure, k);
+    const a = pointAt(figure, k);
     if (f <= 1 - window) return a;
     const s = smoothstep((f - (1 - window)) / window);
-    return between(a, pointAt(dance.figure, k + 1), s);
+    return between(a, pointAt(figure, k + 1), s);
   }
 
-  /** Where a point of the figure's plane is, from the pivot, for a figure `size` rad wide, its middle turned `centre` rad from its place, on a reach of `reach` m. */
+  /** Where a point of the plane of `figure` is, from the pivot, for a figure `size` rad wide, its middle turned `centre` rad from its place, on a reach of `reach` m. */
   #world(
     dance: Choreography,
+    figure: Figure,
     at: Point,
     size: number,
     centre: number,
@@ -597,7 +802,7 @@ export class Dance implements MusicForce {
     const turned = TURNS[dance.place] + centre;
     let angle: number;
     let radius: number;
-    if (dance.figure === "turn") {
+    if (figure === "turn") {
       angle = turned + 2 * Math.PI * at.x;
       radius = reach * (1 - TURN_SLACK * share);
     } else {
