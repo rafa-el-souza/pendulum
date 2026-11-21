@@ -12,27 +12,19 @@ import {
 } from "../physics/drive.ts";
 import { laguerreZero } from "../physics/modes.ts";
 import { restingState, Stepper, type ChainState } from "../physics/step.ts";
+import { MusicForces, type ForceFrame } from "./forces.ts";
+import { BREATH_FLOOR, BREATH_GAIN, SEED_LEAN } from "./forces/breath.ts";
 import {
-  BREATH_FLOOR,
-  BREATH_GAIN,
-  CROSS,
-  DANCE_GRIP,
   DRAG_PLAYING,
   DRAG_SILENT,
-  FIRST_CROSS,
   KICK_ATTACK,
   KICK_DECAY,
-  LEAST_CROSS,
-  MOST_CROSS,
-  MusicForces,
-  SEED_LEAN,
-  SLOW_CROSS,
   TAKE_HOLD,
-  TUNED_DECAY,
-  TUNED_DRAG,
-  WIDEST_SWING,
-  type ForceFrame,
-} from "./forces.ts";
+} from "./forces/common.ts";
+import { CROSS, DANCE_GRIP } from "./forces/dance.ts";
+import { FIRST_CROSS, LEAST_CROSS, MOST_CROSS } from "./forces/sway.ts";
+import { SLOW_CROSS, WIDEST_SWING } from "./forces/swing.ts";
+import { TUNED_DECAY, TUNED_DRAG } from "./forces/tuned.ts";
 import { handDamping } from "./parameters.ts";
 
 // The music's forces on the first piece (docs/decisions.md, decisions 75 and
