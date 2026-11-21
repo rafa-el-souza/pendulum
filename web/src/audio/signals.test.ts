@@ -1,13 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { demoSample } from "./demo.ts";
-import {
-  HEARD,
-  Hearing,
-  KICK_WAIT,
-  SPAN,
-  type Signals,
-} from "./signals.ts";
+import { HEARD, Hearing, KICK_WAIT, SPAN, type Signals } from "./signals.ts";
 
 // What the piece hears in music (docs/decisions.md, decisions 44 and 48): how
 // loud it is, in three bands, and the attacks of its beats and notes, each
@@ -224,7 +218,6 @@ describe("Hearing", { timeout: 20_000 }, () => {
     }
   });
 
-
   it("finds a hi-hat's ticks in the treble, and not as kicks", () => {
     const heard = listen((t) => hits(0.25, 0.6, tick)(t) + room(t), 4);
     expect(attacks(heard, "hat")).toHaveLength(14);
@@ -416,9 +409,9 @@ describe("Hearing", { timeout: 20_000 }, () => {
     expect(at(5.9)?.silent).toBe(true);
     expect(at(5.9)?.level).toBeLessThan(0.01);
     // after the silence the first thump is heard as an attack, and a kick
-    expect(attacks(heard, "onset").filter((t) => t > 6 && t < 6.1)).toHaveLength(
-      1,
-    );
+    expect(
+      attacks(heard, "onset").filter((t) => t > 6 && t < 6.1),
+    ).toHaveLength(1);
     expect(
       attacks(heard, "kick").filter((t) => t > 6 && t < 6.1 + KICK_WAIT),
     ).toHaveLength(1);

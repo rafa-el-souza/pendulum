@@ -741,10 +741,7 @@ class Kicks {
   ): number {
     let kick = 0;
     const waiting = this.waiting;
-    if (
-      waiting !== null &&
-      (silent || at >= waiting.from + KICK_WAIT - 1e-6)
-    ) {
+    if (waiting !== null && (silent || at >= waiting.from + KICK_WAIT - 1e-6)) {
       this.waiting = null;
       if (!silent && this.fell(samples, at, waiting)) kick = waiting.strength;
     }
@@ -758,7 +755,11 @@ class Kicks {
       if (ahead > 1e-6) {
         this.waiting = { from, strength: attack, top: Number.NaN };
       } else {
-        this.waiting = { from, strength: attack, top: this.top(samples, at, from) };
+        this.waiting = {
+          from,
+          strength: attack,
+          top: this.top(samples, at, from),
+        };
       }
     }
     return kick;

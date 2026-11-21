@@ -115,9 +115,7 @@ describe("the demonstration beat", () => {
     // in the middle too; but a kick comes only after a kick, never where the
     // bass alone begins a note, which holds its pitch
     const starts = twice([...kicks, ...snares, ...notes]);
-    expect(
-      attacks("snare").filter((at) => !follows(starts, at)),
-    ).toEqual([]);
+    expect(attacks("snare").filter((at) => !follows(starts, at))).toEqual([]);
     expect(
       attacks("kick").filter((at) => !follows(twice(kicks), at, within.kick)),
     ).toEqual([]);
