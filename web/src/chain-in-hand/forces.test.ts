@@ -947,6 +947,103 @@ describe("the dancing hand's long time (decision 87)", () => {
     expect(quiet?.x).toBeCloseTo(-Math.sin(0.7 * 0.2), 4);
   });
 
+  /** Runs the frames from `first` to `last`, each a frame ahead, of a sure beat at 120 a minute whose record at `t` s `beatOf` gives, and the commands they give. */
+  function danceWith(
+    forces: MusicForces,
+    first: number,
+    last: number,
+    choreography: Partial<Choreography>,
+    beatOf: (t: number) => BeatAt,
+  ): (Drive | null)[] {
+    const drives: (Drive | null)[] = [];
+    for (let k = first; k <= last; k++) {
+      drives.push(
+        forces.frame(
+          frame({
+            force: DANCE,
+            dance: { ...DANCE_OPENS, ...choreography },
+            heard: heard({ beat: beatOf(k * FRAME) }),
+          }),
+        ),
+      );
+      forces.ran(FRAME * SPEED);
+    }
+    return drives;
+  }
+
+  it("counts its bars by the beats, keeping the first beat it took while the clock's goes back and forth between the first and the third: it lets go on every bar all the same", () => {
+    // the clock names every second beat the bar's first, as it did for the
+    // demo beat's first seconds
+    const wavering = (t: number): BeatAt => {
+      const beats = 2 * t;
+      const turn = (x: number) => x - Math.floor(x);
+      return {
+        bpm: 120,
+        phase: turn(beats),
+        bar: turn(beats / 2) / 2,
+        confidence: 1,
+        at: t,
+      };
+    };
+    const forces = new MusicForces();
+    const asked = { ...clock, toss: 1 } as const;
+    const drives = danceWith(forces, 0, 359, asked, wavering);
+    const holds = (k: number) => (drives[k]?.hands ?? []).length;
+    // let go on the first beats of the bars at 2 and 4 s, taken again on
+    // their third beats, at 3 and 5 s
+    for (const one of [119, 239]) {
+      expect(holds(one - 1), String(one)).toBe(1);
+      expect(holds(one), String(one)).toBe(0);
+      expect(holds(one + 59), String(one)).toBe(0);
+      expect(holds(one + 60), String(one)).toBe(1);
+    }
+  });
+
+  it("moves its bar's first beat to the clock's once the clock has held another for two bars, its figure gliding there over a beat", () => {
+    // from 4 s on, the clock's bar begins two beats later
+    const moved = (t: number): BeatAt => {
+      const beats = 2 * t;
+      const turn = (x: number) => x - Math.floor(x);
+      return {
+        bpm: 120,
+        phase: turn(beats),
+        bar: turn((beats + (t >= 4 ? 2 : 0)) / 4),
+        confidence: 1,
+        at: t,
+      };
+    };
+    const tossed = new MusicForces();
+    const drives = danceWith(tossed, 0, 719, { ...clock, toss: 1 }, moved);
+    const holds = (k: number) => (drives[k]?.hands ?? []).length;
+    // its own first beats until two bars after 4 s: at 6 s, not at 5 s
+    expect(holds(359)).toBe(0);
+    expect(holds(299)).toBe(1);
+    // then the clock's: at 9 and 11 s, not at 10 s
+    expect(holds(539)).toBe(0);
+    expect(holds(659)).toBe(0);
+    expect(holds(599)).toBe(1);
+
+    // a circle a beat a point, smooth: from the bottom on the bar's first
+    // beat, by its own count, it would be at the top at 9 s; by the clock's,
+    // it is at the bottom, and it got there without a jump
+    const circling = new MusicForces();
+    const asked = { ...clock, figure: "circle", feel: "smooth" } as const;
+    const path = danceWith(circling, 0, 539, asked, moved).map(targetOf);
+    const bottom = placedAt(0, 0, size);
+    expect(path[539]?.x).toBeCloseTo(bottom.x, 4);
+    expect(path[539]?.y).toBeCloseTo(bottom.y, 4);
+    let most = 0;
+    for (let k = 241; k <= 539; k++) {
+      const a = path[k - 1];
+      const b = path[k];
+      most = Math.max(
+        most,
+        Math.hypot((b?.x ?? 0) - (a?.x ?? 0), (b?.y ?? 0) - (a?.y ?? 0)),
+      );
+    }
+    expect(most).toBeLessThan(0.05);
+  });
+
   it("led by a sound, varies on the bars the clock counts all the same", () => {
     const forces = new MusicForces();
     const asked = { then: ["bounce"], vary: 1 } as const;

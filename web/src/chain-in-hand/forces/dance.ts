@@ -98,6 +98,12 @@ const GLIDE = 1;
 const QUIET_BAR = 0.3;
 const LOUD_BAR = 0.8;
 const LEVEL_HOLD = 0.05;
+/**
+ * The dance moves the first beat of its bars to the clock's once the clock
+ * has held another for this many bars: until then, it keeps its own, so the
+ * clock's hesitations over which beat is the bar's first do not shake it.
+ */
+const HOLD_BARS = 2;
 /** A beat reached this little after a frame's end is reached in it, against the sums' rounding, in beats. */
 const REACHED = 1e-9;
 /** The middle of a figure's plane: the chain hanging along the place, at its full reach. */
@@ -271,26 +277,35 @@ export class Dance implements MusicForce {
   #crossed = 1;
   #cross = CROSS;
   #sinceSound = Number.POSITIVE_INFINITY;
-  // Led by the clock: the bars it has counted, the bar the frame before heard
-  // the beat in, how far into its figure the hand is (0 to 1), how many
+  // The beats counted, one a turn of the clock's beat, and where in the beat
+  // the frame before heard it, or null before the clock had a beat; the beat
+  // its bars begin on, counted the same way, or null before the clock was
+  // sure; and the first beat the clock holds instead, as how many beats
+  // later, 0 for none, and for how long, in s.
+  #beats = 0;
+  #lastPhase: number | null = null;
+  #first: number | null = null;
+  #other = 0;
+  #otherFor = 0;
+  // Led by the clock: how far into its figure the hand is (0 to 1), how many
   // points along it the frame before ended, or null before the clock was
   // sure; the beats a point, the points added where "auto" changed them, and
   // the beats a second.
-  #bars = 0;
-  #lastBar: number | null = null;
   #engaged = 0;
   #along: number | null = null;
   #apart = 1;
   #added = 0;
   #perBeat = 2;
-  // Over the bars the clock counts: the figure the hand traces, and its place
-  // among those it varies through; the figure it glides from, how long ago
-  // the glide began as the frame ends and how long it lasts, in s; the bar's
+  // Over the bars: the figure the hand traces, and its place among those it
+  // varies through; the figure it glides from, and how many beats ahead the
+  // count it glides from was; how long ago the glide began as the frame ends
+  // and how long it lasts, in s; the bar's
   // loudness, summed over the time it was heard, in s; whether the hand has
   // let go of the chain; and where it caught the mass, and how long ago, in s.
   #figure: Figure = DANCE_OPENS.figure;
   #index = 0;
   #figureWas: Figure = DANCE_OPENS.figure;
+  #glideBeats = 0;
   #gliding = Number.POSITIVE_INFINITY;
   #glide = GLIDE / 2;
   #barLevel = 0;
@@ -330,9 +345,9 @@ export class Dance implements MusicForce {
       this.letGo();
     }
 
-    // the bars the clock counts, and, over them, the figure and the hand
+    // the beats and the bars counted, and, over them, the figure and the hand
     // letting go and taking hold again
-    this.#count(heard.beat);
+    this.#count(heard, real);
     this.#overBars(dance, input, heard);
 
     // where in its figure, and in the figure it glides from, the hand is as
@@ -349,15 +364,21 @@ export class Dance implements MusicForce {
     const glidedBefore = Math.max(0, (this.#gliding - real) / this.#glide);
     const glidedAfter = this.#gliding / this.#glide;
     const gliding = glidedBefore < 1;
+    // where the count the hand glides from had it, as many points ahead as
+    // that count was beats
+    const glided = (p: number | null) =>
+      p === null ? null : p + this.#glideBeats / this.#apart;
     if (dance.lead === "clock") {
       engagedBefore = this.#engaged;
       const [start, end] = this.#clock(dance, input, heard);
       engagedAfter = this.#engaged;
       before = this.#clockPlace(dance, this.#figure, start);
-      if (gliding) beforeWas = this.#clockPlace(dance, this.#figureWas, start);
+      if (gliding)
+        beforeWas = this.#clockPlace(dance, this.#figureWas, glided(start));
       this.#express(dance, heard, reading, real);
       after = this.#clockPlace(dance, this.#figure, end);
-      if (gliding) afterWas = this.#clockPlace(dance, this.#figureWas, end);
+      if (gliding)
+        afterWas = this.#clockPlace(dance, this.#figureWas, glided(end));
     } else {
       this.#sinceSound += real;
       if (sounded(dance.lead, heard)) {
@@ -500,14 +521,53 @@ export class Dance implements MusicForce {
     this.#along = null;
   }
 
-  /** The bars the clock has counted, from the bar it hears the beat in. */
-  #count(beat: BeatAt | null): void {
-    if (beat === null) return;
-    if (this.#lastBar !== null) {
-      if (beat.bar < this.#lastBar - 0.5) this.#bars++;
-      else if (beat.bar > this.#lastBar + 0.5) this.#bars--;
+  /**
+   * The beats, counted one a turn of the clock's beat, which holds once the
+   * clock is sure; and the first beat of the dance's bars: the clock's, as it
+   * is first sure, and the clock's again once it has held another for
+   * HOLD_BARS bars, the figure gliding there over a beat.
+   */
+  #count(heard: Signals, real: number): void {
+    const beat = heard.beat;
+    if (beat === null) {
+      this.#lastPhase = null;
+      this.#first = null;
+      return;
     }
-    this.#lastBar = beat.bar;
+    // how many whole beats the clock's bar has gone since its first
+    const into = Math.round(4 * beat.bar - beat.phase);
+    if (this.#lastPhase === null) this.#beats = into;
+    else if (beat.phase < this.#lastPhase - 0.5) this.#beats++;
+    else if (beat.phase > this.#lastPhase + 0.5) this.#beats--;
+    this.#lastPhase = beat.phase;
+    if (heard.silent || beat.confidence < SURE) return;
+    const clocks = this.#beats - into;
+    if (this.#first === null) {
+      this.#first = clocks;
+      return;
+    }
+    const later = (((clocks - this.#first) % 4) + 4) % 4;
+    if (later !== this.#other) {
+      this.#other = later;
+      this.#otherFor = 0;
+    }
+    if (later === 0) return;
+    this.#otherFor += real;
+    if ((this.#otherFor * beat.bpm) / 60 < 4 * HOLD_BARS) return;
+    // the nearer way round: on by one or two beats, or back by one
+    const by = later <= 2 ? later : later - 4;
+    this.#first += by;
+    this.#other = 0;
+    this.#otherFor = 0;
+    this.#figureWas = this.#figure;
+    this.#glideBeats = by;
+    this.#gliding = 0;
+    this.#glide = (GLIDE * 60) / beat.bpm;
+  }
+
+  /** The beats counted at `t` s after the moment the frame heard, from the first of the dance's bars before it. */
+  #beatsAt(beat: BeatAt, t: number): number {
+    return this.#beats - (this.#first ?? 0) + beat.phase + t * (beat.bpm / 60);
   }
 
   /**
@@ -528,8 +588,7 @@ export class Dance implements MusicForce {
     const beat = heard.beat;
     const sure = beat !== null && !heard.silent && beat.confidence >= SURE;
     const perBeat = beat === null ? 0 : beat.bpm / 60;
-    const at = (t: number) =>
-      beat === null ? 0 : 4 * (this.#bars + beat.bar) + t * perBeat;
+    const at = (t: number) => (beat === null ? 0 : this.#beatsAt(beat, t));
     const start = at(input.from);
     const end = at(input.from + real);
     if (this.#free) {
@@ -566,6 +625,7 @@ export class Dance implements MusicForce {
       if (next !== this.#index) {
         this.#index = next;
         this.#figureWas = this.#figure;
+        this.#glideBeats = 0;
         this.#figure = sequence[next] ?? dance.figure;
         this.#gliding = since;
         this.#glide = GLIDE / perBeat;
@@ -734,9 +794,8 @@ export class Dance implements MusicForce {
       return [this.#along, this.#along];
     }
     const perBeat = beat.bpm / 60;
-    const beatsAt = (t: number) => 4 * (this.#bars + beat.bar) + t * perBeat;
-    const start = beatsAt(input.from);
-    const end = beatsAt(input.from + input.real);
+    const start = this.#beatsAt(beat, input.from);
+    const end = this.#beatsAt(beat, input.from + input.real);
     const wanted =
       dance.beats === "auto"
         ? autoBeats(
