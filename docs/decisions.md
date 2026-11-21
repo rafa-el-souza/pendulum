@@ -3014,6 +3014,35 @@ tip followed its target at 0.93 (one less the root mean square of the tip's
 angle from the target's, over the target's), against 0.56 for the swing on
 the kicks.
 
+## 84. The site counts its visits, without cookies
+
+*2026-11-21.* The published site counts its visits with Cloudflare Web
+Analytics, which keeps no cookie: how many came, from where, on which
+device and browser, and how soon the page answered a touch. Only the
+published site counts, in a browser that no program drives, so the browser
+tests and the README's pictures are not counted. A device stops being
+counted with `?count=0` in the address and counts again with `?count=1`:
+the switch leaves the address as the page opens, so that a shared address
+never carries it, and it is the only thing the site keeps on a device. The
+QR code's card says under its title, faintly, that visits are counted, or
+that the device is not. The address's changes are not counted as pages.
+
+**Why.** GitHub Pages keeps no log of a site's visits and shows traffic only
+for the repository, so what the site learns of its visits the page has to
+send. Cloudflare's script needs no cookie, no server and no change to the
+DNS, costs nothing, and reports the delay between a touch and the screen's
+answer by browser and country. Weighed: Umami Cloud, GoatCounter and
+Plausible, which keep no cookie either; Google Analytics and Microsoft
+Clarity, which do.
+
+**Evidence.** Unit tests for the switch and for which visits count. In the
+browser, the switch leaves the address and is kept, the card says so, and
+away from the published site the page asks nothing of Cloudflare. The script
+can count each change of the address as a page, through the Navigation
+API's `navigate` event; in Chromium 158, `history.replaceState`, which the
+piece calls for every setting it writes to its address, fires that event,
+so the script runs with that counting off.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
