@@ -23,10 +23,12 @@ import {
 } from "./forces/common.ts";
 import { DANCE_OPENS, type Choreography } from "./forces/choreography.ts";
 import {
+  BASS_TURN,
   CROSS,
   DANCE_GRIP,
   ENGAGE,
   INWARD,
+  LIFT,
   TURN_SLACK,
 } from "./forces/dance.ts";
 import { FIRST_CROSS, LEAST_CROSS, MOST_CROSS } from "./forces/sway.ts";
@@ -337,7 +339,8 @@ function beatAtTime(t: number): BeatAt {
 /**
  * Runs the frames from `first` to `last` of a beat at 120 a minute, each a
  * frame run ahead (its end a frame after the moment heard), under the
- * choreography asked for, and gives the last one's command.
+ * choreography asked for, and gives the last one's command; on a chain of
+ * two masses unless `input` asks for another.
  */
 function dance(
   forces: MusicForces,
@@ -345,6 +348,7 @@ function dance(
   last: number,
   choreography: Partial<Choreography>,
   over: Partial<Signals> = {},
+  input: Partial<ForceFrame> & { n?: number } = {},
 ): Drive | null {
   let drive: Drive | null = null;
   for (let k = first; k <= last; k++) {
@@ -353,6 +357,7 @@ function dance(
         force: DANCE,
         dance: { ...DANCE_OPENS, ...choreography },
         heard: heard({ beat: beatAtTime(k * FRAME), ...over }),
+        ...input,
       }),
     );
     forces.ran(FRAME * SPEED);
@@ -552,6 +557,260 @@ describe("the dancing hand's choreography (decision 83)", () => {
     const three = targetOf(dance(forces, 150, 179, turn));
     expect(three?.x).toBeCloseTo(0, 4);
     expect(three?.y).toBeCloseTo(radius, 4);
+  });
+});
+
+/** How far round from straight down, towards the side, the music's hand's target is: the angle of the figure's place, middle and swing together. */
+function angleOf(hand: { x: number; y: number } | null): number {
+  return Math.atan2(hand?.x ?? 0, -(hand?.y ?? 0));
+}
+
+describe("the dancing hand's expression and body (decision 85)", () => {
+  // at the middle strength, for music half as loud as it has been
+  const size = 0.7 * 0.5;
+  const clock = { lead: "clock" } as const;
+
+  it("where its size is fixed, swings as wide as for music as loud as it has been, whatever the loudness, and rests in the music's silence", () => {
+    const fixed = { ...clock, size: "fixed" } as const;
+    const loud = targetOf(
+      dance(new MusicForces(), 0, 119, fixed, { level: 0.9 }),
+    );
+    expect(loud?.x).toBeCloseTo(Math.sin(size), 4);
+    const forces = new MusicForces();
+    dance(forces, 0, 119, fixed);
+    const quiet = targetOf(dance(forces, 120, 419, fixed, { silent: true }));
+    expect(Math.abs(quiet?.x ?? 1)).toBeLessThan(1e-6);
+  });
+
+  it("where its size follows the bass, or the treble, swings as wide as they are loud", () => {
+    const bass = targetOf(
+      dance(
+        new MusicForces(),
+        0,
+        119,
+        { ...clock, size: "bass" },
+        {
+          bass: 0.8,
+        },
+      ),
+    );
+    expect(bass?.x).toBeCloseTo(Math.sin(0.7 * 0.8), 4);
+    const treble = targetOf(
+      dance(
+        new MusicForces(),
+        0,
+        119,
+        { ...clock, size: "treble" },
+        {
+          treble: 0.3,
+        },
+      ),
+    );
+    expect(treble?.x).toBeCloseTo(Math.sin(0.7 * 0.3), 4);
+  });
+
+  it("where its size follows the kicks, swells on each as far as it is strong and shrinks until the next", () => {
+    // eight beats a point: the hand stays at a side for four seconds
+    const kick = { ...clock, size: "kick", beats: 8 } as const;
+    const swelled = (strength: number) => {
+      const forces = new MusicForces();
+      const before = targetOf(dance(forces, 0, 119, kick));
+      dance(forces, 120, 120, kick, { kick: strength });
+      const soon = targetOf(dance(forces, 121, 131, kick));
+      const later = targetOf(dance(forces, 132, 180, kick));
+      return {
+        before: Math.asin(before?.x ?? 1),
+        soon: Math.asin(soon?.x ?? 0),
+        later: Math.asin(later?.x ?? 1),
+      };
+    };
+    const full = swelled(1);
+    expect(full.before).toBe(0);
+    // within a fifth of a second, about half the depth; a second after the
+    // kick, well under a quarter of that
+    expect(full.soon).toBeGreaterThan(0.4 * 0.7);
+    expect(full.later).toBeLessThan(full.soon / 4);
+    // a kick half as strong swells it half as far
+    expect(swelled(0.5).soon / full.soon).toBeCloseTo(0.5, 9);
+  });
+
+  it("where its middle follows the bass's note, turns it to the right for a note an octave above those the bass played lately, by about half its depth, and to the left for one below; holds it while the bass rests, and comes back to the middle in silence", () => {
+    const bass = { ...clock, center: "bass" } as const;
+    const forces = new MusicForces();
+    // the bass on E2 for four seconds: the hand at a side on the beat, its
+    // middle straight down
+    const settled = targetOf(dance(forces, 0, 239, bass, { bassNote: 40 }));
+    expect(angleOf(settled)).toBeCloseTo(size, 4);
+    // an octave up, for a second: the middle turns right
+    const up = angleOf(
+      targetOf(dance(forces, 240, 299, bass, { bassNote: 52 })),
+    );
+    expect(up - size).toBeGreaterThan(0.8 * BASS_TURN * 0.7);
+    expect(up - size).toBeLessThan(BASS_TURN * 0.7);
+    // the bass rests for a second: the middle stays
+    const rest = angleOf(
+      targetOf(dance(forces, 300, 359, bass, { bassNote: 0 })),
+    );
+    expect(Math.abs(rest - up)).toBeLessThan(0.02);
+    // two octaves down, for a second: the middle turns left, as far as an octave takes it
+    const down = angleOf(
+      targetOf(dance(forces, 360, 419, bass, { bassNote: 28 })),
+    );
+    expect(down - size).toBeLessThan(-0.8 * BASS_TURN * 0.7);
+    expect(down - size).toBeGreaterThan(-BASS_TURN * 0.7 - 1e-9);
+    // in silence, back to the middle, and at rest
+    const quiet = targetOf(
+      dance(forces, 420, 659, bass, { bassNote: 0, silent: true }),
+    );
+    expect(Math.abs(quiet?.x ?? 1)).toBeLessThan(1e-3);
+  });
+
+  it("where its middle follows the loudness, lifts it towards the side, a quarter of a turn for music twice as loud as it has been, and lets it hang again in silence; standing, it lifts it no further", () => {
+    const lift = { ...clock, center: "level" } as const;
+    const forces = new MusicForces();
+    const loud = targetOf(dance(forces, 0, 239, lift, { level: 1 }));
+    expect(angleOf(loud)).toBeCloseTo(LIFT + 0.7, 2);
+    const half = targetOf(dance(forces, 240, 479, lift));
+    expect(angleOf(half)).toBeCloseTo(LIFT / 2 + size, 3);
+    const quiet = targetOf(dance(forces, 480, 719, lift, { silent: true }));
+    expect(Math.abs(quiet?.x ?? 1)).toBeLessThan(1e-3);
+    // held level to a side, it lifts it to standing, and no further
+    const side = targetOf(
+      dance(
+        new MusicForces(),
+        0,
+        239,
+        { ...lift, place: "side" },
+        {
+          level: 1,
+        },
+      ),
+    );
+    expect(angleOf(side)).toBeCloseTo(-(Math.PI - 0.7), 2);
+    const above = targetOf(
+      dance(
+        new MusicForces(),
+        0,
+        239,
+        { ...lift, place: "above" },
+        {
+          level: 1,
+        },
+      ),
+    );
+    expect(angleOf(above)).toBeCloseTo(-(Math.PI - 0.7), 3);
+  });
+
+  it("pulsing on the beat, grips as firmly as its step on each beat and lets go halfway between, once the clock is sure; and grips throughout while it is not, or where reduced motion is asked for", () => {
+    const full = createHand(
+      Chain.uniform(2),
+      1,
+      DANCE_GRIP,
+      handDamping(DANCE_GRIP),
+    );
+    const pulse = { ...clock, pulse: "beat" } as const;
+    const forces = new MusicForces();
+    // the frame that ends on the bar's first beat, at 2 s
+    const on = targetOf(dance(forces, 0, 119, pulse));
+    expect(on?.stiffness).toBeCloseTo(full.stiffness, 6);
+    expect(on?.damping).toBeCloseTo(full.damping, 6);
+    // a sixth of a beat on, three quarters as firm
+    const after = targetOf(dance(forces, 120, 124, pulse));
+    expect(after?.stiffness).toBeCloseTo((3 * full.stiffness) / 4, 6);
+    // half a beat on, not at all
+    const between = targetOf(dance(forces, 125, 134, pulse));
+    expect(between?.stiffness).toBeCloseTo(0, 6);
+    // led by a sound, it pulses on the clock's beats all the same
+    const kicked = targetOf(
+      dance(new MusicForces(), 0, 134, { pulse: "beat" }),
+    );
+    expect(kicked?.stiffness).toBeCloseTo(0, 6);
+    // where reduced motion is asked for, firm throughout
+    const slow = targetOf(
+      dance(new MusicForces({ slow: true }), 0, 134, pulse),
+    );
+    expect(slow?.stiffness).toBeCloseTo(full.stiffness, 9);
+    // while the clock is not sure, firm throughout
+    const unsure = new MusicForces();
+    let drive: Drive | null = null;
+    for (let k = 0; k <= 134; k++) {
+      drive = unsure.frame(
+        frame({
+          force: DANCE,
+          dance: { ...DANCE_OPENS, ...pulse },
+          heard: heard({
+            beat: { ...beatAtTime(k * FRAME), confidence: 0.5 },
+          }),
+        }),
+      );
+      unsure.ran(FRAME * SPEED);
+    }
+    expect(targetOf(drive)?.stiffness).toBeCloseTo(full.stiffness, 9);
+  });
+
+  it("holds the mass halfway down, or a quarter of the way down, with the same grip, its figure on the arc that mass reaches", () => {
+    const chain = Chain.uniform(8);
+    for (const [grab, index, reach] of [
+      ["middle", 3, 0.5],
+      ["top", 1, 0.25],
+    ] as const) {
+      const hand = targetOf(
+        dance(new MusicForces(), 0, 119, { ...clock, grab }, {}, { n: 8 }),
+      );
+      const grip = createHand(
+        chain,
+        index,
+        DANCE_GRIP,
+        handDamping(DANCE_GRIP),
+      );
+      expect(hand?.index, grab).toBe(index);
+      expect(hand?.stiffness, grab).toBeCloseTo(grip.stiffness, 9);
+      expect(hand?.damping, grab).toBeCloseTo(grip.damping, 9);
+      expect(hand?.fastest, grab).toBe(grip.fastest);
+      expect(hand?.x, grab).toBeCloseTo(reach * Math.sin(size), 4);
+      expect(hand?.y, grab).toBeCloseTo(-reach * Math.cos(size), 4);
+    }
+  });
+
+  it("grips from gentle to forced at its five steps, damped as the visitor's hand is at each of its own, and critically at 120", () => {
+    const chain = Chain.uniform(2);
+    for (const [grip, rate, ratio] of [
+      [1, 4, 0.3],
+      [2, 7, 0.45],
+      [3, 12, 0.6],
+      [4, 40, 1],
+      [5, 120, 1],
+    ] as const) {
+      const hand = targetOf(
+        dance(new MusicForces(), 0, 119, { ...clock, grip }),
+      );
+      const held = createHand(chain, 1, rate, ratio);
+      expect(hand?.stiffness, String(rate)).toBeCloseTo(held.stiffness, 6);
+      expect(hand?.damping, String(rate)).toBeCloseTo(held.damping, 9);
+      expect(hand?.fastest, String(rate)).toBe(held.fastest);
+    }
+  });
+
+  it("with slack, keeps its target nearer the pivot, by a tenth of the reach a step", () => {
+    for (const slack of [1, 2, 3, 4]) {
+      const hand = targetOf(
+        dance(new MusicForces(), 0, 119, { ...clock, slack }),
+      );
+      const radius = 1 - 0.1 * slack;
+      expect(hand?.x, String(slack)).toBeCloseTo(radius * Math.sin(size), 4);
+      expect(hand?.y, String(slack)).toBeCloseTo(-radius * Math.cos(size), 4);
+    }
+  });
+
+  it("asked to hold another mass, lets go and takes hold of it again over a second", () => {
+    const forces = new MusicForces();
+    dance(forces, 0, 119, clock, {}, { n: 8 });
+    const again = targetOf(
+      dance(forces, 120, 120, { ...clock, grab: "middle" }, {}, { n: 8 }),
+    );
+    const full = createHand(Chain.uniform(8), 3, DANCE_GRIP, 0.6).stiffness;
+    expect(again?.index).toBe(3);
+    expect(again?.stiffness).toBeCloseTo((full * FRAME) / TAKE_HOLD, 6);
   });
 });
 

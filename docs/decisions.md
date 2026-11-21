@@ -3047,6 +3047,56 @@ the script as Cloudflare's snippet has it, a module with the site's token
 and `"spa": false`; after `?count=0` it added none, on that visit and the
 next.
 
+## 85. The dancing hand's expression and body
+
+*2026-11-21.* The choreography of decision 83 gains the dance's expression,
+what the music changes as the hand goes, and the hand's body, how it holds
+the chain. Each layer is chosen on its own and carried by the address:
+
+- **the size** the figure swings to follows the loudness, as before; or
+  stays fixed, as for music as loud as it has been; or follows the bass, the
+  treble, or the kicks, swelling as far as each is strong and shrinking
+  until the next (`size=`);
+- **the middle** of the figure stays; or turns to the bass's note, to the
+  right for a note above those the bass played lately and to the left for
+  one below, 20° for an octave at the middle strength; or rises towards the
+  side as the music is loud, up to a quarter of a turn and never past
+  standing, and hangs again in silence (`center=`);
+- **the grip** holds as firmly throughout; or pulses on the beat, firm on
+  each and loose halfway between, while the beat clock is sure
+  (`pulse=beat`);
+- **the mass** the hand holds: the tip, the one halfway down, or the one a
+  quarter of the way down, near the pivot (`grab=`);
+- **how firmly**, in five steps from gentle to forced: 4, 7, 12, 40 and 120
+  rad/s, damped as the visitor's hand is at its steps and critically at 120
+  (`grip=`);
+- **the slack**: the hand keeps its target as far from the pivot as the
+  held mass hangs, or nearer by a tenth of that a step, up to four tenths
+  (`slack=`).
+
+The dance opens as it did: as wide as the music is loud, from the middle,
+by the tip, with the grip of 12, taut. Where reduced motion is asked for,
+the grip does not pulse.
+
+**Why.** One grip did not suit every music: at 12, the hand moved nothing in
+slow motion and whipped the chain at the music's strongest step, and holding
+the tip closed the twins' fan over time. As layers of their own, the grip,
+the mass held and what the music changes as the hand goes are composed with
+the rest.
+
+**Evidence.** Unit tests for the address and for each layer. Opened as
+before, the tests of decisions 75 and 83 pass unchanged and the replay test
+of decision 81 ends where it ended, bit for bit. In the browser, the new
+layers stay in the address beside the music's mode and a saved moment.
+Measured before the change, with the demo beat, by how closely the tip
+followed its target (decision 83): at ×0.8 and the music's strongest step, a
+grip of 4 followed at −0.44 to 0.41, 12 at 0.23 to 0.66, 40 at 0.88 to 0.91
+and 120 at 0.99; at ×0.1, 4 and 12 did not move the chain, and 120 followed
+at 0.66 to 0.72 with 150 to 450 times the energy that lifts it level. A grip
+of 120 costs up to six times the physics of the chain and of each twin.
+Eight masses held by the middle kept their twins 0.1 to 0.6 m apart, where
+held by the tip with the grip of 12 they came within 3 to 12 cm.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.

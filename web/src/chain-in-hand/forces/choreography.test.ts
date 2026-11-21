@@ -3,19 +3,22 @@ import { describe, expect, it } from "vitest";
 import {
   DANCE_OPENS,
   FIGURES,
+  GRIPS,
+  SLACKS,
   alongFigure,
+  heldMass,
   pointsOf,
   readChoreography,
   writeChoreography,
   type Figure,
 } from "./choreography.ts";
 
-// The dancing hand's choreography (docs/decisions.md, decision 83): the
-// layers the visitor composes the dance from, carried by the address, and
-// the figures the hand traces.
+// The dancing hand's choreography (docs/decisions.md, decisions 83 and 85):
+// the layers the visitor composes the dance from, carried by the address,
+// the figures the hand traces, and the mass it holds.
 
 describe("the dance's choreography in the address (decision 83)", () => {
-  it("opens as the dance has: the swing below, led by the kicks, a point a kick, in a snap, the hand hidden", () => {
+  it("opens as the dance has: the swing below, led by the kicks, a point a kick, in a snap, as wide as the music is loud, from the middle, gripped as firmly throughout, by the tip, with the hand's grip of 12, taut, the hand hidden", () => {
     expect(readChoreography("")).toEqual(DANCE_OPENS);
     expect(DANCE_OPENS).toEqual({
       figure: "swing",
@@ -23,8 +26,16 @@ describe("the dance's choreography in the address (decision 83)", () => {
       lead: "kick",
       beats: 1,
       feel: "snap",
+      size: "level",
+      center: "none",
+      pulse: "none",
+      grab: "tip",
+      grip: 3,
+      slack: 0,
       shown: false,
     });
+    expect(GRIPS[DANCE_OPENS.grip - 1]).toBe(12);
+    expect(SLACKS[DANCE_OPENS.slack]).toBe(0);
   });
 
   it("reads each layer from the address, and opens anything it does not know as the dance opens", () => {
@@ -33,12 +44,36 @@ describe("the dance's choreography in the address (decision 83)", () => {
         "?music=dance&figure=eight&place=above&lead=clock&beats=0.5&feel=ictus&showhand=1",
       ),
     ).toEqual({
+      ...DANCE_OPENS,
       figure: "eight",
       place: "above",
       lead: "clock",
       beats: 0.5,
       feel: "ictus",
       shown: true,
+    });
+    expect(
+      readChoreography(
+        "?size=kick&center=bass&pulse=beat&grab=middle&grip=5&slack=3",
+      ),
+    ).toEqual({
+      ...DANCE_OPENS,
+      size: "kick",
+      center: "bass",
+      pulse: "beat",
+      grab: "middle",
+      grip: 5,
+      slack: 3,
+    });
+    expect(
+      readChoreography("?size=fixed&center=level&grab=top&grip=1&slack=4"),
+    ).toEqual({
+      ...DANCE_OPENS,
+      size: "fixed",
+      center: "level",
+      grab: "top",
+      grip: 1,
+      slack: 4,
     });
     expect(readChoreography("?beats=auto&lead=bass&figure=conduct")).toEqual({
       ...DANCE_OPENS,
@@ -51,6 +86,11 @@ describe("the dance's choreography in the address (decision 83)", () => {
         "?figure=zigzag&place=under&lead=drums&beats=3&feel=soft&showhand=yes",
       ),
     ).toEqual(DANCE_OPENS);
+    expect(
+      readChoreography("?size=huge&center=up&pulse=1&grab=foot&grip=6&slack=5"),
+    ).toEqual(DANCE_OPENS);
+    expect(readChoreography("?grip=0&slack=-1")).toEqual(DANCE_OPENS);
+    expect(readChoreography("?grip=2.5&slack=1.5")).toEqual(DANCE_OPENS);
   });
 
   it("writes only the layers that differ from how the dance opens, after whatever else the address carried, and reads back what it wrote", () => {
@@ -62,6 +102,12 @@ describe("the dance's choreography in the address (decision 83)", () => {
       lead: "snare",
       beats: 4,
       feel: "smooth",
+      size: "treble",
+      center: "level",
+      pulse: "beat",
+      grab: "top",
+      grip: 4,
+      slack: 2,
       shown: true,
     } as const;
     const search = writeChoreography(
@@ -69,13 +115,38 @@ describe("the dance's choreography in the address (decision 83)", () => {
       composed,
     );
     expect(search).toBe(
-      "?music=dance&strength=4&figure=turn&place=side&lead=snare&beats=4&feel=smooth&showhand=1",
+      "?music=dance&strength=4&figure=turn&place=side&lead=snare&beats=4&feel=smooth&size=treble&center=level&pulse=beat&grab=top&grip=4&slack=2&showhand=1",
     );
     expect(readChoreography(search)).toEqual(composed);
     // back to how it opens, the layers leave the address
     expect(writeChoreography(search, DANCE_OPENS)).toBe(
       "?music=dance&strength=4",
     );
+  });
+});
+
+describe("the mass the hand holds (decision 85)", () => {
+  it("holds the tip, the mass halfway down the chain, or the one a quarter of the way down, near the pivot", () => {
+    expect(heldMass("tip", 8)).toBe(7);
+    expect(heldMass("middle", 8)).toBe(3);
+    expect(heldMass("top", 8)).toBe(1);
+    expect(heldMass("middle", 32)).toBe(15);
+    expect(heldMass("top", 32)).toBe(7);
+    expect(heldMass("middle", 3)).toBe(1);
+    expect(heldMass("top", 3)).toBe(0);
+    // with two masses, the middle is the elbow, and so is the top
+    expect(heldMass("tip", 2)).toBe(1);
+    expect(heldMass("middle", 2)).toBe(0);
+    expect(heldMass("top", 2)).toBe(0);
+    // and a single mass is the tip
+    for (const grab of ["tip", "middle", "top"] as const) {
+      expect(heldMass(grab, 1)).toBe(0);
+    }
+  });
+
+  it("grips from gentle to forced, the visitor's hand's first three steps and then firmer than its firmest, and leaves the target at most four tenths of the reach nearer the pivot", () => {
+    expect(GRIPS).toEqual([4, 7, 12, 40, 120]);
+    expect(SLACKS).toEqual([0, 0.1, 0.2, 0.3, 0.4]);
   });
 });
 
