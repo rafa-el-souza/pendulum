@@ -1,4 +1,6 @@
-import { DEMO_SECONDS, DemoTap, renderDemoInto } from "./demo.ts";
+import { BEAT_PROCESSOR, BeatClock, beatAt, type BeatAt } from "./beat.ts";
+import beatWorklet from "./beat.worklet.ts?worker&url";
+import { DEMO_SECONDS, DemoTap, demoSample, renderDemoInto } from "./demo.ts";
 import { builtInMicrophone } from "./devices.ts";
 import { HEARD, Hearing, type Signals } from "./signals.ts";
 
@@ -14,6 +16,14 @@ import { HEARD, Hearing, type Signals } from "./signals.ts";
 // echo cancelling, noise suppression and automatic gain: they are made for
 // a call and spoil music, and on Android they put the whole device in call
 // mode. Safari keeps the last two whatever it is asked.
+//
+// The beat clock (decision 78) hears the microphone, a tab and a file on the
+// browser's audio line, every sample at an even pace, and tells the page
+// what it says; the demonstration beat it hears straight from the beat's
+// function, on the page, as the frames do. Each frame gets what it says
+// moved on to the moment the frame hears: for a file and the beat, the
+// sample leaving the speaker now; for the microphone and a tab, the latest
+// that came in, since how long they took to come in no browser tells.
 
 /** A source of music. */
 export type Source = "microphone" | "file" | "tab" | "demo";
@@ -81,6 +91,8 @@ const MUTED_RATE = 48_000;
 /** How much of the beat is rendered before it plays, its first bar, and then before the page breathes, in s. */
 const DEMO_OPENING = 2;
 const DEMO_CHUNK = 1;
+/** The most of the demonstration beat its clock catches up on after a gap, as of a hidden page, in s: what it remembers. */
+const DEMO_CATCH_UP = 8;
 /** How long a browser may take to start its sound, in ms, before the page says it passes none, and how often it looks. */
 const PLAY_WAIT_MS = 4000;
 const PLAY_LOOK_MS = 100;
@@ -128,6 +140,51 @@ function outputTime(context: AudioContext): number {
   return context.currentTime - (Number.isFinite(lag) ? lag : 0);
 }
 
+/** What the clock says moved on to `at`, on its own time. */
+function movedTo(beat: BeatAt, at: number): BeatAt {
+  return { ...beatAt(beat, at), at };
+}
+
+/**
+ * The beat clock of the demonstration beat, on the page (decision 78): fed
+ * the beat's samples from its function, every one from where it was fed
+ * last to the moment a frame hears, after a long gap the last
+ * DEMO_CATCH_UP s of them afresh.
+ */
+class DemoBeat {
+  private readonly rate: number;
+  private clock: BeatClock;
+  private readonly chunk = new Float32Array(4096);
+  /** The last sample fed, by its number from the beat's start. */
+  private fed = -1;
+
+  constructor(rate: number) {
+    this.rate = rate;
+    this.clock = new BeatClock(rate);
+  }
+
+  /** What the clock says at `at` s of the beat, once fed the beat until then. */
+  at(at: number): BeatAt | null {
+    const end = Math.floor(at * this.rate);
+    const most = Math.round(DEMO_CATCH_UP * this.rate);
+    if (end - this.fed > most) {
+      this.clock = new BeatClock(this.rate);
+      this.fed = end - most;
+    }
+    while (this.fed < end) {
+      const n = Math.min(this.chunk.length, end - this.fed);
+      for (let i = 0; i < n; i++) {
+        const sample = this.fed + 1 + i;
+        this.chunk[i] = sample < 0 ? 0 : demoSample(sample / this.rate);
+      }
+      this.fed += n;
+      this.clock.hear(this.chunk.subarray(0, n), this.fed / this.rate);
+    }
+    const now = this.clock.now;
+    return now === null ? null : movedTo(now, at);
+  }
+}
+
 /** Listens to one source at a time, and hears it a frame at a time. */
 export class Listening {
   /** The source listened to, or null. */
@@ -143,6 +200,10 @@ export class Listening {
   private take: ((out: Float32Array<ArrayBuffer>) => number | null) | null =
     null;
   private hearing: Hearing | null = null;
+  /** What the beat clock says at the moment a frame hears, given the time the frame hears at; null while it has nothing. */
+  private beat: ((at: number) => BeatAt | null) | null = null;
+  /** The beat clock's module on the audio line: loading or loaded, or refused. */
+  private worklet: Promise<boolean> | null = null;
   private readonly samples = new Float32Array(HEARD);
   /** How many starts were asked for: a start that another has overtaken drops what it got. */
   private asked = 0;
@@ -189,11 +250,13 @@ export class Listening {
     void this.context?.suspend().catch(() => undefined);
   }
 
-  /** What the latest samples say, or null while nothing is listened to. */
+  /** What the latest samples say, with what the beat clock says, or null while nothing is listened to. */
   hear(): Signals | null {
     if (this.take === null || this.hearing === null) return null;
     const at = this.take(this.samples);
-    return at === null ? null : this.hearing.hear(this.samples, at);
+    if (at === null) return null;
+    const heard = this.hearing.hear(this.samples, at);
+    return { ...heard, beat: this.beat?.(at) ?? null };
   }
 
   private letGo(): void {
@@ -201,6 +264,7 @@ export class Listening {
     this.release = null;
     this.take = null;
     this.hearing = null;
+    this.beat = null;
     this.source = null;
     this.device = "";
   }
@@ -252,11 +316,65 @@ export class Listening {
     rate: number,
     take: (out: Float32Array<ArrayBuffer>) => number | null,
     release: () => void,
+    beat: ((at: number) => BeatAt | null) | null,
   ): void {
     this.source = source;
     this.hearing = new Hearing(rate);
     this.take = take;
     this.release = release;
+    this.beat = beat;
+  }
+
+  /**
+   * The beat clock on the audio line, hearing `input` once its module has
+   * loaded (decision 78): what it said last, moved on to the moment heard
+   * now, `heardAt()` on the audio's clock; and how to let it go. Where the
+   * browser runs no modules on its audio line, there is no beat.
+   */
+  private clockOn(
+    context: AudioContext,
+    input: AudioNode,
+    mine: number,
+    heardAt: (at: number) => number,
+  ): { beat: (at: number) => BeatAt | null; release: () => void } {
+    let told: BeatAt | null = null;
+    let node: AudioWorkletNode | null = null;
+    let quiet: GainNode | null = null;
+    let gone = false;
+    this.worklet ??=
+      "audioWorklet" in context
+        ? context.audioWorklet.addModule(beatWorklet).then(
+            () => true,
+            () => false,
+          )
+        : Promise.resolve(false);
+    void this.worklet.then((loaded) => {
+      if (!loaded || gone || mine !== this.asked) return;
+      node = new AudioWorkletNode(context, BEAT_PROCESSOR, {
+        numberOfInputs: 1,
+        numberOfOutputs: 1,
+        outputChannelCount: [1],
+      });
+      node.port.onmessage = (event: MessageEvent<BeatAt>) => {
+        if (!gone) told = event.data;
+      };
+      // through a branch that makes no sound, as the analyser's
+      quiet = context.createGain();
+      quiet.gain.value = 0;
+      input.connect(node).connect(quiet).connect(context.destination);
+    });
+    return {
+      beat: (at) => (told === null ? null : movedTo(told, heardAt(at))),
+      release: () => {
+        gone = true;
+        if (node !== null) {
+          node.port.onmessage = null;
+          node.port.close();
+          node.disconnect();
+        }
+        quiet?.disconnect();
+      },
+    };
   }
 
   private async microphone(
@@ -305,6 +423,7 @@ export class Listening {
     }
     const input = context.createMediaStreamSource(stream);
     const analyser = this.tap(context, input);
+    const clock = this.clockOn(context, input, mine, (at) => at);
     this.listen(
       "microphone",
       context.sampleRate,
@@ -313,10 +432,12 @@ export class Listening {
         return context.currentTime;
       },
       () => {
+        clock.release();
         stopTracks(stream);
         input.disconnect();
         analyser.disconnect();
       },
+      clock.beat,
     );
     const [track] = stream.getAudioTracks();
     this.device = track?.getSettings().deviceId ?? "";
@@ -375,6 +496,7 @@ export class Listening {
       this.onEnd?.();
     };
     track.addEventListener("ended", ended);
+    const clock = this.clockOn(context, input, mine, (at) => at);
     this.listen(
       "tab",
       context.sampleRate,
@@ -383,11 +505,13 @@ export class Listening {
         return context.currentTime;
       },
       () => {
+        clock.release();
         track.removeEventListener("ended", ended);
         stopTracks(stream);
         input.disconnect();
         analyser.disconnect();
       },
+      clock.beat,
     );
     if (!(await this.plays(context))) {
       return mine === this.asked ? { kind: "unheard" } : null;
@@ -409,6 +533,9 @@ export class Listening {
     const input = context.createMediaElementSource(element);
     const analyser = this.tap(context, input);
     input.connect(context.destination);
+    // the file plays through the page: its beat is moved on to the sample
+    // leaving the speaker now
+    const clock = this.clockOn(context, input, mine, () => outputTime(context));
     this.listen(
       "file",
       context.sampleRate,
@@ -417,6 +544,7 @@ export class Listening {
         return context.currentTime;
       },
       () => {
+        clock.release();
         element.pause();
         element.removeAttribute("src");
         element.load();
@@ -424,6 +552,7 @@ export class Listening {
         input.disconnect();
         analyser.disconnect();
       },
+      clock.beat,
     );
     try {
       await element.play();
@@ -454,6 +583,7 @@ export class Listening {
     if (context === null) {
       const origin = now();
       const tap = new DemoTap(MUTED_RATE);
+      const beat = new DemoBeat(MUTED_RATE);
       this.listen(
         "demo",
         MUTED_RATE,
@@ -463,6 +593,7 @@ export class Listening {
           return t;
         },
         () => undefined,
+        (at) => beat.at(at),
       );
       return { kind: "muted" };
     }
@@ -493,6 +624,7 @@ export class Listening {
     // at the time of the sample being played
     let audible = false;
     const tap = new DemoTap(rate);
+    const beat = new DemoBeat(rate);
     this.listen(
       "demo",
       rate,
@@ -512,6 +644,7 @@ export class Listening {
         }
         volume.disconnect();
       },
+      (at) => beat.at(at),
     );
     void this.demoRest(
       context,

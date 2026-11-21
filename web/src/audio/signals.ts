@@ -1,3 +1,4 @@
+import type { BeatAt } from "./beat.ts";
 import { Fourier, hann } from "./fft.ts";
 
 // What the piece hears in music (docs/decisions.md, decision 44), one record
@@ -76,6 +77,12 @@ export interface Signals {
     readonly mid: number;
     readonly treble: number;
   };
+  /**
+   * The beat clock's tempo and where the beat and the bar are (decision 78),
+   * moved on to the moment the frame hears, `at` on the clock's own time; null
+   * before it has found a tempo, and where there is no clock.
+   */
+  readonly beat: BeatAt | null;
 }
 
 /** The lowest a power reads, in dB from full scale: silence. */
@@ -166,6 +173,7 @@ export const QUIET: Signals = {
   silent: true,
   loudness: FLOOR_DB,
   bands: { bass: FLOOR_DB, mid: FLOOR_DB, treble: FLOOR_DB },
+  beat: null,
 };
 
 function decibels(power: number): number {
@@ -806,6 +814,8 @@ export class Hearing {
       silent: this.silent,
       loudness,
       bands,
+      // the beat clock hears the samples elsewhere (source.ts)
+      beat: null,
     };
     return this.last;
   }
