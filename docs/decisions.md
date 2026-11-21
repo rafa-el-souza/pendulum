@@ -3097,6 +3097,46 @@ of 120 costs up to six times the physics of the chain and of each twin.
 Eight masses held by the middle kept their twins 0.1 to 0.6 m apart, where
 held by the tip with the grip of 12 they came within 3 to 12 cm.
 
+## 86. The kick is told from the bass by its fall
+
+*2026-11-21.* An attack under 150 Hz is a kick only where its pitch falls,
+as a drum's skin falls as it settles: where the band's centroid falls at
+least 4 semitones, from the highest of the windows ending in the 33 ms up to
+the frame that heard the attack to the lowest of those ending in the 50 ms
+after it. A bass note holds its pitch, and its attack is no kick. So a kick
+comes 50 ms later than before, to everything that follows the kicks: the
+light's halo and strobe, the speaker, the sway, and the dance led by the
+kicks or swelling with them. The windows are set in time, within the samples
+a frame is given, so the verdict is the same however often frames come;
+where they come more often than 60 a second, an attack is heard sooner, and
+its windows are set from a 60th of a second after the frame before. The
+onset, an attack in any band, still comes with the attack, the bass's
+included.
+
+**Why.** Under 150 Hz the analysis heard a kick wherever the bass began a
+note: in the demo beat, 47 of the 110 kicks heard in a minute were the
+bass's, and in a piano piece with no drums it heard 1.1 kicks a second; the
+dance, the speaker and the sway moved on them. Weighed: telling a bass note
+by the bass's pitch a frame after the attack, which waits less but removed
+under half of the false kicks in music, and lost a fifth of an electronic
+piece's kicks at 30 frames a second.
+
+**Evidence.** Unit tests: a thump whose pitch falls is a kick 50 ms after
+the frame that heard its attack, and at 12, 30 and 144 frames a second as at
+60; a bass line's notes are none; in the demo beat, whose kicks each begin
+with a bass note, the kicks are heard and none of the bass's notes alone.
+The replay test of decision 81 ends elsewhere, as its forces now move on the
+kicks alone: it hears the 21 kicks the demo beat strikes after the first.
+Measured against the drums and the bass of four pieces of music, separated
+by Demucs, and against the demo beat's own parts: at 60 frames a second,
+the kicks heard went from 57 to 100% kicks in the demo beat and from 65 to
+95% in an electronic piece, keeping all their kicks; a 5/4 beat and a metal
+piece kept 89 and 97% of theirs; in the piano piece, two thirds of the false
+kicks went. At 30 frames a second, as clean. At 120 and 144, 91 to 100% of
+the kicks were kept, and a twentieth to a third of the false kicks
+remained. A bass that leaps down a fourth or more can fall as far as a kick,
+and be heard as one.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.

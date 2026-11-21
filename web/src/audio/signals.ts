@@ -10,9 +10,10 @@ import { Fourier, hann } from "./fft.ts";
 // played quietly and loudly moves the piece alike, and a microphone of
 // unknown gain serves. Over the frames of a moment it tells a drum's hit,
 // broad in frequency for an instant, from a note, which lasts, and over the
-// latest HEARD samples it follows the note the bass plays (decision 48). It
-// is all arithmetic on the samples, so the tests hear made-up sounds with the
-// same code the page runs.
+// latest HEARD samples it follows the note the bass plays (decision 48), and
+// tells a kick drum, whose pitch falls, from a bass note, whose pitch holds
+// (decision 86). It is all arithmetic on the samples, so the tests hear
+// made-up sounds with the same code the page runs.
 
 /** How many samples a frame's spectrum hears: 43 ms at 48 kHz, 46 at 44.1. */
 export const WINDOW = 2048;
@@ -28,6 +29,12 @@ export const HEARD = 8192;
  * SPAN / 2 late.
  */
 export const SPAN = 0.15;
+/**
+ * How long after the frame that heard an attack under 150 Hz it is told a
+ * kick or a bass note, in s (decision 86): so a kick is heard this much later
+ * than its attack.
+ */
+export const KICK_WAIT = 0.05;
 
 /** The three bands, in Hz: the kick drum and the bass; voices and most instruments; cymbals and air. */
 export const BANDS = {
@@ -48,17 +55,23 @@ export interface Signals {
   readonly bass: number;
   readonly mid: number;
   readonly treble: number;
-  /** How strong an attack in any band that began since the frame before, from a half to 1; 0 when none did. */
+  /** How strong an attack in any band that began since the frame before, from a half to 1; 0 when none did. Under 150 Hz it is a kick or a bass note. */
   readonly onset: number;
-  /** The same in each band, which is where a kick drum, a snare and a hi-hat strike. */
+  /**
+   * How strong a kick drum's thump, from a half to 1: an attack under 150 Hz
+   * whose pitch fell, heard KICK_WAIT after the frame that heard the attack
+   * (decision 86); 0 when none was. A bass note's attack holds its pitch,
+   * and is no kick.
+   */
   readonly kick: number;
+  /** How strong an attack in the middle and in the treble, which is where a snare and a hi-hat strike. */
   readonly snare: number;
   readonly hat: number;
   /**
    * How strong a hit, from a half to 1, something broad in frequency for a
    * moment, as a drum or a cymbal, in the middle or the treble, heard SPAN / 2
-   * after it began; 0 when none did. Under 150 Hz, at this window, a kick
-   * and a bass note cannot be told apart, and neither is a hit.
+   * after it began; 0 when none did. Nothing under 150 Hz is a hit: a kick
+   * is told from a bass note by its pitch's fall, as `kick`.
    */
   readonly hit: number;
   /** How strong the beginning of a note or a chord, something that lasts between 150 Hz and 4 kHz, heard SPAN / 2 after it; 0 when none began. */
@@ -154,6 +167,24 @@ const BASS_RATE = 4000;
 const BASS_CLEAR = 0.15;
 /** A new note of the bass is one it has played this long, in s. */
 const BASS_HOLD = 0.04;
+/**
+ * A kick drum's skin falls in pitch as it settles, and a bass note holds its
+ * pitch (decision 86): an attack under 150 Hz is a kick where the centroid
+ * of the band fell at least KICK_FALL semitones. It falls from the highest of
+ * the windows ending KICK_STEP apart from KICK_BEFORE before the frame that
+ * heard the attack to that frame, of those within KICK_GATE dB of the
+ * loudest of them, to the lowest of those ending KICK_STEP apart after it,
+ * to KICK_WAIT. Measured on the demonstration beat and four pieces of music
+ * whose drums and bass were separated: at 30 and 60 frames a second, a fall
+ * of 4 semitones kept 90 to 100% of the kicks and let through none to a
+ * tenth of the attacks of the bass; at 120 and 144, as many kicks, and a
+ * tenth to a quarter of the bass's. A bass that leaps down a fourth or more
+ * falls as far as a kick, and is heard as one.
+ */
+const KICK_FALL = 4;
+const KICK_BEFORE = 2 / 60;
+const KICK_STEP = 1 / 60;
+const KICK_GATE = 20;
 
 /** All quiet: the record before anything is heard, and of silence. */
 export const QUIET: Signals = {
@@ -649,6 +680,153 @@ class BassLine {
   }
 }
 
+/** A window's centroid of the bass band, in Hz, and its power, in dB. */
+interface Probe {
+  readonly centroid: number;
+  readonly power: number;
+}
+
+/** An attack under 150 Hz waiting to be told a kick: the time its windows are set from, how strong it was, and the centroid it falls from, in Hz. */
+interface Waiting {
+  readonly from: number;
+  readonly strength: number;
+  readonly top: number;
+}
+
+/**
+ * Tells a kick from a bass note by its fall (decision 86): an attack in the
+ * bass band waits KICK_WAIT, and is a kick where the band's centroid fell
+ * KICK_FALL semitones meanwhile. The windows are taken within the samples a
+ * frame is given, at set times from the frame that heard the attack, so that
+ * they are the same however often frames come; where frames come more often
+ * than KICK_STEP, an attack is heard sooner, and its windows are set from
+ * KICK_STEP after the frame before, where they would have been.
+ */
+class Kicks {
+  private readonly fourier: Fourier;
+  private readonly window: Float64Array;
+  private readonly re = new Float64Array(WINDOW);
+  private readonly im = new Float64Array(WINDOW);
+  private readonly rate: number;
+  /** The bass band's bins [from, to), and the width of a bin, in Hz. */
+  private readonly bins: readonly [number, number];
+  private readonly binHz: number;
+  private waiting: Waiting | null = null;
+  /** When the frame before sounded. */
+  private last = Number.NEGATIVE_INFINITY;
+
+  constructor(
+    rate: number,
+    fourier: Fourier,
+    window: Float64Array,
+    bins: readonly [number, number],
+  ) {
+    this.rate = rate;
+    this.fourier = fourier;
+    this.window = window;
+    this.bins = bins;
+    this.binHz = rate / WINDOW;
+  }
+
+  /**
+   * The strength of the kick told at this frame, whose samples end at `at`,
+   * or 0; and an attack this frame heard, `attack` strong, waits to be told.
+   * Silence lets a waiting attack go.
+   */
+  hear(
+    samples: Float32Array,
+    at: number,
+    attack: number,
+    silent: boolean,
+  ): number {
+    let kick = 0;
+    const waiting = this.waiting;
+    if (waiting !== null && (silent || at >= waiting.from + KICK_WAIT - 1e-6)) {
+      this.waiting = null;
+      if (!silent && this.fell(samples, at, waiting)) kick = waiting.strength;
+    }
+    const last = this.last;
+    this.last = at;
+    if (attack > 0 && !silent) {
+      const from = Math.max(at, last + KICK_STEP);
+      // the windows before, the latest of them ending at `from`, which may be
+      // after `at` where frames come often: then those after it wait too
+      const ahead = from - at;
+      if (ahead > 1e-6) {
+        this.waiting = { from, strength: attack, top: Number.NaN };
+      } else {
+        this.waiting = {
+          from,
+          strength: attack,
+          top: this.top(samples, at, from),
+        };
+      }
+    }
+    return kick;
+  }
+
+  /** The highest centroid of the windows ending KICK_STEP apart from KICK_BEFORE before `from` to `from`, of those within KICK_GATE dB of the loudest of them. */
+  private top(samples: Float32Array, at: number, from: number): number {
+    const probes: Probe[] = [];
+    for (let j = -Math.round(KICK_BEFORE / KICK_STEP); j <= 0; j++) {
+      probes.push(this.probe(samples, at, from + j * KICK_STEP));
+    }
+    const loudest = Math.max(...probes.map((p) => p.power));
+    return Math.max(
+      ...probes
+        .filter((p) => p.power >= loudest - KICK_GATE)
+        .map((p) => p.centroid),
+    );
+  }
+
+  /** Whether the centroid fell KICK_FALL semitones from `waiting`'s top to the lowest of the windows ending KICK_STEP apart after it, to KICK_WAIT. */
+  private fell(samples: Float32Array, at: number, waiting: Waiting): boolean {
+    const top = Number.isNaN(waiting.top)
+      ? this.top(samples, at, waiting.from)
+      : waiting.top;
+    let low = Number.POSITIVE_INFINITY;
+    for (let j = 1; j <= Math.round(KICK_WAIT / KICK_STEP); j++) {
+      const time = waiting.from + j * KICK_STEP;
+      low = Math.min(low, this.probe(samples, at, time).centroid);
+    }
+    const fall = low > 0 ? 12 * Math.log2(top / low) : 0;
+    return fall >= KICK_FALL;
+  }
+
+  /**
+   * The bass band's centroid, in Hz, and its power, in dB, over the WINDOW
+   * samples ending at `time`, of `samples`, which end at `at`: or as near
+   * `time` as they reach.
+   */
+  private probe(
+    samples: Float32Array,
+    at: number,
+    time: number,
+  ): { centroid: number; power: number } {
+    const back = Math.min(
+      samples.length - WINDOW,
+      Math.max(0, Math.round((at - time) * this.rate)),
+    );
+    const first = samples.length - back - WINDOW;
+    for (let i = 0; i < WINDOW; i++) {
+      this.re[i] = (samples[first + i] ?? 0) * (this.window[i] ?? 0);
+      this.im[i] = 0;
+    }
+    this.fourier.transform(this.re, this.im);
+    let power = 0;
+    let moment = 0;
+    for (let k = this.bins[0]; k < this.bins[1]; k++) {
+      const p = (this.re[k] ?? 0) ** 2 + (this.im[k] ?? 0) ** 2;
+      power += p;
+      moment += p * k;
+    }
+    return {
+      centroid: power > 0 ? (moment / power) * this.binHz : 0,
+      power: decibels(power),
+    };
+  }
+}
+
 /** Hears music frame by frame, as Signals. */
 export class Hearing {
   private readonly fourier = new Fourier(WINDOW);
@@ -676,6 +854,7 @@ export class Hearing {
   };
   private readonly separation: Separation;
   private readonly bassLine: BassLine;
+  private readonly kicks: Kicks;
   /** A power in the transform, as the mean square of the samples it comes from. */
   private readonly norm: number;
   private last: Signals = QUIET;
@@ -700,6 +879,7 @@ export class Hearing {
     ) as Record<Band, [number, number][]>;
     this.separation = new Separation(bin);
     this.bassLine = new BassLine(rate);
+    this.kicks = new Kicks(rate, this.fourier, this.window, this.bins.bass);
     // one side of the spectrum, the window's mean square taken out
     const meanSquare = this.window.reduce((sum, w) => sum + w * w, 0) / WINDOW;
     this.norm = 2 / (WINDOW * WINDOW * meanSquare);
@@ -774,7 +954,8 @@ export class Hearing {
     const ready = !this.silent && this.heardFor >= WARM_UP;
     const holds = (band: Band) =>
       bands[band] > BAND_FLOOR_DB && bands[band] - loudness > BAND_SHARE_DB;
-    const kick = this.attacks.bass.hear(flux.bass, dt, ready, holds("bass"));
+    // an attack under 150 Hz: a kick or a bass note, told KICK_WAIT on
+    const low = this.attacks.bass.hear(flux.bass, dt, ready, holds("bass"));
     const snare = this.attacks.mid.hear(flux.mid, dt, ready, holds("mid"));
     const hat = this.attacks.treble.hear(
       flux.treble,
@@ -796,6 +977,7 @@ export class Hearing {
       ready,
     );
     const bass = this.bassLine.hear(samples, at, this.silent, loudness);
+    const kick = this.kicks.hear(samples, at, low, this.silent);
 
     this.last = {
       at,
@@ -803,7 +985,7 @@ export class Hearing {
       bass: this.gauges.bass.hear(bands.bass, dt, this.silent),
       mid: this.gauges.mid.hear(bands.mid, dt, this.silent),
       treble: this.gauges.treble.hear(bands.treble, dt, this.silent),
-      onset: Math.max(kick, snare, hat),
+      onset: Math.max(low, snare, hat),
       kick,
       snare,
       hat,

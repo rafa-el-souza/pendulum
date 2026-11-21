@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { demoSample } from "./demo.ts";
-import { HEARD, Hearing, SPAN, type Signals } from "./signals.ts";
+import { HEARD, Hearing, KICK_WAIT, SPAN, type Signals } from "./signals.ts";
 
 // What the piece hears in music (docs/decisions.md, decisions 44 and 48): how
 // loud it is, in three bands, and the attacks of its beats and notes, each
@@ -56,9 +56,16 @@ function hits(
   };
 }
 
-/** A low thump, as a kick drum: 60 Hz falling fast. */
-const thump = (since: number): number =>
-  0.8 * Math.exp(-since / 0.12) * Math.sin(2 * Math.PI * 60 * since);
+/**
+ * A low thump, as a kick drum: its skin's pitch falls from 150 Hz to 50 in a
+ * few hundredths of a second, and the thump dies away fast.
+ */
+const thump = (since: number): number => {
+  const sweep = 0.03;
+  const phase =
+    2 * Math.PI * (50 * since + 100 * sweep * (1 - Math.exp(-since / sweep)));
+  return 0.8 * Math.exp(-since / 0.12) * Math.sin(phase);
+};
 
 /** A short tick high up, as a closed hi-hat: 9 kHz. */
 const tick = (since: number): number =>
@@ -112,6 +119,21 @@ function chords(t: number): number {
 /** The frequency of MIDI note `note`, in Hz. */
 const hz = (note: number): number => 440 * 2 ** ((note - 69) / 12);
 
+/**
+ * A bass guitar's notes, half a second each: plucked, so struck at once,
+ * held at their pitch and dying away slowly, each damped as the next comes.
+ */
+function plucked(line: readonly number[], from = 0): (t: number) => number {
+  return (t) => {
+    if (t < from) return 0;
+    const k = Math.floor((t - from) / 0.5);
+    const note = line[k % line.length] ?? 33;
+    const since = (t - from) % 0.5;
+    const edge = Math.min(1, since / 0.003, (0.5 - since) / 0.01);
+    return 0.3 * edge * Math.exp(-since / 0.5) * organ(hz(note), since);
+  };
+}
+
 /** The times of the frames whose `key` is an attack. */
 function attacks(
   heard: Signals[],
@@ -152,20 +174,48 @@ describe("Hearing", { timeout: 20_000 }, () => {
 
   // The first half second of sound teaches the hearing what the flux is like,
   // and no attack is heard in it; the beats below start after it.
-  it("finds the attack of every thump of a kick drum, and no others", () => {
+  it("finds the attack of every thump of a kick drum, and no others, and hears it a kick once its pitch has fallen", () => {
     const heard = listen((t) => hits(0.5, 0.75, thump)(t) + room(t), 6);
-    const kicks = attacks(heard, "kick");
     const expected = Array.from({ length: 11 }, (_, i) => 0.75 + 0.5 * i);
-    expect(kicks).toHaveLength(expected.length);
-    kicks.forEach((at, i) => {
-      // heard within two frames of the thump
+    // the attack, the onset of the whole, heard within two frames of the thump
+    const onsets = attacks(heard, "onset");
+    expect(onsets).toHaveLength(expected.length);
+    onsets.forEach((at, i) => {
       expect(at - (expected[i] ?? 0)).toBeGreaterThanOrEqual(0);
       expect(at - (expected[i] ?? 0)).toBeLessThan(2.5 / 60);
     });
-    // the onset of the whole is the strongest of the bands'
-    expect(attacks(heard, "onset")).toEqual(kicks);
+    // and the kick KICK_WAIT after the frame that heard the attack (decision 86)
+    const kicks = attacks(heard, "kick");
+    expect(kicks).toHaveLength(expected.length);
+    kicks.forEach((at, i) => {
+      expect(at - (onsets[i] ?? 0)).toBeGreaterThanOrEqual(KICK_WAIT - 1e-9);
+      expect(at - (onsets[i] ?? 0)).toBeLessThan(KICK_WAIT + 1 / 60);
+    });
     expect(attacks(heard, "hat")).toEqual([]);
-    for (const s of heard) expect(s.onset).toBeLessThanOrEqual(1);
+    for (const s of heard) {
+      expect(s.onset).toBeLessThanOrEqual(1);
+      expect(s.kick).toBeLessThanOrEqual(1);
+    }
+  });
+
+  // A kick drum's skin falls in pitch as it settles; a bass note holds its
+  // pitch (decision 86). Under 150 Hz both strike an attack, and only the
+  // thump that falls is a kick, at any rate of frames. A bass that leaps down
+  // a fourth or more falls as far as a kick from the note before, and is
+  // heard as one: the measure's known limit, which these notes keep clear of.
+  it("hears a bass note's attack as no kick, since its pitch holds, however often frames come", () => {
+    // up by steps and leaps, and down by steps: A1, C2, D2, E2, G2, A2, G2, E2, D2
+    const line = [33, 36, 38, 40, 43, 45, 43, 40, 38];
+    for (const fps of [12, 30, 60, 144]) {
+      const heard = listen((t) => plucked(line, 0.75)(t) + room(t), 5.25, fps);
+      const said = `${String(fps)} frames a second`;
+      // its notes are attacks, as before: all of them at 30 frames a second
+      // and more, and only some at 12, where frames come 83 ms apart
+      expect(attacks(heard, "onset").length, said).toBeGreaterThanOrEqual(
+        fps < 30 ? 1 : line.length,
+      );
+      expect(attacks(heard, "kick"), said).toEqual([]);
+    }
   });
 
   it("finds a hi-hat's ticks in the treble, and not as kicks", () => {
@@ -358,10 +408,13 @@ describe("Hearing", { timeout: 20_000 }, () => {
     expect(at(3.9)?.silent).toBe(false);
     expect(at(5.9)?.silent).toBe(true);
     expect(at(5.9)?.level).toBeLessThan(0.01);
-    // after the silence the first thump is heard as an attack
-    expect(attacks(heard, "kick").filter((t) => t > 6 && t < 6.1)).toHaveLength(
-      1,
-    );
+    // after the silence the first thump is heard as an attack, and a kick
+    expect(
+      attacks(heard, "onset").filter((t) => t > 6 && t < 6.1),
+    ).toHaveLength(1);
+    expect(
+      attacks(heard, "kick").filter((t) => t > 6 && t < 6.1 + KICK_WAIT),
+    ).toHaveLength(1);
   });
 
   it("does not hear the same window twice: a frame with no new sound changes nothing", () => {
