@@ -2760,6 +2760,70 @@ going, and the swaying chain bounded. In the browser, the modes come in
 order in the group and the address, and time backwards is faded and refused
 under each force.
 
+## 78. The piece keeps the music's beat
+
+*2026-11-21.* A beat clock hears the music and tells the piece, every frame,
+its tempo in beats a minute, where it is in the beat and in a bar of four,
+and how sure it is of them. Once the clock is sure, the tempo shows beside
+the words of the music's panel.
+
+- **How it hears.** Every 10 ms it measures how much the spectrum rose, over
+  a window of about 21 ms in third-octave pieces from 30 Hz to 16 kHz: the
+  attacks' envelope. The tempo is the delay at which that envelope best
+  matches itself, kept as a running sum over about 3 s, among tempi from 50
+  to 220 a minute, leaning to 120 with a width of half an octave; another
+  tempo is taken once it has held for 1.5 s. A comb whose teeth are a beat
+  apart, laid over the last six beats, finds where the beats fall. A hand
+  goes round at the tempo: it starts at the comb's beat when a tempo is
+  found, and is drawn a little towards it every 10 ms, which also trims the
+  tempo. The bar's first beat is the one that has brought the most bass over
+  the last bars. The clock's sureness follows how steadily the comb has
+  agreed with the hand over the last 2 s.
+- **Where it runs.** For the microphone, a tab and a file, on the browser's
+  audio line (an AudioWorklet), which hands it every sample at an even pace
+  whatever the frames do. The demo beat's clock runs on the page, fed the
+  beat's samples from its function. The rest of the hearing stays on the
+  page a frame at a time (decision 44). Each frame takes what the clock said
+  last and moves it on to the moment heard: for a file and the demo beat,
+  the sample leaving the speaker; for the microphone and a tab, the latest
+  that came in.
+- **On the panel.** The tempo, as "120 bpm.", from a sureness of 0.8 until
+  it falls under 0.6 or the music goes silent. The row centres a group's
+  panel over its icon again whenever the panel grows or shrinks, as it does
+  with the tempo.
+
+**Why.** The clock needs the samples at an even pace, which frames do not
+give (from 10 to 60 a second here). The rest of the hearing, at 0.35 to 0.9
+ms a time, would cost the line that plays the sound 35 to 90 ms a second at
+a hundred times a second; the clock alone costs about 5 ms a second of
+sound. Decision 47 left the tempo of realtime-bpm-analyzer to be weighed
+again with the clock: on clicks whose tempo changes it took 15.8 and 14.3 s
+to follow the changes, against 4.8 and 3.7 s, and it gives no beat.
+
+**Evidence.** Measured off the repository on the demo beat, on click trains
+whose tempo changes, and on the four excerpts of decision 47, against the
+beats librosa finds in them, from 5 s after the start or a change:
+
+| Music | Tempo within 2% | Found in | Beats within 70 ms | Typical error of the beat |
+|---|---|---|---|---|
+| Demo beat, 120 | 100% | 2.4 s | 100% | 6 ms |
+| Clicks, 120, 100, 140 | 100% | 2.4 s; 4.8 and 3.7 s after each change | 100% | 3 ms |
+| Clicks, 90, 160, 75 | 99% | 2.4 s; 3.3 and 5.6 s | 100% | 3 ms |
+| Electronic excerpt, 113.6 | 100% | 2.4 s | 100% | 10 ms |
+| 5/4, metal and piano excerpts | 15 to 33% | | 26 to 33% | 85 to 162 ms |
+
+On those three, where librosa's own beats are unsure, the clock's tempo
+wanders; its sureness stays under 0.5 on the 5/4 and the metal, and near
+0.9 on the piano. On the demo beat, the bar's first beat falls within 60 ms
+of the bar's at 96% of the bars after 8 s. Unit tests: a click train's tempo
+within 1% from 3 s and its beats within 25 ms; tempi of 90, 160 and 75
+followed within 8 s of each change; the demo beat's tempo within 0.5%, its
+beats within 25 ms and its bars' first beats; the same records whatever
+size the blocks of samples come in; no sureness in a room's hiss, and none
+six beats after the music stops; a record moved on in time; the panel's
+words. In the browser, the demo beat's panel says "120 bpm.", and a file of
+clicks at 100 a minute, heard on the audio line, "100 bpm.".
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.

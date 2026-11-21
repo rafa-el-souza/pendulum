@@ -1,3 +1,4 @@
+import { SURE } from "../audio/beat.ts";
 import type { Signals } from "../audio/signals.ts";
 import {
   Listening,
@@ -18,7 +19,8 @@ import styles from "./music.module.css";
 // where the browser shares it, and the demonstration beat. Above the group,
 // while none of its values is chosen, a panel shows what the piece hears: a
 // meter of the last seconds of loudness with the attacks marked and the
-// three bands beside it, the words of what it is doing, which microphone
+// three bands beside it, the words of what it is doing, with the music's
+// tempo once the beat clock is sure of it (decision 78), which microphone
 // where there are several, and, before anything plays, that the sound stays
 // on the device. What the music does and how strongly are values of the
 // group (chain-in-hand/parameters.ts). How it looks and its words are
@@ -104,6 +106,21 @@ export interface Music {
 /** The words shown while nothing plays. */
 const RESTING = "Not listening.";
 
+/** How much less sure than SURE the beat clock may grow before a tempo shown goes. */
+const UNSURE_BY = 0.2;
+
+/**
+ * The music's tempo in words, beside those of the source playing: where the
+ * beat clock is sure of it and the music sounds, or, `shown` already, until
+ * the clock is UNSURE_BY less sure than that; else nothing.
+ */
+export function tempoWords(heard: Signals, shown: boolean): string {
+  const beat = heard.beat;
+  const least = shown ? SURE - UNSURE_BY : SURE;
+  if (beat === null || heard.silent || beat.confidence < least) return "";
+  return `${String(Math.round(beat.bpm))} bpm.`;
+}
+
 export function mountMusic(): Music {
   const listening = new Listening();
 
@@ -131,12 +148,18 @@ export function mountMusic(): Music {
   status.className = cls(styles, "status");
   status.setAttribute("role", "status");
   status.textContent = RESTING;
+  // the tempo, beside the words and out of what a screen reader announces,
+  // since it changes as the clock follows the music
+  const tempo = document.createElement("span");
+  tempo.className = cls(styles, "tempo");
+  tempo.id = "music-tempo";
+  tempo.hidden = true;
   const privacy = document.createElement("span");
   privacy.className = cls(styles, "note");
   privacy.textContent = "Sound stays on this device.";
   const words = document.createElement("div");
   words.className = cls(styles, "words");
-  words.append(status, privacy);
+  words.append(status, tempo, privacy);
   const line = document.createElement("div");
   line.className = cls(styles, "line");
   line.append(meter, words);
@@ -288,6 +311,8 @@ export function mountMusic(): Music {
   let saidAt = 0;
   /** The meter starts empty, as a source starts. */
   function forget(): void {
+    tempo.textContent = "";
+    tempo.hidden = true;
     levels.fill(0);
     attacks.fill(0);
     lastColumn = -1;
@@ -357,6 +382,9 @@ export function mountMusic(): Music {
     if (now - saidAt < WORDS_MS) return;
     saidAt = now;
     meter.setAttribute("aria-valuenow", heard.level.toFixed(2));
+    const bpm = tempoWords(heard, !tempo.hidden);
+    if (tempo.textContent !== bpm) tempo.textContent = bpm;
+    tempo.hidden = bpm === "";
   }
 
   return music;

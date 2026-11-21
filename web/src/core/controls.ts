@@ -765,7 +765,10 @@ export function mountControls(
     place();
   };
   row.addEventListener("scroll", settle, { passive: true });
-  new ResizeObserver(settle).observe(row);
+  // and so does a value, or a group's panel, whose words grow or shrink
+  const resized = new ResizeObserver(settle);
+  resized.observe(row);
+  resized.observe(readout);
   addEventListener("resize", settle);
   row.addEventListener(
     "wheel",

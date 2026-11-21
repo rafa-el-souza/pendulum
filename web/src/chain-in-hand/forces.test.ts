@@ -62,6 +62,7 @@ function heard(over: Partial<Signals> = {}): Signals {
     silent: false,
     loudness: -20,
     bands: { bass: -20, mid: -20, treble: -20 },
+    beat: null,
     ...over,
   };
 }
