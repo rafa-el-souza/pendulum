@@ -1,15 +1,16 @@
 import type { Signals } from "../../audio/signals.ts";
 import { ease } from "./common.ts";
 
-// The swing from side to side on the kicks (docs/decisions.md, decisions 75
-// and 77), which the dancing hand's target and the swaying gravity each
-// follow: on every kick it sets off for the other side from where it is,
-// and it swings as far as the loudness.
+// The swing from side to side on the kicks (docs/decisions.md, decision 77),
+// which the swaying gravity follows: on every kick it sets off for the other
+// side from where it is, and it swings as far as the loudness. The dancing
+// hand swung so too (decision 75), and now follows its choreography
+// (decision 83), whose swing led by the kicks is this one.
 
-/** With reduced motion asked for, a crossing takes a second at least, and the swing follows the loudness over a second. */
+/** With reduced motion asked for, a crossing takes a second at least, and the swing follows the loudness over a second; and so do the dancing hand's (decision 83). */
 export const SLOW_CROSS = 1;
-const SLOW_SWING_EASE = 1;
-/** The widest it swings either way, in rad. */
+export const SLOW_SWING_EASE = 1;
+/** The widest it swings either way, in rad; and the dancing hand's. */
 export const WIDEST_SWING = Math.PI / 3;
 
 /** How a swing crosses and how far it swings, which differ from one force to the other. */
