@@ -8,15 +8,20 @@
 // address never carries it, and it is the one thing the site keeps on a
 // device, only where it was used.
 //
-// The script reports the page once, after it loads, and its timings when the
-// page is first hidden. It can also count each change of the address as a
-// page, as it counts the pages of a single-page application; here the address
-// changes with every setting, so that is off (spa=false).
+// The script is loaded as Cloudflare's snippet loads it, at the end of the
+// body, as a module that reads the token from its data-cf-beacon. It reports
+// the page once, after it loads, and its timings when the page is first
+// hidden. It can also count each change of the address as a page, as it
+// counts the pages of a single-page application; here the address changes
+// with every setting, so that is off ("spa": false).
 
 /** The one host whose visits are counted. */
 export const COUNTED_HOST = "pendulum.rafasouza.dev.br";
-/** The site's token at Cloudflare Web Analytics: public, as every page carries it. */
-const TOKEN = "";
+/**
+ * The site's token at Cloudflare Web Analytics. It is public, as every page
+ * carries it, so the secret scan, which takes it for a key, lets it pass.
+ */
+const TOKEN = "068b5827cb434cc79c6025da6e146159"; // gitleaks:allow
 /** The address's switch: 0 stops counting the device, 1 counts it again. */
 const SWITCH = "count";
 /** Where a device keeps that it is not counted. */
@@ -53,10 +58,17 @@ export function counted(host: string, driven: boolean, off: boolean): boolean {
   return host === COUNTED_HOST && !driven && !off;
 }
 
-/** The script that counts, with the site's token, the address's changes not counted as pages. */
-export function counterSource(token = TOKEN): string {
-  const query = new URLSearchParams({ token, spa: "false" });
-  return `https://static.cloudflareinsights.com/beacon.min.js?${query.toString()}`;
+/** The script that counts, as Cloudflare's snippet loads it: its address, its type, and its data-cf-beacon, with the token and the address's changes not counted as pages. */
+export function counterScript(token = TOKEN): {
+  src: string;
+  type: string;
+  beacon: string;
+} {
+  return {
+    src: "https://static.cloudflareinsights.com/beacon.min.js",
+    type: "module",
+    beacon: JSON.stringify({ token, spa: false }),
+  };
 }
 
 /** Whether this device stopped being counted, where storage refuses, for this page only. */
@@ -104,8 +116,10 @@ export function countVisit(): void {
     );
   }
   if (!counted(location.hostname, navigator.webdriver, isOff())) return;
+  const { src, type, beacon } = counterScript();
   const script = document.createElement("script");
-  script.src = counterSource();
-  script.defer = true;
-  document.head.append(script);
+  script.type = type;
+  script.src = src;
+  script.dataset.cfBeacon = beacon;
+  document.body.append(script);
 }

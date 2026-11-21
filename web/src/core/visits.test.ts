@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   COUNTED_HOST,
   counted,
-  counterSource,
+  counterScript,
   readCountSwitch,
   withoutCountSwitch,
 } from "./visits.ts";
@@ -44,12 +44,20 @@ describe("a visit", () => {
     expect(counted(COUNTED_HOST, false, true)).toBe(false);
   });
 
-  it("is counted by Cloudflare's script with the site's token, the address's changes not counted as pages", () => {
-    const url = new URL(counterSource("0123abcd"));
-    expect(`${url.origin}${url.pathname}`).toBe(
+  it("is counted by Cloudflare's script as its snippet loads it, with the token, the address's changes not counted as pages", () => {
+    const script = counterScript("0123abcd");
+    expect(script.src).toBe(
       "https://static.cloudflareinsights.com/beacon.min.js",
     );
-    expect(url.searchParams.get("token")).toBe("0123abcd");
-    expect(url.searchParams.get("spa")).toBe("false");
+    expect(script.type).toBe("module");
+    expect(JSON.parse(script.beacon)).toEqual({
+      token: "0123abcd",
+      spa: false,
+    });
+  });
+
+  it("is counted with the site's own token", () => {
+    const { token } = JSON.parse(counterScript().beacon) as { token: string };
+    expect(token).toMatch(/^[0-9a-f]{32}$/);
   });
 });
