@@ -152,8 +152,10 @@ describe("a session of the chain's motion, replayed (decision 81)", () => {
   const heard = heardBeat(FRAMES);
 
   it("hears the demo beat as the page does: its kicks, and its tempo once the clock is sure", () => {
+    // the beat strikes 22 kicks in these 20 s, the first while the hearing
+    // still learns, and none of its bass's notes is a kick (decision 86)
     const kicks = heard.filter((said) => said.kick > 0).length;
-    expect(kicks).toBeGreaterThan(30);
+    expect(kicks).toBe(21);
     const late = heard[FRAMES - 1]?.beat;
     expect(late?.bpm).toBeCloseTo(120, 0);
     expect(late?.confidence).toBeGreaterThan(0.8);
@@ -198,6 +200,6 @@ describe("a session of the chain's motion, replayed (decision 81)", () => {
 
 // The script's end, as the code that this test came with left it.
 const ENDED = {
-  theta: [1.7059524187627002, -0.5355023969375181],
-  omega: [-2.882324609897392, 1.7654098939841965],
+  theta: [0.4560854671761947, 1.200819950435544],
+  omega: [7.1503841896078635, -2.0915652750952476],
 };

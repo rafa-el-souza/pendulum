@@ -8,7 +8,14 @@ import {
   demoWindow,
   renderDemo,
 } from "./demo.ts";
-import { HEARD, Hearing, SPAN, WINDOW, type Signals } from "./signals.ts";
+import {
+  HEARD,
+  Hearing,
+  KICK_WAIT,
+  SPAN,
+  WINDOW,
+  type Signals,
+} from "./signals.ts";
 
 // The demonstration beat (docs/decisions.md, decision 44): a kick drum, a
 // snare and a bass the page makes itself, the same every time, which plays
@@ -91,21 +98,29 @@ describe("the demonstration beat", () => {
     const { kicks, snares, notes } = demoHits();
     const attacks = (key: "kick" | "snare") =>
       heard.filter((s) => s[key] > 0 && s.at >= 0.5).map((s) => s.at);
-    /** Whether an attack heard at `at` follows one of `times` closely. */
-    const follows = (times: readonly number[], at: number) =>
-      times.some((t) => at >= t && at - t < 0.06);
+    /** Whether an attack heard at `at` follows one of `times` within `by` s. */
+    const follows = (times: readonly number[], at: number, by = 0.06) =>
+      times.some((t) => at >= t && at - t < by);
+    /** A kick is heard KICK_WAIT after the frame that heard its attack (decision 86). */
+    const within = { kick: KICK_WAIT + 0.06, snare: 0.06 };
     const share = (times: readonly number[], key: "kick" | "snare") =>
-      times.filter((t) => attacks(key).some((at) => follows([t], at))).length /
-      times.length;
-    // every kick is an attack in the bass, and every snare in the middle
+      times.filter((t) =>
+        attacks(key).some((at) => follows([t], at, within[key])),
+      ).length / times.length;
+    // every kick is a kick, though a note of the bass begins with each, and
+    // every snare an attack in the middle
     expect(share(twice(kicks), "kick")).toBeGreaterThan(0.9);
     expect(share(twice(snares), "snare")).toBeGreaterThan(0.9);
-    // and nothing strikes where nothing starts: the bass's notes are attacks
-    // in the bass too, and the kick's click in the middle
+    // and nothing strikes where nothing starts: the kick's click is an attack
+    // in the middle too; but a kick comes only after a kick, never where the
+    // bass alone begins a note, which holds its pitch
     const starts = twice([...kicks, ...snares, ...notes]);
-    for (const key of ["kick", "snare"] as const) {
-      expect(attacks(key).filter((at) => !follows(starts, at))).toEqual([]);
-    }
+    expect(
+      attacks("snare").filter((at) => !follows(starts, at)),
+    ).toEqual([]);
+    expect(
+      attacks("kick").filter((at) => !follows(twice(kicks), at, within.kick)),
+    ).toEqual([]);
     expect(heard.some((s) => s.silent && s.at > 0.5)).toBe(false);
     // every snare is a hit too, heard SPAN / 2 late, and no hit comes where
     // only the bass begins a note (decision 48)
