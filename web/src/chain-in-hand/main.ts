@@ -480,7 +480,12 @@ function play({ canvas, gl }: Stage): void {
    * `dt` s of the clock long and `asked` s of the piece's (decision 74): the
    * force of the music's mode, if it has one, while a source plays.
    */
-  function musicDrive(dt: number, asked: number): Drive | null {
+  /**
+   * The music's forces over a frame of `dt` s of real time, `asked` of the
+   * piece's: one run `ahead` while there are twins starts at the moment the
+   * music was heard, one run now ends at it (decision 51).
+   */
+  function musicDrive(dt: number, asked: number, ahead: boolean): Drive | null {
     return forces.frame({
       heard: heardNow,
       force: router.mode.force,
@@ -492,6 +497,7 @@ function play({ canvas, gl }: Stage): void {
       state,
       g,
       held: hand !== null,
+      from: ahead ? 0 : -dt,
     });
   }
 
@@ -2116,6 +2122,7 @@ function play({ canvas, gl }: Stage): void {
     dt: number,
     now: number,
     flashes: boolean,
+    ahead: boolean,
   ): { simulated: number; flashed: boolean } {
     let simulated = 0;
     if (tensionShown) frameTension.fill(0);
@@ -2158,7 +2165,7 @@ function play({ canvas, gl }: Stage): void {
     }
     // the music's forces over the frame, which each piece feels from where
     // it starts in it, and its twins the same (decision 74)
-    const drive = musicDrive(dt, asked);
+    const drive = musicDrive(dt, asked, ahead);
     frameDrive = drive;
     for (let piece = 0; piece < pieces; piece++) {
       const want = asked / pieces;
@@ -2621,7 +2628,7 @@ function play({ canvas, gl }: Stage): void {
       // The chain alone, now: the hand holds it, or no twins move with it.
       // Twins that do wait a frame, and the chain with them (decision 51).
       if (running && twins.count === 0) {
-        ({ simulated, flashed } = advanceChain(dt, now, flashes));
+        ({ simulated, flashed } = advanceChain(dt, now, flashes, false));
       } else {
         easeTension(0);
       }
@@ -2658,7 +2665,7 @@ function play({ canvas, gl }: Stage): void {
       keepShown();
       const phase = shakePhase;
       trail.clear();
-      const next = advanceChain(dt, now, flashes);
+      const next = advanceChain(dt, now, flashes, true);
       // unless the motion broke down, and the chain started again
       if (twins.count > 0) {
         sendTwins(next.simulated, phase, now);
