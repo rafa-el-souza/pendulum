@@ -2251,18 +2251,24 @@ test("the W key and the row's note open the music's group, whose demo beat light
   expect(errors).toEqual([]);
 });
 
-test("the music's panel opens right above its group, in a value's place, and gives way to a value chosen and to another group, so that nothing draws over it (decision 76)", async ({
-  page,
-}) => {
-  const errors = collectErrors(page);
-  for (const width of [1280, 390]) {
+for (const width of [1280, 390]) {
+  test(`the music's panel opens right above its group, in a value's place, and gives way to a value chosen and to another group, so that nothing draws over it, ${String(width)} px wide (decision 76)`, async ({
+    page,
+  }) => {
+    const errors = collectErrors(page);
+    // muted: the panel's place needs no sound, and the sound server is left
+    // to the tests that play
+    await page.addInitScript(
+      "Object.defineProperty(window, 'AudioContext', { configurable: true, value: undefined });",
+    );
     await page.setViewportSize({ width, height: 800 });
     await page.goto("./");
     await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
-    const { group, panel, source } = music(page);
+    const { group, panel, status, source } = music(page);
     await page.keyboard.press("w");
     await source("Demo beat").click();
     await expect(source("Demo beat")).toHaveAttribute("aria-pressed", "true");
+    await expect(status).toHaveText(/^The demo beat, muted/);
     const over = await panel.boundingBox();
     const under = await group.boundingBox();
     if (over === null || under === null) throw new Error("no panel or group");
@@ -2293,9 +2299,9 @@ test("the music's panel opens right above its group, in a value's place, and giv
     await icon(page, "Music").click();
     await expect(panel).toBeVisible();
     await source("Demo beat").click();
-  }
-  expect(errors).toEqual([]);
-});
+    expect(errors).toEqual([]);
+  });
+}
 
 test("the music's group plays a file of music chosen from the device, and hears it", async ({
   page,
@@ -2355,6 +2361,9 @@ test("the music's panel says the demo beat's tempo once the beat clock is sure o
 test("the beat clock on the audio line hears a file of clicks, and the panel says their tempo (decision 78)", async ({
   page,
 }) => {
+  // the clock hears the looping file at the sound's own pace, which slows
+  // while the other engines play their sound beside it
+  test.slow();
   const errors = collectErrors(page);
   await page.goto("./");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
@@ -2366,7 +2375,7 @@ test("the beat clock on the audio line hears a file of clicks, and the panel say
     buffer: clicksFile(100),
   });
   await expect(status).toHaveText("Playing clicks.wav.", { timeout: 10_000 });
-  await expect(tempo).toHaveText("100 bpm.", { timeout: 20_000 });
+  await expect(tempo).toHaveText("100 bpm.", { timeout: 45_000 });
   await awaken(page);
   await source("File").click();
   await expect(status).toHaveText("Not listening.");
