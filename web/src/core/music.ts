@@ -1,3 +1,4 @@
+import { SURE } from "../audio/beat.ts";
 import type { Signals } from "../audio/signals.ts";
 import {
   Listening,
@@ -18,7 +19,8 @@ import styles from "./music.module.css";
 // where the browser shares it, and the demonstration beat. Above the group,
 // while none of its values is chosen, a panel shows what the piece hears: a
 // meter of the last seconds of loudness with the attacks marked and the
-// three bands beside it, the words of what it is doing, which microphone
+// three bands beside it, the words of what it is doing, with the music's
+// tempo once the beat clock is sure of it (decision 78), which microphone
 // where there are several, and, before anything plays, that the sound stays
 // on the device. What the music does and how strongly are values of the
 // group (chain-in-hand/parameters.ts). How it looks and its words are
@@ -103,6 +105,13 @@ export interface Music {
 
 /** The words shown while nothing plays. */
 const RESTING = "Not listening.";
+
+/** The words of a source playing, with the music's tempo where the beat clock is sure of it and the music sounds. */
+export function withTempo(words: string, heard: Signals): string {
+  const beat = heard.beat;
+  if (beat === null || heard.silent || beat.confidence < SURE) return words;
+  return `${words} ${String(Math.round(beat.bpm))} bpm.`;
+}
 
 export function mountMusic(): Music {
   const listening = new Listening();
@@ -249,9 +258,13 @@ export function mountMusic(): Music {
     forget();
     if (source !== "microphone") microphone.hidden = true;
     status.textContent = "Starting…";
+    playingWords = "";
     const outcome = await listening.start(source, choice);
     if (outcome === null) return;
     status.textContent = said(outcome);
+    if (outcome.kind === "listening" || outcome.kind === "muted") {
+      playingWords = said(outcome);
+    }
     if (outcome.kind !== "listening" && outcome.kind !== "muted") {
       light(null);
       microphone.hidden = true;
@@ -265,6 +278,7 @@ export function mountMusic(): Music {
   }
   // a share stopped from the browser's own bar
   listening.onEnd = () => {
+    playingWords = "";
     forget();
     light(null);
     privacy.hidden = true;
@@ -273,6 +287,7 @@ export function mountMusic(): Music {
   };
   function stop(): void {
     listening.stop();
+    playingWords = "";
     forget();
     microphone.hidden = true;
     light(null);
@@ -286,6 +301,8 @@ export function mountMusic(): Music {
   const attacks = new Uint8Array(COLUMNS);
   let lastColumn = -1;
   let saidAt = 0;
+  /** The words of the source playing, which the tempo joins; empty while none plays. */
+  let playingWords = "";
   /** The meter starts empty, as a source starts. */
   function forget(): void {
     levels.fill(0);
@@ -357,6 +374,10 @@ export function mountMusic(): Music {
     if (now - saidAt < WORDS_MS) return;
     saidAt = now;
     meter.setAttribute("aria-valuenow", heard.level.toFixed(2));
+    if (playingWords !== "") {
+      const words = withTempo(playingWords, heard);
+      if (status.textContent !== words) status.textContent = words;
+    }
   }
 
   return music;

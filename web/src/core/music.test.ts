@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { said } from "./music.ts";
+import { QUIET, type Signals } from "../audio/signals.ts";
+import { said, withTempo } from "./music.ts";
 
 // What the music's panel says when a share comes without sound (decision 49):
 // what to do depends on what was shared, since a browser shares a tab's
@@ -28,5 +29,31 @@ describe("the music's panel's words for a share without sound", () => {
     expect(said({ kind: "soundless", surface: "" })).toBe(
       "No sound came with the share. In the browser's dialog, pick the tab playing the music and tick the box that shares its audio.",
     );
+  });
+});
+
+// The music's tempo joins the panel's words once the beat clock is sure of
+// it, and while the music sounds (decision 78).
+describe("the music's panel's words with the tempo", () => {
+  const heard = (over: Partial<Signals>): Signals => ({
+    ...QUIET,
+    silent: false,
+    ...over,
+  });
+  const beat = { at: 3, bpm: 119.6, phase: 0.2, bar: 0.3, confidence: 0.9 };
+
+  it("says the tempo, rounded, where the clock is sure", () => {
+    expect(withTempo("Playing the demo beat.", heard({ beat }))).toBe(
+      "Playing the demo beat. 120 bpm.",
+    );
+  });
+
+  it("says no tempo where the clock is not sure, has none, or the music is silent", () => {
+    const words = "Listening through the microphone.";
+    expect(
+      withTempo(words, heard({ beat: { ...beat, confidence: 0.5 } })),
+    ).toBe(words);
+    expect(withTempo(words, heard({ beat: null }))).toBe(words);
+    expect(withTempo(words, heard({ beat, silent: true }))).toBe(words);
   });
 });

@@ -2153,6 +2153,39 @@ async function awaken(page: Page): Promise<void> {
  * Waits until the panel's meter shows sound arriving; failing, says what the
  * panel said, and the page's errors.
  */
+/**
+ * A WAV file of clicks at `bpm`, 16-bit at 22 050 Hz: twenty beats, so that
+ * it comes round on the beat as it plays in a loop; each click a burst of
+ * noise falling over 4 ms.
+ */
+function clicksFile(bpm: number): Buffer {
+  const rate = 22_050;
+  const beat = Math.round((60 / bpm) * rate);
+  const samples = 20 * beat;
+  const data = Buffer.alloc(44 + 2 * samples);
+  data.write("RIFF", 0);
+  data.writeUInt32LE(36 + 2 * samples, 4);
+  data.write("WAVEfmt ", 8);
+  data.writeUInt32LE(16, 16);
+  data.writeUInt16LE(1, 20);
+  data.writeUInt16LE(1, 22);
+  data.writeUInt32LE(rate, 24);
+  data.writeUInt32LE(2 * rate, 28);
+  data.writeUInt16LE(2, 32);
+  data.writeUInt16LE(16, 34);
+  data.write("data", 36);
+  data.writeUInt32LE(2 * samples, 40);
+  let seed = 1;
+  for (let i = 0; i < samples; i++) {
+    const since = (i % beat) / rate;
+    seed = (seed * 1_103_515_245 + 12_345) % 2_147_483_648;
+    const noise = seed / 2_147_483_648 - 0.5;
+    const value = since < 0.03 ? 1.6 * noise * Math.exp(-since / 0.004) : 0;
+    data.writeInt16LE(Math.round(32_767 * value), 44 + 2 * i);
+  }
+  return data;
+}
+
 async function hearsSound(page: Page, errors: string[]): Promise<void> {
   const { meter, status } = music(page);
   try {
@@ -2280,6 +2313,49 @@ test("the music's group plays a file of music chosen from the device, and hears 
   await expect(status).toHaveText("Playing tone.wav.", { timeout: 10_000 });
   await expect(source("File")).toHaveAttribute("aria-pressed", "true");
   await hearsSound(page, errors);
+  await awaken(page);
+  await source("File").click();
+  await expect(status).toHaveText("Not listening.");
+  expect(errors).toEqual([]);
+});
+
+test("the music's panel says the demo beat's tempo once the beat clock is sure of it (decision 78)", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("./");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await page.keyboard.press("w");
+  const { status, source } = music(page);
+  await source("Demo beat").click();
+  // aloud or muted, the beat's clock hears it from the beat's function
+  await expect(status).toHaveText(
+    /^(Playing the demo beat\.|The demo beat, muted[^]*) 120 bpm\.$/,
+    { timeout: 20_000 },
+  );
+  await awaken(page);
+  await source("Demo beat").click();
+  await expect(status).toHaveText("Not listening.");
+  expect(errors).toEqual([]);
+});
+
+test("the beat clock on the audio line hears a file of clicks, and the panel says their tempo (decision 78)", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("./");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await page.keyboard.press("w");
+  const { panel, status, source } = music(page);
+  await panel.locator('input[type="file"]').setInputFiles({
+    name: "clicks.wav",
+    mimeType: "audio/wav",
+    buffer: clicksFile(100),
+  });
+  await expect(status).toHaveText("Playing clicks.wav.", { timeout: 10_000 });
+  await expect(status).toHaveText("Playing clicks.wav. 100 bpm.", {
+    timeout: 20_000,
+  });
   await awaken(page);
   await source("File").click();
   await expect(status).toHaveText("Not listening.");
