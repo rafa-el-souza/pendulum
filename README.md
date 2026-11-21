@@ -185,6 +185,16 @@ published site, into `docs/media/`; `npm run media -- fan` takes one.
 | `.githooks/` | the pre-commit secret scan |
 | `CLAUDE.md` | the rules the sessions that build Pendulum follow |
 
+## Privacy
+
+The site counts its visits with
+[Cloudflare Web Analytics](https://developers.cloudflare.com/web-analytics/),
+which keeps no cookie: how many came, from where, on which device and
+browser, and how soon the page answered a touch. What the piece hears stays
+on the device. Adding `?count=0` to the address stops counting a device, and
+`?count=1` counts it again; that switch is the only thing the site keeps on a
+device (decision 84 in [`docs/decisions.md`](docs/decisions.md)).
+
 ## Licence
 
 MIT; see [LICENSE](LICENSE). The paper is not part of the repository:
