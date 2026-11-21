@@ -3,14 +3,18 @@ import type { Signals } from "../../audio/signals.ts";
 import { createHand, type Chain, type Gravity } from "../../physics/chain.ts";
 import type { Point } from "../../physics/drive.ts";
 import { laguerreZero } from "../../physics/modes.ts";
-import { handDamping } from "../parameters.ts";
+import { HAND, handDamping } from "../parameters.ts";
 import {
   BEATS,
   DANCE_OPENS,
+  GRIPS,
+  SLACKS,
   alongFigure,
+  heldMass,
   pointsOf,
   type Choreography,
   type Figure,
+  type Grab,
   type Lead,
   type Place,
 } from "./choreography.ts";
@@ -26,16 +30,20 @@ import {
 } from "./common.ts";
 import { SLOW_CROSS, SLOW_SWING_EASE, WIDEST_SWING } from "./swing.ts";
 
-// The dancing hand (docs/decisions.md, decisions 75 and 83): a hand of the
-// music holds the tip and leads it round a figure, as the choreography asks.
-// Led by a sound heard, it sets off for the figure's next point on the sound;
-// led by the beat clock, it reaches each point on its beat. The figure swings
-// as far as the loudness, and the place turns it: below, the chain hanging;
-// to a side, held level; above, standing. It lets go while the visitor's hand
-// holds the chain, and takes hold again over a second. As the dance opens, it
-// is decision 75's swing: a side on each kick, crossing in a snap.
+// The dancing hand (docs/decisions.md, decisions 75, 83 and 85): a hand of
+// the music holds a mass of the chain and leads it round a figure, as the
+// choreography asks. Led by a sound heard, it sets off for the figure's next
+// point on the sound; led by the beat clock, it reaches each point on its
+// beat. The figure swings as far as the loudness, or what else the
+// choreography has it follow; the place turns it, below, the chain hanging,
+// to a side, held level, or above, standing, and the music can turn its
+// middle further. The hand grips the mass as firmly as its step asks, or
+// pulsing on the beat, with its target as far from the pivot as the mass
+// hangs, or nearer by the slack. It lets go while the visitor's hand holds
+// the chain, and takes hold again over a second. As the dance opens, it is
+// decision 75's swing: the tip, a side on each kick, crossing in a snap.
 
-/** The dancing hand's grip, a step of the visitor's (decision 18): elastic enough to swing the chain, firm enough to calm it. */
+/** The dancing hand's grip as the dance opens, a step of the visitor's (decision 18): elastic enough to swing the chain, firm enough to calm it. */
 export const DANCE_GRIP = 12;
 /** How long a snap takes from one point to the next, in s of real time. */
 export const CROSS = 0.12;
@@ -57,6 +65,22 @@ export const ICTUS = 0.8;
 const LEAST_MOVE = 0.25;
 const MOST_MOVE = 1.5;
 const FIRST_MOVE = 0.5;
+/** Where its size is fixed, the figure swings as wide as for music as loud as it has been. */
+const FIXED_LEVEL = 0.5;
+/** Following the kicks, the figure swells as far as each is strong, and shrinks over this long, in s. */
+const SWELL_FALL = 0.3;
+/**
+ * The bass's note an octave from those it played lately turns the figure's
+ * middle by this share of the dance's depth, at the middle strength: higher
+ * to the right, lower to the left; and no further for notes further.
+ */
+export const BASS_TURN = 0.5;
+/** How long the notes the bass played are remembered, as the middle it turns from, in s. */
+const BASS_MEMORY = 8;
+/** How far the loudness lifts the figure's middle towards the side for music twice as loud as it has been, at the middle strength, in rad: a quarter of a turn, and no further, nor past standing. */
+export const LIFT = Math.PI / 2;
+/** How fast the lift follows the loudness, in s. */
+const LIFT_EASE = 0.5;
 /** The middle of a figure's plane: the chain hanging along the place, at its full reach. */
 const MIDDLE: Point = { x: 0, y: 0 };
 /** How far round from straight down each place turns the figure, in rad. */
@@ -65,6 +89,19 @@ const TURNS: Record<Place, number> = {
   side: Math.PI / 2,
   above: Math.PI,
 };
+
+/** The damping ratio of the dancing hand's grip at `rate` rad/s: the visitor's hand's at its steps (decision 19), and critical past its firmest. */
+function gripDamping(rate: number): number {
+  return HAND.values.includes(rate) ? handDamping(rate) : 1;
+}
+
+/** How far down the chain its mass `index` hangs from the pivot, along its rods, in m: the chain's length at the tip. */
+function reachOf(chain: Chain, index: number): number {
+  if (index === chain.n - 1) return chain.totalLength;
+  let reach = 0;
+  for (let i = 0; i <= index; i++) reach += chain.lengths[i] ?? 0;
+  return reach;
+}
 
 /** Eases in and out, from 0 to 1. */
 function smoothstep(u: number): number {
@@ -151,13 +188,23 @@ export function autoBeats(
   return best;
 }
 
-/** The dancing hand: where it is in its figure, how far it swings, how firmly it holds, and where its target got to. */
+/** The dancing hand: where it is in its figure, how far it swings, where its middle is, how firmly it holds, and where its target got to. */
 export class Dance implements MusicForce {
   readonly #slow: boolean;
-  // The choreography of the frame before, which a change starts afresh.
+  // The choreography of the frame before, which a change starts afresh, and
+  // the mass it held, which a change lets go of.
   #was = "";
-  // How far the figure swings, in rad.
+  #grabbed: Grab = DANCE_OPENS.grab;
+  // How far the figure swings, in rad, and the kicks' swell, from 0 to 1.
   #size = 0;
+  #swell = 0;
+  // How far the figure's middle is turned from its place, in rad; the note
+  // the bass played last, and the notes it played lately, or null before any.
+  #centre = 0;
+  #note = 0;
+  #notes: number | null = null;
+  // How far the grip's pulse on the beat has come in, from 0 to 1.
+  #pulsing = 0;
   // Led by sounds: how many it has heard, the point it goes to, and its way
   // there: a snap from a place in the figure's plane, or a move along the
   // figure, from where it was, in points; how far through it it is, from 0
@@ -207,20 +254,26 @@ export class Dance implements MusicForce {
       this.#was = asked;
       this.#afresh();
     }
+    // asked to hold another mass, it lets go, to take hold of it again
+    if (dance.grab !== this.#grabbed) {
+      this.#grabbed = dance.grab;
+      this.letGo();
+    }
 
     // where in its figure the hand is as the frame starts and as it ends,
-    // and how far it swings then
+    // how far it swings then, and where its middle is
     let before: Point;
     let after: Point;
     let engagedBefore = 1;
     let engagedAfter = 1;
     const sizeBefore = this.#size;
+    const centreBefore = this.#centre;
     if (dance.lead === "clock") {
       engagedBefore = this.#engaged;
       const [start, end] = this.#clock(dance, input, heard);
       engagedAfter = this.#engaged;
       before = this.#clockPlace(dance, start);
-      this.#ease(heard, reading, real);
+      this.#express(dance, heard, reading, real);
       after = this.#clockPlace(dance, end);
     } else {
       this.#sinceSound += real;
@@ -231,7 +284,7 @@ export class Dance implements MusicForce {
       }
       before = this.#soundPlace(dance);
       this.#crossed = Math.min(1, this.#crossed + real / this.#cross);
-      this.#ease(heard, reading, real);
+      this.#express(dance, heard, reading, real);
       after = this.#soundPlace(dance);
     }
 
@@ -243,8 +296,8 @@ export class Dance implements MusicForce {
       return {};
     }
     this.#grip = Math.min(1, this.#grip + real / TAKE_HOLD);
-    const tip = chain.n - 1;
-    const reach = chain.totalLength;
+    const held = heldMass(dance.grab, chain.n);
+    const reach = reachOf(chain, held) * (1 - (SLACKS[dance.slack] ?? 0));
     const size = (s: number, engaged: number) =>
       dance.lead === "clock" ? s * engaged : s;
     const from =
@@ -253,6 +306,7 @@ export class Dance implements MusicForce {
         dance,
         before,
         size(sizeBefore, engagedBefore),
+        centreBefore,
         reach,
         reading,
       );
@@ -260,16 +314,19 @@ export class Dance implements MusicForce {
       dance,
       after,
       size(this.#size, engagedAfter),
+      this.#centre,
       reach,
       reading,
     );
-    const grip = createHand(chain, tip, DANCE_GRIP, handDamping(DANCE_GRIP));
+    const rate = GRIPS[dance.grip - 1] ?? DANCE_GRIP;
+    const grip = createHand(chain, held, rate, gripDamping(rate));
+    const hold = this.#grip * this.#pulse(dance, input, heard);
     this.#running = { span, from, to };
     return {
       hand: {
-        index: tip,
-        stiffness: grip.stiffness * this.#grip,
-        damping: grip.damping * this.#grip,
+        index: held,
+        stiffness: grip.stiffness * hold,
+        damping: grip.damping * hold,
         fastest: grip.fastest,
         from,
         to,
@@ -310,15 +367,98 @@ export class Dance implements MusicForce {
     this.#along = null;
   }
 
-  /** The figure's size follows the loudness, as decision 75's swing did. */
-  #ease(heard: Signals, reading: Reading, real: number): void {
-    const loudness = heard.silent ? 0 : heard.level;
+  /**
+   * What the music changes as the hand goes: the figure's size follows the
+   * loudness, as decision 75's swing did, or what else the choreography
+   * asks; and its middle turns as the choreography asks, or stays.
+   */
+  #express(
+    dance: Choreography,
+    heard: Signals,
+    reading: Reading,
+    real: number,
+  ): void {
+    const loudness = this.#follows(dance, heard, real);
+    const swing = this.#slow ? SLOW_SWING_EASE : SWING_EASE;
     this.#size = ease(
       this.#size,
       Math.min(WIDEST_SWING, reading.depth * loudness * reading.times),
       real,
-      this.#slow ? SLOW_SWING_EASE : SWING_EASE,
+      swing,
     );
+    let centre = 0;
+    let tau = swing;
+    if (dance.center === "bass") {
+      centre = this.#bassTurn(heard, reading, real);
+    } else if (dance.center === "level" && !heard.silent) {
+      centre = Math.min(
+        LIFT,
+        LIFT * heard.level * reading.times,
+        Math.PI - TURNS[dance.place],
+      );
+    }
+    if (dance.center === "level") tau = Math.max(swing, LIFT_EASE);
+    this.#centre = ease(this.#centre, centre, real, tau);
+  }
+
+  /** How loud what the figure's size follows is, from 0 to 1, about a half where it has been, and 0 in the music's silence. */
+  #follows(dance: Choreography, heard: Signals, real: number): number {
+    // the kicks' swell, which falls between them
+    this.#swell = heard.silent
+      ? 0
+      : Math.max(heard.kick, this.#swell * Math.exp(-real / SWELL_FALL));
+    if (heard.silent) return 0;
+    switch (dance.size) {
+      case "level":
+        return heard.level;
+      case "fixed":
+        return FIXED_LEVEL;
+      case "bass":
+        return heard.bass;
+      case "treble":
+        return heard.treble;
+      case "kick":
+        return this.#swell;
+    }
+  }
+
+  /**
+   * How far the bass's note turns the figure's middle, in rad, from the notes
+   * it played lately: to the right for a higher one, to the left for a lower;
+   * held while the bass rests, and none in the music's silence.
+   */
+  #bassTurn(heard: Signals, reading: Reading, real: number): number {
+    if (heard.silent) return 0;
+    if (heard.bassNote > 0) {
+      this.#note = heard.bassNote;
+      this.#notes =
+        this.#notes === null
+          ? heard.bassNote
+          : ease(this.#notes, heard.bassNote, real, BASS_MEMORY);
+    }
+    if (this.#notes === null) return 0;
+    const octaves = Math.min(1, Math.max(-1, (this.#note - this.#notes) / 12));
+    return octaves * BASS_TURN * reading.depth * reading.times;
+  }
+
+  /**
+   * How firmly the hand grips this frame, as a share of its step's: pulsing
+   * on the beat, fully on each and not at all halfway between, as the frame
+   * ends, coming in over ENGAGE as the clock is sure and going as it is not;
+   * as firmly throughout otherwise, and where reduced motion is asked for.
+   */
+  #pulse(dance: Choreography, input: ForceFrame, heard: Signals): number {
+    const beat = heard.beat;
+    if (dance.pulse === "none" || this.#slow || beat === null) {
+      this.#pulsing = 0;
+      return 1;
+    }
+    const sure = !heard.silent && beat.confidence >= SURE;
+    this.#pulsing = sure
+      ? Math.min(1, this.#pulsing + input.real / ENGAGE)
+      : Math.max(0, this.#pulsing - input.real / ENGAGE);
+    const phase = beat.phase + ((input.from + input.real) * beat.bpm) / 60;
+    return 1 - this.#pulsing * Math.sin(Math.PI * phase) ** 2;
   }
 
   /** How long a snap takes, in s of real time. */
@@ -444,16 +584,17 @@ export class Dance implements MusicForce {
     return between(a, pointAt(dance.figure, k + 1), s);
   }
 
-  /** Where a point of the figure's plane is, from the pivot, for a figure `size` rad wide on a reach of `reach` m. */
+  /** Where a point of the figure's plane is, from the pivot, for a figure `size` rad wide, its middle turned `centre` rad from its place, on a reach of `reach` m. */
   #world(
     dance: Choreography,
     at: Point,
     size: number,
+    centre: number,
     reach: number,
     reading: Reading,
   ): Point {
     const share = size / WIDEST_SWING;
-    const turned = TURNS[dance.place];
+    const turned = TURNS[dance.place] + centre;
     let angle: number;
     let radius: number;
     if (dance.figure === "turn") {
