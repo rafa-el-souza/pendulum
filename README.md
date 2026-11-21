@@ -120,8 +120,10 @@ hanging rope it becomes as n grows.
   chain's halo on the kicks, gives its trails strength with the loudness,
   and has twins born again from it on every attack. Its group offers candidates beside that, each changing one
   thing of it. Five move the chain: the kicks take its pivot aside and back,
-  as a speaker's cone; a hand of the music swings its tip to the other side
-  on every kick; the loudness gives it energy, which it loses in silence;
+  as a speaker's cone; an unseen hand of the music swings its tip to the
+  other side on every kick, or, as the address asks, round other figures, on
+  the beat or on other sounds; the loudness gives it energy, which it loses
+  in silence;
   gravity leans to the other side on every kick; or gravity is tuned for the
   whole chain to swing once a bar, its pivot pushed on the beats. The others
   light it differently: a stronger halo, twins born again on the hits of

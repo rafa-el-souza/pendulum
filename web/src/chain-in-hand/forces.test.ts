@@ -21,7 +21,14 @@ import {
   KICK_DECAY,
   TAKE_HOLD,
 } from "./forces/common.ts";
-import { CROSS, DANCE_GRIP } from "./forces/dance.ts";
+import { DANCE_OPENS, type Choreography } from "./forces/choreography.ts";
+import {
+  CROSS,
+  DANCE_GRIP,
+  ENGAGE,
+  INWARD,
+  TURN_SLACK,
+} from "./forces/dance.ts";
 import { FIRST_CROSS, LEAST_CROSS, MOST_CROSS } from "./forces/sway.ts";
 import { SLOW_CROSS, WIDEST_SWING } from "./forces/swing.ts";
 import { TUNED_DECAY, TUNED_DRAG } from "./forces/tuned.ts";
@@ -311,6 +318,240 @@ describe("the dancing hand (decision 75)", () => {
       frame({ force: DANCE }),
     );
     expect(held?.hands[0]?.stiffness).toBeCloseTo(full, 9);
+  });
+});
+
+/** A sure beat at 120 a minute, `t` s after a bar began, heard then. */
+function beatAtTime(t: number): BeatAt {
+  const beats = 2 * t;
+  const turn = (x: number) => x - Math.floor(x);
+  return {
+    bpm: 120,
+    phase: turn(beats),
+    bar: turn(beats / 4),
+    confidence: 1,
+    at: t,
+  };
+}
+
+/**
+ * Runs the frames from `first` to `last` of a beat at 120 a minute, each a
+ * frame run ahead (its end a frame after the moment heard), under the
+ * choreography asked for, and gives the last one's command.
+ */
+function dance(
+  forces: MusicForces,
+  first: number,
+  last: number,
+  choreography: Partial<Choreography>,
+  over: Partial<Signals> = {},
+): Drive | null {
+  let drive: Drive | null = null;
+  for (let k = first; k <= last; k++) {
+    drive = forces.frame(
+      frame({
+        force: DANCE,
+        dance: { ...DANCE_OPENS, ...choreography },
+        heard: heard({ beat: beatAtTime(k * FRAME), ...over }),
+      }),
+    );
+    forces.ran(FRAME * SPEED);
+  }
+  return drive;
+}
+
+/** Where a point of a figure's plane is, `size` rad wide, on a chain 1 m long held at the tip, hanging below. */
+function placedAt(x: number, y: number, size: number, turn = 0) {
+  const angle = turn + x * size;
+  const radius = 1 - y * INWARD * (size / WIDEST_SWING);
+  return { x: radius * Math.sin(angle), y: -radius * Math.cos(angle) };
+}
+
+describe("the dancing hand's choreography (decision 83)", () => {
+  // at the middle strength, for music half as loud as it has been
+  const size = 0.7 * 0.5;
+
+  it("led by the clock, it reaches each point of its figure on the beat: the swing, a beat a point, at one side on the bar's first and third beats and at the other on its second and fourth", () => {
+    const forces = new MusicForces();
+    // the frame that ends on the bar's first beat, at 2 s, then on the next
+    const one = targetOf(dance(forces, 0, 119, { lead: "clock" }));
+    expect(one?.x).toBeCloseTo(Math.sin(size), 4);
+    const two = targetOf(dance(forces, 120, 149, { lead: "clock" }));
+    expect(two?.x).toBeCloseTo(-Math.sin(size), 4);
+    // in a snap, it waits at a side until the beat comes near
+    const between = targetOf(dance(forces, 150, 164, { lead: "clock" }));
+    expect(between?.x).toBeCloseTo(-Math.sin(size), 4);
+  });
+
+  it("smooth, led by the clock, it moves on without stopping, passing the middle between the beats", () => {
+    const forces = new MusicForces();
+    dance(forces, 0, 119, { lead: "clock", feel: "smooth" });
+    const half = targetOf(
+      dance(forces, 120, 134, { lead: "clock", feel: "smooth" }),
+    );
+    expect(half?.x).toBeCloseTo(0, 4);
+    const beat = targetOf(
+      dance(forces, 135, 149, { lead: "clock", feel: "smooth" }),
+    );
+    expect(beat?.x).toBeCloseTo(-Math.sin(size), 4);
+  });
+
+  it("as a conductor's beat, it goes through each point faster than between them: round the turn, some seven times as fast; smooth, as fast", () => {
+    const step = (feel: Choreography["feel"], from: number, to: number) => {
+      const forces = new MusicForces();
+      const asked = { lead: "clock", figure: "turn", feel } as const;
+      dance(forces, 0, from - 1, asked);
+      const a = targetOf(dance(forces, from, from, asked));
+      const b = targetOf(dance(forces, from + 1, to, asked));
+      return Math.hypot((b?.x ?? 0) - (a?.x ?? 0), (b?.y ?? 0) - (a?.y ?? 0));
+    };
+    // three frames on from the bar's first beat, and three half a beat on
+    const through = step("ictus", 119, 122);
+    const between = step("ictus", 134, 137);
+    expect(through).toBeGreaterThan(5 * between);
+    expect(step("smooth", 119, 122)).toBeCloseTo(step("smooth", 134, 137), 4);
+  });
+
+  it("led by the clock, a turn of the conductor's figure takes a bar at a beat a point: down on the first beat, in on the second, out on the third and up on the fourth", () => {
+    const forces = new MusicForces();
+    dance(forces, 0, 89, { lead: "clock", figure: "conduct" });
+    const beats = [
+      [0, 0],
+      [-0.7, 0.35],
+      [1, 0.3],
+      [0.1, 1],
+    ] as const;
+    let last = 119;
+    for (const [x, y] of beats) {
+      const hand = targetOf(
+        dance(forces, last - 29, last, { lead: "clock", figure: "conduct" }),
+      );
+      const at = placedAt(x, y, size);
+      expect(hand?.x, `${String(x)}, ${String(y)}`).toBeCloseTo(at.x, 4);
+      expect(hand?.y, `${String(x)}, ${String(y)}`).toBeCloseTo(at.y, 4);
+      last += 30;
+    }
+  });
+
+  it("led by the clock, two beats a point take the swing a side a bar's half; and auto, for two masses at 120 a minute and ×0.8, whose slowest swing lasts some 2.3 s, takes two too", () => {
+    for (const beats of [2, "auto"] as const) {
+      const forces = new MusicForces();
+      const one = targetOf(dance(forces, 0, 239, { lead: "clock", beats }));
+      expect(one?.x, String(beats)).toBeCloseTo(Math.sin(size), 4);
+      const two = targetOf(dance(forces, 240, 269, { lead: "clock", beats }));
+      expect(two?.x, String(beats)).toBeCloseTo(Math.sin(size), 4);
+      const three = targetOf(dance(forces, 270, 299, { lead: "clock", beats }));
+      expect(three?.x, String(beats)).toBeCloseTo(-Math.sin(size), 4);
+    }
+  });
+
+  it("led by the clock, it rests in the middle until the clock is sure, and goes back to it when the clock is not", () => {
+    const forces = new MusicForces();
+    const unsure = { confidence: 0.5 };
+    let drive: Drive | null = null;
+    for (let k = 0; k < 60; k++) {
+      drive = forces.frame(
+        frame({
+          force: DANCE,
+          dance: { ...DANCE_OPENS, lead: "clock" },
+          heard: heard({ beat: { ...beatAtTime(k * FRAME), ...unsure } }),
+        }),
+      );
+      forces.ran(FRAME * SPEED);
+    }
+    expect(targetOf(drive)?.x).toBeCloseTo(0, 9);
+    expect(targetOf(dance(forces, 60, 179, { lead: "clock" }))?.x).toBeCloseTo(
+      Math.sin(size),
+      4,
+    );
+    for (let k = 180; k < 180 + Math.ceil(ENGAGE / FRAME); k++) {
+      drive = forces.frame(
+        frame({
+          force: DANCE,
+          dance: { ...DANCE_OPENS, lead: "clock" },
+          heard: heard({ beat: { ...beatAtTime(k * FRAME), ...unsure } }),
+        }),
+      );
+      forces.ran(FRAME * SPEED);
+    }
+    expect(Math.abs(targetOf(drive)?.x ?? 1)).toBeLessThan(1e-9);
+  });
+
+  it("led by the snare, it moves on the snares and not on the kicks; and with two sounds a point, on every second one", () => {
+    const forces = new MusicForces();
+    const snare = { lead: "snare" } as const;
+    dance(forces, 0, 59, snare);
+    const kicked = targetOf(dance(forces, 60, 89, snare, { kick: 1 }));
+    expect(kicked?.x).toBeCloseTo(0, 9);
+    dance(forces, 90, 90, snare, { snare: 1 });
+    const moved = targetOf(dance(forces, 91, 120, snare));
+    expect(moved?.x).toBeCloseTo(Math.sin(size), 4);
+
+    const every = new MusicForces();
+    const second = { lead: "kick", beats: 2 } as const;
+    dance(every, 0, 59, second);
+    dance(every, 60, 60, second, { kick: 1 });
+    expect(targetOf(dance(every, 61, 90, second))?.x).toBeCloseTo(
+      Math.sin(size),
+      4,
+    );
+    dance(every, 91, 91, second, { kick: 1 });
+    expect(targetOf(dance(every, 92, 121, second))?.x).toBeCloseTo(
+      Math.sin(size),
+      4,
+    );
+    dance(every, 122, 122, second, { kick: 1 });
+    expect(targetOf(dance(every, 123, 152, second))?.x).toBeCloseTo(
+      -Math.sin(size),
+      4,
+    );
+  });
+
+  it("smooth, led by a sound, it takes the time since the sound before to reach the next point", () => {
+    const forces = new MusicForces();
+    const smooth = { lead: "kick", feel: "smooth" } as const;
+    dance(forces, 0, 59, smooth);
+    dance(forces, 60, 60, smooth, { kick: 1 });
+    // the first from the middle, over half a second
+    expect(targetOf(dance(forces, 61, 89, smooth))?.x).toBeCloseTo(
+      Math.sin(size),
+      4,
+    );
+    // the next a second later, which it takes a second to cross
+    dance(forces, 90, 119, smooth);
+    dance(forces, 120, 120, smooth, { kick: 1 });
+    const half = targetOf(dance(forces, 121, 149, smooth));
+    expect(half?.x).toBeCloseTo(0, 4);
+    const there = targetOf(dance(forces, 150, 179, smooth));
+    expect(there?.x).toBeCloseTo(-Math.sin(size), 4);
+  });
+
+  it("traces its figure held level to a side, or standing above the pivot", () => {
+    for (const [place, turn] of [
+      ["side", Math.PI / 2],
+      ["above", Math.PI],
+    ] as const) {
+      const forces = new MusicForces();
+      const hand = targetOf(dance(forces, 0, 119, { lead: "clock", place }));
+      const at = placedAt(1, 0, size, turn);
+      expect(hand?.x, place).toBeCloseTo(at.x, 4);
+      expect(hand?.y, place).toBeCloseTo(at.y, 4);
+    }
+  });
+
+  it("goes round the pivot on the turn, a quarter of a turn a point, nearer the pivot the wider it swings", () => {
+    const forces = new MusicForces();
+    const turn = { lead: "clock", figure: "turn" } as const;
+    const radius = 1 - TURN_SLACK * (size / WIDEST_SWING);
+    const one = targetOf(dance(forces, 0, 119, turn));
+    expect(one?.x).toBeCloseTo(0, 4);
+    expect(one?.y).toBeCloseTo(-radius, 4);
+    const two = targetOf(dance(forces, 120, 149, turn));
+    expect(two?.x).toBeCloseTo(radius, 4);
+    expect(two?.y).toBeCloseTo(0, 4);
+    const three = targetOf(dance(forces, 150, 179, turn));
+    expect(three?.x).toBeCloseTo(0, 4);
+    expect(three?.y).toBeCloseTo(radius, 4);
   });
 });
 

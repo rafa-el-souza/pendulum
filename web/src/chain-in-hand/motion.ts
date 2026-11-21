@@ -23,6 +23,7 @@ import {
   type Shake,
 } from "../physics/step.ts";
 import { MusicForces } from "./forces.ts";
+import type { Choreography } from "./forces/choreography.ts";
 import { handDamping, shakeOf } from "./parameters.ts";
 
 // The chain's motion over a frame (docs/decisions.md, decision 80), apart
@@ -72,6 +73,8 @@ export interface MotionFrame {
   readonly speeds: boolean;
   /** Whether the frame runs a frame ahead, while there are twins (decision 51). */
   readonly ahead: boolean;
+  /** The dancing hand's choreography, as the dance opens where none is given (decision 83). */
+  readonly dance?: Choreography;
 }
 
 /** What a frame of the chain's motion did: its record. */
@@ -435,6 +438,7 @@ export class Motion {
       g: this.#g,
       held: hand !== null,
       from,
+      dance: frame.dance,
     });
     this.#drive = drive;
     const start = this.#time;

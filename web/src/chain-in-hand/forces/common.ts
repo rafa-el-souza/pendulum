@@ -3,6 +3,7 @@ import type { Force } from "../../core/routes.ts";
 import type { Chain, Gravity } from "../../physics/chain.ts";
 import type { Heat, MusicHand, Point } from "../../physics/drive.ts";
 import type { ChainState } from "../../physics/step.ts";
+import type { Choreography } from "./choreography.ts";
 
 // What the music's forces share (docs/decisions.md, decision 82): the frame
 // each is given, what each gives back, and the directions they act along.
@@ -60,6 +61,8 @@ export interface ForceFrame {
    * without twins, and 0 where it is run a frame ahead (decision 51).
    */
   readonly from: number;
+  /** The dancing hand's choreography, as the dance opens where none is given (decision 83). */
+  readonly dance?: Choreography | undefined;
 }
 
 /** What every force reads of a frame alike, worked out once. */
