@@ -2875,6 +2875,46 @@ middle twice a bar over the last 10 s of 30, at more than half their reach
 by 20 s (PH-7). In the browser, the mode comes after "sway" in the group and
 the address.
 
+## 80. The chain's motion is a module of its own
+
+*2026-11-21.* The chain's motion over a frame leaves the page's code for a
+module of its own, `chain-in-hand/motion.ts`: where the chain is and how it
+moves, the visitor's hand, the shaken pivot, the music's forces and the pivot
+where they take it. Each frame the page asks it for the time that went by;
+the motion steps that time in the frame's pieces (decision 21) and gives back
+a record of the frame, as data: how long each piece ran; where every mass and
+the pivot were at its end, and each mass's velocity there for trails kept as
+curves; and the frame's time, the clock's span, the piece's, and where it
+starts against the moment the music was heard. The page draws the trails
+from the record, after the step, and sends the twins their share of the
+shake and the music's command from the motion. Nothing on screen changes.
+
+**Why.** One function of the page held the motion with the drawing, the
+controls and the gestures, 2 413 lines, and only the browser tests reached
+the motion. As a module, the motion is tested on its own, and the music's
+forces change with it alone; its record is plain data, which the tests read
+directly.
+
+**Evidence.** Unit tests: a frame in pieces, 480 to the simulated second,
+from 4 to 16, each stepped as the stepper steps it, bit for bit, on 1 to 64
+masses; the record's positions hung from the pivot where the music's kicks
+take it, its velocities with the pivot's; slow motion where the clock passes
+the deadline; the hand in the pivot's frame; the music's forces heard from
+the frame's start when it runs ahead, and ending at the moment heard when it
+runs now (decision 51); the shake's phase going on with the time simulated;
+the tension summed over the pieces; starting again, other masses, time
+backwards. In the browser, the same script on the page's own clock against
+the code before, in twenty cases (the opening; 8 masses; slow motion; the
+hand; the shake; other masses; time backwards; the tension's colours; the
+strobe, alone and on the music's kicks; layers; the ribbon; twins, free and
+held; the five forces with the demo beat; the speaker with twins): the saved
+moment's code and the screen the same, byte for byte. Drawing the trails
+from the record takes under 0.1 ms a frame with the tip alone, 0.5 ms with
+every mass drawing on 64 masses and 0.8 ms on 512, and no longer runs inside
+the 6 ms the physics has (decision 15); with 512 masses, where the physics
+is cut in the frame's first piece, the time it reached stayed the same
+within the runs' spread (21.4% of the time asked before, 20.3% after).
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
