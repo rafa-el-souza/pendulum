@@ -2972,6 +2972,48 @@ five forces with the demo beat, ends where it ended, bit for bit. In the
 browser, decision 80's twenty cases against the code before: the saved
 moment's code and the screen the same, byte for byte.
 
+## 83. The dancing hand follows a choreography
+
+*2026-11-21.* The dancing hand of decision 75 follows a choreography of
+layers, each chosen on its own and carried by the address in its readable
+part:
+
+- **the figure** the hand traces: the swing from side to side, a circle, a
+  turn round the pivot, an eight lying or upright, a conductor's beat in a
+  bar of four, a bounce towards the pivot and back, or four poses
+  (`figure=`);
+- **the place** it traces it: the chain hanging, held level to a side, or
+  standing (`place=`);
+- **what leads it** from one point of the figure to the next: the beat
+  clock, which brings it to each point on its beat, or a sound heard, on
+  which it sets off: the kick, the snare, the hi-hat, any attack, a drum's
+  hit, a note, a change of the bass's note (`lead=`);
+- **how many beats**, or sounds, from one point to the next: a half, 1, 2,
+  4 or 8; or, led by the clock, the number for which a turn lasts about as
+  long as the chain's slowest swing (`beats=`);
+- **the feel** of its moves: a snap, then still; smooth; or a conductor's
+  beat, quick through the points and slow between (`feel=`).
+
+The figure swings as far as the loudness, as before. The hand is hidden, so
+that the chain dances by itself, unless the address shows it
+(`showhand=1`). The dance opens as it did: the swing, hanging, a side on each
+kick, in a snap.
+
+**Why.** The hand swung the same way to every music, on the kicks the
+analysis hears, which include the bass's notes. As layers that each change
+one thing, the dance becomes a way to compose with the music; led by the
+clock, the hand reaches the beat instead of following it.
+
+**Evidence.** Unit tests for the address and for each layer. Opened as
+before, decision 75's tests pass unchanged and the replay test of decision
+81 ends where it ended, bit for bit. In the browser, the choreography stays
+in the address beside the music's mode and a saved moment. Measured before
+the change, with the demo beat at ×0.8: 10 of the 21 sounds heard as kicks
+in 10 s were the bass's notes; led by the clock, smooth, a swing a bar, the
+tip followed its target at 0.93 (one less the root mean square of the tip's
+angle from the target's, over the target's), against 0.56 for the swing on
+the kicks.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
