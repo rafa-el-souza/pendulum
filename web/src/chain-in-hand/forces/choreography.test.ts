@@ -9,19 +9,21 @@ import {
   heldMass,
   pointsOf,
   readChoreography,
+  sequenceOf,
   writeChoreography,
   type Figure,
 } from "./choreography.ts";
 
-// The dancing hand's choreography (docs/decisions.md, decisions 83 and 85):
-// the layers the visitor composes the dance from, carried by the address,
-// the figures the hand traces, and the mass it holds.
+// The dancing hand's choreography (docs/decisions.md, decisions 83, 85 and
+// 87): the layers the visitor composes the dance from, carried by the
+// address, the figures the hand traces, and the mass it holds.
 
 describe("the dance's choreography in the address (decision 83)", () => {
-  it("opens as the dance has: the swing below, led by the kicks, a point a kick, in a snap, as wide as the music is loud, from the middle, gripped as firmly throughout, by the tip, with the hand's grip of 12, taut, the hand hidden", () => {
+  it("opens as the dance has: the swing below, led by the kicks, a point a kick, in a snap, as wide as the music is loud, from the middle, gripped as firmly throughout, by the tip, with the hand's grip of 12, taut, never let go of, the figure kept, the hand hidden", () => {
     expect(readChoreography("")).toEqual(DANCE_OPENS);
     expect(DANCE_OPENS).toEqual({
       figure: "swing",
+      then: [],
       place: "below",
       lead: "kick",
       beats: 1,
@@ -32,6 +34,8 @@ describe("the dance's choreography in the address (decision 83)", () => {
       grab: "tip",
       grip: 3,
       slack: 0,
+      toss: 0,
+      vary: 0,
       shown: false,
     });
     expect(GRIPS[DANCE_OPENS.grip - 1]).toBe(12);
@@ -98,6 +102,7 @@ describe("the dance's choreography in the address (decision 83)", () => {
     expect(writeChoreography("", DANCE_OPENS)).toBe("");
     const composed = {
       figure: "turn",
+      then: [],
       place: "side",
       lead: "snare",
       beats: 4,
@@ -108,6 +113,8 @@ describe("the dance's choreography in the address (decision 83)", () => {
       grab: "top",
       grip: 4,
       slack: 2,
+      toss: 0,
+      vary: 0,
       shown: true,
     } as const;
     const search = writeChoreography(
@@ -122,6 +129,78 @@ describe("the dance's choreography in the address (decision 83)", () => {
     expect(writeChoreography(search, DANCE_OPENS)).toBe(
       "?music=dance&strength=4",
     );
+  });
+});
+
+describe("the dance's long time in the address (decision 87)", () => {
+  it("reads when the hand lets go, every 1, 2 or 4 bars; when the figure changes, every 1, 2, 4 or 8 bars or with the loudness; and the figures that follow the first", () => {
+    expect(
+      readChoreography("?music=dance&figure=swing-circle-eight&toss=2&vary=4"),
+    ).toEqual({
+      ...DANCE_OPENS,
+      figure: "swing",
+      then: ["circle", "eight"],
+      toss: 2,
+      vary: 4,
+    });
+    expect(readChoreography("?toss=1&vary=level")).toEqual({
+      ...DANCE_OPENS,
+      toss: 1,
+      vary: "level",
+    });
+    expect(readChoreography("?toss=4&vary=8")).toEqual({
+      ...DANCE_OPENS,
+      toss: 4,
+      vary: 8,
+    });
+    // a figure it does not know is left out of the list
+    expect(readChoreography("?figure=zigzag-turn-bounce-x")).toEqual({
+      ...DANCE_OPENS,
+      figure: "turn",
+      then: ["bounce"],
+    });
+    expect(readChoreography("?figure=circle-")).toEqual({
+      ...DANCE_OPENS,
+      figure: "circle",
+    });
+    expect(readChoreography("?toss=3&vary=5&figure=-")).toEqual(DANCE_OPENS);
+    expect(readChoreography("?toss=0&vary=0&toss=fill")).toEqual(DANCE_OPENS);
+  });
+
+  it("writes the list of figures joined by hyphens, and the long time's layers before the hand, and reads back what it wrote", () => {
+    const composed = {
+      ...DANCE_OPENS,
+      figure: "eight",
+      then: ["swing", "eight"],
+      toss: 4,
+      vary: "level",
+      shown: true,
+    } as const;
+    const search = writeChoreography("?music=dance", composed);
+    expect(search).toBe(
+      "?music=dance&figure=eight-swing-eight&toss=4&vary=level&showhand=1",
+    );
+    expect(readChoreography(search)).toEqual(composed);
+    expect(
+      writeChoreography("", { ...DANCE_OPENS, then: ["circle"], vary: 2 }),
+    ).toBe("?figure=swing-circle&vary=2");
+    expect(writeChoreography(search, DANCE_OPENS)).toBe("?music=dance");
+  });
+
+  it("varies through the figures listed, or, with one, through all eight in their order from it", () => {
+    expect(
+      sequenceOf({ ...DANCE_OPENS, figure: "eight", then: ["circle"] }),
+    ).toEqual(["eight", "circle"]);
+    expect(sequenceOf({ ...DANCE_OPENS, figure: "bounce" })).toEqual([
+      "bounce",
+      "poses",
+      "swing",
+      "circle",
+      "turn",
+      "eight",
+      "upright",
+      "conduct",
+    ]);
   });
 });
 
