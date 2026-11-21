@@ -3041,7 +3041,11 @@ away from the published site the page asks nothing of Cloudflare. The script
 can count each change of the address as a page, through the Navigation
 API's `navigate` event; in Chromium 158, `history.replaceState`, which the
 piece calls for every setting it writes to its address, fires that event,
-so the script runs with that counting off.
+so the script runs with that counting off. At the published host, routed
+to the build in a browser that says no program drives it, the page added
+the script as Cloudflare's snippet has it, a module with the site's token
+and `"spa": false`; after `?count=0` it added none, on that visit and the
+next.
 
 ## Open
 
