@@ -2,6 +2,7 @@ import { BEAT_PROCESSOR, BeatClock, beatAt, type BeatAt } from "./beat.ts";
 import beatWorklet from "./beat.worklet.ts?worker&url";
 import { DEMO_SECONDS, DemoTap, demoSample, renderDemoInto } from "./demo.ts";
 import { builtInMicrophone } from "./devices.ts";
+import { heardAt } from "./output.ts";
 import { HEARD, Hearing, type Signals } from "./signals.ts";
 
 // Where the piece's music comes from (docs/decisions.md, decisions 44 and
@@ -117,27 +118,18 @@ function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/**
- * The time on `context`'s clock of the sample being heard now, in s: from
- * the output's own stamp where the browser gives one, else the clock less
- * the latencies it tells.
- */
+/** The time on `context`'s clock of the sample being heard now, in s (output.ts). */
 function outputTime(context: AudioContext): number {
-  if (typeof context.getOutputTimestamp === "function") {
-    const { contextTime, performanceTime } = context.getOutputTimestamp();
-    if (
-      contextTime !== undefined &&
-      performanceTime !== undefined &&
-      contextTime > 0 &&
-      performanceTime > 0
-    ) {
-      return contextTime + (performance.now() - performanceTime) / 1000;
-    }
-  }
-  const lag =
-    ("outputLatency" in context ? context.outputLatency : 0) +
-    context.baseLatency;
-  return context.currentTime - (Number.isFinite(lag) ? lag : 0);
+  return heardAt({
+    currentTime: context.currentTime,
+    baseLatency: context.baseLatency,
+    outputLatency: "outputLatency" in context ? context.outputLatency : 0,
+    stamp:
+      typeof context.getOutputTimestamp === "function"
+        ? context.getOutputTimestamp()
+        : null,
+    now: performance.now(),
+  });
 }
 
 /** What the clock says moved on to `at`, on its own time. */
@@ -147,9 +139,10 @@ function movedTo(beat: BeatAt, at: number): BeatAt {
 
 /**
  * The beat clock of the demonstration beat, on the page (decision 78): fed
- * the beat's samples from its function, every one from where it was fed
- * last to the moment a frame hears, after a long gap the last
- * DEMO_CATCH_UP s of them afresh.
+ * the beat's samples, every one from where it was fed last to the moment a
+ * frame hears, from the frame's own window where it holds them, else from
+ * the beat's function; after a long gap, the last DEMO_CATCH_UP s of them
+ * afresh.
  */
 class DemoBeat {
   private readonly rate: number;
@@ -163,15 +156,23 @@ class DemoBeat {
     this.clock = new BeatClock(rate);
   }
 
-  /** What the clock says at `at` s of the beat, once fed the beat until then. */
-  at(at: number): BeatAt | null {
-    const end = Math.floor(at * this.rate);
+  /**
+   * What the clock says at `at` s of the beat, once fed the beat until then:
+   * `heard`, the frame's window, ends with the sample of that moment.
+   */
+  at(at: number, heard: Float32Array): BeatAt | null {
+    const end = Math.round(at * this.rate);
     const most = Math.round(DEMO_CATCH_UP * this.rate);
     if (end - this.fed > most) {
       this.clock = new BeatClock(this.rate);
       this.fed = end - most;
     }
     while (this.fed < end) {
+      if (end - this.fed <= heard.length) {
+        this.clock.hear(heard.subarray(heard.length - (end - this.fed)), at);
+        this.fed = end;
+        break;
+      }
       const n = Math.min(this.chunk.length, end - this.fed);
       for (let i = 0; i < n; i++) {
         const sample = this.fed + 1 + i;
@@ -200,8 +201,9 @@ export class Listening {
   private take: ((out: Float32Array<ArrayBuffer>) => number | null) | null =
     null;
   private hearing: Hearing | null = null;
-  /** What the beat clock says at the moment a frame hears, given the time the frame hears at; null while it has nothing. */
-  private beat: ((at: number) => BeatAt | null) | null = null;
+  /** What the beat clock says at the moment a frame hears, given the time the frame hears at and its window; null while it has nothing. */
+  private beat: ((at: number, heard: Float32Array) => BeatAt | null) | null =
+    null;
   /** The beat clock's module on the audio line: loading or loaded, or refused. */
   private worklet: Promise<boolean> | null = null;
   private readonly samples = new Float32Array(HEARD);
@@ -256,7 +258,7 @@ export class Listening {
     const at = this.take(this.samples);
     if (at === null) return null;
     const heard = this.hearing.hear(this.samples, at);
-    return { ...heard, beat: this.beat?.(at) ?? null };
+    return { ...heard, beat: this.beat?.(at, this.samples) ?? null };
   }
 
   private letGo(): void {
@@ -316,7 +318,7 @@ export class Listening {
     rate: number,
     take: (out: Float32Array<ArrayBuffer>) => number | null,
     release: () => void,
-    beat: ((at: number) => BeatAt | null) | null,
+    beat: ((at: number, heard: Float32Array) => BeatAt | null) | null,
   ): void {
     this.source = source;
     this.hearing = new Hearing(rate);
@@ -593,7 +595,7 @@ export class Listening {
           return t;
         },
         () => undefined,
-        (at) => beat.at(at),
+        (at, heard) => beat.at(at, heard),
       );
       return { kind: "muted" };
     }
@@ -644,7 +646,7 @@ export class Listening {
         }
         volume.disconnect();
       },
-      (at) => beat.at(at),
+      (at, heard) => beat.at(at, heard),
     );
     void this.demoRest(
       context,
