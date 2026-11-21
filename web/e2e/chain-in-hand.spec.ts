@@ -2324,17 +2324,18 @@ test("the music's panel says the demo beat's tempo once the beat clock is sure o
   page,
 }) => {
   const errors = collectErrors(page);
+  // muted: the beat's clock hears it from the beat's function, aloud or
+  // not, and the sound server is left to the tests that play
+  await page.addInitScript(
+    "Object.defineProperty(window, 'AudioContext', { configurable: true, value: undefined });",
+  );
   await page.setViewportSize({ width: 390, height: 800 });
   await page.goto("./");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   await page.keyboard.press("w");
   const { panel, status, tempo, source } = music(page);
   await source("Demo beat").click();
-  await expect(status).toHaveText(
-    /^(Playing the demo beat\.|The demo beat, muted)/,
-    { timeout: 10_000 },
-  );
-  // aloud or muted, the beat's clock hears it from the beat's function
+  await expect(status).toHaveText(/^The demo beat, muted/);
   await expect(tempo).toHaveText("120 bpm.", { timeout: 20_000 });
   await expect(tempo).toBeVisible();
   // the panel grows with it, and stays on a phone's screen
