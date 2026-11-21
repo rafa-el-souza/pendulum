@@ -3,8 +3,8 @@ import type { Mode, Route } from "../core/routes.ts";
 // The first piece's ways for the music to act (docs/decisions.md, decisions
 // 46 and 49): candidates, which the author settles by seeing and hearing
 // them. "light" is the first; each of the others changes one thing of it,
-// so that they can be told apart side by side: the next four add a force
-// (decisions 75 and 77), the rest change the light. In every one, where the
+// so that they can be told apart side by side: the next five add a force
+// (decisions 75, 77 and 79), the rest change the light. In every one, where the
 // trails are a strobe's, a kick flashes it (decision 50).
 
 /** A kick lights the chain's halo. */
@@ -101,6 +101,19 @@ export const SWAY: Mode = {
   name: "sway",
   routes: LIGHT.routes,
   force: { kind: "sway", depth: (30 * Math.PI) / 180 },
+};
+
+/**
+ * As light, with the chain tuned to the music's bars (decision 79): while
+ * the beat clock is sure of the beat, it sets gravity's strength for the
+ * chain's slowest mode to swing once a bar, and pushes the pivot across
+ * gravity on the beats, two to a side, 3 mm at the middle strength.
+ */
+export const TUNED: Mode = {
+  id: "tuned",
+  name: "tuned",
+  routes: LIGHT.routes,
+  force: { kind: "tuned", depth: 0.003 },
 };
 
 /** As light, with a halo three times as strong on the kicks, and a little slower to go. */
@@ -215,6 +228,7 @@ export const MODES: readonly Mode[] = [
   DANCE,
   BREATH,
   SWAY,
+  TUNED,
   GLOW,
   HITS,
   KICKS,

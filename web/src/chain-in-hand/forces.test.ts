@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import type { BeatAt } from "../audio/beat.ts";
 import type { Signals } from "../audio/signals.ts";
 import type { Force } from "../core/routes.ts";
 import { Chain, createHand, type Gravity } from "../physics/chain.ts";
@@ -9,6 +10,7 @@ import {
   type Drive,
   type PivotMotion,
 } from "../physics/drive.ts";
+import { laguerreZero } from "../physics/modes.ts";
 import { restingState, Stepper, type ChainState } from "../physics/step.ts";
 import {
   BREATH_FLOOR,
@@ -26,6 +28,8 @@ import {
   SEED_LEAN,
   SLOW_CROSS,
   TAKE_HOLD,
+  TUNED_DECAY,
+  TUNED_DRAG,
   WIDEST_SWING,
   type ForceFrame,
 } from "./forces.ts";
@@ -39,6 +43,7 @@ const SPEAKER: Force = { kind: "speaker", depth: 0.04 };
 const DANCE: Force = { kind: "dance", depth: 0.7 };
 const BREATH: Force = { kind: "breath", depth: 1 };
 const SWAY: Force = { kind: "sway", depth: (30 * Math.PI) / 180 };
+const TUNED: Force = { kind: "tuned", depth: 0.003 };
 const DOWN: Gravity = { x: 0, y: -9.81 };
 const FRAME = 1 / 60;
 const SPEED = 0.8;
@@ -88,6 +93,7 @@ function frame(over: Partial<ForceFrame> & { n?: number } = {}): ForceFrame {
     state: swinging(n),
     g: DOWN,
     held: false,
+    from: 0,
     ...rest,
   };
 }
@@ -617,6 +623,7 @@ function song(
       state,
       g: DOWN,
       held: false,
+      from: 0,
     });
     let into = 0;
     for (let piece = 0; piece < 7; piece++) {
@@ -679,6 +686,208 @@ describe("the music's forces on the chain, against the probe of the music's phys
       expect(most).toBeGreaterThan(0.01 * reference);
       expect(most).toBeLessThan(2 * reference);
       expect(calm).toBeLessThan(5);
+    }
+  });
+});
+
+/** A sure beat clock at `bpm`, `phase` into a beat and `bar` into a bar of four, at 10 s. */
+function beatOf(over: Partial<BeatAt> = {}): BeatAt {
+  return {
+    at: 10,
+    bpm: 120,
+    phase: 0.5,
+    bar: 0.125,
+    confidence: 0.95,
+    ...over,
+  };
+}
+
+/** The beat clock `seconds` later, as the frames hear it. */
+function later(beat: BeatAt, seconds: number): BeatAt {
+  const beats = (seconds * beat.bpm) / 60;
+  const turn = (x: number) => x - Math.floor(x);
+  return {
+    ...beat,
+    at: beat.at + seconds,
+    phase: turn(beat.phase + beats),
+    bar: turn(beat.bar + beats / 4),
+  };
+}
+
+/** How strong gravity is at the end of a command, the visitor's `g` with its tilt. */
+function strengthOf(drive: Drive | null, g: Gravity = DOWN): number {
+  const tilt = drive?.tilt[1] ?? { x: 0, y: 0 };
+  return Math.hypot(g.x + tilt.x, g.y + tilt.y);
+}
+
+/** Runs `seconds` of frames of a tuned chain of `n` masses with the beat moving on, and gives the last command. */
+function tunedFor(
+  forces: MusicForces,
+  seconds: number,
+  over: Partial<ForceFrame> & { n?: number; beat?: BeatAt } = {},
+): Drive | null {
+  const { beat = beatOf(), ...rest } = over;
+  let drive: Drive | null = null;
+  const frames = Math.round(seconds / FRAME);
+  for (let k = 0; k < frames; k++) {
+    const input = frame({
+      force: TUNED,
+      heard: heard({ beat: later(beat, k * FRAME) }),
+      ...rest,
+    });
+    drive = forces.frame(input);
+    forces.ran(input.span);
+  }
+  return drive;
+}
+
+/** The gravity that swings the slowest mode of an equal chain of `n` masses, 1 m long, `per` times in `seconds` of real time at ×0.8 (PH-7). */
+function tuning(n: number, seconds: number): number {
+  const omega = (2 * Math.PI) / seconds / SPEED;
+  return (omega * omega * (1 / n)) / laguerreZero(n, 1);
+}
+
+describe("the tuned chain (decision 79)", () => {
+  it("tunes gravity's strength so that the chain's slowest mode swings once a bar: 13.2 m/s² for two masses at 120 beats a minute and ×0.8 (PH-7)", () => {
+    const tuned = tunedFor(new MusicForces(), 6);
+    expect(tuning(2, 2)).toBeCloseTo(13.16, 2);
+    expect(strengthOf(tuned)).toBeCloseTo(tuning(2, 2), 1);
+    expect(leanOf(tuned)).toBeCloseTo(0, 9);
+    // along the visitor's gravity, whichever way it points
+    const turned = { x: 9.81 * Math.sin(0.3), y: -9.81 * Math.cos(0.3) };
+    const along = tunedFor(new MusicForces(), 6, { g: turned });
+    expect(strengthOf(along, turned)).toBeCloseTo(tuning(2, 2), 1);
+    expect(leanOf(along, turned)).toBeCloseTo(0, 9);
+    // eight masses, and a slower tempo
+    const eight = tunedFor(new MusicForces(), 6, { n: 8 });
+    expect(strengthOf(eight)).toBeCloseTo(tuning(8, 2), 1);
+    const slow = tunedFor(new MusicForces(), 6, { beat: beatOf({ bpm: 90 }) });
+    expect(strengthOf(slow)).toBeCloseTo(tuning(2, (4 * 60) / 90), 1);
+  });
+
+  it("swings once every two bars where once a bar would ask for more gravity than Jupiter's", () => {
+    const fast = tunedFor(new MusicForces(), 6, { beat: beatOf({ bpm: 170 }) });
+    expect(tuning(2, (4 * 60) / 170)).toBeGreaterThan(24.79);
+    expect(strengthOf(fast)).toBeCloseTo(tuning(2, (8 * 60) / 170), 1);
+  });
+
+  it("pushes the pivot across gravity on the beat, at its moment in the frame, two beats to one side and two to the other: 3 mm at the middle strength, coming back over half a second", () => {
+    const side = { x: 1, y: 0 };
+    // a beat 0.02 of a beat (10 ms) into a frame that starts at the moment
+    // heard; the bar's second beat, to the first side
+    const second = new MusicForces().frame(
+      frame({
+        force: TUNED,
+        heard: heard({ beat: beatOf({ phase: 0.98, bar: 0.245 }) }),
+      }),
+    );
+    const [kick] = second?.kicks ?? [];
+    expect(kick?.start).toBeCloseTo(0.01 * SPEED, 9);
+    expect(kick?.x).toBeCloseTo(0.003 * side.x, 9);
+    expect(kick?.y).toBeCloseTo(0.003 * side.y, 9);
+    expect(kick?.attack).toBeCloseTo(KICK_ATTACK * SPEED, 12);
+    expect(kick?.decay).toBeCloseTo(TUNED_DECAY * SPEED, 12);
+    // the bar's third beat, to the other side, as far as the strength asks
+    const third = new MusicForces().frame(
+      frame({
+        force: TUNED,
+        strength: 5,
+        heard: heard({ beat: beatOf({ phase: 0.98, bar: 0.495 }) }),
+      }),
+    );
+    expect(third?.kicks[0]?.x).toBeCloseTo(-0.003 * 2.25 * side.x, 9);
+    // a frame that ends at the moment heard, as the chain's does without
+    // twins, takes the beat that fell 5 ms before it
+    const before = new MusicForces().frame(
+      frame({
+        force: TUNED,
+        from: -FRAME,
+        heard: heard({ beat: beatOf({ phase: 0.01, bar: 0.2525 }) }),
+      }),
+    );
+    expect(before?.kicks[0]?.start).toBeCloseTo((FRAME - 0.005) * SPEED, 9);
+    expect(before?.kicks[0]?.x).toBeCloseTo(0.003 * side.x, 9);
+    // no beat within the frame, no push
+    const none = new MusicForces().frame(
+      frame({ force: TUNED, heard: heard({ beat: beatOf({ phase: 0.5 }) }) }),
+    );
+    expect(none?.kicks ?? []).toHaveLength(0);
+  });
+
+  it("pushes nothing and gives gravity back where the clock is not sure, or there is no clock, and drags 0.1 a second while the music plays, 2 in its silence", () => {
+    const forces = new MusicForces();
+    tunedFor(forces, 6);
+    // long enough for the pushes given while it was sure to have faded
+    const unsure = tunedFor(forces, 10, {
+      beat: beatOf({ confidence: 0.5 }),
+    });
+    expect(strengthOf(unsure)).toBeCloseTo(9.81, 1);
+    expect(unsure?.kicks ?? []).toHaveLength(0);
+    expect(unsure?.drag[1]).toBeCloseTo(TUNED_DRAG, 3);
+    const none = run(new MusicForces(), 360, frame({ force: TUNED }));
+    expect(none?.kicks ?? []).toHaveLength(0);
+    expect(strengthOf(none)).toBeCloseTo(9.81, 9);
+    const silent = run(
+      new MusicForces(),
+      120,
+      frame({ force: TUNED, heard: heard({ beat: beatOf(), silent: true }) }),
+    );
+    expect(silent?.kicks ?? []).toHaveLength(0);
+    expect(silent?.drag[1]).toBeCloseTo(DRAG_SILENT, 2);
+  });
+
+  it("pushes nothing where reduced motion is asked for", () => {
+    const drive = new MusicForces({ slow: true }).frame(
+      frame({
+        force: TUNED,
+        heard: heard({ beat: beatOf({ phase: 0.98, bar: 0.245 }) }),
+      }),
+    );
+    expect(drive?.kicks ?? []).toHaveLength(0);
+  });
+
+  it("swings two and three masses in their slowest mode, once a bar, and builds it within twenty seconds (PH-7)", () => {
+    for (const n of [2, 3]) {
+      const chain = Chain.uniform(n);
+      const stepper = new Stepper(chain);
+      const state = restingState(n);
+      const forces = new MusicForces();
+      const g = DOWN;
+      let beat = beatOf({ phase: 0, bar: 0 });
+      const tips: number[] = [];
+      for (let k = 0; k < Math.round(30 / FRAME); k++) {
+        const drive = forces.frame({
+          ...frame({ force: TUNED, n, heard: heard({ beat }) }),
+          chain,
+          state,
+        });
+        let into = 0;
+        for (let piece = 0; piece < 7; piece++) {
+          stepper.advance(state, (FRAME * SPEED) / 7, g, { drive, into });
+          into += (FRAME * SPEED) / 7;
+        }
+        forces.ran(FRAME * SPEED);
+        beat = later(beat, FRAME);
+        let x = 0;
+        for (let i = 0; i < n; i++) x += Math.sin(state.theta[i] ?? 0) / n;
+        tips.push(x);
+      }
+      // the tip's reach over the last ten seconds, of the chain's length,
+      // and how often it crosses the middle: twice a bar, a bar each 2 s
+      const last = tips.slice(-Math.round(10 / FRAME));
+      const reach = Math.max(...last.map(Math.abs));
+      expect(reach).toBeGreaterThan(0.04);
+      expect(reach).toBeLessThan(0.25);
+      let crossings = 0;
+      for (let k = 1; k < last.length; k++) {
+        if (Math.sign(last[k] ?? 0) !== Math.sign(last[k - 1] ?? 0))
+          crossings++;
+      }
+      expect(crossings).toBeGreaterThanOrEqual(9);
+      expect(crossings).toBeLessThanOrEqual(11);
+      // and within twenty seconds it has more than half of that reach
+      const early = tips.slice(Math.round(15 / FRAME), Math.round(20 / FRAME));
+      expect(Math.max(...early.map(Math.abs))).toBeGreaterThan(0.5 * reach);
     }
   });
 });

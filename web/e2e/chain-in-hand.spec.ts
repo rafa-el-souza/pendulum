@@ -2452,9 +2452,12 @@ test("where there are several microphones, the music's panel lists them and list
   expect(errors).toEqual([]);
 });
 
-test("the music's mode and strength, values of its group, are kept in the address, beside a saved moment too, and an address opens with them (decisions 46, 76 and 77)", async ({
+test("the music's mode and strength, values of its group, are kept in the address, beside a saved moment too, and an address opens with them (decisions 46, 76, 77 and 79)", async ({
   page,
 }) => {
+  // it steps through the modes one by one, each mode a step more: on
+  // Chromium in the CI it took 24 of its 30 s before the tuned chain came
+  test.slow();
   const errors = collectErrors(page);
   await page.goto("./");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
@@ -2470,14 +2473,14 @@ test("the music's mode and strength, values of its group, are kept in the addres
   // the piece opens in the light, at the middle strength
   await icon(page, "What the music does").click();
   await expect(mode).toContainText("light");
-  // the candidates come next, the forces first (decisions 49, 75 and 77),
-  // and "none" last, round from the first
-  for (const name of ["speaker", "dance", "breath", "sway", "glow"]) {
+  // the candidates come next, the forces first (decisions 49, 75, 77 and
+  // 79), and "none" last, round from the first
+  for (const name of ["speaker", "dance", "breath", "sway", "tuned", "glow"]) {
     await more(mode, "What the music does").click();
     await expect(mode).toContainText(name);
     await expect(page).toHaveURL(new RegExp(`[?&]music=${name}(&|$)`));
   }
-  for (let i = 0; i < 6; i++) await less(mode, "What the music does").click();
+  for (let i = 0; i < 7; i++) await less(mode, "What the music does").click();
   await expect(mode).toContainText("none");
   await expect(page).toHaveURL(/[?&]music=none(&|$)/);
   await icon(page, "How strongly the music acts").click();

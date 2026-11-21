@@ -71,13 +71,15 @@ export interface Tint {
  * pivot aside and back, as a speaker's cone; or a hand of the music holds the
  * tip and swings it from side to side on the kicks (decision 75); or the
  * loudness gives the chain energy, which it loses in silence; or gravity
- * leans from side to side on the kicks (decision 77).
+ * leans from side to side on the kicks (decision 77); or gravity is set for
+ * the chain to swing once a bar, and the pivot pushed on the beats (decision
+ * 79).
  */
 export interface Force {
-  readonly kind: "speaker" | "dance" | "breath" | "sway";
+  readonly kind: "speaker" | "dance" | "breath" | "sway" | "tuned";
   /**
    * At the middle strength: how far a full kick takes the pivot of a chain of
-   * a few masses, in m; how far the hand swings, or gravity leans, at full
+   * a few masses, or the tuned chain's push on a beat, in m; how far the hand swings, or gravity leans, at full
    * loudness, in rad; or the energy the chain is drawn to at full loudness,
    * in shares of the energy that lifts it, hanging, level.
    */
