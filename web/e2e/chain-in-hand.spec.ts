@@ -2520,11 +2520,12 @@ test("the music's mode and strength, values of its group, are kept in the addres
   expect(errors).toEqual([]);
 });
 
-test("the dance's choreography is kept in the address, beside the music's mode and a saved moment too, and what the address does not know leaves it (decision 83)", async ({
+test("the dance's choreography is kept in the address, beside the music's mode and a saved moment too, and what the address does not know leaves it (decisions 83 and 85)", async ({
   page,
 }) => {
   const errors = collectErrors(page);
-  const composed = "figure=eight&lead=clock&beats=2&feel=smooth&showhand=1";
+  const composed =
+    "figure=eight&lead=clock&beats=2&feel=smooth&size=kick&center=bass&pulse=beat&grab=middle&grip=5&slack=2&showhand=1";
   await page.goto(`./?music=dance&${composed}&place=under`);
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   // another mode of the music keeps the choreography, and drops the place it

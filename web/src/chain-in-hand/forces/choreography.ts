@@ -1,12 +1,14 @@
 import type { Point } from "../../physics/drive.ts";
 
-// The dancing hand's choreography (docs/decisions.md, decision 83): the
-// layers the visitor composes the dance from, each a choice of its own. The
-// figure the hand traces, and the place it traces it; what leads it on, the
-// beat clock or a sound heard; how many beats, or sounds, it takes from one
-// point of the figure to the next; the feel of its moves; and whether the
-// hand is seen. The address carries it in its readable part, as it carries
-// the music's mode.
+// The dancing hand's choreography (docs/decisions.md, decisions 83 and 85):
+// the layers the visitor composes the dance from, each a choice of its own.
+// The figure the hand traces, and the place it traces it; what leads it on,
+// the beat clock or a sound heard; how many beats, or sounds, it takes from
+// one point of the figure to the next; the feel of its moves; what the
+// figure's size and its middle follow in the music, and whether the grip
+// pulses on the beat; the mass the hand holds, how firmly and how slack; and
+// whether the hand is seen. The address carries it in its readable part, as
+// it carries the music's mode.
 
 /** The figures the hand can trace. */
 export const FIGURES = [
@@ -50,6 +52,32 @@ export type Beats = (typeof BEATS)[number] | "auto";
 export const FEELS = ["snap", "smooth", "ictus"] as const;
 export type Feel = (typeof FEELS)[number];
 
+/** What the figure's size follows: the loudness; nothing, the size of music as loud as it has been; the bass; the treble; or the kicks, swelling on each. */
+export const SIZES = ["level", "fixed", "bass", "treble", "kick"] as const;
+export type Size = (typeof SIZES)[number];
+
+/** What the figure's middle follows: nothing; the bass's note, low to one side and high to the other; or the loudness, which lifts it. */
+export const CENTERS = ["none", "bass", "level"] as const;
+export type Center = (typeof CENTERS)[number];
+
+/** What the grip follows: nothing, as firm throughout; or the beat, firm on each and loose between. */
+export const PULSES = ["none", "beat"] as const;
+export type Pulse = (typeof PULSES)[number];
+
+/** The mass the hand holds: the tip; the one halfway down the chain; or the one a quarter of the way down, near the pivot. */
+export const GRABS = ["tip", "middle", "top"] as const;
+export type Grab = (typeof GRABS)[number];
+
+/**
+ * The grip's steps, from gentle to forced, in rad/s: the visitor's hand's
+ * first three (decision 19), its firmest, and three times that. The
+ * choreography carries the step, from 1.
+ */
+export const GRIPS = [4, 7, 12, 40, 120] as const;
+
+/** The slack's steps: how much nearer the pivot than the held mass reaches the hand keeps its target, as a share of that reach. The choreography carries the step, from 0. */
+export const SLACKS = [0, 0.1, 0.2, 0.3, 0.4] as const;
+
 /** The dancing hand's choreography. */
 export interface Choreography {
   readonly figure: Figure;
@@ -57,22 +85,52 @@ export interface Choreography {
   readonly lead: Lead;
   readonly beats: Beats;
   readonly feel: Feel;
+  readonly size: Size;
+  readonly center: Center;
+  readonly pulse: Pulse;
+  readonly grab: Grab;
+  /** The grip's step, from 1 to 5, and the slack's, from 0 to 4. */
+  readonly grip: number;
+  readonly slack: number;
   /** Whether the hand is drawn; hidden, the chain dances by itself. */
   readonly shown: boolean;
 }
 
-/** The dance as it opens: decision 75's swing from side to side, a side on each kick, crossing in a snap; the hand hidden. */
+/**
+ * The dance as it opens: decision 75's swing from side to side, a side on
+ * each kick, crossing in a snap, as wide as the music is loud, held by the
+ * tip with the visitor's hand's middle grip, taut; the hand hidden.
+ */
 export const DANCE_OPENS: Choreography = {
   figure: "swing",
   place: "below",
   lead: "kick",
   beats: 1,
   feel: "snap",
+  size: "level",
+  center: "none",
+  pulse: "none",
+  grab: "tip",
+  grip: 3,
+  slack: 0,
   shown: false,
 };
 
 /** The address's names for the layers, in the order it writes them. */
-const KEYS = ["figure", "place", "lead", "beats", "feel", "showhand"] as const;
+const KEYS = [
+  "figure",
+  "place",
+  "lead",
+  "beats",
+  "feel",
+  "size",
+  "center",
+  "pulse",
+  "grab",
+  "grip",
+  "slack",
+  "showhand",
+] as const;
 
 /** One of `values` that `text` names, or `fallback`. */
 function oneOf<T extends string>(
@@ -81,6 +139,17 @@ function oneOf<T extends string>(
   fallback: T,
 ): T {
   return values.find((value) => value === text) ?? fallback;
+}
+
+/** The step from `first` of `steps` that `text` names, or `fallback`. */
+function stepOf(
+  steps: readonly number[],
+  first: number,
+  text: string | null,
+  fallback: number,
+): number {
+  const step = steps.findIndex((_, k) => String(k + first) === text);
+  return step < 0 ? fallback : step + first;
 }
 
 /** The choreography an address carries, each layer it does not carry, or does not know, as the dance opens. */
@@ -96,6 +165,12 @@ export function readChoreography(search: string): Choreography {
         ? "auto"
         : (BEATS.find((value) => String(value) === beats) ?? DANCE_OPENS.beats),
     feel: oneOf(FEELS, query.get("feel"), DANCE_OPENS.feel),
+    size: oneOf(SIZES, query.get("size"), DANCE_OPENS.size),
+    center: oneOf(CENTERS, query.get("center"), DANCE_OPENS.center),
+    pulse: oneOf(PULSES, query.get("pulse"), DANCE_OPENS.pulse),
+    grab: oneOf(GRABS, query.get("grab"), DANCE_OPENS.grab),
+    grip: stepOf(GRIPS, 1, query.get("grip"), DANCE_OPENS.grip),
+    slack: stepOf(SLACKS, 0, query.get("slack"), DANCE_OPENS.slack),
     shown: query.get("showhand") === "1",
   };
 }
@@ -108,14 +183,33 @@ export function writeChoreography(
   const query = new URLSearchParams(search);
   for (const key of KEYS) query.delete(key);
   const { figure, place, lead, beats, feel, shown } = choreography;
+  const { size, center, pulse, grab, grip, slack } = choreography;
   if (figure !== DANCE_OPENS.figure) query.set("figure", figure);
   if (place !== DANCE_OPENS.place) query.set("place", place);
   if (lead !== DANCE_OPENS.lead) query.set("lead", lead);
   if (beats !== DANCE_OPENS.beats) query.set("beats", String(beats));
   if (feel !== DANCE_OPENS.feel) query.set("feel", feel);
+  if (size !== DANCE_OPENS.size) query.set("size", size);
+  if (center !== DANCE_OPENS.center) query.set("center", center);
+  if (pulse !== DANCE_OPENS.pulse) query.set("pulse", pulse);
+  if (grab !== DANCE_OPENS.grab) query.set("grab", grab);
+  if (grip !== DANCE_OPENS.grip) query.set("grip", String(grip));
+  if (slack !== DANCE_OPENS.slack) query.set("slack", String(slack));
   if (shown !== DANCE_OPENS.shown) query.set("showhand", "1");
   const text = query.toString();
   return text === "" ? "" : `?${text}`;
+}
+
+/** The mass the hand holds on a chain of `n`, counted from the top, from 0: the last, or the one at least halfway, or a quarter of the way, down. */
+export function heldMass(grab: Grab, n: number): number {
+  switch (grab) {
+    case "tip":
+      return n - 1;
+    case "middle":
+      return Math.ceil(n / 2) - 1;
+    case "top":
+      return Math.ceil(n / 4) - 1;
+  }
 }
 
 // Each figure is drawn in a plane of its own: x across, from −1 to 1, which
