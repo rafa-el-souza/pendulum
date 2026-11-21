@@ -13,6 +13,7 @@ import {
 } from "../physics/step.ts";
 import { MusicForces } from "./forces.ts";
 import {
+  DIARY_MOST,
   FEWEST_PIECES,
   MOST_PIECES,
   Motion,
@@ -28,6 +29,8 @@ import { gravityOf, handDamping, shakeOf } from "./parameters.ts";
 // (decision 21), with the visitor's hand (decision 18), the shaken pivot
 // (decision 36), the tension's colour (decision 35) and the music's forces
 // (decisions 74 and 75), slower than asked where time runs out (decision 15).
+// Between frames it changes by events alone, which a diary notes, and its
+// state is taken and given back whole (decision 81).
 
 const DOWN: Gravity = { x: 0, y: -9.81 };
 const FRAME = 1 / 60;
@@ -85,6 +88,16 @@ function raised(n: number): ChainState {
   return state;
 }
 
+/** The chain starts from `state`, with the shake's phase there if given. */
+function start(motion: Motion, state: ChainState, phase: number | null = null) {
+  motion.apply({
+    kind: "start",
+    theta: state.theta,
+    omega: state.omega,
+    phase,
+  });
+}
+
 /** A motion of `n` masses on Earth, raised to one side. */
 function motionOf(n: number, over: { hertz?: number; slow?: boolean } = {}) {
   const motion = new Motion(n, {
@@ -92,7 +105,7 @@ function motionOf(n: number, over: { hertz?: number; slow?: boolean } = {}) {
     shake: { hertz: over.hertz ?? 0, degrees: 0 },
     slow: over.slow ?? false,
   });
-  motion.restart(raised(n));
+  start(motion, raised(n));
   return motion;
 }
 
@@ -211,9 +224,9 @@ describe("a frame of the chain's motion (decision 80)", () => {
     const motion = motionOf(2);
     const state = raised(2);
     state.omega[0] = Number.NaN;
-    motion.restart(state);
+    start(motion, state);
     expect(motion.advance(frame()).broke).toBe(true);
-    motion.restart(raised(2));
+    start(motion, raised(2));
     expect(motion.advance(frame()).broke).toBe(false);
   });
 });
@@ -227,7 +240,7 @@ describe("the visitor's hand in the motion (decisions 18 and 75)", () => {
     const x = new Float64Array(n);
     const y = new Float64Array(n);
     chain.positions(motion.state.theta, x, y);
-    motion.grab(x[1] ?? 0, y[1] ?? 0, 20);
+    motion.apply({ kind: "grab", x: x[1] ?? 0, y: y[1] ?? 0, grip: 20 });
     expect(motion.held).toBe(true);
     const hand = motion.hand;
     const grip = createHand(chain, 1, 20, handDamping(20));
@@ -236,7 +249,7 @@ describe("the visitor's hand in the motion (decisions 18 and 75)", () => {
     expect(hand?.damping).toBe(grip.damping);
     expect(hand?.x).toBe(x[1]);
     expect(hand?.vx).toBe(0);
-    motion.release();
+    motion.apply({ kind: "let go" });
     expect(motion.held).toBe(false);
   });
 
@@ -247,7 +260,7 @@ describe("the visitor's hand in the motion (decisions 18 and 75)", () => {
     const x = new Float64Array(n);
     const y = new Float64Array(n);
     chain.positions(motion.state.theta, x, y);
-    motion.grab(x[1] ?? 0, y[1] ?? 0, 4);
+    motion.apply({ kind: "grab", x: x[1] ?? 0, y: y[1] ?? 0, grip: 4 });
     const pointer = { x: 0.3, y: -0.6, vx: 0.4, vy: 0 };
     const moved = motion.advance(frame({ pointer }));
     const stepper = new Stepper(chain);
@@ -262,7 +275,7 @@ describe("the visitor's hand in the motion (decisions 18 and 75)", () => {
       }).simulated;
     }
     expect(same(motion.state.theta, state.theta)).toBe(true);
-    motion.regrip(12);
+    motion.apply({ kind: "grip", grip: 12 });
     expect(motion.hand?.stiffness).toBe(
       createHand(chain, 1, 12, handDamping(12)).stiffness,
     );
@@ -276,7 +289,7 @@ describe("the visitor's hand in the motion (decisions 18 and 75)", () => {
     );
     const pivot = { ...motion.pivot };
     expect(pivot.x).not.toBe(0);
-    motion.grab(0.5, -0.5, 12);
+    motion.apply({ kind: "grab", x: 0.5, y: -0.5, grip: 12 });
     expect(motion.hand?.x).toBe(0.5 - pivot.x);
     motion.advance(frame({ pointer: { x: 0.6, y: -0.5, vx: 1, vy: 0 } }));
     // the hand was moved to the pointer as the frame began, from where the
@@ -404,7 +417,7 @@ describe("the shaken pivot in the motion (decision 36)", () => {
         shakeOf(40, 0, 0.3 + (2 * Math.PI * 40 * piece * 0.01) / 4),
       );
     }
-    motion.setShake(0, 0);
+    motion.apply({ kind: "shake", hertz: 0, degrees: 0 });
     expect(motion.twinShakes(0.3, 0.01, 2)).toEqual([null, null]);
   });
 });
@@ -435,23 +448,24 @@ describe("the tension in the motion (decision 35)", () => {
   });
 });
 
-describe("what changes the motion (decision 80)", () => {
-  it("starts again from a state given, letting the hands go, its meter afresh, and its shake's phase where given", () => {
+describe("what changes the motion (decision 81)", () => {
+  it("starts again from a state given, copied, letting the hands go, its meter afresh, and its shake's phase where given", () => {
     const motion = motionOf(2, { hertz: 40 });
     motion.advance(frame());
     const phase = motion.shakePhase;
-    motion.grab(0.3, -0.3, 12);
+    motion.apply({ kind: "grab", x: 0.3, y: -0.3, grip: 12 });
     const state = raised(2);
     state.theta[0] = 1;
-    motion.restart(state);
+    start(motion, state);
     expect(motion.held).toBe(false);
     expect(motion.state.theta[0]).toBe(1);
+    expect(motion.state.theta).not.toBe(state.theta);
     expect(motion.shakePhase).toBe(phase);
-    motion.restart(raised(2), 0.25);
+    start(motion, raised(2), 0.25);
     expect(motion.shakePhase).toBe(0.25);
   });
 
-  it("goes on in another number of masses, the hand keeping the same place along the chain", () => {
+  it("goes on in another number of masses, the hand keeping the same place along the chain, and its grip", () => {
     const motion = motionOf(4);
     motion.advance(frame());
     const before = motion.state;
@@ -459,12 +473,15 @@ describe("what changes the motion (decision 80)", () => {
     const x = new Float64Array(4);
     const y = new Float64Array(4);
     motion.chain.positions(motion.state.theta, x, y);
-    motion.grab(x[1] ?? 0, y[1] ?? 0, 12);
-    motion.resample(8, 12);
+    motion.apply({ kind: "grab", x: x[1] ?? 0, y: y[1] ?? 0, grip: 4 });
+    motion.apply({ kind: "masses", n: 8 });
     expect(motion.chain.n).toBe(8);
     expect(same(motion.state.theta, expected.state.theta)).toBe(true);
     // the second of four masses, half way down, is the fourth of eight
     expect(motion.hand?.index).toBe(3);
+    expect(motion.hand?.stiffness).toBe(
+      createHand(motion.chain, 3, 4, handDamping(4)).stiffness,
+    );
     expect(motion.frameTension).toHaveLength(8);
     const moved = motion.advance(frame({ speeds: true }));
     expect(moved.positions.length).toBeGreaterThanOrEqual(MOST_PIECES * 2 * 8);
@@ -473,15 +490,18 @@ describe("what changes the motion (decision 80)", () => {
   it("runs backwards: every velocity reversed, the shake's phase turned over, and the chain the screen shows too (decision 28)", () => {
     const motion = motionOf(2, { hertz: 40 });
     motion.advance(frame());
-    motion.keepShown();
-    const shown = {
-      omega: Float64Array.from(motion.shown.omega),
-      phase: motion.shown.phase,
+    const before = {
+      omega: Float64Array.from(motion.state.omega),
+      phase: motion.shakePhase,
     };
+    // run ahead, the frame keeps the chain the screen shows until then
+    // (decision 51)
     motion.advance(frame({ ahead: true }));
+    expect(same(motion.shown.omega, before.omega)).toBe(true);
+    expect(motion.shown.phase).toBe(before.phase);
     const omega = Float64Array.from(motion.state.omega);
     const phase = motion.shakePhase;
-    motion.reverse();
+    motion.apply({ kind: "reverse" });
     expect(
       same(
         motion.state.omega,
@@ -492,17 +512,110 @@ describe("what changes the motion (decision 80)", () => {
     expect(
       same(
         motion.shown.omega,
-        shown.omega.map((w) => -w),
+        before.omega.map((w) => -w),
       ),
     ).toBe(true);
-    expect(motion.shown.phase).toBe(-shown.phase);
+    expect(motion.shown.phase).toBe(-before.phase);
   });
 
   it("falls another way, or harder, from where it is", () => {
     const motion = motionOf(2);
     const g = gravityOf(24.79, 30);
-    motion.g = g;
+    motion.apply({ kind: "gravity", g });
     expect(motion.g).toBe(g);
+  });
+
+  it("takes a setting to a value: the same event twice leaves the motion as once", () => {
+    const once = motionOf(3, { hertz: 40 });
+    const twice = motionOf(3, { hertz: 40 });
+    for (const motion of [once, twice]) motion.advance(frame());
+    const settings = [
+      { kind: "masses", n: 8 },
+      { kind: "gravity", g: gravityOf(3.7, -20) },
+      { kind: "shake", hertz: 20, degrees: -20 },
+    ] as const;
+    for (const event of settings) {
+      once.apply(event);
+      twice.apply(event);
+      twice.apply(event);
+    }
+    for (let f = 0; f < 30; f++) {
+      once.advance(frame());
+      twice.advance(frame());
+    }
+    expect(same(once.state.theta, twice.state.theta)).toBe(true);
+    expect(once.shakePhase).toBe(twice.shakePhase);
+  });
+
+  it("notes every event in its diary, with the frames run, the piece's time and the clock's, the latest 1 024", () => {
+    const motion = motionOf(2);
+    const opening = motion.diary.length;
+    motion.advance(frame());
+    motion.advance(frame());
+    motion.apply({ kind: "reverse" });
+    const noted = motion.diary.at(-1);
+    expect(motion.diary).toHaveLength(opening + 1);
+    expect(noted?.event).toEqual({ kind: "reverse" });
+    expect(noted?.frame).toBe(2);
+    expect(noted?.time).toBe(motion.time);
+    expect(noted?.clock).toBe(2 * FRAME);
+    expect(DIARY_MOST).toBe(1024);
+    for (let k = 0; k < DIARY_MOST + 10; k++) {
+      motion.apply({ kind: "measure afresh" });
+    }
+    expect(motion.diary).toHaveLength(DIARY_MOST);
+  });
+});
+
+describe("the motion's snapshot (decision 81)", () => {
+  it("holds the whole motion, copied, which a motion given it goes on from as the one it was taken from, bit for bit", () => {
+    const motion = motionOf(3, { hertz: 25 });
+    for (let f = 0; f < 40; f++) motion.advance(frame());
+    const x = new Float64Array(3);
+    const y = new Float64Array(3);
+    motion.positions(x, y);
+    motion.apply({ kind: "grab", x: x[2] ?? 0, y: y[2] ?? 0, grip: 12 });
+    motion.apply({ kind: "gravity", g: gravityOf(9.81, 15) });
+    const pointer = { x: 0.2, y: -0.4, vx: 0.3, vy: 0 };
+    motion.advance(frame({ pointer, ahead: true }));
+    const shot = motion.snapshot();
+    expect(shot.theta).not.toBe(motion.state.theta);
+    expect(shot.hand?.grip).toBe(12);
+    // a motion of another number of masses, under other gravity
+    const copy = new Motion(8, {
+      g: DOWN,
+      shake: { hertz: 0, degrees: 0 },
+      slow: false,
+    });
+    copy.restore(shot);
+    expect(copy.chain.n).toBe(3);
+    expect(copy.snapshot()).toEqual(shot);
+    for (let f = 0; f < 120; f++) {
+      const asked = frame({ pointer, tension: true, ahead: f % 2 === 0 });
+      if (f === 60) {
+        for (const m of [motion, copy]) m.apply({ kind: "let go" });
+      }
+      motion.advance(asked);
+      copy.advance(asked);
+    }
+    expect(same(copy.state.theta, motion.state.theta)).toBe(true);
+    expect(same(copy.state.omega, motion.state.omega)).toBe(true);
+    expect(copy.shakePhase).toBe(motion.shakePhase);
+    expect(same(copy.frameTension, motion.frameTension)).toBe(true);
+    expect(copy.time).toBe(motion.time);
+    expect(copy.frames).toBe(motion.frames);
+  });
+
+  it("gives the music's forces back afresh, without the kicks they had", () => {
+    const motion = motionOf(2);
+    motion.advance(frame({ heard: heard({ kick: 1 }), force: SPEAKER }));
+    expect(motion.kicking).toBe(true);
+    const shot = motion.snapshot();
+    const copy = motionOf(2);
+    copy.restore(shot);
+    expect(copy.kicking).toBe(false);
+    expect(copy.drive).toBeNull();
+    expect(copy.pivot).toEqual(motion.pivot);
   });
 });
 

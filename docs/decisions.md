@@ -2915,6 +2915,41 @@ the 6 ms the physics has (decision 15); with 512 masses, where the physics
 is cut in the frame's first piece, the time it reached stayed the same
 within the runs' spread (21.4% of the time asked before, 20.3% after).
 
+## 81. The chain's motion changes by events, and is taken whole
+
+*2026-11-21.* Between frames, the chain's motion (decision 80) changes by
+events alone: the chain starts from a state given, other masses, the
+visitor's hand grabs, takes another grip and lets go, time runs the other
+way, gravity, the shake, the tension measured afresh. A setting goes to a
+value, never by a step, so that the same event twice leaves the motion as
+once. A diary notes each event with the frames run, the piece's time and the
+clock's, the latest 1 024. The motion's whole state is taken as a snapshot of
+plain data, copied: the chain's angles and rates, the shake's phase, gravity,
+the shake asked for, the hand with its grip, the pivot, the chain the screen
+shows, the times and the frames run; given back to a motion, the music's
+forces there start afresh. A moment saved is taken from a snapshot, and a
+frame run ahead keeps the chain the screen shows itself (decision 51).
+Nothing on screen changes.
+
+**Why.** Nine functions of the page, among the controls, the gestures and
+the frame, changed the chain's motion, each in its own way. Now what changes
+it is a closed list, in order, each change written down, and a session run
+again from a snapshot with its diary and its frames ends alike, bit for bit.
+
+**Evidence.** Unit tests: each event; a setting twice as once; the diary's
+notes and its length; a snapshot given to a motion of another number of
+masses, going on as the one it was taken from for 120 frames, bit for bit;
+the music's forces afresh after a snapshot. A replay test runs a script of
+20 s, 13 events (other masses twice, the hand grabbing twice and once taking
+another grip, gravity, the shake on and off, the tension afresh, time
+backwards twice), frames run now and ahead in turns, the demo beat heard
+through the page's own hearing and beat clock under the five forces, and
+runs it again from the snapshot taken as it began with the events its diary
+noted: the same end, bit for bit. The end is kept in the test, so that a
+change to the physics that was not meant fails it. In the browser, decision
+80's twenty cases against the code before: the saved moment's code and the
+screen the same, byte for byte.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
