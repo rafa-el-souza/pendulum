@@ -2950,6 +2950,28 @@ change to the physics that was not meant fails it. In the browser, decision
 80's twenty cases against the code before: the saved moment's code and the
 screen the same, byte for byte.
 
+## 82. Each of the music's forces is a class of its own
+
+*2026-11-21.* The music's five forces (decisions 75, 77 and 79) leave the
+one class that held them all for a class each, in `chain-in-hand/forces/`:
+the speaker, the dancing hand, the breath, the swaying gravity and the tuned
+chain, with the swing from side to side that the hand and gravity both
+follow as a class of its own. Each frame, `MusicForces` begins the force of
+the mode playing afresh when the mode changes, and puts it together with
+what outlasts it: the pivot's kicks, the piece's time they run on, and the
+drag, which eases from one force's to the next. Nothing on screen changes.
+
+**Why.** The five shared one class and its fields: the hand and the breath
+one grip, the hand and gravity one swing, gravity and the tuned chain one
+lean. A change to one force went through the state of all five; now it stays
+in that force's file.
+
+**Evidence.** The forces' unit tests and the motion's pass unchanged, save
+where the tests import from; the replay test of decision 81, which runs the
+five forces with the demo beat, ends where it ended, bit for bit. In the
+browser, decision 80's twenty cases against the code before: the saved
+moment's code and the screen the same, byte for byte.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
