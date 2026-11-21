@@ -32,7 +32,8 @@ import { handDamping, shakeOf } from "./parameters.ts";
 // by, and the motion steps it in pieces (decision 21) and gives back a record
 // of the frame: how long each piece ran, and where every mass and the pivot
 // were at its end, which the page draws the trails from and sends the twins
-// by.
+// by. Between frames it changes by events alone, each noted in a diary, and
+// its whole state can be taken as a snapshot and given back (decision 81).
 
 /**
  * A frame's motion goes in this many pieces to the simulated second, each
@@ -122,6 +123,83 @@ export interface Shown extends ChainState {
   readonly phase: number;
 }
 
+/**
+ * What changes the chain's motion between frames (decision 81): a setting
+ * to a value, never by a step, or what the visitor does.
+ */
+export type MotionEvent =
+  /** The chain starts from where it is given, with the shake's phase there, or where it stands when none is (decisions 33 and 34). */
+  | {
+      readonly kind: "start";
+      readonly theta: Float64Array;
+      readonly omega: Float64Array;
+      readonly phase: number | null;
+    }
+  /** The same motion on `n` masses. */
+  | { readonly kind: "masses"; readonly n: number }
+  /** The visitor's hand grabs the mass nearest the point of the world, with a grip (decision 18). */
+  | {
+      readonly kind: "grab";
+      readonly x: number;
+      readonly y: number;
+      readonly grip: number;
+    }
+  /** The visitor's hand takes another grip where it is. */
+  | { readonly kind: "grip"; readonly grip: number }
+  /** The visitor's hand lets go. */
+  | { readonly kind: "let go" }
+  /** Time the other way (decision 28). */
+  | { readonly kind: "reverse" }
+  /** Gravity's strength and direction (decision 29). */
+  | { readonly kind: "gravity"; readonly g: Gravity }
+  /** The pivot shaken so many times a second along gravity turned so far, or still (decision 36). */
+  | {
+      readonly kind: "shake";
+      readonly hertz: number;
+      readonly degrees: number;
+    }
+  /** The tension over the shake's periods measured afresh (decision 35). */
+  | { readonly kind: "measure afresh" };
+
+/** An event as the diary notes it: how many frames had run, and the piece's time and the clock's the motion had run, in s. */
+export interface Noted {
+  readonly frame: number;
+  readonly time: number;
+  readonly clock: number;
+  readonly event: MotionEvent;
+}
+
+/** How many events the diary keeps, the latest. */
+export const DIARY_MOST = 1024;
+
+/**
+ * The chain's motion whole, as plain data (decision 81): the chain's state,
+ * the shake's phase, gravity, the shake asked for, the visitor's hand with
+ * its grip, the pivot, the chain the screen shows, and the piece's time, the
+ * clock's and the frames run.
+ */
+export interface MotionSnapshot {
+  readonly n: number;
+  readonly theta: Float64Array;
+  readonly omega: Float64Array;
+  readonly phase: number;
+  readonly g: Gravity;
+  readonly shake: ShakeAsked;
+  readonly hand: {
+    readonly index: number;
+    readonly x: number;
+    readonly y: number;
+    readonly vx: number;
+    readonly vy: number;
+    readonly grip: number;
+  } | null;
+  readonly pivot: Readonly<PivotMotion>;
+  readonly shown: Shown;
+  readonly time: number;
+  readonly clock: number;
+  readonly frames: number;
+}
+
 /** The chain's motion, frame by frame. */
 export class Motion {
   #chain: Chain;
@@ -131,7 +209,10 @@ export class Motion {
   #shake: ShakeAsked;
   #shakePhase = 0;
   #hand: Hand | null = null;
-  readonly #forces: MusicForces;
+  // the grip the visitor's hand holds with
+  #grip = 0;
+  readonly #slow: boolean;
+  #forces: MusicForces;
   // what the music put into the physics of the frame run last, the pivot
   // where it took it as that frame ended, and the music's hand then
   #drive: Drive | null = null;
@@ -146,8 +227,12 @@ export class Motion {
   // the chain as the screen shows it, kept while the next frame runs ahead
   // (decision 51)
   #shown: { theta: Float64Array; omega: Float64Array; phase: number };
-  // the piece's time run since the motion was made, in s
+  // the piece's time and the clock's run since the motion was made, in s,
+  // the frames run, and the events since, the latest DIARY_MOST
   #time = 0;
+  #clock = 0;
+  #frames = 0;
+  #diary: Noted[] = [];
   // the record's room, kept from frame to frame
   #times = new Float64Array(MOST_PIECES);
   #positions: Float64Array;
@@ -171,6 +256,7 @@ export class Motion {
     this.#stepper = new Stepper(this.#chain);
     this.#g = options.g;
     this.#shake = options.shake;
+    this.#slow = options.slow;
     this.#forces = new MusicForces({ slow: options.slow });
     this.#meter = new PeriodTension(n);
     this.#pieceTension = new Float64Array(n);
@@ -200,11 +286,6 @@ export class Motion {
   /** The gravity the chain falls under, as its controls ask. */
   get g(): Gravity {
     return this.#g;
-  }
-
-  /** The chain falls another way, or harder, from where it is. */
-  set g(g: Gravity) {
-    this.#g = g;
   }
 
   /** The visitor's hand, while it holds the chain. */
@@ -262,14 +343,24 @@ export class Motion {
     return this.#time;
   }
 
+  /** The clock's time the motion has run, in s: the real time of its frames. */
+  get clock(): number {
+    return this.#clock;
+  }
+
+  /** How many frames the motion has run. */
+  get frames(): number {
+    return this.#frames;
+  }
+
+  /** The events that changed the motion, in order, the latest DIARY_MOST. */
+  get diary(): readonly Noted[] {
+    return this.#diary;
+  }
+
   /** The shake the controls ask for, from `phase`, or none while the pivot is still (decision 36). */
   shakeAt(phase: number): Shake | null {
     return shakeOf(this.#shake.hertz, this.#shake.degrees, phase);
-  }
-
-  /** The pivot shaken as the controls ask, or still. */
-  setShake(hertz: number, degrees: number): void {
-    this.#shake = { hertz, degrees };
   }
 
   /**
@@ -304,6 +395,8 @@ export class Motion {
    * pointer is; the record of what it did.
    */
   advance(frame: MotionFrame): Moved {
+    // run ahead, the chain the screen shows until then is kept (decision 51)
+    if (frame.ahead) this.#keepShown();
     const chain = this.#chain;
     const n = chain.n;
     const state = this.#state;
@@ -416,6 +509,8 @@ export class Motion {
       this.#musicHand = null;
     }
     this.#time += simulated;
+    this.#clock += frame.real;
+    this.#frames++;
     const broke = !(
       state.theta.every(Number.isFinite) && state.omega.every(Number.isFinite)
     );
@@ -437,29 +532,153 @@ export class Motion {
     };
   }
 
+  /** The motion changes as `event` asks, between frames, and the diary notes it. */
+  apply(event: MotionEvent): void {
+    switch (event.kind) {
+      case "start":
+        this.#start(event.theta, event.omega, event.phase);
+        break;
+      case "masses":
+        this.#resample(event.n);
+        break;
+      case "grab":
+        this.#grab(event.x, event.y, event.grip);
+        break;
+      case "grip":
+        this.#regrip(event.grip);
+        break;
+      case "let go":
+        this.#hand = null;
+        break;
+      case "reverse":
+        this.#reverse();
+        break;
+      case "gravity":
+        this.#g = event.g;
+        break;
+      case "shake":
+        this.#shake = { hertz: event.hertz, degrees: event.degrees };
+        break;
+      case "measure afresh":
+        this.#meter = new PeriodTension(this.#chain.n);
+        break;
+    }
+    this.#diary.push({
+      frame: this.#frames,
+      time: this.#time,
+      clock: this.#clock,
+      event,
+    });
+    if (this.#diary.length > DIARY_MOST) this.#diary.shift();
+  }
+
+  /** The motion whole, as plain data, copied. */
+  snapshot(): MotionSnapshot {
+    const hand = this.#hand;
+    return {
+      n: this.#chain.n,
+      theta: Float64Array.from(this.#state.theta),
+      omega: Float64Array.from(this.#state.omega),
+      phase: this.#shakePhase,
+      g: { ...this.#g },
+      shake: { ...this.#shake },
+      hand:
+        hand === null
+          ? null
+          : {
+              index: hand.index,
+              x: hand.x,
+              y: hand.y,
+              vx: hand.vx,
+              vy: hand.vy,
+              grip: this.#grip,
+            },
+      pivot: { ...this.#pivot },
+      shown: {
+        theta: Float64Array.from(this.#shown.theta),
+        omega: Float64Array.from(this.#shown.omega),
+        phase: this.#shown.phase,
+      },
+      time: this.#time,
+      clock: this.#clock,
+      frames: this.#frames,
+    };
+  }
+
   /**
-   * The chain starts again from `state`, as it is given (decision 33), or
-   * from a moment saved, with the shake's `phase` where it was then
-   * (decision 34): the visitor's hand and the music's let go, the music's to
-   * take hold again from where its path is (decision 75), and the tension
-   * over the shake's periods is measured afresh.
+   * The motion as `snapshot` was taken: the music's forces start afresh,
+   * without the kicks or the hand they had then, and the diary is kept.
    */
-  restart(state: ChainState, phase?: number): void {
-    this.#state = state;
-    if (phase !== undefined) this.#shakePhase = phase;
+  restore(snapshot: MotionSnapshot): void {
+    const { n } = snapshot;
+    if (n !== this.#chain.n) {
+      this.#chain = Chain.uniform(n);
+      this.#stepper = new Stepper(this.#chain);
+      this.#room(n);
+    }
+    this.#state = {
+      theta: Float64Array.from(snapshot.theta),
+      omega: Float64Array.from(snapshot.omega),
+    };
+    this.#shakePhase = snapshot.phase;
+    this.#g = { ...snapshot.g };
+    this.#shake = { ...snapshot.shake };
+    const hand = snapshot.hand;
+    this.#hand =
+      hand === null ? null : this.#holding(hand.index, hand, hand.grip);
+    this.#forces = new MusicForces({ slow: this.#slow });
+    this.#drive = null;
+    this.#musicHand = null;
+    Object.assign(this.#pivot, snapshot.pivot);
+    this.#shown = {
+      theta: Float64Array.from(snapshot.shown.theta),
+      omega: Float64Array.from(snapshot.shown.omega),
+      phase: snapshot.shown.phase,
+    };
+    this.#meter = new PeriodTension(n);
+    this.#time = snapshot.time;
+    this.#clock = snapshot.clock;
+    this.#frames = snapshot.frames;
+  }
+
+  /**
+   * The chain starts again from `theta` and `omega`, copied, as it is given
+   * (decision 33), or from a moment saved, with the shake's `phase` where it
+   * was then (decision 34): the visitor's hand and the music's let go, the
+   * music's to take hold again from where its path is (decision 75), and the
+   * tension over the shake's periods is measured afresh.
+   */
+  #start(theta: Float64Array, omega: Float64Array, phase: number | null): void {
+    this.#state = {
+      theta: Float64Array.from(theta),
+      omega: Float64Array.from(omega),
+    };
+    if (phase !== null) this.#shakePhase = phase;
     this.#hand = null;
     this.#forces.letGo();
     this.#meter = new PeriodTension(this.#chain.n);
   }
 
-  /** The same motion on `n` masses, the visitor's hand keeping hold of the same place along the chain with its grip, `rate`; the music's hand takes hold of the new tip (decision 75). */
-  resample(n: number, rate: number): void {
+  /** The same motion on `n` masses, the visitor's hand keeping hold of the same place along the chain with its grip; the music's hand takes hold of the new tip (decision 75). */
+  #resample(n: number): void {
     if (n === this.#chain.n) return;
     const before = this.#chain;
     const moved = resample(before, this.#state, n);
     this.#chain = moved.chain;
     this.#state = moved.state;
     this.#stepper = new Stepper(this.#chain);
+    this.#room(n);
+    const hand = this.#hand;
+    if (hand !== null) {
+      const along = (hand.index + 1) / before.n;
+      const index = Math.min(n - 1, Math.max(0, Math.round(along * n) - 1));
+      this.#hand = this.#holding(index, hand, this.#grip);
+    }
+    this.#forces.letGo();
+  }
+
+  /** Room for `n` masses: the tension's, the record's, and the meter afresh. */
+  #room(n: number): void {
     this.#meter = new PeriodTension(n);
     this.#pieceTension = new Float64Array(n);
     this.#frameTension = new Float64Array(n);
@@ -468,17 +687,10 @@ export class Motion {
     this.#startVelocities = new Float64Array(2 * n);
     this.#x = new Float64Array(n);
     this.#y = new Float64Array(n);
-    const hand = this.#hand;
-    if (hand !== null) {
-      const along = (hand.index + 1) / before.n;
-      const index = Math.min(n - 1, Math.max(0, Math.round(along * n) - 1));
-      this.#hand = this.#holding(index, hand, rate);
-    }
-    this.#forces.letGo();
   }
 
   /** The visitor's hand grabs the mass nearest the point (`x`, `y`) of the world, in the pivot's frame, with the grip `rate` (decision 18). */
-  grab(x: number, y: number, rate: number): void {
+  #grab(x: number, y: number, rate: number): void {
     const hx = x - this.#pivot.x;
     const hy = y - this.#pivot.y;
     this.#hand = this.#holding(
@@ -488,15 +700,10 @@ export class Motion {
     );
   }
 
-  /** The visitor's hand takes the grip `rate` at once, where it is. */
-  regrip(rate: number): void {
+  /** The visitor's hand, if it holds, takes the grip `rate` at once, where it is. */
+  #regrip(rate: number): void {
     const hand = this.#hand;
     if (hand !== null) this.#hand = this.#holding(hand.index, hand, rate);
-  }
-
-  /** The visitor's hand lets go. */
-  release(): void {
-    this.#hand = null;
   }
 
   /**
@@ -505,7 +712,7 @@ export class Motion {
    * the screen shows while the next frame runs ahead; the tension over the
    * shake's periods is measured afresh.
    */
-  reverse(): void {
+  #reverse(): void {
     reverseMotion(this.#state);
     this.#shakePhase = -this.#shakePhase;
     reverseMotion(this.#shown);
@@ -513,13 +720,8 @@ export class Motion {
     this.#meter = new PeriodTension(this.#chain.n);
   }
 
-  /** The tension over the shake's periods is measured afresh, as the shake changes or the tension's colours come on. */
-  measureAfresh(): void {
-    this.#meter = new PeriodTension(this.#chain.n);
-  }
-
   /** The chain as the screen shows it now is kept, while the next frame runs ahead (decision 51). */
-  keepShown(): void {
+  #keepShown(): void {
     const n = this.#chain.n;
     if (this.#shown.theta.length !== n) {
       this.#shown.theta = new Float64Array(n);
@@ -530,12 +732,13 @@ export class Motion {
     this.#shown.phase = this.#shakePhase;
   }
 
-  /** A hand on mass `index` with the grip `rate`, where `at` is and moving as it moves. */
+  /** A hand on mass `index` with the grip `rate`, where `at` is and moving as it moves; the grip is kept. */
   #holding(
     index: number,
     at: { x: number; y: number; vx: number; vy: number },
     rate: number,
   ): Hand {
+    this.#grip = rate;
     const held = createHand(this.#chain, index, rate, handDamping(rate));
     held.x = at.x;
     held.y = at.y;

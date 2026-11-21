@@ -704,15 +704,20 @@ function play({ canvas, gl }: Stage): void {
     // the hands let go, the music's to take hold again from where its path
     // is (decision 75), and the tension is measured afresh
     if (saved !== null) {
-      motion.restart(
-        {
-          theta: Float64Array.from(saved.state.theta),
-          omega: Float64Array.from(saved.state.omega),
-        },
-        saved.phase,
-      );
+      motion.apply({
+        kind: "start",
+        theta: Float64Array.from(saved.state.theta),
+        omega: Float64Array.from(saved.state.omega),
+        phase: saved.phase,
+      });
     } else if (mode > 0) {
-      motion.restart(startInMode(n, mode, radians(value(AMPLITUDE)), down));
+      const { theta, omega } = startInMode(
+        n,
+        mode,
+        radians(value(AMPLITUDE)),
+        down,
+      );
+      motion.apply({ kind: "start", theta, omega, phase: null });
     } else {
       const theta = new Float64Array(n);
       if (value(SHAKE) > 0) {
@@ -722,7 +727,12 @@ function play({ canvas, gl }: Stage): void {
           theta[i] = down + 2.2 + (0.7 * i) / Math.max(1, n - 1);
         }
       }
-      motion.restart({ theta, omega: new Float64Array(n) });
+      motion.apply({
+        kind: "start",
+        theta,
+        omega: new Float64Array(n),
+        phase: null,
+      });
     }
     inMode = saved === null && mode > 0;
     setBackwards(saved?.backwards ?? false);
@@ -783,7 +793,7 @@ function play({ canvas, gl }: Stage): void {
   function setMasses(n: number): void {
     const before = motion.chain.n;
     if (n === before) return;
-    motion.resample(n, value(HAND));
+    motion.apply({ kind: "masses", n });
     x = new Float64Array(n);
     y = new Float64Array(n);
     weights = earthWeights(motion.chain);
@@ -839,7 +849,7 @@ function play({ canvas, gl }: Stage): void {
     if (on) {
       shades = new TensionShades(motion.chain.n);
       rodColors = Array.from({ length: motion.chain.n }, () => colors.chain);
-      motion.measureAfresh();
+      motion.apply({ kind: "measure afresh" });
     }
     controls.showValue(TENSION.id, tensionAt());
   }
@@ -866,7 +876,7 @@ function play({ canvas, gl }: Stage): void {
     // the shake runs back too: its pivot keeps its place and moves the other
     // way, which is its phase turned over; and so does the chain the screen
     // shows while the next frame is computed ahead (decision 51)
-    motion.reverse();
+    motion.apply({ kind: "reverse" });
     twins.reverse();
     // differences shrink as time runs back, until chaos takes over again
     doubling.clear();
@@ -899,14 +909,15 @@ function play({ canvas, gl }: Stage): void {
    */
   function save(): void {
     // the chain the screen shows, while the next frame is computed ahead
-    // (decision 51)
-    const { shown } = motion;
-    const screen = ahead !== null && shown.theta.length === motion.chain.n;
+    // (decision 51), from a snapshot of the motion
+    const shot = motion.snapshot();
+    const { shown } = shot;
+    const screen = ahead !== null && shown.theta.length === shot.n;
     const now: Saved = {
-      state: screen ? shown : motion.state,
+      state: screen ? shown : shot,
       paused,
       backwards,
-      phase: screen ? shown.phase : motion.shakePhase,
+      phase: screen ? shown.phase : shot.phase,
       savedAt: Date.now(),
     };
     saved = openingOf("", addressOf(values, switches(), now, "")).saved;
@@ -1095,13 +1106,22 @@ function play({ canvas, gl }: Stage): void {
     // the chain and its twins fall another way, or harder, from where they
     // are; the pivot shakes along gravity's line
     if (parameter === GRAVITY || parameter === TILT) {
-      motion.g = gravityOf(value(GRAVITY), value(TILT));
+      motion.apply({
+        kind: "gravity",
+        g: gravityOf(value(GRAVITY), value(TILT)),
+      });
     }
     if (parameter === SHAKE || parameter === TILT) {
-      motion.setShake(value(SHAKE), value(TILT));
+      motion.apply({
+        kind: "shake",
+        hertz: value(SHAKE),
+        degrees: value(TILT),
+      });
     }
     // a new grip takes hold at once, where the hand is
-    if (parameter === HAND) motion.regrip(next);
+    if (parameter === HAND && motion.held) {
+      motion.apply({ kind: "grip", grip: next });
+    }
     // another number of twins, another spread, or twins that fade or stay,
     // are born at once from the chain as it is, unless the hand holds it;
     // trails turned off go dark, to start afresh
@@ -1122,7 +1142,7 @@ function play({ canvas, gl }: Stage): void {
     // shake that changes or stops leaves the chain where it is, and a chain
     // standing falls when it stops
     if (parameter === SHAKE) {
-      motion.measureAfresh();
+      motion.apply({ kind: "measure afresh" });
       if (before === 0 && next > 0) start();
     }
     // another palette colours the twins at once; the trails they left keep
@@ -1450,7 +1470,7 @@ function play({ canvas, gl }: Stage): void {
     twins.clear();
     // the nearest mass, wherever the press lands, in the pivot's frame,
     // where the music's kicks have taken it (decision 75)
-    motion.grab(px, py, value(HAND));
+    motion.apply({ kind: "grab", x: px, y: py, grip: value(HAND) });
     Object.assign(pointer, { id, x: px, y: py, vx: 0, vy: 0, at: time });
   }
 
@@ -1585,7 +1605,7 @@ function play({ canvas, gl }: Stage): void {
     }
     if (event.pointerId !== pointer.id) return;
     pointer.id = -1;
-    motion.release();
+    motion.apply({ kind: "let go" });
     spawnTwins();
     // on a touch screen, lifting the finger is what wakes the controls
     if (event.pointerType !== "mouse") controls.wake();
@@ -2512,9 +2532,9 @@ function play({ canvas, gl }: Stage): void {
     // bring them back by then, and the two are drawn at one instant
     // (decision 51).
     if (running && twins.count > 0 && !motion.held) {
-      motion.keepShown();
       const phase = motion.shakePhase;
       trail.clear();
+      // the motion keeps the chain the screen shows as it runs ahead
       const next = advanceChain(dt, now, flashes, true);
       // unless the motion broke down, and the chain started again
       if (twins.count > 0) {
