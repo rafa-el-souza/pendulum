@@ -2361,6 +2361,9 @@ test("the music's panel says the demo beat's tempo once the beat clock is sure o
 test("the beat clock on the audio line hears a file of clicks, and the panel says their tempo (decision 78)", async ({
   page,
 }) => {
+  // the clock hears the looping file at the sound's own pace, which slows
+  // while the other engines play their sound beside it
+  test.slow();
   const errors = collectErrors(page);
   await page.goto("./");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
@@ -2372,7 +2375,7 @@ test("the beat clock on the audio line hears a file of clicks, and the panel say
     buffer: clicksFile(100),
   });
   await expect(status).toHaveText("Playing clicks.wav.", { timeout: 10_000 });
-  await expect(tempo).toHaveText("100 bpm.", { timeout: 20_000 });
+  await expect(tempo).toHaveText("100 bpm.", { timeout: 45_000 });
   await awaken(page);
   await source("File").click();
   await expect(status).toHaveText("Not listening.");
