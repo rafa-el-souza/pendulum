@@ -10,7 +10,8 @@
 // (twins born, kept, given other masses, run backwards), then the time to
 // advance, how to hold the twins near the chain once it has gone by, and
 // what to send back. It answers with a report: where its twins are, in
-// buffers that are handed over, not copied.
+// buffers that are handed over, not copied. A strobe's flashes in the time
+// stamp each twin where it is at their instants (decision 100).
 
 /* eslint-disable @typescript-eslint/no-non-null-assertion --
    Every index here runs within arrays sized for it, which the compiler's
@@ -21,7 +22,13 @@ import type { Rgb } from "./color.ts";
 import { Merger, SpanBatch } from "./curves.ts";
 import { mixColors } from "./grounds.ts";
 import { fanPalette } from "./palettes.ts";
-import { pivotsOver, twinCurve } from "./twin-curves.ts";
+import {
+  anglesAt,
+  pivotsOver,
+  stampTwin,
+  twinCurve,
+  type StampParts,
+} from "./twin-curves.ts";
 import type { Drive } from "../physics/drive.ts";
 import { resample } from "../physics/resample.ts";
 import {
@@ -134,6 +141,27 @@ export interface TwinCurves {
   readonly palette: number;
   /** The note's colour mixed into the twins, and how much, while the music tints them; none otherwise. */
   readonly tint: { readonly color: Rgb; readonly amount: number } | null;
+  /** Whether the share joins its twins' tips into lines (decision 97); without, it stamps them alone (decision 100). */
+  readonly lines: boolean;
+}
+
+/**
+ * A strobe's flash within a command's time (decision 100), as it stamped the
+ * chain: its instant, in s from the time's start; the fade clock of the
+ * trails kept as curves then (decision 91), none otherwise; and where the
+ * pivot was.
+ */
+export interface TwinFlash {
+  readonly at: number;
+  readonly fade: number;
+  readonly x: number;
+  readonly y: number;
+}
+
+/** What a strobe stamps of each twin over a command's time (decision 100): which parts, at which flashes, in order. */
+export interface TwinStamps {
+  readonly parts: StampParts;
+  readonly flashes: readonly TwinFlash[];
 }
 
 /** Spans laid out as a batch lays them (curves.ts): the first `count` of `bytes`. */
@@ -145,13 +173,16 @@ export interface SpanBytes {
 /**
  * A share's twins' trails joined into curves (decision 95): the intervals
  * drawn now, the spans they closed, those a split closed before the time
- * went by, and those still open as it ends, for a view drawn anew.
+ * went by, and those still open as it ends, for a view drawn anew; and the
+ * twins stamped by the time's flashes, drawn now and kept, as the chain's
+ * stamps are (decision 100).
  */
 export interface TwinCurveReport {
   readonly fresh: SpanBytes;
   readonly closed: SpanBytes;
   readonly split: SpanBytes;
   readonly open: SpanBytes;
+  readonly stamps: SpanBytes;
 }
 
 /** A frame's work for a share. */
@@ -194,8 +225,15 @@ export interface TwinCommand {
   readonly generation: number;
   /** The command's number, counted as the commands are sent; its report gives it back. */
   readonly seq: number;
-  /** What the share needs to join its twins' trails into curves where it runs (decision 95); none where the main line joins them, or there are none. */
+  /** What the share needs to join its twins' trails into curves where it runs (decision 95), or to stamp them there (decision 100); none where the main line joins them, or there are none. */
   readonly curves: TwinCurves | null;
+  /**
+   * The strobe's flashes over the time, and what they stamp of each twin
+   * (decision 100): where the command carries `curves`, the share stamps them
+   * into its curves; otherwise it sends back where each twin's masses were
+   * at each flash. None while no strobe stamps the twins, or none flashed.
+   */
+  readonly stamps: TwinStamps | null;
 }
 
 /** What a share sends back from a command: its twins as they are now. */
@@ -205,6 +243,14 @@ export interface TwinReport {
   readonly seq: number;
   /** The share's twins' trails joined into curves, where the command asked (decision 95); none otherwise. */
   readonly curves: TwinCurveReport | null;
+  /** The command's flashes and what they stamp (decision 100), where any stamped the twins; else none. */
+  readonly stamps: TwinStamps | null;
+  /**
+   * Where the share joins no curves, each twin's masses at each of the
+   * flashes, every mass's x and y from the top, 2 n numbers a flash and the
+   * flashes of a twin together; else none.
+   */
+  readonly stampPlaces: Float32Array;
   /** The share's twins when the time began to go by, and those it advanced: the rest are dropped. */
   readonly asked: number;
   readonly count: number;
@@ -269,6 +315,7 @@ export class TwinShare {
   readonly #closed = new SpanBatch(256);
   readonly #split = new SpanBatch(256);
   readonly #open = new SpanBatch(1024);
+  readonly #stamps = new SpanBatch(256);
   #palette = Number.NaN;
   #colors: Rgb[] = [];
   #pivots = new Float64Array(2);
@@ -323,6 +370,28 @@ export class TwinShare {
     const speeds = command.clock !== null;
     const tipSpeeds = new Float32Array(speeds ? stride * asked : 0);
     const giveUp = start + 4 * command.budget;
+    // A strobe's flashes over the time (decision 100): the piece each falls
+    // in, and how far into it.
+    const stamps = pieces > 0 ? command.stamps : null;
+    const flashes = stamps?.flashes ?? [];
+    const flashCount = flashes.length;
+    const flashPiece = new Int32Array(flashCount);
+    const flashInto = new Float64Array(flashCount);
+    const flashing = new Uint8Array(pieces);
+    flashes.forEach((flash, f) => {
+      // one that ends the time ends the last piece, exactly
+      const end = flash.at >= command.time * (1 - 1e-9);
+      const piece = end
+        ? pieces - 1
+        : Math.min(pieces - 1, Math.max(0, Math.ceil(flash.at / step) - 1));
+      flashPiece[f] = piece;
+      flashInto[f] = end ? step : Math.max(0, flash.at - piece * step);
+      flashing[piece] = 1;
+    });
+    const places = new Float32Array(2 * n * flashCount * asked);
+    const theta0 = new Float64Array(flashCount > 0 ? n : 0);
+    const omega0 = new Float64Array(flashCount > 0 ? n : 0);
+    const angles = new Float64Array(flashCount > 0 ? n : 0);
     let done = 0;
     for (const twin of twins) {
       // Out of time: the twins not reached are dropped, so that every twin
@@ -333,6 +402,12 @@ export class TwinShare {
       this.#tip(twin.theta, tips, at);
       if (speeds) this.#tipSpeed(twin, tipSpeeds, at);
       for (let piece = 0; piece < pieces; piece++) {
+        // where a flash falls in the piece, the twin as the piece begins
+        const flashed = flashing[piece] === 1;
+        if (flashed) {
+          theta0.set(twin.theta);
+          omega0.set(twin.omega);
+        }
         this.#stepper.advance(twin, step, command.g, {
           shake: command.shakes[piece] ?? null,
           drive: command.drive,
@@ -341,11 +416,28 @@ export class TwinShare {
         at += 2;
         this.#tip(twin.theta, tips, at);
         if (speeds) this.#tipSpeed(twin, tipSpeeds, at);
+        // and at each flash in it, the twin between the piece's ends, its
+        // own motion untouched
+        if (flashed) {
+          for (let f = 0; f < flashCount; f++) {
+            if (flashPiece[f] !== piece) continue;
+            anglesAt(
+              theta0,
+              omega0,
+              twin.theta,
+              twin.omega,
+              flashInto[f] ?? step,
+              step,
+              angles,
+            );
+            this.#placeAt(angles, places, 2 * n * (done * flashCount + f));
+          }
+        }
       }
       done++;
     }
     twins.length = done;
-    const curves = this.#join(command, pieces, tips, tipSpeeds, done);
+    const curves = this.#join(command, pieces, tips, tipSpeeds, done, places);
 
     const positions = new Float32Array(command.whole ? 2 * n * done : 0);
     const distances = new Float64Array(command.chain === null ? 0 : done);
@@ -377,6 +469,10 @@ export class TwinShare {
       generation: command.generation,
       seq: command.seq,
       curves,
+      stamps: flashCount > 0 ? stamps : null,
+      // joined into curves, the stamps went with them
+      stampPlaces:
+        flashCount > 0 && curves === null ? places : new Float32Array(0),
       asked,
       count: done,
       n,
@@ -399,8 +495,10 @@ export class TwinShare {
    * them (decision 95): each tip where the pivot was at each instant, under
    * the command's own music (decision 75), in its place's colour, tinted as
    * the music asks, in the trails' light times its own times the music's.
-   * Then every curve still open, for a view drawn anew. None where the
-   * command asks for none.
+   * Then every curve still open, for a view drawn anew. And each twin
+   * stamped at each of the command's flashes, from its masses' `places`
+   * (decision 100), in the same colour and light. None where the command asks
+   * for none.
    */
   #join(
     command: TwinCommand,
@@ -408,12 +506,13 @@ export class TwinShare {
     tips: Float32Array,
     tipSpeeds: Float32Array,
     count: number,
+    places: Float32Array,
   ): TwinCurveReport | null {
     const { curves, clock } = command;
     // joining none, the share still sends back a split asked for, and the
     // curves still open after it, so that no light is lost (decision 97)
     if (curves === null && this.#split.count === 0) return null;
-    if (curves !== null && pieces > 0 && clock !== null) {
+    if (curves?.lines === true && pieces > 0 && clock !== null) {
       if (this.#pivots.length !== 2 * (pieces + 1)) {
         this.#pivots = new Float64Array(2 * (pieces + 1));
         this.#pivotSpeeds = new Float64Array(2 * (pieces + 1));
@@ -444,11 +543,35 @@ export class TwinShare {
       }
     }
     this.#merger.openSpans(this.#open);
+    const flashes = pieces > 0 ? (command.stamps?.flashes ?? []) : [];
+    if (curves !== null && command.stamps !== null && flashes.length > 0) {
+      const n = this.#chain.n;
+      const { parts } = command.stamps;
+      for (let k = 0; k < count; k++) {
+        const color = this.#colorOf(this.index + k * this.shares, curves);
+        const light = curves.light * (curves.shine?.[k] ?? 1) * curves.music;
+        flashes.forEach((flash, f) => {
+          stampTwin(
+            this.#stamps,
+            parts,
+            n,
+            places,
+            2 * n * (k * flashes.length + f),
+            flash.x,
+            flash.y,
+            color,
+            light,
+            flash.fade,
+          );
+        });
+      }
+    }
     return {
       fresh: handed(this.#fresh),
       closed: handed(this.#closed),
       split: handed(this.#split),
       open: handed(this.#open),
+      stamps: handed(this.#stamps),
     };
   }
 
@@ -567,7 +690,17 @@ export class TwinShare {
     }
   }
 
-  /** Where the tip of a chain at these angles is, written to out at `at`. */
+  /** Where every mass of a chain at these angles is, from the top, x then y for each, written to out at `at`. */
+  #placeAt(theta: Float64Array, out: Float32Array, at: number): void {
+    const x = this.#x;
+    const y = this.#y;
+    this.#chain.positions(theta, x, y);
+    for (let i = 0; i < this.#chain.n; i++) {
+      out[at + 2 * i] = x[i]!;
+      out[at + 2 * i + 1] = y[i]!;
+    }
+  }
+
   /** How fast the tip of a twin moves, the rate its place changes, written to out at `at`. */
   #tipSpeed(twin: ChainState, out: Float32Array, at: number): void {
     const lengths = this.#chain.lengths;
@@ -582,6 +715,7 @@ export class TwinShare {
     out[at + 1] = vy;
   }
 
+  /** Where the tip of a chain at these angles is, written to out at `at`. */
   #tip(theta: Float64Array, out: Float32Array, at: number): void {
     const lengths = this.#chain.lengths;
     let px = 0;

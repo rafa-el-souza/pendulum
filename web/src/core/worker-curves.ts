@@ -73,7 +73,12 @@ export class WorkerCurves {
     this.#snapshotAt = -1;
   }
 
-  /** Share `share`'s report of command `seq`, its curves joined after the chain's into `into`, or kept aside where they go elsewhere. */
+  /**
+   * Share `share`'s report of command `seq`, its curves joined after the
+   * chain's into `into`, or kept aside where they go elsewhere; its twins
+   * stamped by a strobe's flashes drawn now and kept, as the chain's stamps
+   * are (decision 100).
+   */
   take(
     share: number,
     seq: number,
@@ -81,12 +86,17 @@ export class WorkerCurves {
     into: FrameBatches,
   ): void {
     if (seq < this.#forgetFrom) return;
+    const { stamps } = curves;
     into.fresh.append(curves.fresh.bytes, curves.fresh.count);
+    into.fresh.append(stamps.bytes, stamps.count);
     if (seq < this.#coarseAt) {
       this.freshForCoarse.append(curves.fresh.bytes, curves.fresh.count);
+      this.freshForCoarse.append(stamps.bytes, stamps.count);
       this.closedForWindow.append(curves.closed.bytes, curves.closed.count);
+      this.closedForWindow.append(stamps.bytes, stamps.count);
     } else {
       into.closed.append(curves.closed.bytes, curves.closed.count);
+      into.closed.append(stamps.bytes, stamps.count);
     }
     const { split } = curves;
     if (this.awaiting && seq > this.#snapshotAt) {

@@ -25,8 +25,11 @@ addEventListener("message", (event: MessageEvent<TwinSetup | TwinCommand>) => {
     report.tips.buffer,
     report.tipSpeeds.buffer,
     report.apart.buffer,
+    // where the twins were at a strobe's flashes (decision 100)
+    report.stampPlaces.buffer,
   ];
-  // the twins' trails joined into curves here, where asked (decision 95)
+  // the twins' trails joined into curves here, where asked (decision 95),
+  // and the twins stamped into them (decision 100)
   const { curves } = report;
   if (curves !== null) {
     handed.push(
@@ -34,6 +37,7 @@ addEventListener("message", (event: MessageEvent<TwinSetup | TwinCommand>) => {
       curves.closed.bytes,
       curves.split.bytes,
       curves.open.bytes,
+      curves.stamps.bytes,
     );
   }
   scope.postMessage(report, handed);

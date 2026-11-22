@@ -35,6 +35,14 @@ const CHAIN_PARTS = [
   "the rods",
   "the whole chain",
 ];
+// and of the twins, which a strobe stamps as the chain's (decision 100)
+const TWIN_PARTS = [
+  "",
+  "the twins' tips",
+  "the twins' masses",
+  "the twins' rods",
+  "whole twins",
+];
 
 /** A parameter's value in a few words, for a title. */
 function words(parameter: Parameter, value: number): string {
@@ -89,7 +97,7 @@ function words(parameter: Parameter, value: number): string {
     case "twinlines":
       return "no lines from the twins";
     case "twinstrobe":
-      return "a strobe on the twins";
+      return `a strobe on ${TWIN_PARTS[value] ?? "the twins' tips"}`;
     case "palette":
       return `${fanPalette(value).name} palette`;
     case "white":

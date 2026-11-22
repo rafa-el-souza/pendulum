@@ -3526,6 +3526,47 @@ byte for byte. The opening recorded from its start for 40 s without a
 graphics card: the frames that grew the pool, 11.5 and 16.0 ms in the
 trails, are gone; the slowest frame's trails take 2.9 ms.
 
+## 100. A strobe stamps the twins as it stamps the chain, each where it is at the flash
+
+*2026-11-22.* The strobe on the twins (decision 96) steps through the parts
+the chain's does: each twin's tip, every mass, its rods, or the whole twin.
+Each twin is stamped where it is at the instant the chain is stamped at. The
+command a share of the twins is sent each frame (decision 51) carries the
+frame's flashes, and the share finds each twin's angles at a flash between
+the ends of the piece of its step the flash falls in, from the angles and
+their rates at both ends, by Hermite's cubic, with no step of the motion
+added. Where the trails are kept as curves, the share stamps its twins into a
+batch of its own, which the page draws and keeps with the twins' curves
+(decision 97); elsewhere it sends back where each twin's masses were, and the
+page stamps them. A twin's rods are as bright as its lines, and its points
+twice that, as the chain's are. The tips' points, which went where each tip
+was at the end of the frame, and which a share's report a frame late lost or
+took from another frame, are now where the chain's flash was. The saved
+moment's code is of version 12, a byte longer; addresses and codes written
+before open as they showed.
+
+**Why.** The strobe stamped each twin's tip alone, at the end of the frame,
+while it could stamp the chain whole.
+
+**Evidence.** Unit tests: every mass of a twin at a flash within a fifth of
+a millimetre of where the twins' own step puts it, with two and five masses,
+under the music and a shake, and the tip, with two and eight, fifty times
+nearer than the nearer end of its piece or more; the twins' motion the same,
+number for number, with stamps and without; the share's batch of stamps the
+same, byte for byte, as the page's from the places sent back; where the
+trails take the stamps, before and after the coarse image is born and once
+the trails are put out; the control, the code of version 12 and those before
+it, the title. A browser test: the twins' rods light the trails four times
+as much as their tips or more, kept as curves and as the image carried. In
+the browser, side by side with the code before, on the page's own clock: the
+forty-nine cases of decisions 90, 92, 96 and 97 the same, byte for byte;
+with the twins' tips stamped, the points a little moved, to the chain's
+flash. On a two-core machine without a graphics card, a flash that stamps
+the twins whole adds a third of a millisecond to a share's frame of 585
+twins of two masses, about a fifth, and half a millisecond to one of 270
+twins of eight, about a tenth; as the piece opens, a frame in six has a
+flash.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.

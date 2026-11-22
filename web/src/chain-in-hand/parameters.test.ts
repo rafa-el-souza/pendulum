@@ -204,17 +204,22 @@ describe("the first piece's parameters", () => {
     expect(TWIN_LINES.icon).toBe("paths");
   });
 
-  it("stamp no twin on a strobe's flashes as the piece opens, or each twin's tip, on Shift with the twins' own keys (decision 96)", () => {
+  it("stamp no twin on a strobe's flashes as the piece opens, or each twin's tip, every mass, its rods or the whole of it, as the chain's do, on Shift with the twins' own keys (decisions 96 and 100)", () => {
     expect(TWIN_STROBE.id).toBe("twinstrobe");
     expect(TWIN_STROBE.label).toBe("Strobe on the twins");
-    expect(TWIN_STROBE.values).toEqual([0, 1]);
+    expect(TWIN_STROBE.values).toEqual([0, 1, 2, 3, 4]);
     expect(TWIN_STROBE.initial).toBe(0);
     expect(TWIN_STROBE.keys).toEqual({
       down: ["Shift+Digit9"],
       up: ["Shift+Digit0"],
     });
-    expect(TWIN_STROBE.show(0)).toBe("off");
-    expect(TWIN_STROBE.show(1)).toBe("tips");
+    expect(TWIN_STROBE.values.map((value) => TWIN_STROBE.show(value))).toEqual([
+      "off",
+      "tips",
+      "masses",
+      "rods",
+      "whole",
+    ]);
     expect(TWIN_STROBE.icon).toBe("flashes");
   });
 

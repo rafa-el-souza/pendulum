@@ -256,6 +256,20 @@ const VERSION_11: CodeTable = {
   switches: ["light", "tension", "sketch"],
 };
 
+/**
+ * The code's twelfth version (decision 100), frozen once published: every part
+ * of the twins a strobe stamps, as the chain's.
+ */
+const VERSION_12: CodeTable = {
+  version: 12,
+  controls: VERSION_11.controls.map((control) =>
+    control.id === "twinstrobe"
+      ? { id: "twinstrobe", values: [0, 1, 2, 3, 4] }
+      : control,
+  ),
+  switches: ["light", "tension", "sketch"],
+};
+
 /** Every version of the code the piece reads, oldest first. */
 export const CODES: readonly CodeTable[] = [
   VERSION_1,
@@ -269,10 +283,11 @@ export const CODES: readonly CodeTable[] = [
   VERSION_9,
   VERSION_10,
   VERSION_11,
+  VERSION_12,
 ];
 
 /** The version the piece writes: the newest. */
-export const CODE: CodeTable = VERSION_11;
+export const CODE: CodeTable = VERSION_12;
 
 /**
  * The trails' step of a strobe and the twins as dust, as the fifth code and

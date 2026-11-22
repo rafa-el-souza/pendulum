@@ -2,8 +2,8 @@
 // twins, the hand and the pivot, and the trails they leave, in the light of
 // the trails, the twins and the sketch. Every frame's motion is drawn into the
 // trails (decision 21), kept as curves or as the image carried (decisions 66,
-// 68 and 71); a strobe stamps the chain and the twins (decisions 50 and 91);
-// each rod can be painted by its tension (decision 35).
+// 68 and 71); a strobe stamps the chain and the twins (decisions 50, 91 and
+// 100); each rod can be painted by its tension (decision 35).
 //
 // The trails are drawn in layers (decision 96): what leaves each (the chain
 // or its twins), how (lines along the paths, or stamps on a strobe's
@@ -33,7 +33,8 @@ import {
   tensionScaleAt,
 } from "../core/tension.ts";
 import { LightTarget, Trails, fadeAfter } from "../core/trails.ts";
-import type { TwinClock } from "../core/twin-share.ts";
+import type { StampParts } from "../core/twin-curves.ts";
+import type { TwinClock, TwinFlash } from "../core/twin-share.ts";
 import type { TwinWorkers } from "../core/twin-workers.ts";
 import { twinShine, type Fading } from "../core/twins.ts";
 import { reachBox, type View } from "../core/view.ts";
@@ -245,8 +246,12 @@ export interface Drawing {
   easeTension(simulated: number): void;
   /** A step of the motion begins: kept as curves, on the samples' clock (decision 68). Whether the curves take the masses' velocities. */
   beginStep(): boolean;
-  /** The step's record drawn into the trails (decision 80); whether a strobe flashed. The music flashes the strobe on its kicks when `flashes`. */
-  record(moved: Moved, flashes: boolean): boolean;
+  /**
+   * The step's record drawn into the trails (decision 80), and the strobe's
+   * flashes in it, which stamp the twins too (decision 100). The music flashes
+   * the strobe on its kicks when `flashes`.
+   */
+  record(moved: Moved, flashes: boolean): readonly TwinFlash[];
   /** A piece of trail from (ax, ay) to (bx, by), unless the point jumped. */
   piece(
     ax: number,
@@ -256,8 +261,22 @@ export interface Drawing {
     color: Rgb,
     light: number,
   ): void;
-  /** A point of light into the trails, as a strobe's flash stamps a twin's tip (decision 50). */
-  point(x: number, y: number, color: Rgb, light: number): void;
+  /**
+   * A twin stamped by a strobe's flash, as its worker sent back where its n
+   * masses were (decision 100): from `places` at `at`, x then y for each, from
+   * the top, hung from the pivot at (px, py); as `parts` says, its rods in
+   * `light` and its tip or every mass as points twice as bright.
+   */
+  stampTwin(
+    parts: StampParts,
+    n: number,
+    places: ArrayLike<number>,
+    at: number,
+    px: number,
+    py: number,
+    color: Rgb,
+    light: number,
+  ): void;
   /** Draws a frame in `view`, the whole one when `whole`; `simulated` seconds of motion went by since the last. Whether the view changed. */
   draw(simulated: number, view: View, whole: boolean): boolean;
 }
@@ -550,15 +569,51 @@ export function mountDrawing(
       const bx = positions[at + 2 * i] ?? 0;
       const by = positions[at + 2 * i + 1] ?? 0;
       const rod = tensionShown ? (rodColors[i] ?? color) : color;
-      if (rods) {
-        if (curves !== null) {
-          curves.stamp(ax, ay, bx, by, rod, STROBE_LIGHT * music);
-        } else {
-          trail.push(ax, ay, bx, by, rod, STROBE_LIGHT * music);
-        }
-      }
+      if (rods) stampRod(curves, ax, ay, bx, by, rod, STROBE_LIGHT * music);
       if (i >= firstPoint)
         trailPoint(curves, bx, by, rod, STROBE_POINT * music);
+      ax = bx;
+      ay = by;
+    }
+  }
+
+  /** A rod stamped by a strobe's flash: kept as curves, a straight span (decision 91), or among the frame's pieces. */
+  function stampRod(
+    curves: SharpTrails | null,
+    ax: number,
+    ay: number,
+    bx: number,
+    by: number,
+    color: Rgb,
+    light: number,
+  ): void {
+    if (curves !== null) curves.stamp(ax, ay, bx, by, color, light);
+    else trail.push(ax, ay, bx, by, color, light);
+  }
+
+  /** A twin stamped by a strobe's flash from where its worker sent back its masses (decision 100), as the chain is. */
+  function stampTwin(
+    parts: StampParts,
+    n: number,
+    places: ArrayLike<number>,
+    at: number,
+    px: number,
+    py: number,
+    color: Rgb,
+    light: number,
+  ): void {
+    if (!hooks.lit || value(TRAIL) === 0) return;
+    const curves = curvesNow();
+    const rods = parts === "rods" || parts === "whole";
+    // the masses stamped as points, from the first: the tip alone, or all
+    const firstPoint = parts === "tip" ? n - 1 : parts === "rods" ? n : 0;
+    let ax = px;
+    let ay = py;
+    for (let i = 0; i < n; i++) {
+      const bx = (places[at + 2 * i] ?? 0) + px;
+      const by = (places[at + 2 * i + 1] ?? 0) + py;
+      if (rods) stampRod(curves, ax, ay, bx, by, color, light);
+      if (i >= firstPoint) trailPoint(curves, bx, by, color, 2 * light);
       ax = bx;
       ay = by;
     }
@@ -572,13 +627,15 @@ export function mountDrawing(
    * samples' clock (decision 68). The veil of the rods, each rod stamped at
    * every piece. And a strobe's stamps, at even times of the motion, or on
    * the music's kicks when `flashes` (decision 50), while the chain or the
-   * twins are stamped. Whether a strobe flashed.
+   * twins are stamped: the strobe's flashes, each with its instant in the
+   * frame, the fade's clock then and where the pivot was, for the twins'
+   * stamps (decision 100).
    */
   function drawMoved(
     moved: Moved,
     curves: SharpTrails | null,
     flashes: boolean,
-  ): boolean {
+  ): TwinFlash[] {
     const n = motion.chain.n;
     const now = layers();
     const drawn = layerOf(now, "chain", "lines");
@@ -595,7 +652,9 @@ export function mountDrawing(
     const veil = drawn?.parts === "rods" || drawn?.parts === "whole";
     const chainColor = hooks.tinted(hooks.colors.chain, "chain");
     const music = 1 + Math.min(TRAIL_MOST, hooks.look.trail);
-    let flashed = false;
+    const flashed: TwinFlash[] = [];
+    // the time into the frame as each piece ends
+    let elapsed = 0;
     const ribbonLight = 0.55 * Math.min(1, 2.2 / Math.sqrt(n));
     // the veil fainter the more rods there are, each by the share of the
     // chain it is past two, so that the inner rods, which sweep a small disc
@@ -605,6 +664,7 @@ export function mountDrawing(
     for (let piece = 0; piece < moved.pieces; piece++) {
       const at = 2 * n * piece;
       const ran = moved.times[piece] ?? 0;
+      elapsed += ran;
       const seconds = curves?.clock.seconds ?? 0;
       const fade = curves?.clock.fade ?? 0;
       if (curves !== null) curves.clock.advance(ran);
@@ -674,26 +734,25 @@ export function mountDrawing(
         strobeClock += ran;
         if (strobeClock >= 1 / STROBE_RATE) {
           strobeClock %= 1 / STROBE_RATE;
+          const px = pivots[2 * piece] ?? 0;
+          const py = pivots[2 * piece + 1] ?? 0;
           if (stamped !== undefined) {
-            stamp(
-              curves,
-              stamped.parts,
-              chainColor,
-              pivots[2 * piece] ?? 0,
-              pivots[2 * piece + 1] ?? 0,
-              positions,
-              at,
-            );
+            stamp(curves, stamped.parts, chainColor, px, py, positions, at);
           }
-          flashed = true;
+          flashed.push({
+            at: elapsed,
+            fade: curves?.clock.fade ?? 0,
+            x: px,
+            y: py,
+          });
         }
       }
     }
     // on a kick, while the music flashes the strobe, the chain as the frame
     // ends, from where the pivot is then
     if (strobing && flashes && hooks.look.flash > 0) {
+      const { pivot } = motion;
       if (stamped !== undefined) {
-        const { pivot } = motion;
         stamp(
           curves,
           stamped.parts,
@@ -704,7 +763,12 @@ export function mountDrawing(
           2 * n * (moved.pieces - 1),
         );
       }
-      flashed = true;
+      flashed.push({
+        at: elapsed,
+        fade: curves?.clock.fade ?? 0,
+        x: pivot.x,
+        y: pivot.y,
+      });
     }
     return flashed;
   }
@@ -1108,10 +1172,7 @@ export function mountDrawing(
       return flashed;
     },
     piece: trailPiece,
-    point(px, py, color, light) {
-      if (!hooks.lit || value(TRAIL) === 0) return;
-      trailPoint(curvesNow(), px, py, color, light);
-    },
+    stampTwin,
     draw,
   };
 }
