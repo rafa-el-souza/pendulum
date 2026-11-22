@@ -3254,6 +3254,37 @@ the hand; the address opened again shows the dance as it was left. The
 icons were chosen from a sheet of candidates at the row's size, and looked
 at built, at 390 px and on a desktop.
 
+## 90. The piece's drawing is a module of its own, and its trails are drawn in layers
+
+*2026-11-22.* What the first piece's frame shows and the trails its motion
+leaves move from the page's module to one of their own,
+`chain-in-hand/drawing.ts`: the chain, its twins, the hand and the pivot, in
+the light of the trails, the twins and the sketch (decisions 24 and 61); each
+frame's motion drawn into the trails, kept as curves or as the image carried
+(decisions 66, 68 and 71); a strobe's stamps (decision 50); and the
+tension's colours (decision 35). The trails are drawn in layers, each saying
+what leaves it (the chain or its twins), how (lines along the paths, or a
+strobe's stamps) and which parts (the tip, every mass, the rods). The
+trails' controls say which layers there are, and every layer draws into the
+one image of the trails. The page tells the drawing what each frame needs,
+and draws the twins' trails through it. Nothing on screen changes.
+
+**Why.** The drawing was the largest part of the page's module, between the
+controls, the gestures and the twins, and a change to how something is
+drawn went through all of it. Now it stays in one file, and what leaves the
+trails is said in one place, the layers, which the drawing follows.
+
+**Evidence.** Unit tests: the layers the controls ask for (the tips, every
+mass with the ribbon, twins as dust, a strobe), found by what leaves them
+and how, and the same layers each time the same controls ask. The unit and
+browser tests pass unchanged. In the browser, the twenty-five cases of
+decisions 80 and 88 against the code before, and eleven more through the
+drawing (the sketch's light; twins as dust; a strobe with twins, with the
+ribbon and with the tension's colours; the view nearer and farther, kept as
+curves and as layers; the chain hidden under the music's glow; a mark with
+twins; the trails off; the dancing hand shown): the saved moment's code and
+the screen the same, byte for byte.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
