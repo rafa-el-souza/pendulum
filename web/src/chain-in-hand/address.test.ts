@@ -128,7 +128,7 @@ describe("the first piece's address (decision 38)", () => {
     expect(opened.saved?.state.theta).toHaveLength(3);
   });
 
-  it("writes codes of version 11, which hold the trails' four layers in place of their style and the ribbon (decision 96)", () => {
+  it("opens a code of version 11, which holds the trails' four layers in place of their style and the ribbon, as it was written (decision 96)", () => {
     const { values, switches } = opening();
     values.set("n", 3);
     values.set("fade", 1);
@@ -138,9 +138,31 @@ describe("the first piece's address (decision 38)", () => {
     values.set("strobe", 4);
     values.set("twinlines", 0);
     values.set("twinstrobe", 1);
-    const opened = openingOf("", addressOf(values, switches, moment(3), ""));
-    expect(opened.values).toEqual(values);
-    expect(CODE.version).toBe(11);
+    const version11 = CODES.find(({ version }) => version === 11);
+    if (version11 === undefined) throw new Error("no code of version 11");
+    const written = `#${writeCode(version11, { values, switches, ...moment(3) })}`;
+    expect(openingOf("", written).values).toEqual(values);
+  });
+
+  it("writes codes of version 12, which hold every part of the twins a strobe stamps (decision 100)", () => {
+    const { values, switches } = opening();
+    values.set("n", 3);
+    values.set("strobe", 2);
+    for (const twinStrobe of [0, 1, 2, 3, 4]) {
+      values.set("twinstrobe", twinStrobe);
+      const opened = openingOf("", addressOf(values, switches, moment(3), ""));
+      expect(opened.values).toEqual(values);
+    }
+    expect(CODE.version).toBe(12);
+  });
+
+  it("carries every part of the twins a strobe stamps readable, without a moment (decision 100)", () => {
+    const { values, switches } = opening();
+    values.set("twinstrobe", 4);
+    const address = addressOf(values, switches, null, "");
+    expect(address).toBe("?twinstrobe=4");
+    expect(openingOf(address, "").values.get("twinstrobe")).toBe(4);
+    expect(openingOf("?twinstrobe=3", "").values.get("twinstrobe")).toBe(3);
   });
 
   it("opens a code of version 10 with its style and ribbon as the same screen: the strobe of before stamps the chain's rods, without lines, and the ribbon draws lines from every mass (decision 96)", () => {
@@ -546,8 +568,9 @@ describe("the first piece's address (decision 38)", () => {
     const saved = moment(3);
     const address = addressOf(values, switches, saved, "?n=3&shake=800");
     expect(address).toMatch(/^#[A-Za-z0-9_-]+$/);
-    // fifteen bytes since the tenth version (decision 65), and eight to a mass
-    expect(address).toHaveLength(1 + Math.ceil((4 * (15 + 8 * 3)) / 3));
+    // sixteen bytes since the twelfth version (decision 100), and eight to a
+    // mass
+    expect(address).toHaveLength(1 + Math.ceil((4 * (16 + 8 * 3)) / 3));
     const opened = openingOf("", address);
     expect(opened.values).toEqual(values);
     expect(opened.switches).toEqual(switches);

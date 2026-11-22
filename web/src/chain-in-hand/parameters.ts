@@ -372,18 +372,24 @@ export const TWIN_LINES: Parameter = {
   icon: "paths",
 };
 
+// What the twins' strobe stamps of each twin, by its control's value (decision
+// 100): the chain's parts, each twin's own.
+const TWIN_PARTS_SHOWN = ["off", "tips", "masses", "rods", "whole"];
+
 /**
- * Whether the strobe's flashes stamp each twin's tip into the trails as a
- * point (decisions 50 and 96); not as the piece opens. The keys are the
- * twins' own, with Shift.
+ * Which parts of each twin the strobe's flashes stamp into the trails, as
+ * the chain's (decisions 50, 96 and 100): none, as the piece opens; its tip,
+ * or every mass, as points; its rods; or the whole twin, rods and masses,
+ * each where it is at the flash's instant. The keys are the twins' own, with
+ * Shift.
  */
 export const TWIN_STROBE: Parameter = {
   id: "twinstrobe",
   label: "Strobe on the twins",
-  values: [0, 1],
+  values: [0, 1, 2, 3, 4],
   initial: 0,
   keys: { down: ["Shift+Digit9"], up: ["Shift+Digit0"] },
-  show: (value) => (value === 1 ? "tips" : "off"),
+  show: (value) => TWIN_PARTS_SHOWN[value] ?? "off",
   icon: "flashes",
 };
 

@@ -1738,10 +1738,10 @@ test("the S key saves the moment and the screen into the address, the start says
   await expect(await shownSave(page)).toHaveAccessibleName("Save this moment");
   await frames(page, 10);
 
-  // two masses: the screen in fifteen bytes since the tenth code (decision
-  // 65) and the moment in sixteen, 42 letters
+  // two masses: the screen in sixteen bytes since the twelfth code
+  // (decision 100) and the moment in sixteen, 43 letters
   await page.keyboard.press("s");
-  await expect(page).toHaveURL(/\/#[A-Za-z0-9_-]{42}$/);
+  await expect(page).toHaveURL(/\/#[A-Za-z0-9_-]{43}$/);
   await expect(page).toHaveTitle(SAVED_TITLE);
   await expect(await shownSave(page)).toHaveAccessibleName(
     "Save this moment over the one saved",
@@ -1756,7 +1756,7 @@ test("the S key saves the moment and the screen into the address, the start says
   await frames(page, 5);
   // another value goes into the code, beside the same moment, and the title names it
   await page.keyboard.press("e");
-  await expect(page).toHaveURL(/\/#[A-Za-z0-9_-]{42}$/);
+  await expect(page).toHaveURL(/\/#[A-Za-z0-9_-]{43}$/);
   expect(page.url()).not.toBe(saved);
   await expect(page).toHaveTitle(SAVED_TITLE);
   await expect(page).toHaveTitle(
@@ -1776,7 +1776,7 @@ test("the start's first step forgets a saved moment and goes back to the start i
   const mode = icon(page, "Start");
   await frames(page, 5);
   await page.keyboard.press("s");
-  await expect(page).toHaveURL(/\/#[A-Za-z0-9_-]{42}$/);
+  await expect(page).toHaveURL(/\/#[A-Za-z0-9_-]{43}$/);
   await expect(mode).toHaveAccessibleDescription("the moment saved");
 
   // the + forgets the moment and goes back to the chain raised to one side;
@@ -1963,9 +1963,9 @@ test("an address longer than a QR code holds says so in place of the code", asyn
   await page.goto("./?n=384&twins=0&trail=0");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   await page.keyboard.press(" ");
-  // the screen in fifteen bytes and 384 masses in eight each: 4 116 letters
+  // the screen in sixteen bytes and 384 masses in eight each: 4 118 letters
   await page.keyboard.press("s");
-  await expect(page).toHaveURL(/\/#[A-Za-z0-9_-]{4116}$/);
+  await expect(page).toHaveURL(/\/#[A-Za-z0-9_-]{4118}$/);
   await page.keyboard.press("o");
   const card = page.getByRole("dialog", {
     name: "This page's address as a QR code",
