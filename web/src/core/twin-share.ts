@@ -411,7 +411,7 @@ export class TwinShare {
   ): TwinCurveReport | null {
     const { curves, clock } = command;
     // joining none, the share still sends back a split asked for, and the
-    // curves still open after it, so that no light is lost (decision 96)
+    // curves still open after it, so that no light is lost (decision 97)
     if (curves === null && this.#split.count === 0) return null;
     if (curves !== null && pieces > 0 && clock !== null) {
       if (this.#pivots.length !== 2 * (pieces + 1)) {

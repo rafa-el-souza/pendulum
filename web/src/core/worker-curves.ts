@@ -1,5 +1,5 @@
 // The twins' trails as their workers join them into curves (docs/decisions.md,
-// decision 96): where each batch a report brings back goes, by the number of
+// decision 97): where each batch a report brings back goes, by the number of
 // the command it answers. The trails kept as curves ask the workers to split
 // or forget their curves, and an ask reaches a worker with its next command,
 // after it has joined what it was sent before; a report of an earlier

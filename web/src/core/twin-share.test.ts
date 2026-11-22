@@ -797,7 +797,7 @@ describe("a share's twins' trails joined into curves where they move (decision 9
     expect(report.curves).toBeNull();
   });
 
-  it("sends back a split asked while it joins no curves, so that no light is lost (decision 96)", () => {
+  it("sends back a split asked while it joins no curves, so that no light is lost (decision 97)", () => {
     const share = new TwinShare(0, 1, n);
     share.run(command([bornAll(raised(n), 4, 0, 1, 0.1)], 0, 0));
     const curves = {

@@ -271,7 +271,7 @@ export class TwinWorkers {
     return this.#local;
   }
 
-  /** The number the next command will carry, which an ask made now reaches the shares with (decision 96). */
+  /** The number the next command will carry, which an ask made now reaches the shares with (decision 97). */
   get nextSeq(): number {
     return this.#seq + 1;
   }
@@ -383,7 +383,7 @@ export class TwinWorkers {
   /**
    * Sends each share the frame's command, with the events since the last,
    * under the next number; with `curvesFor`, each share its own numbers for
-   * joining its twins' curves (decision 96).
+   * joining its twins' curves (decision 97).
    */
   send(
     frame: TwinFrame,
@@ -424,7 +424,7 @@ export class TwinWorkers {
     for (const { share: w, report } of arrived) {
       this.seen?.(w, report);
       this.#taken[w] = Math.max(this.#taken[w] ?? 0, report.seq);
-      // every report, of an old fan too, for what it joined (decision 96)
+      // every report, of an old fan too, for what it joined (decision 97)
       back?.(w, report);
       if (report.generation !== this.#generation) continue;
       this.#shown[w] = report;

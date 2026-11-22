@@ -4,7 +4,7 @@ import { SpanBatch } from "./curves.ts";
 import type { SpanBytes, TwinCurveReport } from "./twin-share.ts";
 import { WorkerCurves } from "./worker-curves.ts";
 
-// The twins' curves as their workers send them back (decision 96): each
+// The twins' curves as their workers send them back (decision 97): each
 // batch of a report goes where the trails need it, by the number of the
 // command the report answers against the asks the trails made.
 
@@ -39,7 +39,7 @@ function trails(): { fresh: SpanBatch; closed: SpanBatch } {
   return { fresh: new SpanBatch(), closed: new SpanBatch() };
 }
 
-describe("the twins' curves as their workers send them back (decision 96)", () => {
+describe("the twins' curves as their workers send them back (decision 97)", () => {
   it("draws a report's intervals and keeps its closed spans with the chain's, after them, and keeps each share's newest open curves", () => {
     const curves = new WorkerCurves();
     curves.reset(2);

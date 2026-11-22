@@ -320,7 +320,7 @@ describe("the twins' workers", () => {
     expect(twins.inStep).toBe(true);
   });
 
-  it("say the number the next command will carry, hand back every report taken, of an old fan too, and send each worker its own curves' numbers (decision 96)", () => {
+  it("say the number the next command will carry, hand back every report taken, of an old fan too, and send each worker its own curves' numbers (decision 97)", () => {
     const bench = new Bench();
     const twins = new TwinWorkers({
       shares: 2,

@@ -172,7 +172,7 @@ export function mountTwins(
     open: inWorker,
     lost: () => {
       spawnPending = true;
-      // the curves the workers last sent back still open stay (decision 96)
+      // the curves the workers last sent back still open stay (decision 97)
       hooks.drawing.curves()?.workersLost(twins.shares);
     },
   });
@@ -382,7 +382,7 @@ export function mountTwins(
     const clock =
       drawing.curves() !== null && value(LOOK) !== 1 ? drawing.stepClock : null;
     // Where the trails keep curves and the twins draw lines, each worker
-    // joins its own twins' curves (decision 96), in the trails' light, the
+    // joins its own twins' curves (decision 97), in the trails' light, the
     // music's, each twin's own while they fade, the palette and the music's
     // tint, as the frame computed now has them.
     const joining =
@@ -479,7 +479,7 @@ export function mountTwins(
     let stretch = 0;
     let stretchTime = 0;
     let measured = 0;
-    // where the trails keep curves, which the twins' workers join (decision 96)
+    // where the trails keep curves, which the twins' workers join (decision 97)
     const sharp = drawing.curves();
     twins.take(
       (j, report, k) => {
@@ -493,7 +493,7 @@ export function mountTwins(
         const { pieces, tips } = report;
         const at = 2 * (pieces + 1) * k;
         // as pieces of the layers, where the trails keep no curves or its
-        // worker joined none (decision 96), where the pivot was at each of the
+        // worker joined none (decision 97), where the pivot was at each of the
         // report's instants (decision 75)
         if (
           tipLines &&
@@ -527,7 +527,7 @@ export function mountTwins(
       },
       hooks.steady(),
       // every report's curves, joined by its worker, into the trails after
-      // the chain's (decision 96)
+      // the chain's (decision 97)
       (share, report) => {
         if (sharp !== null && report.curves !== null) {
           sharp.twins.take(share, report.seq, report.curves, sharp);

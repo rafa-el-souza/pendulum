@@ -144,7 +144,7 @@ export interface FrameState {
   readonly reached: number;
   /** How the trails meet a new view (decision 71). */
   readonly mechanism: string;
-  /** The frames a snapshot due has waited for the twins' workers to be in step, since the trails began (decision 96). */
+  /** The frames a snapshot due has waited for the twins' workers to be in step, since the trails began (decision 97). */
   readonly waited: number;
 }
 
