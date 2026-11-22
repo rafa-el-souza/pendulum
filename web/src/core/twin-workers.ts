@@ -218,6 +218,8 @@ export type TwinVisit = (j: number, report: TwinReport, k: number) => void;
 
 /** The fan, dealt out to shares: twin j to share j mod W. */
 export class TwinWorkers {
+  /** Told of each report as it is taken, of an older time too: the recorder's (decision 94); none otherwise. */
+  seen: ((share: number, report: TwinReport) => void) | null = null;
   #shares = 0;
   #ports: SharePort[] = [];
   #budgets: TwinBudget[] = [];
@@ -370,6 +372,7 @@ export class TwinWorkers {
     const arrived = this.#arrived;
     this.#arrived = [];
     for (const { share: w, report } of arrived) {
+      this.seen?.(w, report);
       if (report.generation !== this.#generation) continue;
       this.#shown[w] = report;
       if (report.pieces > 0) {

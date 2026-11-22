@@ -7,6 +7,7 @@ import { Meter } from "../core/meter.ts";
 import { Router, UNLIT, type Look } from "../core/routes.ts";
 import { noteColor } from "../core/palettes.ts";
 import type { Parameter } from "../core/parameters.ts";
+import { PerfRecorder, takePerf } from "../core/perf.ts";
 import { readMeter } from "../core/sharp.ts";
 import { mountStage, type Stage } from "../core/stage.ts";
 import { FrameRhythm } from "../core/twin-workers.ts";
@@ -125,6 +126,9 @@ if (!(canvas instanceof HTMLCanvasElement) || notice === null) {
 // The visit is counted, or not (decision 84), and the address's switch for
 // counting leaves the address before the piece reads it.
 countVisit();
+// The recorder the address can ask for (decision 94) leaves it the same way,
+// before the piece reads it.
+const perfAsked = takePerf();
 
 // The light's colors come from the stylesheet, which the browser may still be
 // applying when this module runs (WebKit did so in CI, and a token read as
@@ -170,6 +174,18 @@ function play({ canvas, gl }: Stage): void {
   // the screen's rhythm, and how late the frames come against it, for the
   // time the twins' workers may take (decision 51)
   const rhythm = new FrameRhythm();
+  // where each frame's time goes, recorded to a file where the address asked
+  // for it (decision 94)
+  const perf =
+    perfAsked === null
+      ? null
+      : new PerfRecorder(
+          perfAsked.ask,
+          gl,
+          canvas,
+          document.body,
+          perfAsked.search,
+        );
   // The twins (decision 92): born of the chain, moved by workers on the
   // device's cores (decision 51), and drawn into the trails.
   const fan = mountTwins(motion, rhythm, {
@@ -222,11 +238,17 @@ function play({ canvas, gl }: Stage): void {
       get handShown() {
         return settings.choreography.shown;
       },
+      stages: perf,
     },
     location.search,
     opened.switches.get("tension") ?? false,
   );
   const fpsMeter = readMeter(location.search) ? new Meter(document.body) : null;
+  if (perf !== null) {
+    fan.workers.seen = (share, { spent, asked, count, pieces }) => {
+      perf.seen({ share, spent, asked, count, pieces });
+    };
+  }
   if (drawing.sharp !== null) drawing.sharp.measuring = fpsMeter !== null;
 
   // whether the chain still swings in the mode it started in, the hand not
@@ -961,6 +983,7 @@ function play({ canvas, gl }: Stage): void {
   let last = performance.now();
   function frame(now: number): void {
     requestAnimationFrame(frame);
+    perf?.frameStart(now);
     const dt = Math.min(LONGEST_FRAME, Math.max(0, (now - last) / 1000));
     const real = Math.min(0.25, Math.max(0, (now - last) / 1000));
     // a frame that followed a change of the view is no measure of the
@@ -974,8 +997,10 @@ function play({ canvas, gl }: Stage): void {
     }
     // what the music says this frame, which the music's panel shows, paused
     // or not, and what it adds to the light, in real time (decision 46)
+    perf?.begin("music");
     const heard = music.hear();
     look = router.look(heard, real, tune.strength);
+    perf?.end("music");
     // and to its forces (decision 75), which turn time backwards off while
     // they act: a mode with a force while a source plays, or kicks going on
     heardNow = heard;
@@ -1012,14 +1037,22 @@ function play({ canvas, gl }: Stage): void {
       // The chain alone, now: the hand holds it, or no twins move with it.
       // Twins that do wait a frame, and the chain with them (decision 51).
       if (running && fan.count === 0) {
+        perf?.begin("chain");
         ({ simulated, flashed } = advanceChain(dt, now, flashes, false));
+        perf?.end("chain");
       } else {
         drawing.easeTension(0);
       }
     }
+    perf?.begin("take");
     fan.take(flashed);
+    perf?.end("take");
     // the view the frame is drawn in, and whether it changed (decision 67)
+    perf?.begin("draw");
+    perf?.gpuBegin();
     const viewChanged = drawing.draw(simulated, seen(), camera.zoom <= 1);
+    perf?.gpuEnd();
+    perf?.end("draw");
     viewStill = viewChanged ? 0 : viewStill + 1;
     const { sharp, mechanism } = drawing;
     fpsMeter?.frame(now, {
@@ -1030,7 +1063,10 @@ function play({ canvas, gl }: Stage): void {
     });
 
     // twins are born once the frame is drawn, of the chain as it is then
+    perf?.begin("bear");
     fan.born(simulated);
+    perf?.end("bear");
+    perf?.begin("show");
     fan.show();
     // the music's icon rises with the sound's three bands while the piece
     // listens (decision 76)
@@ -1038,6 +1074,7 @@ function play({ canvas, gl }: Stage): void {
       "music",
       heard === null ? null : [heard.bass, heard.mid, heard.treble],
     );
+    perf?.end("show");
 
     // The next frame is computed now while there are twins: their workers
     // bring them back by then, and the two are drawn at one instant
@@ -1046,15 +1083,38 @@ function play({ canvas, gl }: Stage): void {
       const phase = motion.shakePhase;
       drawing.clearPieces();
       // the motion keeps the chain the screen shows as it runs ahead
+      perf?.begin("chain");
       const next = advanceChain(dt, now, flashes, true);
+      perf?.end("chain");
       // unless the motion broke down, and the chain started again
       if (fan.count > 0) {
+        perf?.begin("send");
         fan.send(next.simulated, phase, now);
+        perf?.end("send");
         ahead = next;
       }
     }
     // what happened to the twins while time stands, sent alone
-    if (fan.pending) fan.send(0, motion.shakePhase, now);
+    if (fan.pending) {
+      perf?.begin("send");
+      fan.send(0, motion.shakePhase, now);
+      perf?.end("send");
+    }
+    perf?.frameEnd(now, {
+      simulated,
+      n: motion.chain.n,
+      twinsAlive: fan.count,
+      twinsAsked: value(TWIN_COUNT),
+      twinsAffordable: fan.workers.affordable(),
+      shares: fan.workers.shares,
+      local: fan.workers.local,
+      budget: fan.budget,
+      screen: rhythm.screen,
+      period: rhythm.period,
+      late: rhythm.late,
+      reached,
+      mechanism: drawing.mechanism,
+    });
   }
 
   start();

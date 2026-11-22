@@ -220,6 +220,8 @@ export interface Twins {
   readonly count: number;
   /** Whether what happened to them waits to be sent. */
   readonly pending: boolean;
+  /** The time each worker may take in a frame now, in ms (decision 52). */
+  readonly budget: number;
   /** Twin `j`'s colour, by its place in the fan, from the palette asked for (decision 23). */
   color(j: number): Rgb | undefined;
   /** Each twin painted anew from the palette asked for. */
@@ -605,6 +607,9 @@ export function mountTwins(
     },
     get pending() {
       return twins.pending;
+    },
+    get budget() {
+      return twins.local ? TWIN_LOCAL_MS : twinBudget;
     },
     color: (j) => fanColors[j],
     paint,
