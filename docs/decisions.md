@@ -3511,7 +3511,8 @@ card whole, each doubling twice as costly as the one before. On a desktop
 with a graphics card, eleven of thirteen recordings of twenty seconds
 (decision 94) held a frame of 16 to 40 ms in the trails, at an instant that
 differed from case to case, and none at the third snapshot with two masses,
-which a stall of the snapshots would have shown. Timed part by part in a
+which a stall of the snapshots would have shown (a reading on the fade's
+clock alone, corrected in decision 101). Timed part by part in a
 browser drawing without a graphics card, the doublings cost 3, 6, 15 and
 28 ms as the pool grew to 32 MB; a snapshot, 0.3 ms.
 
@@ -3566,6 +3567,38 @@ the twins whole adds a third of a millisecond to a share's frame of 585
 twins of two masses, about a fifth, and half a millisecond to one of 270
 twins of eight, about a tenth; as the piece opens, a frame in six has a
 flash.
+
+## 101. The card is asked once whether an image of a kind can be drawn into
+
+*2026-11-22.* An image the trails draw light into (decision 68) is made on
+the graphics card of half floats, or of eight bits where half floats cannot
+be drawn into, and the card was asked whether it could be drawn into each
+time one was made. It is now asked only until an image of that kind is
+found drawable, as the page opens: the snapshots of the trails kept as
+curves (decision 70), whose first three each make an image the canvas's
+size, no longer ask. What is drawn does not change.
+
+**Why.** The answer waits for the card to reach the question, behind all it
+was given. On a desktop with a graphics card and 4 096 twins, each of the
+first three snapshots held its frame 21 to 26 ms with sixteen masses, and
+32 to 42 ms with two in a larger window, where each made the screen miss a
+frame; asking was almost all of it. Decision 99 read the recordings before
+it on the fade's clock alone, and found no stall at the third snapshot with
+two masses: with two masses and thousands of twins, a snapshot falls due by
+its spans first, and the stall was at the first three snapshots.
+
+**Evidence.** Unit tests, on a card that counts the questions: the first
+image of a kind asks, and the next ones of that kind, of any size, do not;
+another page's card is asked again; where half floats cannot be drawn into,
+the images fall back to eight bits as before. On the desktop, a page from
+the disk timed each part of each snapshot, asking and not asking after the
+first image: not asking, the first three snapshots took half a millisecond
+or less, with two masses or sixteen, and the screen missed no frame near
+any; the card worked 5 to 9 ms more in their frames, making the image,
+within the frame's 16.7 ms. As the page opens, the second image no longer
+asks, which had taken 9 to 17 ms. In the browser, side by side with the
+code before, on the page's own clock: ten cases, the screen the same, byte
+for byte.
 
 ## Open
 

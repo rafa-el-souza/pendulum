@@ -384,6 +384,29 @@ function link(
   };
 }
 
+// The formats a target was found to be drawn into in, for each context.
+const DRAWABLE = new WeakMap<WebGL2RenderingContext, Set<GLenum>>();
+
+/**
+ * Whether the target of `format` bound to the framebuffer can be drawn into:
+ * asked of the graphics card only until a target of that format was found
+ * drawable in this context (decision 101), as the answer waits for the card
+ * to reach the question behind all it was given, a frame or two while
+ * trails are drawn.
+ */
+function drawable(gl: WebGL2RenderingContext, format: GLenum): boolean {
+  let known = DRAWABLE.get(gl);
+  if (known === undefined) {
+    known = new Set();
+    DRAWABLE.set(gl, known);
+  }
+  if (known.has(format)) return true;
+  const complete =
+    gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE;
+  if (complete) known.add(format);
+  return complete;
+}
+
 /** Cuts what is drawn next to `box`, or lets it reach every pixel when there is none. */
 function cutTo(gl: WebGL2RenderingContext, box: Box | null): void {
   if (box === null) {
@@ -509,9 +532,7 @@ export class LightTarget {
     );
     this.#texture = texture;
     this.#framebuffer = framebuffer;
-    return (
-      gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE
-    );
+    return drawable(gl, format);
   }
 
   /**
