@@ -26,6 +26,7 @@ const state: FrameState = {
   late: false,
   reached: 1,
   mechanism: "sharp",
+  waited: 0,
 };
 
 function stages(ms: number): Record<PerfStage, number> {
@@ -92,6 +93,7 @@ describe("the recorder the address asks for (decision 94)", () => {
     expect(columns["gpu"]?.[0]).toBe(2.25);
     expect(columns["gpu"]?.[1]).toBeNaN();
     expect(columns["late"]).toEqual([0, 1]);
+    expect(columns["waited"]).toEqual([0, 0]);
     expect(columns["alive"]).toEqual([4096, 4096]);
     for (const column of Object.values(columns)) {
       expect(column).toHaveLength(2);
