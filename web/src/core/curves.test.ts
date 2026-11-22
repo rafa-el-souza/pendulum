@@ -6,6 +6,7 @@ import {
   MERGE_REACH,
   MERGE_TOLERANCE,
   Merger,
+  SPAN_BYTES,
   SpanBatch,
   bendOf,
   hermiteAt,
@@ -111,6 +112,35 @@ describe("a batch of spans", () => {
     batch.clear();
     expect(batch.count).toBe(0);
     expect(batch.span(0)).toBeNull();
+  });
+
+  it("hands its spans over as bytes of their own, and takes another's after its own, byte for byte (the M1, decision 95)", () => {
+    const from = new SpanBatch(2);
+    for (let i = 0; i < 3; i++) {
+      from.push(i, 2, 3, 4, 5, 6, 7, 8, [1, 0.5, 0], 0.25, 0.75, 10 + i, 11);
+    }
+    const bytes = from.bytes();
+    expect(bytes.byteLength).toBe(3 * SPAN_BYTES);
+    // the bytes are a copy: the batch goes on without them
+    from.clear();
+    from.push(9, 9, 9, 9, 9, 9, 9, 9, [0, 0, 0], 1, 1, 1, 1);
+    const into = new SpanBatch(1);
+    into.push(-1, 2, 3, 4, 5, 6, 7, 8, [0, 1, 0], 0.5, 0.5, 1, 2);
+    into.append(bytes, 3);
+    expect(into.count).toBe(4);
+    expect(only(into, 0).x0).toBe(-1);
+    for (let i = 0; i < 3; i++) {
+      const span = only(into, i + 1);
+      expect([span.x0, span.f0]).toEqual([i, 10 + i]);
+    }
+    // the colour's fourth byte comes over as it was
+    const marked = new Uint8Array(bytes.slice(0));
+    marked[32 + 3] = 7;
+    into.append(marked.buffer, 1);
+    expect(into.u8[4 * SPAN_BYTES + 32 + 3]).toBe(7);
+    expect(new Uint8Array(into.bytes())).toEqual(
+      new Uint8Array(into.u8.buffer, 0, 5 * SPAN_BYTES),
+    );
   });
 });
 

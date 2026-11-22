@@ -85,6 +85,34 @@ export class SpanBatch {
     this.count = 0;
   }
 
+  /** The spans in use, as bytes of their own, which can be handed to another thread. */
+  bytes(): ArrayBuffer {
+    return this.#bytes.slice(0, this.count * SPAN_BYTES);
+  }
+
+  /** The first `count` spans laid out in `bytes`, after those here, as they are. */
+  append(bytes: ArrayBuffer, count: number): void {
+    if (count <= 0) return;
+    this.#fit(this.count + count);
+    this.#u8.set(
+      new Uint8Array(bytes, 0, count * SPAN_BYTES),
+      this.count * SPAN_BYTES,
+    );
+    this.count += count;
+  }
+
+  /** Room for `spans` spans, the batch's bytes doubled as often as it takes. */
+  #fit(spans: number): void {
+    if (spans * SPAN_BYTES <= this.#bytes.byteLength) return;
+    let length = this.#bytes.byteLength;
+    while (spans * SPAN_BYTES > length) length *= 2;
+    const grown = new ArrayBuffer(length);
+    new Uint8Array(grown).set(this.#u8);
+    this.#bytes = grown;
+    this.#f32 = new Float32Array(grown);
+    this.#u8 = new Uint8Array(grown);
+  }
+
   push(
     x0: number,
     y0: number,
@@ -100,13 +128,7 @@ export class SpanBatch {
     f0: number,
     f1: number,
   ): void {
-    if ((this.count + 1) * SPAN_BYTES > this.#bytes.byteLength) {
-      const grown = new ArrayBuffer(this.#bytes.byteLength * 2);
-      new Uint8Array(grown).set(this.#u8);
-      this.#bytes = grown;
-      this.#f32 = new Float32Array(grown);
-      this.#u8 = new Uint8Array(grown);
-    }
+    this.#fit(this.count + 1);
     const f = this.count * FLOATS;
     const f32 = this.#f32;
     f32[f] = x0;
