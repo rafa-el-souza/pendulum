@@ -102,8 +102,8 @@ hanging rope it becomes as n grows.
   anew, as fine as they were drawn, however near the view comes or large
   the window grows; light older than the curves keep is stretched at most a
   quarter, and hidden past it until the view goes farther. A strobe's
-  trails and a mark are carried as an image instead, cleared once the view
-  comes more than a quarter nearer than they were drawn at. One finger
+  stamps are kept so too. A mark is carried as an image instead, cleared
+  once the view comes more than a quarter nearer than it was drawn at. One finger
   waits a moment before it grabs the chain, so that a second can come and
   pinch, and the address carries the view.
   The controls wait behind one small button in a corner, which opens a thin
