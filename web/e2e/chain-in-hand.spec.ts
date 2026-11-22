@@ -1357,7 +1357,7 @@ test("the keys 1 and 2 step the lines from the chain through its parts, its tip,
   expect(errors).toEqual([]);
 });
 
-test("a strobe's flashes stamp each twin's tip as a point that lights the trails, kept as curves and as the image carried (decision 96)", async ({
+test("a strobe's flashes stamp each twin's tip as a point, and its rods, that light the trails, kept as curves and as the image carried (decisions 96 and 100)", async ({
   page,
 }) => {
   const errors = collectErrors(page);
@@ -1392,6 +1392,11 @@ test("a strobe's flashes stamp each twin's tip as a point that lights the trails
     // and 2.0 to 2.5 in WebKit, in CI's image; half again stands clear of
     // the quarter that pages differ by without the points
     expect(stamped).toBeGreaterThan(1.5 * without);
+    // each twin's rods, where it was at each flash (decision 100): 13 to 14
+    // times as much as the tips in the three engines, in CI's image; four
+    // times stands clear of how much pages differ
+    const rods = await shown(trails, 3);
+    expect(rods).toBeGreaterThan(4 * stamped);
   }
   expect(errors).toEqual([]);
 });
