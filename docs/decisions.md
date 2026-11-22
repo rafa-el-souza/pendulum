@@ -3316,6 +3316,34 @@ graphics card, at 1280 by 720, medians of twenty readings in two orders: 40
 frames a second with a strobe kept as curves against 31 as the image
 carried, and 16 against 14 with the twins this machine carries of 512.
 
+## 92. The piece's twins are a module of their own
+
+*2026-11-22.* The first piece's twins move from the page's module to one of
+their own, `chain-in-hand/twins.ts`: their workers and the time each may
+take (decisions 51 and 52); their colours by their place in the fan
+(decision 23); their birth when the chain is let go, again as they fade
+(decision 43) and on the music's beats (decision 46), and their light; the
+lens and the leash (decision 64); and, in one place, what is sent to the
+workers each frame and what comes back: the time to advance in pieces for
+the trails, and the tips along it, drawn into the trails (decisions 21 and
+68) where the pivot was at each instant (decision 75), and stamped by a
+strobe (decision 50). The page asks the twins to be born, sent and taken,
+and draws them through the drawing (decision 90). Nothing on screen changes.
+
+**Why.** The twins were the largest part left in the page's module, spread
+between the frame, the controls and the gestures; a change to what goes to
+their workers, or to how their tips are drawn, went through all of it. Now
+it stays in one file.
+
+**Evidence.** Unit tests: the pieces a frame is sent in, the light of the
+twins' trails, the pivot at each of a report's instants, and a twin's tip
+drawn as a curve, going on from one report to the next and starting anew
+where it jumped. The unit and browser tests pass unchanged. In the browser,
+the thirty-six cases of decision 90 against the code before, and eight more
+of the twins (staying, leashed, born round the pivot, run backwards, let go
+by the hand, born again on the music's hits and kicks, and spread by its
+fan): the saved moment's code and the screen the same, byte for byte.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
