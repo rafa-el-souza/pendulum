@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   FADE_STEP,
   FadeBatch,
+  LightTarget,
   carriedGain,
   catmullRom,
   fadeAfter,
@@ -227,5 +228,87 @@ describe("the sixteen texels a carried pixel reads where the canvas grows or sli
     expect(catmullRom(1.5)).toBeLessThan(0);
     expect(catmullRom(2)).toBe(0);
     expect(catmullRom(2.5)).toBe(0);
+  });
+});
+
+describe("a target for light, made on the graphics card (decision 101)", () => {
+  // A card that answers whether a framebuffer can be drawn into, as
+  // `drawable` says of its format, and keeps the formats it was asked about.
+  const card = (
+    drawable: (format: number) => boolean = () => true,
+  ): { gl: WebGL2RenderingContext; asked: number[] } => {
+    const asked: number[] = [];
+    let format = 0;
+    const gl = {
+      TEXTURE_2D: 0x0de1,
+      RGBA: 0x1908,
+      RGBA8: 0x8058,
+      RGBA16F: 0x881a,
+      UNSIGNED_BYTE: 0x1401,
+      HALF_FLOAT: 0x140b,
+      FRAMEBUFFER: 0x8d40,
+      FRAMEBUFFER_COMPLETE: 0x8cd5,
+      FRAMEBUFFER_UNSUPPORTED: 0x8cdd,
+      COLOR_BUFFER_BIT: 0x4000,
+      drawingBufferWidth: 917,
+      drawingBufferHeight: 939,
+      getExtension: () => ({}),
+      createTexture: () => ({}),
+      createFramebuffer: () => ({}),
+      texImage2D: (_target: number, _level: number, internal: number) => {
+        format = internal;
+      },
+      checkFramebufferStatus: () => {
+        asked.push(format);
+        return drawable(format) ? 0x8cd5 : 0x8cdd;
+      },
+      deleteTexture: () => undefined,
+      deleteFramebuffer: () => undefined,
+      bindTexture: () => undefined,
+      texParameteri: () => undefined,
+      bindFramebuffer: () => undefined,
+      framebufferTexture2D: () => undefined,
+      clearColor: () => undefined,
+      clear: () => undefined,
+    };
+    return { gl: gl as unknown as WebGL2RenderingContext, asked };
+  };
+
+  it("asks the card whether the first target of a format can be drawn into, and makes the next ones of that format without asking, as the answer waits for the card", () => {
+    const { gl, asked } = card();
+    const image = new LightTarget(gl);
+    expect(image.fit()).toBe(true);
+    const snapshots = [1, 2, 3].map(() => new LightTarget(gl, [917, 939]));
+    for (const snapshot of snapshots) expect(snapshot.fit()).toBe(true);
+    // made again at another size, as a canvas that grew
+    image.resize(1912, 1013);
+    expect(image.fit()).toBe(true);
+    expect(asked).toEqual([gl.RGBA16F]);
+    expect(snapshots.every((snapshot) => snapshot.floating)).toBe(true);
+  });
+
+  it("asks again in another context, whose card may answer otherwise", () => {
+    const first = card();
+    const second = card();
+    new LightTarget(first.gl).fit();
+    new LightTarget(second.gl).fit();
+    new LightTarget(second.gl).fit();
+    expect(first.asked).toEqual([first.gl.RGBA16F]);
+    expect(second.asked).toEqual([second.gl.RGBA16F]);
+  });
+
+  it("falls back to eight bits where half floats cannot be drawn into, asking of half floats again until one can be", () => {
+    const { gl, asked } = card((format) => format !== 0x881a);
+    const image = new LightTarget(gl);
+    image.fit();
+    expect(image.floating).toBe(false);
+    const other = new LightTarget(gl);
+    other.fit();
+    expect(other.floating).toBe(false);
+    // a snapshot copies the image's kind and goes to eight bits at once
+    const snapshot = new LightTarget(gl, [917, 939]);
+    snapshot.floating = image.floating;
+    snapshot.fit();
+    expect(asked).toEqual([gl.RGBA16F, gl.RGBA8, gl.RGBA16F]);
   });
 });
