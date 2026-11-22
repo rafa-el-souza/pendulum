@@ -598,10 +598,11 @@ export function mountDrawing(
     const chainColor = hooks.tinted(hooks.colors.chain, "chain");
     const music = 1 + Math.min(TRAIL_MOST, hooks.look.trail);
     let flashed = false;
-    const fainter = Math.min(1, 2.2 / Math.sqrt(n));
-    const ribbonLight = 0.55 * fainter;
-    // the veil, as faint the more rods there are as the ribbon is
-    const veilGain = music * fainter;
+    const ribbonLight = 0.55 * Math.min(1, 2.2 / Math.sqrt(n));
+    // the veil fainter the more rods there are, each by the share of the
+    // chain it is past two, so that the inner rods, which sweep a small disc
+    // over and over, do not burn its middle white
+    const veilGain = music * Math.min(1, 2.2 / n);
     const { positions, pivots, velocities, startVelocities } = moved;
     for (let piece = 0; piece < moved.pieces; piece++) {
       const at = 2 * n * piece;
