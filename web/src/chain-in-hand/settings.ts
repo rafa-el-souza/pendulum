@@ -9,6 +9,7 @@ import {
   type Opening,
   type Saved,
 } from "./address.ts";
+import { DANCE_PARAMETERS, layerValue, withLayer } from "./dance-row.ts";
 import {
   readChoreography,
   writeChoreography,
@@ -31,7 +32,8 @@ import { titleOf } from "./title.ts";
 // What the visitor asks of the first piece by its row of controls and by the
 // keys, as the piece's events (docs/decisions.md, decision 88), each with
 // the value it asks for: a control to a value, a switch on or off, the music
-// to a mode and a strength, a source to listen to, or an action. The settings
+// to a mode and a strength, the dance to a choreography (decision 89), a
+// source to listen to, or an action. The settings
 // are what the address carries in its readable part (decisions 38, 46 and
 // 83), and the moment saved in it (decision 34): the events change them, the
 // address and the page's title are written from them, and the piece answers
@@ -76,11 +78,14 @@ export type PieceEvent =
     }
   | { readonly kind: "switch"; readonly id: SwitchId; readonly on: boolean }
   | { readonly kind: "music"; readonly mode: string; readonly strength: number }
+  | { readonly kind: "dance"; readonly choreography: Choreography }
   | { readonly kind: "listen"; readonly source: string }
   | { readonly kind: "act"; readonly id: Act };
 
 /** The ids of the music's modes, the one the piece opens in first. */
 const MODE_IDS = MODES.map(({ id }) => id);
+/** The music's mode in which the hand dances (decision 75). */
+const DANCE_MODE = "dance";
 
 /**
  * Whether a control's new value has the chain start where it says, forgetting
@@ -102,7 +107,7 @@ export class Settings {
   /** What the music does, and how strongly (decision 46). */
   readonly tune: { mode: string; strength: number };
   /** How the music's hand dances (decision 83). */
-  readonly choreography: Choreography;
+  choreography: Choreography;
   /** The moment saved in the address, where the chain starts while there is one (decision 34), with how the screen around it was (decision 38). */
   saved: Saved | null;
 
@@ -160,6 +165,11 @@ export class Settings {
     if (parameter === ZOOM) {
       return [{ kind: "act", id: direction > 0 ? "nearer" : "farther" }];
     }
+    if (DANCE_PARAMETERS.includes(parameter)) {
+      const was = layerValue(parameter, this.choreography);
+      const value = stepValue(parameter, was, direction);
+      return this.dance(withLayer(this.choreography, parameter, value));
+    }
     if (parameter === TENSION) {
       const was = this.tensionAt();
       const value = stepValue(TENSION, was, direction);
@@ -184,9 +194,28 @@ export class Settings {
     return events;
   }
 
+  /**
+   * The events of the dance going to `choreography`, from its row (decision
+   * 89): the choreography, and the music's mode put on the dance where it is
+   * not, as a control of the light lights it (decision 27).
+   */
+  dance(choreography: Choreography): PieceEvent[] {
+    const events: PieceEvent[] = [{ kind: "dance", choreography }];
+    if (this.tune.mode !== DANCE_MODE) {
+      events.push({
+        kind: "music",
+        mode: DANCE_MODE,
+        strength: this.tune.strength,
+      });
+    }
+    return events;
+  }
+
   /** The settings as an event leaves them; a moment is saved apart, with `save`. */
   apply(event: PieceEvent): void {
-    if (event.kind === "switch") {
+    if (event.kind === "dance") {
+      this.choreography = event.choreography;
+    } else if (event.kind === "switch") {
       this.switches.set(event.id, event.on);
     } else if (event.kind === "music") {
       this.tune.mode = event.mode;

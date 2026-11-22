@@ -2543,6 +2543,110 @@ test("the dance's choreography is kept in the address, beside the music's mode a
   expect(errors).toEqual([]);
 });
 
+test("the dance's button in the music's group opens the dance's row stacked above the music's, its controls in the order of the layers, scrolling on a narrow screen, and Escape shuts it before the music's (decision 89)", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("./?twins=0");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await page.keyboard.press("w");
+  const dance = icon(page, "The dance");
+  const row = page.locator("#group-dance");
+  // not lit while the music does something else
+  await expect(dance).not.toHaveAttribute("data-lit", "");
+  await dance.click();
+  await expect(dance).toHaveAttribute("aria-expanded", "true");
+  await expect(row).toBeVisible();
+  expect(await labels(row)).toEqual([
+    "Figure of the dance",
+    "Where the figure is traced",
+    "What leads the dance",
+    "Beats from point to point",
+    "Feel of the moves",
+    "What the figure's size follows",
+    "What the figure's middle follows",
+    "Whether the grip pulses",
+    "Where the hand holds the chain",
+    "Grip of the dancing hand",
+    "Slack of the chain",
+    "Show the dancing hand",
+    "When the hand lets go and catches",
+    "When the figure changes",
+  ]);
+  // above the music's row, and within the screen, scrolling sideways
+  const above = await row.boundingBox();
+  const below = await music(page).group.boundingBox();
+  if (above === null || below === null) throw new Error("a row is not shown");
+  expect(above.y + above.height).toBeLessThanOrEqual(below.y + 1);
+  expect(above.x).toBeGreaterThanOrEqual(0);
+  expect(above.x + above.width).toBeLessThanOrEqual(390);
+  await expect(row).toHaveAttribute("data-wide", "");
+  await expect(row).toHaveAttribute("data-more", "right");
+  // Escape shuts the dance's row, then the music's
+  await page.keyboard.press("Escape");
+  await expect(row).toBeHidden();
+  await expect(music(page).group).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(music(page).group).toBeHidden();
+  // and the music's group opens again with the dance's row, as it was left
+  await page.keyboard.press("w");
+  await expect(row).toBeHidden();
+  await dance.click();
+  await page.keyboard.press("w");
+  await page.keyboard.press("w");
+  await expect(row).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test("a value chosen in the dance's row goes into the address and puts the music's mode on the dance, which lights the dance's button, and the hand's switch shows the hand (decision 89)", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("./?twins=0");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await page.keyboard.press("w");
+  await icon(page, "The dance").click();
+  await icon(page, "Figure of the dance").click();
+  const figure = page.getByRole("group", { name: "Figure of the dance" });
+  await figure
+    .getByRole("button", { name: "More: Figure of the dance" })
+    .click();
+  await expect(figure).toContainText("circle");
+  await expect(page).toHaveURL(/\?music=dance&figure=circle&twins=0$/);
+  const lit = icon(page, "The dance, which the music dances now");
+  await expect(lit).toHaveAttribute("data-lit", "");
+  // the hand, shown, and its switch says it would hide it
+  await icon(page, "Show the dancing hand").click();
+  await expect(page).toHaveURL(
+    /\?music=dance&figure=circle&showhand=1&twins=0$/,
+  );
+  await expect(icon(page, "Hide the dancing hand")).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  // the address opened again shows the dance as it was left
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await page.keyboard.press("w");
+  await expect(
+    icon(page, "The dance, which the music dances now"),
+  ).toHaveAttribute("data-lit", "");
+  await icon(page, "The dance, which the music dances now").click();
+  await expect(icon(page, "Figure of the dance")).toHaveAccessibleDescription(
+    "circle",
+  );
+  await expect(icon(page, "Hide the dancing hand")).toBeVisible();
+  // another mode of the music puts the button out
+  await icon(page, "What the music does").click();
+  await page
+    .getByRole("group", { name: "What the music does" })
+    .getByRole("button", { name: "More: What the music does" })
+    .click();
+  await expect(icon(page, "The dance")).not.toHaveAttribute("data-lit", "");
+  expect(errors).toEqual([]);
+});
+
 test("while the music acts on the chain as a force, time does not run backwards and its button is faded; with the music off, it runs backwards again (decisions 75 and 77)", async ({
   page,
 }) => {

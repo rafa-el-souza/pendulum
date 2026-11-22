@@ -8,6 +8,26 @@ import type { Camera } from "../core/view.ts";
 import { PIECES } from "../pieces.ts";
 import type { Saved } from "./address.ts";
 import {
+  BEATS_PER_POINT,
+  CENTER,
+  DANCE_PARAMETERS,
+  FEEL,
+  FIGURE,
+  GRAB,
+  GRIP,
+  LEAD,
+  PLACE,
+  PULSE,
+  SIZE,
+  SLACK,
+  TOSS,
+  VARY,
+  handIcon,
+  handLabel,
+  handSwitch,
+  layerValue,
+} from "./dance-row.ts";
+import {
   AMPLITUDE,
   DRAWN,
   FADE,
@@ -44,7 +64,8 @@ import { ACTS, type PieceEvent, type Settings } from "./settings.ts";
 // The first piece's row of controls (docs/decisions.md, decisions 31 and 54)
 // and its keys, with the address and the page's title (decision 38), the
 // address shared or shown as a QR code (decision 40), and the music's card
-// (decisions 44 and 76). A control stepped, a button pressed or a key makes
+// (decisions 44 and 76), with the dance's row stacked above the music's
+// (decision 89). A control stepped, a button pressed or a key makes
 // the piece's events (settings.ts, decision 88); each is taken by the
 // settings, answered by the piece, and shown in the row, and the address and
 // the title follow.
@@ -55,6 +76,10 @@ const COPIED_MS = 2000;
 // out and lights again (decision 27), apart from the sketch's light.
 const LIGHT_LABEL = "Light of the twins and trails";
 const SKETCH_LABEL = "The sketch's light";
+// The dance's button in the music's group, lit while the music dances
+// (decision 89).
+const DANCE_LABEL = "The dance";
+const DANCING_LABEL = "The dance, which the music dances now";
 // The piece's name, which begins the page's title (decision 37).
 const NAME =
   PIECES.find(({ id }) => id === "chain-in-hand")?.title ?? document.title;
@@ -93,6 +118,7 @@ function changesAddress(event: PieceEvent): boolean {
     event.kind === "value" ||
     event.kind === "switch" ||
     event.kind === "music" ||
+    event.kind === "dance" ||
     (event.kind === "act" && event.id === "save")
   );
 }
@@ -194,10 +220,26 @@ export function mountRow(settings: Settings, hooks: RowHooks): Row {
     });
   }
 
-  /** The music's mode and strength, as values of its group. */
+  /** The music's mode and strength, as values of its group, and the dance's button lit while the music dances (decision 89). */
   function showMusic(): void {
     controls.showValue(MUSIC_MODE.id, settings.modeAt());
     controls.showValue(MUSIC_STRENGTH.id, settings.tune.strength);
+    const dancing = settings.tune.mode === "dance";
+    controls.lightGroup(
+      "dance",
+      dancing,
+      dancing ? DANCING_LABEL : DANCE_LABEL,
+    );
+  }
+
+  /** The dance's controls as its choreography has them, and the hand's switch (decision 89). */
+  function showDance(): void {
+    const { choreography } = settings;
+    for (const parameter of DANCE_PARAMETERS) {
+      controls.showValue(parameter.id, layerValue(parameter, choreography));
+    }
+    const { shown } = choreography;
+    controls.showAction("showhand", handIcon(shown), handLabel(shown), shown);
   }
 
   /** The light switch's button, lit while the light is on. */
@@ -238,6 +280,8 @@ export function mountRow(settings: Settings, hooks: RowHooks): Row {
       }
     } else if (event.kind === "music") {
       showMusic();
+    } else if (event.kind === "dance") {
+      showDance();
     } else if (event.kind === "act" && event.id === "save") {
       showStart();
     }
@@ -263,11 +307,15 @@ export function mountRow(settings: Settings, hooks: RowHooks): Row {
     if (changesAddress(event)) keepAddress();
   }
 
-  /** A control stepped down (-1) or up (1), by its − and + or its keys: its events, then the address. */
-  function step(parameter: Parameter, direction: 1 | -1): void {
-    const events = settings.step(parameter, direction);
+  /** Events taken in their order, then the address once. */
+  function takeAll(events: readonly PieceEvent[]): void {
     for (const event of events) taken(event);
     if (events.some(changesAddress)) keepAddress();
+  }
+
+  /** A control stepped down (-1) or up (1), by its − and + or its keys: its events, then the address. */
+  function step(parameter: Parameter, direction: 1 | -1): void {
+    takeAll(settings.step(parameter, direction));
   }
 
   // The row of controls (decisions 31 and 54): the pause and the light,
@@ -358,7 +406,36 @@ export function mountRow(settings: Settings, hooks: RowHooks): Row {
           keys: ["w", "W"],
           keysShown: "W",
           panel: music.panel,
-          controls: [...music.sources, MUSIC_MODE, MUSIC_STRENGTH],
+          // and the dance's button, whose row opens stacked above, in the
+          // order of the layers: the path, the time, the expression, the
+          // body and the long time (decision 89)
+          controls: [
+            ...music.sources,
+            MUSIC_MODE,
+            MUSIC_STRENGTH,
+            {
+              id: "dance",
+              label: DANCE_LABEL,
+              icon: "dance",
+              breaks: [LEAD.id, SIZE.id, GRAB.id, TOSS.id],
+              controls: [
+                FIGURE,
+                PLACE,
+                LEAD,
+                BEATS_PER_POINT,
+                FEEL,
+                SIZE,
+                CENTER,
+                PULSE,
+                GRAB,
+                GRIP,
+                SLACK,
+                handSwitch(settings.choreography.shown),
+                TOSS,
+                VARY,
+              ],
+            },
+          ],
         },
         {
           id: "screen",
@@ -406,6 +483,12 @@ export function mountRow(settings: Settings, hooks: RowHooks): Row {
       act(id) {
         if (id === "light" || id === "sketch") {
           take({ kind: "switch", id, on: !settings.on(id) });
+        } else if (id === "showhand") {
+          // the hand shown or hidden, a value of the dance (decision 89)
+          const { choreography } = settings;
+          takeAll(
+            settings.dance({ ...choreography, shown: !choreography.shown }),
+          );
         } else if (music.sources.some((source) => source.id === id)) {
           take({ kind: "listen", source: id });
         } else {
@@ -425,6 +508,7 @@ export function mountRow(settings: Settings, hooks: RowHooks): Row {
   showWhite();
   showHold();
   showMusic();
+  showDance();
   // a source of the music lit while it plays (decision 76)
   music.onPlaying = (playing) => {
     for (const source of music.sources) {
