@@ -6,14 +6,20 @@
 // and painted by their place in the fan (decision 23). In one place, what is
 // sent to the workers each frame and what comes back from them: the time to
 // advance, in pieces for the trails, and the twins' tips along it, drawn into
-// the trails (decisions 21 and 68) and stamped by a strobe (decision 50).
+// the trails (decisions 21 and 68); and the strobe's flashes in it, which
+// stamp each twin where it is at their instants (decisions 50 and 100).
 
 import type { Rgb } from "../core/color.ts";
 import type { Controls } from "../core/controls.ts";
 import { fanPalette } from "../core/palettes.ts";
 import type { Parameter } from "../core/parameters.ts";
 import type { Look } from "../core/routes.ts";
-import { shareOf, type TwinHold, type TwinReport } from "../core/twin-share.ts";
+import {
+  shareOf,
+  type TwinFlash,
+  type TwinHold,
+  type TwinReport,
+} from "../core/twin-share.ts";
 import {
   TwinWorkers,
   inWorker,
@@ -142,10 +148,15 @@ export interface Twins {
   born(simulated: number): void;
   /** The twins' controls: how many move, and the lens's number. */
   show(): void;
-  /** Sends the workers the frame just computed, `simulated` seconds from where the shake stood at `phase`, at the time `now`; none sends what happened alone. */
-  send(simulated: number, phase: number, now: number): void;
-  /** Takes what the workers sent back since the last frame into the trails, a strobe having flashed in it when `flashed`. */
-  take(flashed: boolean): void;
+  /** Sends the workers the frame just computed, `simulated` seconds from where the shake stood at `phase`, at the time `now`, with the strobe's `flashes` in it; none sends what happened alone. */
+  send(
+    simulated: number,
+    phase: number,
+    now: number,
+    flashes?: readonly TwinFlash[],
+  ): void;
+  /** Takes what the workers sent back since the last frame into the trails. */
+  take(): void;
 }
 
 /**
@@ -333,9 +344,16 @@ export function mountTwins(
    * screen's next frame, none while the frames come late, and then at
    * least a share of the main line's own budget among the workers, eased
    * over the frames so that one slow frame cuts no twins; or the main
-   * line's own budget. No time sends what happened to the twins alone.
+   * line's own budget. And the strobe's `flashes` in the frame, while it
+   * stamps the twins (decision 100). No time sends what happened to the
+   * twins alone.
    */
-  function sendTwins(simulated: number, phase: number, now: number): void {
+  function sendTwins(
+    simulated: number,
+    phase: number,
+    now: number,
+    flashes: readonly TwinFlash[] = [],
+  ): void {
     // in one piece when there are no trails to draw
     const pieces = twinPieces(simulated, value(TRAIL));
     const shakes = motion.twinShakes(phase, simulated, pieces);
@@ -379,20 +397,32 @@ export function mountTwins(
     if (hooks.steady()) twinBudget += 0.1 * (free - twinBudget);
     twins.setBudget(twins.local ? TWIN_LOCAL_MS : twinBudget);
     const { drawing } = hooks;
+    const sharp = drawing.curves();
     const clock =
-      drawing.curves() !== null && value(LOOK) !== 1 ? drawing.stepClock : null;
+      sharp !== null && value(LOOK) !== 1 ? drawing.stepClock : null;
+    const layers = drawing.layers();
+    const lines =
+      clock !== null && layerOf(layers, "twins", "lines") !== undefined;
+    // the strobe's flashes stamp the parts of each twin its layer says, where
+    // each is at their instants (decision 100)
+    const stamped = layerOf(layers, "twins", "stamps");
+    const stamps =
+      stamped !== undefined && flashes.length > 0 && simulated > 0
+        ? { parts: stamped.parts, flashes }
+        : null;
     // Where the trails keep curves and the twins draw lines, each worker
-    // joins its own twins' curves (decision 97), in the trails' light, the
-    // music's, each twin's own while they fade, the palette and the music's
-    // tint, as the frame computed now has them.
+    // joins its own twins' curves (decision 97), and stamps them there
+    // (decision 100), in the trails' light, the music's, each twin's own while
+    // they fade, the palette and the music's tint, as the frame computed now
+    // has them.
     const joining =
-      clock !== null &&
-      layerOf(drawing.layers(), "twins", "lines") !== undefined
+      lines || (stamps !== null && sharp !== null)
         ? {
             light: twinTrailLight(twins.count),
             music: 1 + Math.min(TRAIL_MOST, hooks.look.trail),
             palette: value(PALETTE),
             tint: hooks.tint("twins"),
+            lines,
           }
         : null;
     const fades = value(FADE) === 1;
@@ -412,6 +442,7 @@ export function mountTwins(
         drive: simulated > 0 ? motion.drive : null,
         budget: twins.local ? TWIN_LOCAL_MS : twinBudget,
         curves: null,
+        stamps,
       },
       joining === null
         ? undefined
@@ -458,23 +489,21 @@ export function mountTwins(
 
   /**
    * What the twins' workers sent back since the last frame (decision 51):
-   * each twin's tip along the frame draws its trail, a strobe's flash
-   * stamps it as a point (decision 50), and a twin that fades takes the
-   * light of how far it has gone from the chain (decision 43).
+   * each twin's tip along the frame draws its trail; where its worker sent
+   * back where it was at a strobe's flashes, it is stamped there (decision
+   * 100); and a twin that fades takes the light of how far it has gone from
+   * the chain (decision 43).
    */
-  function takeTwins(flashed: boolean): void {
+  function takeTwins(): void {
     const { drawing } = hooks;
     // faint, so that where many twins' trails run together they read as one
     const light = twinTrailLight(twins.count);
     // while they fade, each in its own light, which then falls with how far
     // it has gone from the chain
     const fades = value(FADE) === 1;
-    // their tips draw lines, and a strobe's flashes stamp them as points
-    // (decision 50), where the trails' layers have them do so, however the
-    // twins are drawn (decision 96)
-    const layers = drawing.layers();
-    const tipLines = layerOf(layers, "twins", "lines") !== undefined;
-    const tipPoints = layerOf(layers, "twins", "stamps") !== undefined;
+    // their tips draw lines where the trails' layers have them do so,
+    // however the twins are drawn (decision 96)
+    const tipLines = layerOf(drawing.layers(), "twins", "lines") !== undefined;
     const music = 1 + Math.min(TRAIL_MOST, hooks.look.trail);
     // held, how much each share's fan stretched, averaged over the shares
     // (decision 64)
@@ -516,12 +545,24 @@ export function mountTwins(
             );
           }
         }
-        if (tipPoints && flashed && pieces > 0) {
-          twinPivotsFor(report);
-          const p = 2 * pieces;
-          const px = (tips[at + p] ?? 0) + (twinPivots[p] ?? 0);
-          const py = (tips[at + p + 1] ?? 0) + (twinPivots[p + 1] ?? 0);
-          drawing.point(px, py, color, 2 * light * shine * music);
+        // stamped by the frame's flashes where its worker joined no curves,
+        // from where its masses were at each (decision 100)
+        const { stamps, stampPlaces } = report;
+        if (stamps !== null && stampPlaces.length > 0) {
+          const { parts, flashes } = stamps;
+          const { n } = report;
+          flashes.forEach((flash, f) => {
+            drawing.stampTwin(
+              parts,
+              n,
+              stampPlaces,
+              2 * n * (k * flashes.length + f),
+              flash.x,
+              flash.y,
+              color,
+              light * shine * music,
+            );
+          });
         }
         if (fades && k < report.apart.length) {
           fading.see(j, report.apart[k] ?? 0, FADE_REACH);

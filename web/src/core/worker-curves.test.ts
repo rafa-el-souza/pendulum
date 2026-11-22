@@ -24,7 +24,13 @@ function report(tag: number): TwinCurveReport {
     closed: spans(tag + 0.2),
     split: spans(tag + 0.3),
     open: spans(tag + 0.4),
+    stamps: spans(tag + 0.5, 0),
   };
+}
+
+/** A report's curves with the twins stamped by a flash (decision 100), tagged as `report` tags them. */
+function stamped(tag: number): TwinCurveReport {
+  return { ...report(tag), stamps: spans(tag + 0.5) };
 }
 
 /** The first coordinates of a batch's spans. */
@@ -59,6 +65,42 @@ describe("the twins' curves as their workers send them back (decision 97)", () =
     open.clear();
     curves.openSpans(open);
     expect(tags(open)).toEqual([3.4, 2.4]);
+  });
+
+  it("draws a report's stamps now and keeps them, after its intervals and its closed spans, as the chain's stamps are (decision 100)", () => {
+    const curves = new WorkerCurves();
+    curves.reset(1);
+    const into = trails();
+    curves.take(0, 1, stamped(1), into);
+    expect(tags(into.fresh)).toEqual([1.1, 1.5]);
+    expect(tags(into.closed)).toEqual([1.2, 1.5]);
+    // and nothing of them is a split or an open curve
+    expect(tags(curves.splitBefore)).toEqual([1.3]);
+    const open = new SpanBatch();
+    curves.openSpans(open);
+    expect(tags(open)).toEqual([1.4]);
+  });
+
+  it("draws into the coarse image too the stamps of reports joined before it was born, and keeps them for the window alone (decision 100)", () => {
+    const curves = new WorkerCurves();
+    curves.reset(2);
+    curves.coarse(5);
+    const into = trails();
+    curves.take(1, 4, stamped(1), into);
+    curves.take(0, 5, stamped(2), into);
+    expect(tags(into.fresh)).toEqual([1.1, 1.5, 2.1, 2.5]);
+    expect(tags(curves.freshForCoarse)).toEqual([1.1, 1.5]);
+    expect(tags(into.closed)).toEqual([2.2, 2.5]);
+    expect(tags(curves.closedForWindow)).toEqual([1.2, 1.5]);
+  });
+
+  it("lets go of the stamps of reports joined before the trails were put out (decision 100)", () => {
+    const curves = new WorkerCurves();
+    curves.reset(1);
+    curves.forget(6);
+    const into = trails();
+    curves.take(0, 5, stamped(2), into);
+    expect(into.fresh.count + into.closed.count).toBe(0);
   });
 
   it("lets go of reports joined before the trails were put out", () => {

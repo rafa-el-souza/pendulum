@@ -10,6 +10,7 @@ import type { Parameter } from "../core/parameters.ts";
 import { PerfRecorder, takePerf } from "../core/perf.ts";
 import { readMeter } from "../core/sharp.ts";
 import { mountStage, type Stage } from "../core/stage.ts";
+import type { TwinFlash } from "../core/twin-share.ts";
 import { FrameRhythm } from "../core/twin-workers.ts";
 import { Touches, readWait, type Spot } from "../core/touches.ts";
 import {
@@ -263,11 +264,11 @@ function play({ canvas, gl }: Stage): void {
   // the speed time actually ran at lately, as a share of the speed asked for
   let reached = 1;
   // The frame computed a frame ahead while there are twins (decision 51):
-  // the time it simulated, and whether a strobe flashed in it. It is shown at
-  // the next frame, with the twins its workers bring back meanwhile; the
-  // motion keeps the chain as the screen shows it until then, for a moment
-  // saved.
-  let ahead: { simulated: number; flashed: boolean } | null = null;
+  // the time it simulated, and the strobe's flashes in it, which the twins'
+  // command carries (decision 100). It is shown at the next frame, with the
+  // twins its workers bring back meanwhile; the motion keeps the chain as the
+  // screen shows it until then, for a moment saved.
+  let ahead: { simulated: number; flashed: readonly TwinFlash[] } | null = null;
   const pointer = { id: -1, x: 0, y: 0, vx: 0, vy: 0, at: 0 };
   // How the piece is looked at (decision 67): the camera the address asks
   // for, the whole view otherwise; the fingers on the stage, which wait
@@ -933,16 +934,16 @@ function play({ canvas, gl }: Stage): void {
   /**
    * The chain's motion over a frame of dt seconds (decision 80), its record
    * drawn into the trails, the valve that shows time slowed (decision 15) and
-   * the colour of its tension (decision 35): the time it simulated, and
-   * whether a strobe flashed. The music flashes the strobe on its kicks when
-   * `flashes`.
+   * the colour of its tension (decision 35): the time it simulated, and the
+   * strobe's flashes in it, which stamp the twins too (decision 100). The
+   * music flashes the strobe on its kicks when `flashes`.
    */
   function advanceChain(
     dt: number,
     now: number,
     flashes: boolean,
     ahead: boolean,
-  ): { simulated: number; flashed: boolean } {
+  ): { simulated: number; flashed: readonly TwinFlash[] } {
     // a pointer that has stopped moving holds the chain still where it is
     if (motion.held && now - pointer.at > STILL_AFTER_MS) {
       pointer.vx = 0;
@@ -1035,10 +1036,9 @@ function play({ canvas, gl }: Stage): void {
     }
     const running = !paused && dt > 0;
     let simulated = 0;
-    let flashed = false;
     if (ahead !== null) {
       // the frame computed at the last one, its twins back from the workers
-      ({ simulated, flashed } = ahead);
+      ({ simulated } = ahead);
       ahead = null;
     } else {
       drawing.clearPieces();
@@ -1046,14 +1046,14 @@ function play({ canvas, gl }: Stage): void {
       // Twins that do wait a frame, and the chain with them (decision 51).
       if (running && fan.count === 0) {
         perf?.begin("chain");
-        ({ simulated, flashed } = advanceChain(dt, now, flashes, false));
+        ({ simulated } = advanceChain(dt, now, flashes, false));
         perf?.end("chain");
       } else {
         drawing.easeTension(0);
       }
     }
     perf?.begin("take");
-    fan.take(flashed);
+    fan.take();
     perf?.end("take");
     // the view the frame is drawn in, and whether it changed (decision 67)
     perf?.begin("draw");
@@ -1097,7 +1097,7 @@ function play({ canvas, gl }: Stage): void {
       // unless the motion broke down, and the chain started again
       if (fan.count > 0) {
         perf?.begin("send");
-        fan.send(next.simulated, phase, now);
+        fan.send(next.simulated, phase, now, next.flashed);
         perf?.end("send");
         ahead = next;
       }

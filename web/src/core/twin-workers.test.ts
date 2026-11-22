@@ -82,6 +82,7 @@ function frame(more: Partial<TwinFrame> = {}): TwinFrame {
     drive: null,
     budget: 10,
     curves: null,
+    stamps: null,
     ...more,
   };
 }
@@ -337,6 +338,7 @@ describe("the twins' workers", () => {
       shine: Float64Array.of(share, share),
       palette: 0,
       tint: null,
+      lines: true,
     });
     twins.send(frame(), curvesFor);
     expect(twins.nextSeq).toBe(2);

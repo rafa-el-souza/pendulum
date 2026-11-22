@@ -1,10 +1,19 @@
 // The twins' tips drawn into their trails as curves (docs/decisions.md,
 // decisions 21, 68 and 75): where the pivot was at each instant of a report,
-// and a twin's tip along a report as samples of a curve. Pure, so that the
-// same numbers come out wherever they run.
+// and a twin's tip along a report as samples of a curve. And a twin stamped
+// by a strobe's flash (decision 100): where it is at the flash's instant,
+// between the ends of its piece, and its stamps. Pure, so that the same
+// numbers come out wherever they run.
 
 import type { Rgb } from "./color.ts";
-import { TRAIL_JUMP, lengthOf, type Merger, type SpanBatch } from "./curves.ts";
+import {
+  TRAIL_JUMP,
+  lengthOf,
+  pushPoint,
+  pushStraight,
+  type Merger,
+  type SpanBatch,
+} from "./curves.ts";
 import type { TwinReport } from "./twin-share.ts";
 import { pivotAt, type Drive, type PivotMotion } from "../physics/drive.ts";
 
@@ -107,5 +116,75 @@ export function twinCurve(
       fresh,
       closed,
     );
+  }
+}
+
+/** Which parts of a twin a strobe's flash stamps (decision 96): its tip, or every mass, as points; its rods; or the whole of it. */
+export type StampParts = "tip" | "masses" | "rods" | "whole";
+
+/**
+ * A chain's angles `s` seconds into a piece of `h` seconds, into `out`, from
+ * its angles and their rates at the piece's two ends (decision 100): the cubic
+ * that meets both ends with both rates, Hermite's, where the twins' own step
+ * leaves no point, as at a strobe's flash. Exactly the first end at 0 and the
+ * last at `h`.
+ */
+export function anglesAt(
+  theta0: ArrayLike<number>,
+  omega0: ArrayLike<number>,
+  theta1: ArrayLike<number>,
+  omega1: ArrayLike<number>,
+  s: number,
+  h: number,
+  out: Float64Array,
+): void {
+  const u = h > 0 ? Math.min(1, Math.max(0, s / h)) : 1;
+  const u2 = u * u;
+  const u3 = u2 * u;
+  const h00 = 2 * u3 - 3 * u2 + 1;
+  const h10 = (u3 - 2 * u2 + u) * h;
+  const h01 = 3 * u2 - 2 * u3;
+  const h11 = (u3 - u2) * h;
+  for (let i = 0; i < out.length; i++) {
+    out[i] =
+      h00 * (theta0[i] ?? 0) +
+      h10 * (omega0[i] ?? 0) +
+      h01 * (theta1[i] ?? 0) +
+      h11 * (omega1[i] ?? 0);
+  }
+}
+
+/**
+ * A twin stamped by a strobe's flash into `batch` (decision 100), as the
+ * chain is (decisions 91 and 96): its n masses at `places` from `at`, x then
+ * y for each, from the top, hung from the pivot at (`px`, `py`); as `parts`
+ * says, its rods as straight spans in `light`, and its tip or every mass as
+ * points twice as bright, each rod before the mass it ends in, at the fade
+ * clock `fade`, the flash's instant.
+ */
+export function stampTwin(
+  batch: SpanBatch,
+  parts: StampParts,
+  n: number,
+  places: ArrayLike<number>,
+  at: number,
+  px: number,
+  py: number,
+  color: Rgb,
+  light: number,
+  fade: number,
+): void {
+  const rods = parts === "rods" || parts === "whole";
+  // the masses stamped as points, from the first: the tip alone, or all
+  const firstPoint = parts === "tip" ? n - 1 : parts === "rods" ? n : 0;
+  let ax = px;
+  let ay = py;
+  for (let i = 0; i < n; i++) {
+    const bx = (places[at + 2 * i] ?? 0) + px;
+    const by = (places[at + 2 * i + 1] ?? 0) + py;
+    if (rods) pushStraight(batch, ax, ay, bx, by, color, light, fade);
+    if (i >= firstPoint) pushPoint(batch, bx, by, color, 2 * light, fade);
+    ax = bx;
+    ay = by;
   }
 }

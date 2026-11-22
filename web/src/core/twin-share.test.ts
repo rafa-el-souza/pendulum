@@ -10,12 +10,13 @@ import {
   shareOf,
   type TwinCommand,
   type TwinEvent,
+  type TwinFlash,
   type TwinHold,
 } from "./twin-share.ts";
 import { SPAN_BYTES, Merger, SpanBatch } from "./curves.ts";
 import { mixColors } from "./grounds.ts";
 import { fanPalette } from "./palettes.ts";
-import { pivotsOver, twinCurve } from "./twin-curves.ts";
+import { pivotsOver, stampTwin, twinCurve } from "./twin-curves.ts";
 import {
   apart,
   bornTwins,
@@ -83,6 +84,7 @@ function command(
     generation: 0,
     seq: 0,
     curves: null,
+    stamps: null,
     ...more,
   };
 }
@@ -727,7 +729,7 @@ describe("a share's twins' trails joined into curves where they move (decision 9
         command(events, FRAME, pieces, still(pieces), {
           drive,
           clock: clockOf(frame),
-          curves: { light, music, shine, palette, tint },
+          curves: { light, music, shine, palette, tint, lines: true },
           seq: frame + 1,
         }),
       );
@@ -806,6 +808,7 @@ describe("a share's twins' trails joined into curves where they move (decision 9
       shine: null,
       palette: 0,
       tint: null,
+      lines: true,
     };
     share.run(command([], FRAME, 4, still(4), { clock: clockOf(0), curves }));
     const report = share.run(
@@ -838,5 +841,201 @@ describe("a share's twins' trails joined into curves where they move (decision 9
     );
     expect(b.stretch).toBe(a.stretch);
     expect(a.stretchTime).toBeGreaterThan(0);
+  });
+});
+
+describe("a share's twins stamped by a strobe's flashes (decision 100)", () => {
+  const fan = 7;
+
+  /**
+   * Shares `with` and `without` stamps, the same twins born in each, run the
+   * same `frames` commands, the music's and a shake in the middle ones: the
+   * one with stamps given flashes at `flashes`, fractions of each frame.
+   */
+  function sideBySide(
+    n: number,
+    flashes: readonly number[],
+    more: Partial<TwinCommand> = {},
+  ) {
+    const withStamps = new TwinShare(0, 1, n);
+    const without = new TwinShare(0, 1, n);
+    const born = command([bornAll(raised(n), fan, 0, 1, 0.3)], 0, 0);
+    withStamps.run(born);
+    without.run(born);
+    const chain = Chain.uniform(n);
+    const pieces = 4;
+    return (frame: number) => {
+      const drive =
+        frame % 3 === 1 ? musicOf(chain, frame * FRAME, FRAME) : null;
+      const shakes =
+        frame % 3 === 2 ? shakesOf(pieces, FRAME, 0.7 * frame) : [];
+      const marks: TwinFlash[] = flashes.map((share, f) => ({
+        at: share * FRAME,
+        fade: 2 + 0.1 * f,
+        x: 0.01 * f,
+        y: -0.02,
+      }));
+      const asked = command([], FRAME, pieces, shakes, { drive, ...more });
+      const before = withStamps.twins.map((twin) => ({
+        theta: Float64Array.from(twin.theta),
+        omega: Float64Array.from(twin.omega),
+      }));
+      const stamped = withStamps.run({
+        ...asked,
+        stamps: { parts: "whole", flashes: marks },
+      });
+      const plain = without.run(asked);
+      return { stamped, plain, before, marks, drive, shakes, pieces, chain };
+    };
+  }
+
+  for (const n of [2, 5]) {
+    it(`sends back, where it joins no curves, each twin's masses where its own step puts them at each flash, and moves no twin otherwise, with ${String(n)} masses`, () => {
+      const run = sideBySide(n, [0.3, 0.71, 1]);
+      const stepper = new Stepper(Chain.uniform(n), { maxStep: TWIN_STEP });
+      const x = new Float64Array(n);
+      const y = new Float64Array(n);
+      let worst = 0;
+      for (let frame = 0; frame < 12; frame++) {
+        const { stamped, plain, before, marks, drive, shakes, pieces, chain } =
+          run(frame);
+        // the motion is the same, number for number
+        expect(stamped.tips).toEqual(plain.tips);
+        expect(stamped.stamps?.flashes).toEqual(marks);
+        expect(stamped.stampPlaces).toHaveLength(2 * n * marks.length * fan);
+        const step = FRAME / pieces;
+        for (let k = 0; k < fan; k++) {
+          marks.forEach((mark, f) => {
+            // the twin as it was, its own step taken to the flash's instant
+            const piece = Math.min(pieces - 1, Math.ceil(mark.at / step) - 1);
+            const copy = {
+              theta: Float64Array.from(before[k]?.theta ?? []),
+              omega: Float64Array.from(before[k]?.omega ?? []),
+            };
+            for (let p = 0; p < piece; p++) {
+              stepper.advance(copy, step, g, {
+                shake: shakes[p] ?? null,
+                drive,
+                into: p * step,
+              });
+            }
+            stepper.advance(copy, mark.at - piece * step, g, {
+              shake: shakes[piece] ?? null,
+              drive,
+              into: piece * step,
+            });
+            chain.positions(copy.theta, x, y);
+            const at = 2 * n * (k * marks.length + f);
+            for (let i = 0; i < n; i++) {
+              worst = Math.max(
+                worst,
+                Math.hypot(
+                  (stamped.stampPlaces[at + 2 * i] ?? 0) - (x[i] ?? 0),
+                  (stamped.stampPlaces[at + 2 * i + 1] ?? 0) - (y[i] ?? 0),
+                ),
+              );
+            }
+          });
+        }
+      }
+      // within a fifth of a millimetre, float32 places included
+      expect(worst).toBeLessThan(2e-4);
+    });
+  }
+
+  it("stamps each twin at a flash that ends the frame where the frame leaves it", () => {
+    const n = 3;
+    const run = sideBySide(n, [1], { whole: true });
+    for (let frame = 0; frame < 3; frame++) {
+      const { stamped } = run(frame);
+      expect(stamped.stampPlaces).toEqual(stamped.positions);
+    }
+  });
+
+  it("stamps them into a batch of its own where it joins curves, each twin in its colour, tinted, in the trails' light times its own times the music's, from the pivot at the flash, at its fade: as the main line would from their places", () => {
+    const n = 2;
+    const palette = 3;
+    const tint = { color: [0.1, 0.8, 0.3] as const, amount: 0.4 };
+    const shine = Float64Array.from({ length: fan }, (_, k) => 0.3 + 0.1 * k);
+    const paint = { light: 0.12, music: 1.5, shine, palette, tint };
+    // the same twins, one share joining curves with stamps alone, the other
+    // sending places back
+    const joining = new TwinShare(0, 1, n);
+    const placing = new TwinShare(0, 1, n);
+    const born = command([bornAll(raised(n), fan, 0, 1, 0.3)], 0, 0);
+    joining.run(born);
+    placing.run(born);
+    const flashes: TwinFlash[] = [
+      { at: 0.4 * FRAME, fade: 3.25, x: 0.02, y: -0.01 },
+    ];
+    for (const parts of ["tip", "masses", "rods", "whole"] as const) {
+      const asked = command([], FRAME, 4, [], {
+        stamps: { parts, flashes },
+      });
+      const joined = joining.run({
+        ...asked,
+        curves: { ...paint, lines: false },
+      });
+      const placed = placing.run(asked);
+      const curves = joined.curves;
+      if (curves === null) throw new Error("no curves came back");
+      // stamps alone: no lines joined, and no places sent back
+      expect(curves.fresh.count).toBe(0);
+      expect(curves.closed.count).toBe(0);
+      expect(joined.stampPlaces).toHaveLength(0);
+      const expected = new SpanBatch();
+      for (let k = 0; k < fan; k++) {
+        const base = fanPalette(palette).color(fanPlace(k));
+        stampTwin(
+          expected,
+          parts,
+          n,
+          placed.stampPlaces,
+          2 * n * k,
+          0.02,
+          -0.01,
+          mixColors(base, tint.color, tint.amount),
+          0.12 * (shine[k] ?? 1) * 1.5,
+          3.25,
+        );
+      }
+      expect(curves.stamps.count).toBe(expected.count);
+      expect(spanBytes(curves.stamps.bytes, curves.stamps.count)).toEqual(
+        spanBytes(expected.bytes(), expected.count),
+      );
+    }
+  });
+
+  it("stamps no twin, and sends nothing of stamps back, without a flash, without stamps, or with no time", () => {
+    const share = new TwinShare(0, 1, 2);
+    share.run(command([bornAll(raised(2), 3, 0, 1, 0.1)], 0, 0));
+    const none = share.run(
+      command([], FRAME, 4, [], { stamps: { parts: "whole", flashes: [] } }),
+    );
+    expect(none.stampPlaces).toHaveLength(0);
+    expect(none.stamps).toBeNull();
+    const asleep = share.run(
+      command([], 0, 0, [], {
+        stamps: {
+          parts: "whole",
+          flashes: [{ at: 0, fade: 0, x: 0, y: 0 }],
+        },
+      }),
+    );
+    expect(asleep.stampPlaces).toHaveLength(0);
+    expect(asleep.stamps).toBeNull();
+    const joined = share.run(
+      command([], FRAME, 4, [], {
+        curves: {
+          light: 0.1,
+          music: 1,
+          shine: null,
+          palette: 0,
+          tint: null,
+          lines: false,
+        },
+      }),
+    );
+    expect(joined.curves?.stamps.count).toBe(0);
   });
 });
