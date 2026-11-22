@@ -53,7 +53,7 @@ export function twinCurve(
   fresh: SpanBatch,
   closed: SpanBatch,
   j: number,
-  report: TwinReport,
+  report: Pick<TwinReport, "pieces" | "tips" | "tipSpeeds" | "clock" | "time">,
   at: number,
   color: Rgb,
   light: number,

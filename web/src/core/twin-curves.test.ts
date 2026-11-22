@@ -59,6 +59,8 @@ function report(pieces: number, time: number, from = 0): TwinReport {
   }
   return {
     generation: 0,
+    seq: 0,
+    curves: null,
     asked: 1,
     count: 1,
     n: 2,

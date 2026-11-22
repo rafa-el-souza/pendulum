@@ -20,10 +20,21 @@ addEventListener("message", (event: MessageEvent<TwinSetup | TwinCommand>) => {
   }
   if (share === null) throw new Error("a command came before the setup");
   const report = share.run(message);
-  scope.postMessage(report, [
+  const handed: Transferable[] = [
     report.positions.buffer,
     report.tips.buffer,
     report.tipSpeeds.buffer,
     report.apart.buffer,
-  ]);
+  ];
+  // the twins' trails joined into curves here, where asked (decision 95)
+  const { curves } = report;
+  if (curves !== null) {
+    handed.push(
+      curves.fresh.bytes,
+      curves.closed.bytes,
+      curves.split.bytes,
+      curves.open.bytes,
+    );
+  }
+  scope.postMessage(report, handed);
 });

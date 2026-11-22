@@ -390,6 +390,8 @@ export function mountTwins(
       // the music's forces over the same time (decision 74)
       drive: simulated > 0 ? motion.drive : null,
       budget: twins.local ? TWIN_LOCAL_MS : twinBudget,
+      // the twins' trails are joined into curves here, as they come back
+      curves: null,
     });
   }
 
