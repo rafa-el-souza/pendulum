@@ -109,7 +109,7 @@ hanging rope it becomes as n grows.
   The controls wait behind one small button in a corner, which opens a thin
   row of icons: the pause, the light, and six groups, time and the start,
   the chain, the twins, the trails, the music and the screen, each opening
-  its own row of icons above it. Each control has a key too, and the address carries every
+  its own row of icons above it. Most controls have a key too, and the address carries every
   value and switch, so a view can be shared: through the device's own sheet
   for sharing, or as a QR code to open it on a phone. And it can listen to
   music, through the microphone, from a file, from the sound of a browser
@@ -121,8 +121,9 @@ hanging rope it becomes as n grows.
   and has twins born again from it on every attack. Its group offers candidates beside that, each changing one
   thing of it. Five move the chain: the kicks take its pivot aside and back,
   as a speaker's cone; an unseen hand of the music swings its tip to the
-  other side on every kick, or, as the address asks, round other figures, on
-  the beat or on other sounds; the loudness gives it energy, which it loses
+  other side on every kick, or, as the dance's own row in that group or the
+  address asks, round other figures, on the beat or on other sounds; the
+  loudness gives it energy, which it loses
   in silence;
   gravity leans to the other side on every kick; or gravity is tuned for the
   whole chain to swing once a bar, its pivot pushed on the beats. The others
