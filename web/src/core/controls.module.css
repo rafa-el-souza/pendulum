@@ -146,6 +146,45 @@
   display: none;
 }
 
+/* A group's row too wide for the screen scrolls sideways, as the row does,
+   faded at a side with more of it out of sight (decision 89). */
+/* Where a group's row begins another set, a gap as wide as the row's
+   between its sets (decision 89). */
+.break {
+  flex: none;
+  width: 0.5rem;
+}
+
+.group[data-wide] {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+  touch-action: pan-x;
+}
+
+.group[data-wide]::-webkit-scrollbar {
+  display: none;
+}
+
+.group[data-more="right"] {
+  mask-image: linear-gradient(to left, transparent 1.5rem, #000 3.5rem);
+}
+
+.group[data-more="left"] {
+  mask-image: linear-gradient(to right, transparent 1.5rem, #000 3.5rem);
+}
+
+.group[data-more="both"] {
+  mask-image: linear-gradient(
+    to right,
+    transparent 1.5rem,
+    #000 3.5rem,
+    #000 calc(100% - 3.5rem),
+    transparent calc(100% - 1.5rem)
+  );
+}
+
 /* On a narrow phone the row's icons sit a little closer, so that the eight
    of its first level fit beside the button without scrolling: at 40 px they
    need 396 px of screen. */
@@ -184,7 +223,8 @@
 .tool:hover,
 .launcher:hover,
 .tool[aria-expanded="true"],
-.tool[data-lights][aria-pressed="true"] {
+.tool[data-lights][aria-pressed="true"],
+.tool[data-lit] {
   color: var(--color-ink);
 }
 

@@ -3220,6 +3220,40 @@ again by a control of the twins; a scale; the start stepped with a moment
 saved; the mark left): the saved moment's code and the screen the same, byte
 for byte.
 
+## 89. The dance has a row of its own, in the music's group
+
+*2026-11-22.* The music's group of the row gets a button for the dance, a
+dancer, which opens the dance's own row stacked above the music's: a group
+within a group, one level deeper than decision 54's. The row holds a control
+for each layer of the dance's choreography (decisions 83, 85 and 87), in
+their order and apart in sets: the figure and where it is traced; what leads
+it, the beats from point to point and the feel; what the size and the middle
+follow, and whether the grip pulses; the mass held, the grip, the slack, and
+the hand, shown or hidden; when the hand lets go and catches, and when the
+figure changes. Each steps through the values its layer takes in the
+address, shown in words, and has no keys. A value chosen there puts the
+music's mode on the dance, as a control of the light lights it (decision 27),
+and the dance's button is lit while the music dances. A group's row too wide
+for the screen scrolls sideways, faded at a side with more, as the row does.
+Escape shuts the dance's row first, then the music's, and the music's group
+opens again as it was left. The dance opens as before.
+
+**Why.** The choreography could be composed only by writing the address; now
+each layer is changed from the row and seen as it changes, while the bottom
+row keeps its eight icons, which a 390 px screen fits.
+
+**Evidence.** Unit tests: each control takes every value of its layer and
+gives it back, opening at the dance as it opens; a figure stepped keeps the
+rest of a list; a control stepped makes the dance's event, and the event
+that puts the music on the dance where it does something else; the address
+carries both. Browser tests: the dance's row opens above the music's, in the
+layers' order, within a 390 px screen and scrolling; Escape shuts it, then
+the music's, which opens again with it; a value chosen goes into the address
+with the music on the dance, and lights the button; the hand's switch shows
+the hand; the address opened again shows the dance as it was left. The
+icons were chosen from a sheet of candidates at the row's size, and looked
+at built, at 390 px and on a desktop.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.

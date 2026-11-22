@@ -55,7 +55,23 @@ export type Icon =
   | "tab"
   | "drum"
   | "sparkles"
-  | "wedge";
+  | "wedge"
+  | "dance"
+  | "figure"
+  | "place"
+  | "baton"
+  | "beats"
+  | "ease"
+  | "width"
+  | "aim"
+  | "pulse"
+  | "tweezers"
+  | "magnet"
+  | "slack"
+  | "palm"
+  | "palmed"
+  | "juggle"
+  | "next";
 
 const SVG = "http://www.w3.org/2000/svg";
 
@@ -269,6 +285,85 @@ const ICONS: Record<
     stroke: "",
   },
   wedge: { fill: "M3.5 18.5L20.5 5.5v13z", stroke: "" },
+  // The dance's button in the music's group, and the dance's own row (decision
+  // 89), in the order of its layers: a dancer; the figure, an eight; where it
+  // is traced, a map's pin; what leads it, a conductor's baton; the beats from
+  // one point to the next, beads on a string and a leap over two; the feel, an
+  // easing curve; what the size follows, arrows to either side; what the
+  // middle follows, a sight; whether the grip pulses, a heartbeat; the mass
+  // held, tweezers holding a bead; the grip, a magnet; the slack, a rope
+  // sagging below a taut one recalled faint; the hand, filled while shown and
+  // outlined while hidden; letting go and catching, a juggler's three balls;
+  // the figure that comes next, a player's next track.
+  dance: {
+    fill: "M11.5 4a2 2 0 1 0 4 0a2 2 0 1 0 -4 0z",
+    stroke:
+      "M12.8 7L11 13.5M12.3 8.5L7 5.5M12.3 8.5L17.5 10.5M11 13.5L8 20.5M11 13.5L16 16.5L19.5 14.5",
+  },
+  figure: {
+    fill: "",
+    stroke:
+      "M12 12c-2-3-4-4.5-6-4.5a4.5 4.5 0 0 0 0 9c2 0 4-1.5 6-4.5s4-4.5 6-4.5a4.5 4.5 0 0 1 0 9c-2 0-4-1.5-6-4.5",
+  },
+  place: {
+    fill: "",
+    stroke:
+      "M12 21.5s-6.5-6.4-6.5-11.5a6.5 6.5 0 0 1 13 0c0 5.1-6.5 11.5-6.5 11.5zM9.7 10a2.3 2.3 0 1 0 4.6 0a2.3 2.3 0 1 0 -4.6 0",
+  },
+  baton: {
+    fill: "M2.9 18.8a2.3 2.3 0 1 0 4.6 0a2.3 2.3 0 1 0 -4.6 0z",
+    stroke:
+      "M6.5 17.5L18 6M14.5 3c2.3.5 4 2.1 4.6 4.4M19 1.8c1.6.8 2.7 2 3.2 3.6",
+  },
+  beats: {
+    fill: "M2.7 17a1.8 1.8 0 1 0 3.6 0a1.8 1.8 0 1 0 -3.6 0zM8.1 17a1.4 1.4 0 1 0 2.8 0a1.4 1.4 0 1 0 -2.8 0zM12.7 17a1.8 1.8 0 1 0 3.6 0a1.8 1.8 0 1 0 -3.6 0zM18.1 17a1.4 1.4 0 1 0 2.8 0a1.4 1.4 0 1 0 -2.8 0z",
+    stroke: "M4.5 12.5Q9.5 3 14.5 12.5M12.3 11.4l2.2 1.1.6-2.4",
+    faint: "M3 17h18",
+  },
+  ease: {
+    fill: "M2.4 20a1.6 1.6 0 1 0 3.2 0a1.6 1.6 0 1 0 -3.2 0zM18.4 4a1.6 1.6 0 1 0 3.2 0a1.6 1.6 0 1 0 -3.2 0z",
+    stroke: "M4 20C11.5 20 12.5 4 20 4",
+    faint: "M4 20V4M4 20h16",
+  },
+  width: {
+    fill: "",
+    stroke: "M3.5 12h17M7 8.5L3.5 12 7 15.5M17 8.5l3.5 3.5-3.5 3.5",
+  },
+  aim: {
+    fill: "M10.5 12a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0 -3 0z",
+    stroke:
+      "M5.5 12a6.5 6.5 0 1 0 13 0a6.5 6.5 0 1 0 -13 0M12 2.5v5M12 16.5v5M2.5 12h5M16.5 12h5",
+  },
+  pulse: { fill: "", stroke: "M2.5 12.5h5l2-4.5 3 9 2.5-6.5 1.5 2h5" },
+  tweezers: {
+    fill: "M9 17.8a3 3 0 1 0 6 0a3 3 0 1 0 -6 0z",
+    stroke: "M5.5 3l5.2 11M18.5 3l-5.2 11",
+  },
+  magnet: {
+    fill: "M5.5 16.5h3.5v4.5H5.5zM15 16.5h3.5v4.5H15z",
+    stroke: "M7.25 21V10a4.75 4.75 0 0 1 9.5 0v11",
+  },
+  slack: {
+    fill: "M1.7 6a1.8 1.8 0 1 0 3.6 0a1.8 1.8 0 1 0 -3.6 0zM18.7 6a1.8 1.8 0 1 0 3.6 0a1.8 1.8 0 1 0 -3.6 0z",
+    stroke: "M3.5 6C8 18 16 18 20.5 6",
+    faint: "M3.5 6h17",
+  },
+  palm: {
+    fill: "",
+    stroke:
+      "M8.5 21v-4.5L5.6 13a1.2 1.2 0 0 1 1.7-1.7L8.5 12.6V5.4a1.4 1.4 0 0 1 2.8 0V11V4a1.4 1.4 0 0 1 2.8 0v7V5.2a1.4 1.4 0 0 1 2.8 0V11.8V8a1.4 1.4 0 0 1 2.8 0v7c0 3.3-2.7 6-6 6z",
+  },
+  palmed: {
+    fill: "M8.5 21v-4.5L5.6 13a1.2 1.2 0 0 1 1.7-1.7L8.5 12.6V5.4a1.4 1.4 0 0 1 2.8 0V11V4a1.4 1.4 0 0 1 2.8 0v7V5.2a1.4 1.4 0 0 1 2.8 0V11.8V8a1.4 1.4 0 0 1 2.8 0v7c0 3.3-2.7 6-6 6z",
+    stroke:
+      "M8.5 21v-4.5L5.6 13a1.2 1.2 0 0 1 1.7-1.7L8.5 12.6V5.4a1.4 1.4 0 0 1 2.8 0V11V4a1.4 1.4 0 0 1 2.8 0v7V5.2a1.4 1.4 0 0 1 2.8 0V11.8V8a1.4 1.4 0 0 1 2.8 0v7c0 3.3-2.7 6-6 6z",
+  },
+  juggle: {
+    fill: "M4.1 11a2.1 2.1 0 1 0 4.2 0a2.1 2.1 0 1 0 -4.2 0zM9.9 6.8a2.1 2.1 0 1 0 4.2 0a2.1 2.1 0 1 0 -4.2 0zM15.7 11a2.1 2.1 0 1 0 4.2 0a2.1 2.1 0 1 0 -4.2 0z",
+    stroke: "",
+    faint: "M4 19C4 3.5 20 3.5 20 19",
+  },
+  next: { fill: "M5 6l9 6-9 6zM15.5 6h2.5v12h-2.5z", stroke: "" },
   // Three of the groups of the row (decision 54); the chain's and the
   // trails' take the icons of their first controls. A clock: time and the
   // start.

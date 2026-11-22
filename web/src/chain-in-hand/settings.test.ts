@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import { WHOLE_VIEW } from "../core/view.ts";
 import { openingOf, type Saved } from "./address.ts";
+import { FIGURE, LEAD } from "./dance-row.ts";
+import { DANCE_OPENS } from "./forces/choreography.ts";
 import {
   AMPLITUDE,
   GROUND,
@@ -127,6 +129,37 @@ describe("the piece's events from a control stepped (decision 88)", () => {
     expect(settings.step(MODE, 1)).toEqual([
       { kind: "value", parameter: MODE, value: 2, was: 2 },
     ]);
+  });
+});
+
+describe("the dance's events, from its row (decision 89)", () => {
+  it("take a layer to its next value, and put the music's mode on the dance where it is not, as a control of the light lights it", () => {
+    expect(opened().step(LEAD, -1)).toEqual([
+      { kind: "dance", choreography: { ...DANCE_OPENS, lead: "clock" } },
+      { kind: "music", mode: "dance", strength: 3 },
+    ]);
+    expect(opened("?music=dance").step(FIGURE, 1)).toEqual([
+      { kind: "dance", choreography: { ...DANCE_OPENS, figure: "circle" } },
+    ]);
+  });
+
+  it("leave the dance in the settings and in the address, the mode with it", () => {
+    const settings = opened("?n=3");
+    for (const event of settings.step(FIGURE, 1)) settings.apply(event);
+    for (const event of settings.dance({
+      ...settings.choreography,
+      shown: true,
+    })) {
+      settings.apply(event);
+    }
+    expect(settings.choreography).toEqual({
+      ...DANCE_OPENS,
+      figure: "circle",
+      shown: true,
+    });
+    expect(settings.address("?n=3", WHOLE_VIEW)).toBe(
+      "?music=dance&figure=circle&showhand=1&n=3",
+    );
   });
 });
 

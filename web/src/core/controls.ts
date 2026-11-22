@@ -11,7 +11,10 @@
 // changed: with the row open, in its group. A group may show more than
 // values above its row, as the music's meter and words do while none of its
 // values is chosen, and a key may open it, as W does the music's (decision
-// 76). The row, the group and the value stay as the visitor leaves them, and
+// 76). A group may hold groups of its own, whose rows open stacked above
+// the group's, as the dance's above the music's, and a group's row too wide
+// for the screen scrolls sideways, faded at a side with more (decision 89).
+// The row, the group and the value stay as the visitor leaves them, and
 // come back so when the row is opened again. On a touch screen, a touch on the controls keeps them in sight for
 // longer, a touch where they are brings them back without grabbing the
 // chain, and a touch on the stage puts them away. Keyboard focus and a mouse
@@ -47,17 +50,24 @@ export interface Action {
 /** A control in the row: a parameter, stepped down and up, or an action. */
 export type Control = Parameter | Action;
 
-/** A group of controls (decision 54): its icon in the row opens the group's own row of icons right above it. */
+/**
+ * A group of controls (decision 54): its icon in the row opens the group's own
+ * row of icons right above it. A group in the row may hold groups of its own,
+ * one level deep, each opening its row stacked above the group's (decision
+ * 89).
+ */
 export interface Group {
   readonly id: string;
   readonly label: string;
   readonly icon: Icon;
-  readonly controls: readonly Control[];
+  readonly controls: readonly (Control | Group)[];
   /** What the group shows right above its row while none of its values is chosen, as the music's meter and words (decision 76). */
   readonly panel?: HTMLElement;
   /** The keys that open the group, or shut it, which the piece listens for and `toggleGroup` answers, and how its title shows them. */
   readonly keys?: readonly string[];
   readonly keysShown?: string;
+  /** The controls that each begin a set of the group's row, apart from the one before as the row's sets are (decision 89). */
+  readonly breaks?: readonly string[];
 }
 
 /** What the row holds: controls, and groups of them. */
@@ -99,6 +109,8 @@ export interface Controls {
   toggleGroup(id: string): void;
   /** Shows three bars risen to `levels`, from 0 to 1, in place of the group's icon, as the music's while the piece listens; null brings the icon back (decision 76). */
   showLevels(id: string, levels: readonly number[] | null): void;
+  /** Shows a group's icon lit, or not, as the dance's while the music dances, its words saying so (decision 89). */
+  lightGroup(id: string, lit: boolean, label: string): void;
 }
 
 /** How long the controls stay in sight after a sign of a visitor on the stage, in ms. */
@@ -215,7 +227,7 @@ function isParameter(control: Control): control is Parameter {
   return "values" in control;
 }
 
-function isGroup(item: Item): item is Group {
+function isGroup(item: Item | Group): item is Group {
   return "controls" in item;
 }
 
@@ -297,15 +309,19 @@ export function mountControls(
   tray.className = cls(styles, "tray");
   tray.append(launcher, track);
 
-  // The open group's row, right above the row and its own icon (decision 54).
+  // The open group's row, right above the row and its own icon (decision 54),
+  // and the row of a group in it, stacked above (decision 89).
   const shelf = document.createElement("div");
   shelf.className = cls(styles, "shelf");
   shelf.hidden = true;
+  const upper = document.createElement("div");
+  upper.className = cls(styles, "shelf");
+  upper.hidden = true;
 
   // The value chosen, which opens right above its icon.
   const readout = document.createElement("div");
   readout.className = cls(styles, "readout");
-  dock.append(shelf, tray, readout);
+  dock.append(upper, shelf, tray, readout);
 
   const button = (
     className: string,
@@ -340,7 +356,8 @@ export function mountControls(
     string,
     { button: HTMLButtonElement; keysShown: string }
   >();
-  // each group's icon in the row and its own row, and the group of each control
+  // each group's icon and its own row, the group it is in, if any, and the
+  // group of each control
   const groups = new Map<
     string,
     {
@@ -348,6 +365,7 @@ export function mountControls(
       row: HTMLElement;
       icon: Icon;
       panel: HTMLElement | null;
+      parent: string | null;
     }
   >();
   // the bars shown in place of a group's icon while its levels move
@@ -355,10 +373,14 @@ export function mountControls(
   const groupOf = new Map<string, string>();
   let chosen: string | null = null;
   let group: string | null = null;
+  // the group open within the open group (decision 89)
+  let inner: string | null = null;
   let open = false;
-  // what was open last, which comes back as it was left (decision 54): the
-  // group, and in each group the value
+  // what was open last, which comes back as it was left (decisions 54 and
+  // 89): the group, in each group the group open within it, and in each
+  // group the value
   let lastGroup: string | null = null;
+  const lastInner = new Map<string, string | null>();
   const lastChosen = new Map<string, string | null>();
 
   /** Shows the value of the parameter `id` above its icon, or none. */
@@ -385,15 +407,29 @@ export function mountControls(
     }
   }
 
-  /** Shows the row of the group `id` above its icon, or none, with the value that was open in it. */
+  /** Shows the row of the group `id` above its icon, or none, with the group that was open in it and the value that was open there. */
   function setGroup(id: string | null): void {
     group = id;
-    for (const [key, { button, row: own }] of groups) {
+    for (const [key, { button, row: own, parent }] of groups) {
+      if (parent !== null) continue;
       own.hidden = key !== id;
       button.setAttribute("aria-expanded", String(key === id));
     }
     shelf.hidden = id === null;
-    setChosen(id === null ? null : (lastChosen.get(id) ?? null));
+    setInner(id === null ? null : (lastInner.get(id) ?? null));
+  }
+
+  /** Shows the row of the group `id`, within the open group, stacked above its row, or none, with the value that was open in it (decision 89). */
+  function setInner(id: string | null): void {
+    inner = id;
+    for (const [key, { button, row: own, parent }] of groups) {
+      if (parent === null) continue;
+      own.hidden = key !== id;
+      button.setAttribute("aria-expanded", String(key === id));
+    }
+    upper.hidden = id === null;
+    const at = id ?? group;
+    setChosen(at === null ? null : (lastChosen.get(at) ?? null));
     showPanels();
     place();
   }
@@ -402,10 +438,24 @@ export function mountControls(
   function remember(): void {
     lastGroup = group;
     if (group === null) return;
+    lastInner.set(group, inner);
+    const at = inner ?? group;
     lastChosen.set(
-      group,
-      chosen !== null && groupOf.get(chosen) === group ? chosen : null,
+      at,
+      chosen !== null && groupOf.get(chosen) === at ? chosen : null,
     );
+  }
+
+  /** A group's row too wide for the screen scrolls, faded at a side with more of it out of sight (decision 89). */
+  function fit(own: HTMLElement): void {
+    const room = innerWidth - 2 * EDGE;
+    const wide = own.scrollWidth > room + 1;
+    if (wide) own.style.maxWidth = `${String(room)}px`;
+    else own.style.removeProperty("max-width");
+    own.toggleAttribute("data-wide", wide);
+    own.dataset.more = wide
+      ? moreToScroll(own.scrollLeft, own.scrollWidth, own.clientWidth)
+      : "";
   }
 
   /**
@@ -417,15 +467,21 @@ export function mountControls(
   function place(): void {
     const dockLeft = dock.getBoundingClientRect().left;
     const shown = group === null ? undefined : groups.get(group);
-    if (open && shown !== undefined) {
-      const at = shown.button.getBoundingClientRect();
+    // each open row over its icon: the group's, and the one open in it
+    for (const id of [group, inner]) {
+      const opened = id === null ? undefined : groups.get(id);
+      if (!open || opened === undefined) continue;
+      fit(opened.row);
+      const at = opened.button.getBoundingClientRect();
       const left = centredOver(
         at.left + at.width / 2,
-        shown.row.offsetWidth,
+        opened.row.offsetWidth,
         EDGE,
         innerWidth - EDGE,
       );
-      shown.row.style.left = `${String(left - dockLeft)}px`;
+      opened.row.style.left = `${String(left - dockLeft)}px`;
+    }
+    if (open && shown !== undefined) {
       // the panel above it, centred on the group's icon too
       const panel = panelShown();
       if (panel !== null) {
@@ -442,15 +498,7 @@ export function mountControls(
     if (chosen === null) return;
     const entry = entries.get(chosen);
     if (entry === undefined) return;
-    const owner = groupOf.get(chosen);
-    const owned = owner === undefined ? undefined : groups.get(owner);
-    const anchor = (
-      !open
-        ? launcher
-        : owned === undefined || owner === group
-          ? entry.tool
-          : owned.button
-    ).getBoundingClientRect();
+    const anchor = anchorOf(chosen, entry.tool).getBoundingClientRect();
     // its keys, beside it where a pointer hovers, stay on the screen too
     const keys = entry.keys.offsetWidth;
     const left = centredOver(
@@ -460,6 +508,23 @@ export function mountControls(
       innerWidth - EDGE - (keys === 0 ? 0 : keys + 2),
     );
     readout.style.left = `${String(left - dockLeft)}px`;
+  }
+
+  /**
+   * Where the value of the control `id` opens: above its icon where its row
+   * is open; with the row open and its group shut, above the icon of the
+   * group, or of the group within it, that is in sight; with the row shut,
+   * above the button.
+   */
+  function anchorOf(id: string, tool: HTMLElement): HTMLElement {
+    if (!open) return launcher;
+    const owner = groupOf.get(id);
+    if (owner === undefined) return tool;
+    if (owner === group || owner === inner) return tool;
+    const owned = groups.get(owner);
+    if (owned === undefined) return tool;
+    if (owned.parent !== null && owned.parent === group) return owned.button;
+    return groups.get(owned.parent ?? owner)?.button ?? tool;
   }
 
   /** Puts a control's icon `into` a row: an action's, which acts, or a parameter's, which opens its value. */
@@ -577,54 +642,90 @@ export function mountControls(
     });
   }
 
+  /**
+   * A group's icon, which opens its own row above it, or shuts it: in the
+   * row, a group's row right above it; in a group's row, a group's row
+   * stacked above that (decision 89), and no deeper.
+   */
+  function addGroup(item: Group, parent: string | null): HTMLButtonElement {
+    const own = document.createElement("div");
+    own.className = cls(styles, "group");
+    own.id = `group-${item.id}`;
+    own.setAttribute("role", "toolbar");
+    own.setAttribute("aria-label", item.label);
+    own.hidden = true;
+    const opener = button(
+      "tool",
+      drawIcon(item.icon),
+      item.label,
+      item.keys ?? [],
+      () => {
+        if (parent === null) setGroup(group === item.id ? null : item.id);
+        else setInner(inner === item.id ? null : item.id);
+        remember();
+        wake();
+      },
+    );
+    if (item.keysShown !== undefined) {
+      opener.title = `${item.label} (${item.keysShown})`;
+    }
+    opener.setAttribute("aria-expanded", "false");
+    opener.setAttribute("aria-controls", own.id);
+    for (const member of item.controls) {
+      if (item.breaks?.includes(member.id) === true) {
+        own.append(hidden("break"));
+      }
+      if (!isGroup(member)) {
+        groupOf.set(member.id, item.id);
+        add(own, member);
+      } else if (parent !== null) {
+        throw new Error(`${member.id} is a group two deep, in ${item.id}`);
+      } else {
+        own.append(addGroup(member, item.id));
+      }
+    }
+    // a wide row's fade, and the value chosen above it, follow it as it
+    // scrolls, and a wheel turned up and down scrolls it sideways, as the
+    // row's do
+    own.addEventListener(
+      "scroll",
+      () => {
+        place();
+      },
+      { passive: true },
+    );
+    own.addEventListener(
+      "wheel",
+      (event) => {
+        const fits = own.scrollWidth <= own.clientWidth;
+        if (fits || Math.abs(event.deltaX) >= Math.abs(event.deltaY)) return;
+        event.preventDefault();
+        own.scrollLeft += event.deltaY * (event.deltaMode === 1 ? 16 : 1);
+      },
+      { passive: false },
+    );
+    (parent === null ? shelf : upper).append(own);
+    const panel = item.panel ?? null;
+    if (panel !== null) {
+      panel.hidden = true;
+      readout.append(panel);
+    }
+    groups.set(item.id, {
+      button: opener,
+      row: own,
+      icon: item.icon,
+      panel,
+      parent,
+    });
+    return opener;
+  }
+
   for (const set of sets) {
     const cluster = document.createElement("div");
     cluster.className = cls(styles, "set");
     for (const item of set) {
-      if (!isGroup(item)) {
-        add(cluster, item);
-        continue;
-      }
-      // the group's icon, which opens its own row above it, or shuts it
-      const own = document.createElement("div");
-      own.className = cls(styles, "group");
-      own.id = `group-${item.id}`;
-      own.setAttribute("role", "toolbar");
-      own.setAttribute("aria-label", item.label);
-      own.hidden = true;
-      const opener = button(
-        "tool",
-        drawIcon(item.icon),
-        item.label,
-        item.keys ?? [],
-        () => {
-          setGroup(group === item.id ? null : item.id);
-          remember();
-          wake();
-        },
-      );
-      if (item.keysShown !== undefined) {
-        opener.title = `${item.label} (${item.keysShown})`;
-      }
-      opener.setAttribute("aria-expanded", "false");
-      opener.setAttribute("aria-controls", own.id);
-      cluster.append(opener);
-      for (const control of item.controls) {
-        groupOf.set(control.id, item.id);
-        add(own, control);
-      }
-      shelf.append(own);
-      const panel = item.panel ?? null;
-      if (panel !== null) {
-        panel.hidden = true;
-        readout.append(panel);
-      }
-      groups.set(item.id, {
-        button: opener,
-        row: own,
-        icon: item.icon,
-        panel,
-      });
+      if (isGroup(item)) cluster.append(addGroup(item, null));
+      else add(cluster, item);
     }
     row.append(cluster);
   }
@@ -700,8 +801,10 @@ export function mountControls(
   /** Where the controls are on the screen: the button with the row, the open group's row, and the value chosen. */
   function boxes(): Box[] {
     const all: Box[] = [tray.getBoundingClientRect()];
-    const shown = group === null ? undefined : groups.get(group);
-    if (shown !== undefined) all.push(shown.row.getBoundingClientRect());
+    for (const id of [group, inner]) {
+      const shown = id === null ? undefined : groups.get(id);
+      if (shown !== undefined) all.push(shown.row.getBoundingClientRect());
+    }
     if (chosen !== null || panelShown() !== null) {
       all.push(readout.getBoundingClientRect());
     }
@@ -809,10 +912,20 @@ export function mountControls(
   launcher.addEventListener("click", () => {
     setOpen(!open);
   });
-  // Escape shuts the open group, then the row, and a focus that was in what
-  // it shut goes back to the icon that opened it.
+  // Escape shuts the group open within a group, then the open group, then
+  // the row, and a focus that was in what it shut goes back to the icon that
+  // opened it.
   addEventListener("keydown", (event) => {
     if (event.key !== "Escape" || !open) return;
+    const within = inner === null ? undefined : groups.get(inner);
+    if (within !== undefined) {
+      const inside = within.row.contains(document.activeElement);
+      setInner(null);
+      remember();
+      if (inside) within.button.focus();
+      wake();
+      return;
+    }
     const shown = group === null ? undefined : groups.get(group);
     if (shown !== undefined) {
       const inside = shown.row.contains(document.activeElement);
@@ -834,10 +947,14 @@ export function mountControls(
   function choose(id: string): void {
     if (!entries.has(id)) throw new Error(`no control shows ${id}`);
     const owner = groupOf.get(id) ?? null;
-    if (open && owner !== null && owner !== group) setGroup(owner);
+    const parent = owner === null ? null : (groups.get(owner)?.parent ?? null);
+    const top = parent ?? owner;
+    if (open && top !== null && top !== group) setGroup(top);
+    if (open && parent !== null && inner !== owner) setInner(owner);
     setChosen(id);
-    if (owner !== null) {
-      lastGroup = owner;
+    if (top !== null && owner !== null) {
+      lastGroup = top;
+      if (parent !== null) lastInner.set(top, owner);
       lastChosen.set(owner, id);
     }
     wake();
@@ -851,7 +968,8 @@ export function mountControls(
     notice(id) {
       const owner = groupOf.get(id) ?? null;
       const reading = chosen !== null && chosen !== id;
-      const elsewhere = group !== null && owner !== group;
+      const at = inner ?? group;
+      const elsewhere = at !== null && owner !== at;
       if (open && (reading || elsewhere)) {
         wake();
         return;
@@ -955,6 +1073,13 @@ export function mountControls(
       // the bars stand still halfway, which says the piece listens
       if (!open) return;
       setBars(drawn, still.matches ? levels.map(() => 0.5) : levels);
+    },
+    lightGroup(id, lit, label) {
+      const shown = groups.get(id);
+      if (shown === undefined) throw new Error(`no group ${id}`);
+      shown.button.toggleAttribute("data-lit", lit);
+      shown.button.setAttribute("aria-label", label);
+      shown.button.title = label;
     },
   };
 }
