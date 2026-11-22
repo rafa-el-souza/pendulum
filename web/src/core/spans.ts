@@ -4,7 +4,9 @@
 // in the order they came, so that a view draws only the squares it sees, and
 // a mark, the count of spans each square had, says where the spans after an
 // instant begin. The pool grows by doubling to its most; past it, the page
-// taken longest ago leaves before its time.
+// taken longest ago leaves before its time. On the card, the pool is made of
+// pieces of 2 MB, each made as its first page is taken, so that growing never
+// copies nor sends again the spans it holds (decision 99).
 
 import {
   SPAN_BYTES,
@@ -245,6 +247,10 @@ const PAGE = 1024;
 /** The pool's pages at first: 2 MB. */
 const FIRST_PAGES = 40;
 
+/** Spans a piece of the pool holds on the graphics card, whole pages, and its bytes: 2 MB (decision 99). */
+const PIECE_SPANS = FIRST_PAGES * PAGE;
+const PIECE_BYTES = PIECE_SPANS * SPAN_BYTES;
+
 /**
  * The most pages: 64 MB, room for the 400 000 spans the window keeps
  * between snapshots (sharp.ts) and for pages partly filled in every square.
@@ -265,15 +271,21 @@ export function windowFull(free: number): boolean {
   return free < CELLS;
 }
 
+/** A piece of the pool: its buffer on the graphics card, and its bytes here, whence what changed is sent. */
+interface Piece {
+  readonly buffer: WebGLBuffer;
+  readonly u8: Uint8Array;
+}
+
 /** The window: the spans since a snapshot, on the graphics card, square by square. */
 export class SpanWindow {
   readonly #gl: WebGL2RenderingContext;
   readonly #half: number;
   readonly #pages: SpanPages;
-  #pool: WebGLBuffer;
-  #capacity = 0;
-  #u8: Uint8Array;
-  // the bytes changed since the pool was last sent, page by page
+  // the pool on the card, piece by piece, each made as its first page is
+  // taken (decision 99)
+  readonly #pieces: Piece[] = [];
+  // the bytes changed since they were last sent, page by page
   #dirtyFrom = new Int32Array(0);
   #dirtyTo = new Int32Array(0);
   readonly #dirty: number[] = [];
@@ -288,8 +300,6 @@ export class SpanWindow {
     this.#gl = gl;
     this.#half = 1.25 * reach;
     this.#pages = new SpanPages(PAGE, FIRST_PAGES, mostPages(keep));
-    this.#pool = gl.createBuffer();
-    this.#u8 = new Uint8Array(0);
     this.#fit();
   }
 
@@ -308,31 +318,35 @@ export class SpanWindow {
     return windowFull(this.#pages.free);
   }
 
-  /** The bytes the pool takes on the graphics card. */
+  /** The bytes the pool takes on the graphics card: the pieces made. */
   get bytes(): number {
-    return this.#capacity * PAGE * SPAN_BYTES;
+    return this.#pieces.length * PIECE_BYTES;
   }
 
-  /** The pool as large as the pages are, its spans kept, sent again whole when it grew. */
+  /** Room to note what changed in every page of the pool, kept as it grows. */
   #fit(): void {
     const capacity = this.#pages.capacity;
-    if (capacity === this.#capacity) return;
-    const bytes = new ArrayBuffer(capacity * PAGE * SPAN_BYTES);
-    const u8 = new Uint8Array(bytes);
-    u8.set(this.#u8);
-    this.#u8 = u8;
     const from = new Int32Array(capacity).fill(-1);
     const to = new Int32Array(capacity);
     from.set(this.#dirtyFrom);
     to.set(this.#dirtyTo);
     this.#dirtyFrom = from;
     this.#dirtyTo = to;
-    const gl = this.#gl;
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.#pool);
-    gl.bufferData(gl.ARRAY_BUFFER, this.#u8, gl.DYNAMIC_DRAW);
-    for (const p of this.#dirty) this.#dirtyFrom[p] = -1;
-    this.#dirty.length = 0;
-    this.#capacity = capacity;
+  }
+
+  /** The piece that holds slot `slot`, made, with any before it, if it was not (decision 99). */
+  #piece(slot: number): Piece {
+    const which = Math.floor(slot / PIECE_SPANS);
+    for (;;) {
+      const piece = this.#pieces[which];
+      if (piece !== undefined) return piece;
+      const gl = this.#gl;
+      const buffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+      // made on the card at its size, its bytes sent as spans fill them
+      gl.bufferData(gl.ARRAY_BUFFER, PIECE_BYTES, gl.DYNAMIC_DRAW);
+      this.#pieces.push({ buffer, u8: new Uint8Array(PIECE_BYTES) });
+    }
   }
 
   /** Adds the spans of `batch`, each to its square, and sends what changed to the card. */
@@ -352,10 +366,10 @@ export class SpanWindow {
         this.#half,
       );
       const slot = this.#pages.add(cell);
-      if (this.#pages.capacity !== this.#capacity) this.#fit();
-      this.#u8.set(
+      if (this.#pages.capacity !== this.#dirtyFrom.length) this.#fit();
+      this.#piece(slot).u8.set(
         batch.u8.subarray(i * SPAN_BYTES, (i + 1) * SPAN_BYTES),
-        slot * SPAN_BYTES,
+        (slot % PIECE_SPANS) * SPAN_BYTES,
       );
       const p = Math.floor(slot / PAGE);
       const at = slot - p * PAGE;
@@ -369,15 +383,18 @@ export class SpanWindow {
       }
     }
     const gl = this.#gl;
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.#pool);
     for (const p of this.#dirty) {
       const from = this.#dirtyFrom[p] ?? 0;
       const to = this.#dirtyTo[p] ?? 0;
-      const start = (p * PAGE + from) * SPAN_BYTES;
+      // a page lies within a piece
+      const slot = p * PAGE + from;
+      const piece = this.#piece(slot);
+      const start = (slot % PIECE_SPANS) * SPAN_BYTES;
+      gl.bindBuffer(gl.ARRAY_BUFFER, piece.buffer);
       gl.bufferSubData(
         gl.ARRAY_BUFFER,
         start,
-        this.#u8,
+        piece.u8,
         start,
         (to - from) * SPAN_BYTES,
       );
@@ -408,7 +425,12 @@ export class SpanWindow {
     for (let cell = 0; cell <= LONG; cell++) {
       if (!meets(cell, view, this.#half)) continue;
       for (const [first, count] of this.#pages.runs(cell)) {
-        lines.from(this.#pool, first, count);
+        // a run lies within a page, and so within a piece (decision 99)
+        const piece = this.#pieces[Math.floor(first / PIECE_SPANS)];
+        if (piece === undefined) {
+          throw new Error("the window holds spans in a piece never made");
+        }
+        lines.from(piece.buffer, first % PIECE_SPANS, count);
         this.drawn += count;
       }
     }

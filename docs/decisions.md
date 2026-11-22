@@ -3497,6 +3497,35 @@ and from 10.3 to 4.0 ms at the 99th percentile, taking the twins from 4.7 to
 after every worker stalled for two frames, as they had once without the
 change. With eight masses, 3.3 to 1.8 ms, and the fan 7% wider on average.
 
+## 99. The window of curves grows on the graphics card a piece at a time
+
+*2026-11-22.* The window of trails kept as curves (decision 68) keeps its
+spans on the graphics card in pieces of 2 MB, each made as its first page is
+taken, where it kept one pool that doubled when full. Growing no longer
+copies what the window holds nor sends it to the card again: a frame sends
+its new spans alone. What is drawn does not change. The meter's memory
+(decision 68) counts the pieces made.
+
+**Why.** Each time the pool doubled, that frame copied it and sent it to the
+card whole, each doubling twice as costly as the one before. On a desktop
+with a graphics card, eleven of thirteen recordings of twenty seconds
+(decision 94) held a frame of 16 to 40 ms in the trails, at an instant that
+differed from case to case, and none at the third snapshot with two masses,
+which a stall of the snapshots would have shown. Timed part by part in a
+browser drawing without a graphics card, the doublings cost 3, 6, 15 and
+28 ms as the pool grew to 32 MB; a snapshot, 0.3 ms.
+
+**Evidence.** Unit tests, on a card that keeps its buffers' bytes: each
+batch sends the card its own spans and nothing more, every buffer made is
+one piece's size, and each span is drawn from where it was put, square by
+square in the order it came, across pieces. In the browser, side by side
+with the code before, on the page's own clock: the opening for 900 frames,
+past a snapshot, and 1 024 twins through a zoom, the window grown over many
+pieces, and eighteen cases of decisions 90, 92 and 96, the screen the same,
+byte for byte. The opening recorded from its start for 40 s without a
+graphics card: the frames that grew the pool, 11.5 and 16.0 ms in the
+trails, are gone; the slowest frame's trails take 2.9 ms.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
