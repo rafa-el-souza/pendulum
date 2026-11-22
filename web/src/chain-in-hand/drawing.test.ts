@@ -1,12 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  TRAIL_JUMP,
-  layerOf,
-  trailLayers,
-  veilShine,
-  type TrailLayer,
-} from "./drawing.ts";
+import { TRAIL_JUMP } from "../core/curves.ts";
+import { layerOf, trailLayers, veilShine, type TrailLayer } from "./drawing.ts";
 import { LINES, STROBE, TWIN_LINES, TWIN_STROBE } from "./parameters.ts";
 
 // The first piece's drawing (docs/decisions.md, decisions 90 and 96): the

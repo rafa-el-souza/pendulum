@@ -3373,6 +3373,40 @@ them, no recorder. In the browser, side by side with the code before, on the
 page's own clock, the forty-four cases of decisions 90 and 92: the saved
 moment's code and the screen the same, byte for byte.
 
+## 95. A share of the twins can join its twins' trails into curves where it runs
+
+*2026-11-22.* A share of the twins (decision 51) can join its own twins'
+trails into curves (decision 68) where it runs, in a worker or on the main
+line, with the numbers the page joins them with: each tip where the pivot
+was at each instant, under the command's own music (decision 75), in its
+place's colour tinted as the music asks (decisions 23 and 46), in the
+trails' light times its own while the twins fade (decision 43) times the
+music's. It sends back the intervals to draw now, the spans they closed,
+those a split closed before its time, and those still open, as bytes handed
+over, not copied. A split or a forget of those curves goes to every share as
+an event, the commands are numbered, and the page can tell when every share
+has had each command it was sent taken back. A twin's curve and the pivot
+over a report are pure functions in `core/`. The page asks for no curves
+yet, and joins them itself, as before. The merger and the twins' jump take a
+square root where `Math.hypot` was. Nothing on screen changes.
+
+**Why.** With few masses and thousands of twins, joining the twins' trails
+into curves took most of a frame on the main line; where the twins move, it
+can go beside their motion. The square root gives the same curves sooner:
+28 to 38% less time in the merger, the curves the same byte for byte, in a
+bench of 627 000 curves.
+
+**Evidence.** Unit tests: a share joins the same spans as the page, byte for
+byte, alone and as one of three shares, over forty frames with the music's
+kicks and tint, a twin born again, twins dropped, a split and a forget; a
+command that asks for none gets none; the lens measures the fan's stretch
+across a split and a forget as if neither had come (decision 64); the
+commands are numbered, and every share is in step once each report is taken;
+a batch hands its spans over as bytes and takes another's after its own. In
+the browser, side by side with the code before, on the page's own clock, the
+forty-four cases of decisions 90 and 92: the saved moment's code and the
+screen the same, byte for byte.
+
 ## 96. The trails are drawn in four layers, each a control of its own
 
 *2026-11-22.* The trails' style and the ribbon (decisions 26, 50 and 53)

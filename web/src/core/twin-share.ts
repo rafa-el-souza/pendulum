@@ -17,6 +17,11 @@
    unchecked-index rule cannot see. */
 
 import { Chain, type Gravity } from "../physics/chain.ts";
+import type { Rgb } from "./color.ts";
+import { Merger, SpanBatch } from "./curves.ts";
+import { mixColors } from "./grounds.ts";
+import { fanPalette } from "./palettes.ts";
+import { pivotsOver, twinCurve } from "./twin-curves.ts";
 import type { Drive } from "../physics/drive.ts";
 import { resample } from "../physics/resample.ts";
 import {
@@ -29,6 +34,7 @@ import {
   apart,
   bornTwin,
   drawIn,
+  fanPlace,
   leashFactor,
   rootMeanSquare,
 } from "./twins.ts";
@@ -64,6 +70,18 @@ export type TwinEvent =
   | {
       /** Time the other way: each twin keeps its place and moves the opposite way (decision 28). */
       readonly kind: "reverse";
+    }
+  | {
+      /**
+       * Every trail's open curve ends at its newest sample, and the next
+       * begins there (decision 95), as the trails kept as curves split them
+       * for a snapshot (decision 69).
+       */
+      readonly kind: "split";
+    }
+  | {
+      /** Every trail's open curve is let go, none closed: the trails were put out (decision 95). */
+      readonly kind: "forget";
     };
 
 /**
@@ -99,6 +117,41 @@ export interface TwinClock {
   readonly fade: number;
   /** The half-lives a second the time fades at. */
   readonly rate: number;
+}
+
+/**
+ * What a share needs to join its twins' trails into curves where it runs
+ * (decision 95), with the numbers the main line joins them with otherwise
+ * (decisions 21, 23, 43 and 46).
+ */
+export interface TwinCurves {
+  /** How bright every twin's trail is drawn, and how many times the music makes it brighter this frame. */
+  readonly light: number;
+  readonly music: number;
+  /** Each of the share's twins' own light while they fade, by its place in the share; none while they stay. */
+  readonly shine: Float64Array | null;
+  /** The palette the fan is painted from, by its place in the fan. */
+  readonly palette: number;
+  /** The note's colour mixed into the twins, and how much, while the music tints them; none otherwise. */
+  readonly tint: { readonly color: Rgb; readonly amount: number } | null;
+}
+
+/** Spans laid out as a batch lays them (curves.ts): the first `count` of `bytes`. */
+export interface SpanBytes {
+  readonly bytes: ArrayBuffer;
+  readonly count: number;
+}
+
+/**
+ * A share's twins' trails joined into curves (decision 95): the intervals
+ * drawn now, the spans they closed, those a split closed before the time
+ * went by, and those still open as it ends, for a view drawn anew.
+ */
+export interface TwinCurveReport {
+  readonly fresh: SpanBytes;
+  readonly closed: SpanBytes;
+  readonly split: SpanBytes;
+  readonly open: SpanBytes;
 }
 
 /** A frame's work for a share. */
@@ -139,11 +192,19 @@ export interface TwinCommand {
   readonly budget: number;
   /** How many times the fan had been put out when this was sent: a report of an older time is not drawn. */
   readonly generation: number;
+  /** The command's number, counted as the commands are sent; its report gives it back. */
+  readonly seq: number;
+  /** What the share needs to join its twins' trails into curves where it runs (decision 95); none where the main line joins them, or there are none. */
+  readonly curves: TwinCurves | null;
 }
 
 /** What a share sends back from a command: its twins as they are now. */
 export interface TwinReport {
   readonly generation: number;
+  /** The command's number. */
+  readonly seq: number;
+  /** The share's twins' trails joined into curves, where the command asked (decision 95); none otherwise. */
+  readonly curves: TwinCurveReport | null;
   /** The share's twins when the time began to go by, and those it advanced: the rest are dropped. */
   readonly asked: number;
   readonly count: number;
@@ -199,6 +260,19 @@ export class TwinShare {
   #heldX: Float64Array;
   #heldY: Float64Array;
   #held = new Float64Array(0);
+  // The share's twins' trails, joined into curves here where the command
+  // asks (decision 95), each twin by its place in the share; the batches of a
+  // command; the palette's colours by place, and where the pivot was at each
+  // instant of a command.
+  readonly #merger = new Merger();
+  readonly #fresh = new SpanBatch(1024);
+  readonly #closed = new SpanBatch(256);
+  readonly #split = new SpanBatch(256);
+  readonly #open = new SpanBatch(1024);
+  #palette = Number.NaN;
+  #colors: Rgb[] = [];
+  #pivots = new Float64Array(2);
+  #pivotSpeeds = new Float64Array(2);
 
   /** A share of no twins yet, of chains of n masses, timed by `clock` (performance.now). */
   constructor(
@@ -271,6 +345,7 @@ export class TwinShare {
       done++;
     }
     twins.length = done;
+    const curves = this.#join(command, pieces, tips, tipSpeeds, done);
 
     const positions = new Float32Array(command.whole ? 2 * n * done : 0);
     const distances = new Float64Array(command.chain === null ? 0 : done);
@@ -300,6 +375,8 @@ export class TwinShare {
         : null;
     return {
       generation: command.generation,
+      seq: command.seq,
+      curves,
       asked,
       count: done,
       n,
@@ -314,6 +391,82 @@ export class TwinShare {
       stretch: stretch ?? 0,
       stretchTime: stretch === null ? 0 : command.time,
     };
+  }
+
+  /**
+   * The share's first `count` twins' tips along a command of `pieces`
+   * pieces, joined into their trails' curves as the main line would join
+   * them (decision 95): each tip where the pivot was at each instant, under
+   * the command's own music (decision 75), in its place's colour, tinted as
+   * the music asks, in the trails' light times its own times the music's.
+   * Then every curve still open, for a view drawn anew. None where the
+   * command asks for none.
+   */
+  #join(
+    command: TwinCommand,
+    pieces: number,
+    tips: Float32Array,
+    tipSpeeds: Float32Array,
+    count: number,
+  ): TwinCurveReport | null {
+    const { curves, clock } = command;
+    if (curves === null) {
+      this.#split.clear();
+      return null;
+    }
+    if (pieces > 0 && clock !== null) {
+      if (this.#pivots.length !== 2 * (pieces + 1)) {
+        this.#pivots = new Float64Array(2 * (pieces + 1));
+        this.#pivotSpeeds = new Float64Array(2 * (pieces + 1));
+      }
+      pivotsOver(
+        command.drive,
+        pieces,
+        command.time,
+        this.#pivots,
+        this.#pivotSpeeds,
+      );
+      const along = { pieces, tips, tipSpeeds, clock, time: command.time };
+      const stride = 2 * (pieces + 1);
+      for (let k = 0; k < count; k++) {
+        const shine = curves.shine?.[k] ?? 1;
+        twinCurve(
+          this.#merger,
+          this.#fresh,
+          this.#closed,
+          k,
+          along,
+          stride * k,
+          this.#colorOf(this.index + k * this.shares, curves),
+          curves.light * shine * curves.music,
+          this.#pivots,
+          this.#pivotSpeeds,
+        );
+      }
+    }
+    this.#merger.openSpans(this.#open);
+    return {
+      fresh: handed(this.#fresh),
+      closed: handed(this.#closed),
+      split: handed(this.#split),
+      open: handed(this.#open),
+    };
+  }
+
+  /** Twin `j`'s colour this command: its place's in the fan's palette, tinted as the music asks (decision 46). */
+  #colorOf(j: number, curves: TwinCurves): Rgb {
+    if (curves.palette !== this.#palette) {
+      this.#palette = curves.palette;
+      this.#colors = [];
+    }
+    const k = (j - this.index) / this.shares;
+    let color = this.#colors[k];
+    if (color === undefined) {
+      color = fanPalette(curves.palette).color(fanPlace(j));
+      this.#colors[k] = color;
+    }
+    const { tint } = curves;
+    return tint === null ? color : mixColors(color, tint.color, tint.amount);
   }
 
   /**
@@ -359,6 +512,15 @@ export class TwinShare {
   }
 
   #apply(event: TwinEvent): void {
+    // the trails' curves, which say nothing of the twins themselves
+    if (event.kind === "split") {
+      this.#merger.splitAll(this.#split);
+      return;
+    }
+    if (event.kind === "forget") {
+      this.#merger.forget();
+      return;
+    }
     const twins = this.#twins;
     // the fan's width after the last command says nothing of it now
     this.#widthAfter = 0;
@@ -432,4 +594,11 @@ export class TwinShare {
     out[at] = px;
     out[at + 1] = py;
   }
+}
+
+/** The spans of `batch` as bytes of their own, handed over, and the batch emptied for the next command. */
+function handed(batch: SpanBatch): SpanBytes {
+  const spans = { bytes: batch.bytes(), count: batch.count };
+  batch.clear();
+  return spans;
 }

@@ -11,6 +11,15 @@
 import type { Rgb } from "./color.ts";
 import type { View } from "./view.ts";
 
+/**
+ * How far (dx, dy) reaches: the square root of the sum of their squares,
+ * which `Math.hypot` takes longer to give, guarding against sums too large or
+ * too small for a float, which a trail's distances never come near.
+ */
+export function lengthOf(dx: number, dy: number): number {
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
 /** Bytes a span takes: ends and tangents as eight floats, its colour as four bytes, its light and fade clock at both ends as four floats. */
 export const SPAN_BYTES = 52;
 const FLOATS = SPAN_BYTES / 4;
@@ -23,6 +32,13 @@ export const MERGE_REACH = 0.07;
 
 /** The most intervals between samples a span joins. */
 export const MERGE_MOST = 16;
+
+/**
+ * A tip that moves farther than this, in metres, in one piece has jumped
+ * (raised again, or given other masses), and leaves no trail across the jump
+ * (decision 21).
+ */
+export const TRAIL_JUMP = 0.5;
 
 /** How far from straight a span's light may run, as a share of it. */
 const LIGHT_TOLERANCE = 0.02;
@@ -71,6 +87,34 @@ export class SpanBatch {
     this.count = 0;
   }
 
+  /** The spans in use, as bytes of their own, which can be handed to another thread. */
+  bytes(): ArrayBuffer {
+    return this.#bytes.slice(0, this.count * SPAN_BYTES);
+  }
+
+  /** The first `count` spans laid out in `bytes`, after those here, as they are. */
+  append(bytes: ArrayBuffer, count: number): void {
+    if (count <= 0) return;
+    this.#fit(this.count + count);
+    this.#u8.set(
+      new Uint8Array(bytes, 0, count * SPAN_BYTES),
+      this.count * SPAN_BYTES,
+    );
+    this.count += count;
+  }
+
+  /** Room for `spans` spans, the batch's bytes doubled as often as it takes. */
+  #fit(spans: number): void {
+    if (spans * SPAN_BYTES <= this.#bytes.byteLength) return;
+    let length = this.#bytes.byteLength;
+    while (spans * SPAN_BYTES > length) length *= 2;
+    const grown = new ArrayBuffer(length);
+    new Uint8Array(grown).set(this.#u8);
+    this.#bytes = grown;
+    this.#f32 = new Float32Array(grown);
+    this.#u8 = new Uint8Array(grown);
+  }
+
   push(
     x0: number,
     y0: number,
@@ -87,13 +131,7 @@ export class SpanBatch {
     f1: number,
     point = false,
   ): void {
-    if ((this.count + 1) * SPAN_BYTES > this.#bytes.byteLength) {
-      const grown = new ArrayBuffer(this.#bytes.byteLength * 2);
-      new Uint8Array(grown).set(this.#u8);
-      this.#bytes = grown;
-      this.#f32 = new Float32Array(grown);
-      this.#u8 = new Uint8Array(grown);
-    }
+    this.#fit(this.count + 1);
     const f = this.count * FLOATS;
     const f32 = this.#f32;
     f32[f] = x0;
@@ -521,7 +559,7 @@ export class Merger {
   continues(id: number, x: number, y: number, eps: number): boolean {
     if (id >= this.#cap || this.#open[id] === 0) return false;
     const o = SAMPLE * id;
-    return Math.hypot((this.#z[o] ?? 0) - x, (this.#z[o + 1] ?? 0) - y) <= eps;
+    return lengthOf((this.#z[o] ?? 0) - x, (this.#z[o + 1] ?? 0) - y) <= eps;
   }
 
   /** Ends trail `id`'s open span where it is, into `closed`, and forgets the trail. */
@@ -620,7 +658,7 @@ export class Merger {
       h10 * (e[5] ?? 0) +
       h01 * (e[3] ?? 0) +
       h11 * (e[7] ?? 0);
-    if (Math.hypot(hx - px, hy - py) > this.tolerance) return false;
+    if (lengthOf(hx - px, hy - py) > this.tolerance) return false;
     const al = a[o + 6] ?? 0;
     const want = al + (light - al) * u;
     if (
@@ -703,7 +741,7 @@ export class Merger {
     let fits =
       sameColour &&
       intervals < this.most &&
-      Math.hypot(x - (a[o] ?? 0), y - (a[o + 1] ?? 0)) <= this.reach;
+      lengthOf(x - (a[o] ?? 0), y - (a[o + 1] ?? 0)) <= this.reach;
     if (fits && intervals > 0) {
       // the curve from the span's first sample to this one, against the
       // samples between: the newest so far, and those it skipped already
