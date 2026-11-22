@@ -10,6 +10,7 @@ import {
   bendOf,
   hermiteAt,
   piecesFor,
+  pushPoint,
   pushStraight,
   strays,
   type Span,
@@ -43,6 +44,7 @@ describe("a span's curve", () => {
     l1: 1,
     f0: 0,
     f1: 0,
+    point: false,
   };
 
   it("runs from its first end to its last, leaving each along its tangent", () => {
@@ -132,6 +134,34 @@ describe("a straight span, as a strobe's stamp (decision 91)", () => {
     // and bends nowhere: one straight piece even at sixty-four times nearer
     // on a large screen, a hundred thousand pixels to the metre
     expect(piecesFor(bendOf(span) * 1e5, 0.05, 16)).toBe(1);
+    expect(span.point).toBe(false);
+  });
+
+  it("can be brighter at one end than at the other, as a rod of the veil whose ends moved apart (decision 96)", () => {
+    const batch = new SpanBatch();
+    pushStraight(batch, 0, 0, 0.3, -0.4, WHITE, 0, 3.5, 0.12);
+    const span = only(batch);
+    expect([span.l0, span.l1]).toEqual([0, 0.12].map(Math.fround));
+    expect([span.f0, span.f1]).toEqual([3.5, 3.5]);
+  });
+});
+
+describe("a point, as a strobe's stamp of a mass or a twin's tip (decision 96)", () => {
+  it("is a span of no length, marked as a point, which the shader draws round, at one instant of the fade", () => {
+    const batch = new SpanBatch();
+    pushPoint(batch, 0.2, -0.7, [1, 0.5, 0], 0.9, 2.25);
+    pushStraight(batch, 0, 0, 0.3, -0.4, WHITE, 0.45, 2.25);
+    const point = only(batch);
+    expect([point.x0, point.y0, point.x1, point.y1]).toEqual(
+      [0.2, -0.7, 0.2, -0.7].map(Math.fround),
+    );
+    expect([point.mx0, point.my0, point.mx1, point.my1]).toEqual([0, 0, 0, 0]);
+    expect(point.rgb).toEqual([1, 128 / 255, 0]);
+    expect([point.l0, point.l1]).toEqual([0.9, 0.9].map(Math.fround));
+    expect([point.f0, point.f1]).toEqual([2.25, 2.25]);
+    expect(point.point).toBe(true);
+    // the band after it is no point
+    expect(only(batch, 1).point).toBe(false);
   });
 });
 
