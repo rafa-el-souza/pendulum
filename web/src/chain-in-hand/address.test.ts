@@ -38,6 +38,11 @@ function opening() {
   };
 }
 
+/** `values` with the trails' style and the ribbon as the piece opened with them, as codes before version 11 hold them (decision 96). */
+function retired(values: ReadonlyMap<string, number>): Map<string, number> {
+  return new Map([...values, ["style", 0], ["ribbon", 0]]);
+}
+
 describe("the first piece's address (decision 38)", () => {
   it("has switches whose ids are no parameter's: the light, the tension's colours and the sketch's light", () => {
     expect(() => {
@@ -123,15 +128,50 @@ describe("the first piece's address (decision 38)", () => {
     expect(opened.saved?.state.theta).toHaveLength(3);
   });
 
-  it("writes codes of version 6, which hold the trails' style apart from how long they last, and the twins' look apart from whether they fade (decision 53)", () => {
+  it("writes codes of version 11, which hold the trails' four layers in place of their style and the ribbon (decision 96)", () => {
     const { values, switches } = opening();
     values.set("n", 3);
     values.set("fade", 1);
     values.set("look", 1);
     values.set("trail", 100);
-    values.set("style", 1);
+    values.set("lines", 3);
+    values.set("strobe", 4);
+    values.set("twinlines", 0);
+    values.set("twinstrobe", 1);
     const opened = openingOf("", addressOf(values, switches, moment(3), ""));
     expect(opened.values).toEqual(values);
+    expect(CODE.version).toBe(11);
+  });
+
+  it("opens a code of version 10 with its style and ribbon as the same screen: the strobe of before stamps the chain's rods, without lines, and the ribbon draws lines from every mass (decision 96)", () => {
+    const { switches } = opening();
+    const version10 = CODES.find(({ version }) => version === 10);
+    if (version10 === undefined) throw new Error("no code of version 10");
+    const written = (style: number, ribbon: number, look: number) => {
+      const values = new Map(opening().values);
+      values.delete("lines");
+      values.delete("strobe");
+      values.delete("twinlines");
+      values.delete("twinstrobe");
+      values.set("n", 3);
+      values.set("style", style);
+      values.set("ribbon", ribbon);
+      values.set("look", look);
+      return `#${writeCode(version10, { values, switches, ...moment(3) })}`;
+    };
+    const strobe = openingOf("", written(1, 1, 0)).values;
+    expect(strobe.get("lines")).toBe(0);
+    expect(strobe.get("strobe")).toBe(3);
+    expect(strobe.get("twinlines")).toBe(0);
+    expect(strobe.get("twinstrobe")).toBe(0);
+    const ribbon = openingOf("", written(0, 1, 0)).values;
+    expect(ribbon.get("lines")).toBe(2);
+    expect(ribbon.get("strobe")).toBe(0);
+    expect(ribbon.get("twinlines")).toBe(1);
+    const dust = openingOf("", written(0, 0, 1)).values;
+    expect(dust.get("lines")).toBe(1);
+    expect(dust.get("twinlines")).toBe(0);
+    expect(dust.get("look")).toBe(1);
   });
 
   it("opens a code of version 5 as the published page wrote it, its strobe's trails and its dust as the same screen: a strobe's trails of a second, and twins that stay, as dust (decision 53)", () => {
@@ -142,28 +182,73 @@ describe("the first piece's address (decision 38)", () => {
     expect(opened.values.get("fade")).toBe(0);
     expect(opened.values.get("look")).toBe(1);
     expect(opened.values.get("trail")).toBe(1);
-    expect(opened.values.get("style")).toBe(1);
+    expect(opened.values.get("strobe")).toBe(3);
+    expect(opened.values.get("lines")).toBe(0);
+    expect(opened.values.get("twinlines")).toBe(0);
+    expect(opened.values.get("twinstrobe")).toBe(0);
     expect(opened.saved?.paused).toBe(true);
     expect(opened.saved?.savedAt).toBe(Date.UTC(2026, 10, 18, 13, 51));
     expect(opened.saved?.state.theta).toHaveLength(3);
   });
 
-  it("opens a readable address of the published page with the strobe's trails or the twins as dust as the same screen (decision 53)", () => {
+  it("opens a readable address of the published page with the strobe's trails or the twins as dust as the same screen (decisions 53 and 96)", () => {
     const both = openingOf("?fade=2&trail=50", "").values;
     expect(both.get("fade")).toBe(0);
     expect(both.get("look")).toBe(1);
     expect(both.get("trail")).toBe(1);
-    expect(both.get("style")).toBe(1);
+    expect(both.get("strobe")).toBe(3);
+    expect(both.get("lines")).toBe(0);
+    expect(both.get("twinlines")).toBe(0);
     const strobe = openingOf("?trail=50&n=4", "").values;
     expect(strobe.get("trail")).toBe(1);
-    expect(strobe.get("style")).toBe(1);
+    expect(strobe.get("strobe")).toBe(3);
+    expect(strobe.get("lines")).toBe(0);
     expect(strobe.get("look")).toBe(0);
     expect(strobe.get("n")).toBe(4);
     const dust = openingOf("?fade=2", "").values;
     expect(dust.get("fade")).toBe(0);
     expect(dust.get("look")).toBe(1);
     expect(dust.get("trail")).toBe(2.5);
-    expect(dust.get("style")).toBe(0);
+    expect(dust.get("strobe")).toBe(0);
+    expect(dust.get("lines")).toBe(1);
+    expect(dust.get("twinlines")).toBe(0);
+  });
+
+  it("opens a readable address written with the trails' style and the ribbon as it showed: the strobe of before stamps the chain's rods, with no lines from the chain or the twins, its ribbon idle; the ribbon draws lines from every mass; the twins as dust draw no lines (decision 96)", () => {
+    const strobe = openingOf("?style=1", "").values;
+    expect(strobe.get("strobe")).toBe(3);
+    expect(strobe.get("lines")).toBe(0);
+    expect(strobe.get("twinlines")).toBe(0);
+    expect(strobe.get("twinstrobe")).toBe(0);
+    expect(openingOf("?style=1&ribbon=1", "").values.get("lines")).toBe(0);
+    const ribbon = openingOf("?ribbon=1", "").values;
+    expect(ribbon.get("lines")).toBe(2);
+    expect(ribbon.get("strobe")).toBe(0);
+    expect(ribbon.get("twinlines")).toBe(1);
+    expect(openingOf("?look=1", "").values.get("twinlines")).toBe(0);
+    expect(openingOf("?look=1&twinlines=1", "").values.get("twinlines")).toBe(
+      1,
+    );
+    const lines = openingOf("?style=0&ribbon=0", "").values;
+    expect(lines.get("lines")).toBe(1);
+    expect(lines.get("strobe")).toBe(0);
+  });
+
+  it("leaves the trails' style and the ribbon out of the addresses it writes, and carries whether the twins as dust draw lines, so that it reads as written (decision 96)", () => {
+    const { values, switches } = opening();
+    values.set("strobe", 3);
+    values.set("lines", 0);
+    expect(addressOf(values, switches, null, "?style=1&ribbon=1&fps=1")).toBe(
+      "?fps=1&lines=0&strobe=3",
+    );
+    values.set("look", 1);
+    const dust = addressOf(values, switches, null, "");
+    expect(dust).toBe("?look=1&lines=0&strobe=3&twinlines=1");
+    expect(openingOf(dust, "").values.get("twinlines")).toBe(1);
+    values.set("twinlines", 0);
+    const dark = addressOf(values, switches, null, "");
+    expect(dark).toBe("?look=1&lines=0&strobe=3&twinlines=0");
+    expect(openingOf(dark, "").values.get("twinlines")).toBe(0);
   });
 
   it("opens a code of version 4 as it was published", () => {
@@ -178,17 +263,20 @@ describe("the first piece's address (decision 38)", () => {
     expect(opened.saved?.state.theta).toHaveLength(3);
   });
 
-  it("carries the trails' style and the twins' look readable, without a moment", () => {
+  it("carries the trails' layers and the twins' look readable, without a moment", () => {
     const { values, switches } = opening();
     values.set("fade", 0);
     values.set("look", 1);
-    values.set("style", 1);
+    values.set("strobe", 2);
+    values.set("twinstrobe", 1);
     const address = addressOf(values, switches, null, "");
-    expect(address).toBe("?fade=0&look=1&style=1");
+    expect(address).toBe("?fade=0&look=1&strobe=2&twinstrobe=1&twinlines=1");
     const opened = openingOf(address, "");
     expect(opened.values.get("fade")).toBe(0);
     expect(opened.values.get("look")).toBe(1);
-    expect(opened.values.get("style")).toBe(1);
+    expect(opened.values.get("strobe")).toBe(2);
+    expect(opened.values.get("twinstrobe")).toBe(1);
+    expect(opened.values.get("twinlines")).toBe(1);
   });
 
   it("opens with the twins that fade, and carries the twins that stay readable, without a moment (decision 58)", () => {
@@ -207,13 +295,17 @@ describe("the first piece's address (decision 38)", () => {
     )) {
       const { values, switches } = opening();
       values.set("n", 3);
-      const code = writeCode(table, { values, switches, ...moment(3) });
+      const code = writeCode(table, {
+        values: retired(values),
+        switches,
+        ...moment(3),
+      });
       expect(openingOf("", `#${code}`).values.get("fade")).toBe(0);
     }
   });
 
   it("writes codes of version 10, which hold what of the chain is drawn, after the ground (decision 65)", () => {
-    expect(CODE.version).toBe(10);
+    expect(CODE.version).toBeGreaterThanOrEqual(10);
     const ids = CODE.controls.map(({ id }) => id);
     expect(ids.at(-1)).toBe("chain");
     expect(ids.at(-2)).toBe("ground");
@@ -231,7 +323,11 @@ describe("the first piece's address (decision 38)", () => {
     const ninth = CODES.find(({ version }) => version === 9);
     expect(ninth).toBeDefined();
     if (ninth === undefined) return;
-    const code = writeCode(ninth, { values, switches, ...moment(3) });
+    const code = writeCode(ninth, {
+      values: retired(values),
+      switches,
+      ...moment(3),
+    });
     const opened = openingOf("", `#${code}`).values;
     expect(opened).toEqual(values);
     expect(opened.get("chain")).toBe(0);
@@ -264,7 +360,11 @@ describe("the first piece's address (decision 38)", () => {
         values.set("n", 3);
         values.set("fade", fade);
         values.set("hold", hold);
-        const code = writeCode(ninth, { values, switches, ...moment(3) });
+        const code = writeCode(ninth, {
+          values: retired(values),
+          switches,
+          ...moment(3),
+        });
         expect(openingOf("", `#${code}`).values).toEqual(values);
       }
     }
@@ -275,11 +375,15 @@ describe("the first piece's address (decision 38)", () => {
     const eighth = CODES.find(({ version }) => version === 8);
     expect(eighth).toBeDefined();
     if (eighth === undefined) return;
-    const code = writeCode(eighth, { values, switches, ...moment(3) });
+    const code = writeCode(eighth, {
+      values: retired(values),
+      switches,
+      ...moment(3),
+    });
     expect(openingOf("", `#${code}`).values).toEqual(values);
     values.set("fade", 3);
     expect(() =>
-      writeCode(eighth, { values, switches, ...moment(3) }),
+      writeCode(eighth, { values: retired(values), switches, ...moment(3) }),
     ).toThrow();
   });
 
@@ -308,7 +412,11 @@ describe("the first piece's address (decision 38)", () => {
       const { values, switches } = opening();
       values.set("n", 3);
       values.set("spread", spread);
-      const code = writeCode(eighth, { values, switches, ...moment(3) });
+      const code = writeCode(eighth, {
+        values: retired(values),
+        switches,
+        ...moment(3),
+      });
       expect(openingOf("", `#${code}`).values).toEqual(values);
     }
     // a code of version 7 holds a spread up to a tenth, as published
@@ -318,11 +426,15 @@ describe("the first piece's address (decision 38)", () => {
     const seventh = CODES.find(({ version }) => version === 7);
     expect(seventh).toBeDefined();
     if (seventh === undefined) return;
-    const code = writeCode(seventh, { values, switches, ...moment(3) });
+    const code = writeCode(seventh, {
+      values: retired(values),
+      switches,
+      ...moment(3),
+    });
     expect(openingOf("", `#${code}`).values).toEqual(values);
     values.set("spread", 0.26);
     expect(() =>
-      writeCode(seventh, { values, switches, ...moment(3) }),
+      writeCode(seventh, { values: retired(values), switches, ...moment(3) }),
     ).toThrow();
   });
 
@@ -348,7 +460,11 @@ describe("the first piece's address (decision 38)", () => {
       const { values, switches } = opening();
       values.set("n", 3);
       values.set("white", white);
-      const code = writeCode(seventh, { values, switches, ...moment(3) });
+      const code = writeCode(seventh, {
+        values: retired(values),
+        switches,
+        ...moment(3),
+      });
       expect(openingOf("", `#${code}`).values).toEqual(values);
     }
   });
@@ -361,7 +477,11 @@ describe("the first piece's address (decision 38)", () => {
     for (const table of before) {
       const { values, switches } = opening();
       values.set("n", 3);
-      const code = writeCode(table, { values, switches, ...moment(3) });
+      const code = writeCode(table, {
+        values: retired(values),
+        switches,
+        ...moment(3),
+      });
       expect(openingOf("", `#${code}`).values.get("white")).toBe(0);
     }
     expect(openingOf("", `#${VERSION_5}`).values.get("white")).toBe(0);
