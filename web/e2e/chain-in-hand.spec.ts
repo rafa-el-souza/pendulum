@@ -1362,6 +1362,16 @@ test("a strobe's flashes stamp each twin's tip as a point that lights the trails
 }) => {
   const errors = collectErrors(page);
   await page.setViewportSize({ width: 640, height: 400 });
+  // On the page's own clock, with the twins on the main line: in real time,
+  // two pages of this chaotic motion lit up to three times apart without any
+  // points, and the points' light was lost between them. The clock starts a
+  // few milliseconds into each page, which still picks one of a few motions,
+  // so that pages without the points differ by up to a quarter.
+  await page.addInitScript(
+    "Object.defineProperty(window, 'Worker', { configurable: true, value: undefined });",
+  );
+  await page.clock.install({ time: Date.UTC(2026, 0, 1) });
+  await page.clock.pauseAt(Date.UTC(2026, 0, 1) + 1000);
   // the twins' and the trails' light alone with the twins stamped, and
   // without; no lines from the chain or the twins, the chain hidden
   const shown = async (trails: string, twinStrobe: number) => {
@@ -1369,17 +1379,19 @@ test("a strobe's flashes stamp each twin's tip as a point that lights the trails
       `./?twins=64&time=4&trail=600&lines=0&twinlines=0&chain=3&trails=${trails}&twinstrobe=${String(twinStrobe)}`,
     );
     await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
-    await frames(page, 40);
+    // eighty frames, each the clock's 16 ms
+    await page.clock.runFor(80 * 16);
     await page.keyboard.press(" ");
-    await frames(page, 3);
+    await page.clock.runFor(3 * 16);
     return lightShown(page);
   };
   for (const trails of ["sharp", "layers"]) {
     const without = await shown(trails, 0);
     const stamped = await shown(trails, 1);
-    // more than twice as much in Chromium on a desktop, in either, and 1.4
-    // times in WebKit on CI; without the points, as much
-    expect(stamped).toBeGreaterThan(1.15 * without);
+    // over eighty frames, 2.3 to 2.8 times as much in Chromium and Firefox
+    // and 2.0 to 2.5 in WebKit, in CI's image; half again stands clear of
+    // the quarter that pages differ by without the points
+    expect(stamped).toBeGreaterThan(1.5 * without);
   }
   expect(errors).toEqual([]);
 });
