@@ -271,6 +271,11 @@ export class TwinWorkers {
     return this.#local;
   }
 
+  /** The number the next command will carry, which an ask made now reaches the shares with (decision 96). */
+  get nextSeq(): number {
+    return this.#seq + 1;
+  }
+
   /** Whether every share has had every command it was sent taken back: none is a frame late (decision 95). */
   get inStep(): boolean {
     return this.#sent.every((seq, w) => (this.#taken[w] ?? 0) >= seq);
@@ -375,14 +380,28 @@ export class TwinWorkers {
     for (const events of this.#events) events.push({ kind: "forget" });
   }
 
-  /** Sends each share the frame's command, with the events since the last, under the next number. */
-  send(frame: TwinFrame): void {
+  /**
+   * Sends each share the frame's command, with the events since the last,
+   * under the next number; with `curvesFor`, each share its own numbers for
+   * joining its twins' curves (decision 96).
+   */
+  send(
+    frame: TwinFrame,
+    curvesFor?: (share: number) => TwinCommand["curves"],
+  ): void {
     const seq = ++this.#seq;
     this.#ports.forEach((port, w) => {
       const events = this.#events[w] ?? [];
       this.#events[w] = [];
       this.#sent[w] = seq;
-      port.send({ ...frame, events, generation: this.#generation, seq });
+      const curves = curvesFor === undefined ? frame.curves : curvesFor(w);
+      port.send({
+        ...frame,
+        curves,
+        events,
+        generation: this.#generation,
+        seq,
+      });
     });
   }
 
@@ -393,13 +412,20 @@ export class TwinWorkers {
    * measured. A share that dropped twins, or that its budget cannot carry,
    * cuts the fan to the first part every share carries; while the view
    * changes (`steady` false, decision 67), only one that dropped twins.
+   * Every report, of a fan put out since too, is handed to `back` first.
    */
-  take(see?: TwinVisit, steady = true): void {
+  take(
+    see?: TwinVisit,
+    steady = true,
+    back?: (share: number, report: TwinReport) => void,
+  ): void {
     const arrived = this.#arrived;
     this.#arrived = [];
     for (const { share: w, report } of arrived) {
       this.seen?.(w, report);
       this.#taken[w] = Math.max(this.#taken[w] ?? 0, report.seq);
+      // every report, of an old fan too, for what it joined (decision 96)
+      back?.(w, report);
       if (report.generation !== this.#generation) continue;
       this.#shown[w] = report;
       if (report.pieces > 0) {
