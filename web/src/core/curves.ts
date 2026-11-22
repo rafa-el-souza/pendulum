@@ -92,6 +92,11 @@ export class SpanBatch {
     return this.#bytes.slice(0, this.count * SPAN_BYTES);
   }
 
+  /** The spans of `other`, after those here, as they are. */
+  appendBatch(other: SpanBatch): void {
+    this.append(other.#bytes, other.count);
+  }
+
   /** The first `count` spans laid out in `bytes`, after those here, as they are. */
   append(bytes: ArrayBuffer, count: number): void {
     if (count <= 0) return;

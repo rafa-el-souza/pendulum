@@ -144,6 +144,8 @@ export interface FrameState {
   readonly reached: number;
   /** How the trails meet a new view (decision 71). */
   readonly mechanism: string;
+  /** The frames a snapshot due has waited for the twins' workers to be in step, since the trails began (decision 97). */
+  readonly waited: number;
 }
 
 // a frame's numbers, in the order of the record's columns
@@ -158,6 +160,7 @@ const STATE_COLUMNS = [
   "period",
   "late",
   "reached",
+  "waited",
 ] as const;
 
 /**
@@ -203,6 +206,7 @@ export class PerfRecord {
       period: state.period,
       late: state.late ? 1 : 0,
       reached: state.reached,
+      waited: state.waited,
     };
     for (const column of STATE_COLUMNS) this.#push(column, numbers[column]);
     this.reports.push(

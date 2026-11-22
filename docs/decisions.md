@@ -3451,6 +3451,52 @@ the page's own clock: the thirty-six cases of decisions 90 and 92, and five
 more of addresses written with the style, the ribbon and the twins as dust,
 with twins, the same screen, byte for byte.
 
+## 97. The twins' trails are joined into curves where the twins move
+
+*2026-11-22.* Where the trails are kept as curves (decision 68) and the
+twins draw lines, each share of the twins (decision 51) joins its own twins'
+trails into curves (decision 95) and sends them back, and the page adds them
+after the chain's as they come; it no longer joins the twins' itself. A
+command carries the light, the palette and the tint of the frame that sends
+it, so that with the music the twins' trails take its light and its note's
+colour (decision 46), and a new palette its colours, one frame later than
+before. The trails ask the shares to split their open curves for a snapshot
+and as the coarse image is born (decision 68), and to let them go when the
+trails are put out, and an ask reaches a share with its next command. A
+snapshot is therefore taken only in a frame in which every share has had
+each of its reports taken, and its mark is placed once every share's split
+is back, the spans closed meanwhile after it and drawn as well when the view
+is drawn anew; a composed snapshot (decision 70) waits whole. A report
+joined before the coarse image was born gives it the intervals it lacks, and
+one joined before the trails were put out is not drawn. A report draws the
+frame of trail of all its twins, those its budget or a key drops included;
+the drop holds from the next command. Where the workers fail, the curves
+they had open stay in the window. The recorder (decision 94) counts the
+frames a snapshot waited.
+
+**Why.** With few masses and thousands of twins, joining the twins' trails
+took most of the main line's frame, and the twins the budget could carry
+rose and fell with it.
+
+**Evidence.** Unit tests: where each batch a report brings back goes, by the
+number of the command it answers (before and after the trails were put out,
+the coarse image born, a snapshot's split awaited); the workers' next
+number, every report handed back, each share's own numbers; a split sent
+back where no curves are joined. In the browser, side by side with the code
+before, on the page's own clock, the twins on the main line: of the
+forty-nine cases of decisions 90, 92 and 96, forty-three the same, byte for
+byte; in the other six, a frame of the twins' trails: with the music, its
+light a frame later (at most 3 of 255, on about 1% of the pixels); at a
+change of palette, the old colour a frame longer; as the hand takes the
+chain, the trail of the twins put out a frame longer. With the music
+lighting and tinting 512 twins, 3 to 4% of the pixels differ, by up to 30 of
+255. On a desktop with a graphics card, two masses and 4 096 twins, from the
+recorder's files: the main line's time a frame from 6.0 to 1.7 ms on average
+and from 10.3 to 4.0 ms at the 99th percentile, taking the twins from 4.7 to
+0.4 ms, each worker's report 30% longer; the fan at 4 096 but for 0.8 s
+after every worker stalled for two frames, as they had once without the
+change. With eight masses, 3.3 to 1.8 ms, and the fan 7% wider on average.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.

@@ -30,6 +30,7 @@ import {
   type SpanStyle,
 } from "./curves.ts";
 import { SpanWindow } from "./spans.ts";
+import { WorkerCurves } from "./worker-curves.ts";
 import { GROWTH_LIMIT, LightTarget, type Trails } from "./trails.ts";
 import {
   MOST_ZOOM,
@@ -236,6 +237,20 @@ const COARSE_REACH = 1.05;
 /** The largest side of the coarse image, in pixels. */
 const COARSE_MOST = 4096;
 
+/** The twins' workers, as the trails kept as curves ask them (decision 97). */
+export interface TwinCurveSource {
+  /** How many shares carry the twins. */
+  readonly shares: number;
+  /** The number the next command will carry, which an ask made now reaches the workers with. */
+  readonly nextSeq: number;
+  /** Whether every worker has had each command it was sent taken back. */
+  readonly inStep: boolean;
+  /** Each worker splits its twins' open curves before its next time. */
+  split(): void;
+  /** Each worker lets its twins' curves go. */
+  forget(): void;
+}
+
 /** A frame of the trails kept as curves. */
 export interface SharpFrame {
   /** The view the image is shown in. */
@@ -250,9 +265,10 @@ export interface SharpFrame {
 
 /** The trails kept as curves, drawing into the trails' image. */
 export class SharpTrails {
-  /** The chain's trails, a mass each, and the twins', a twin each. */
+  /** The chain's trails, a mass each. */
   readonly chain = new Merger();
-  readonly twins = new Merger();
+  /** The twins' trails, as their workers join them into curves and send them back (decision 97). */
+  readonly twins = new WorkerCurves();
   /** The intervals sampled since the last frame, and the spans they closed. */
   readonly fresh = new SpanBatch(4096);
   readonly closed = new SpanBatch(4096);
@@ -260,6 +276,7 @@ export class SharpTrails {
   readonly clock = new TrailClock();
   readonly #gl: WebGL2RenderingContext;
   readonly #trails: Trails;
+  readonly #source: TwinCurveSource;
   readonly #reach: number;
   readonly #keep: number;
   readonly #stretch: number;
@@ -292,26 +309,37 @@ export class SharpTrails {
   #since = 0;
   #measured = Number.NEGATIVE_INFINITY;
   readonly #pixel = new Uint8Array(4);
+  // A snapshot whose twins' curves split in their workers, a frame or more
+  // later (decision 97): its image, copied as it fell due, or to be
+  // composed once they are back; and the spans closed meanwhile, which go
+  // into the window after its mark.
+  #awaiting: { readonly taken: Snapshot | null } | null = null;
+  readonly #queue = new SpanBatch(1024);
+  /** The frames a snapshot due has waited for the twins' workers to be in step. */
+  waited = 0;
   /** Whether to measure what a remake costs, the card's work waited for, every half second. */
   measuring = false;
   /** What the last measured remake cost, in ms; none yet. */
   remakeMs: number | null = null;
 
   /**
-   * The curves of `trails`, over the disc `reach` metres from the pivot, the
-   * window keeping `keep` times as many spans (decision 70), and the light
-   * from before it read while stretched at most `stretch` times (decision
-   * 72).
+   * The curves of `trails`, the twins' joined by their workers in `source`,
+   * over the disc `reach` metres from the pivot, the window keeping `keep`
+   * times as many spans (decision 70), and the light from before it read
+   * while stretched at most `stretch` times (decision 72).
    */
   constructor(
     gl: WebGL2RenderingContext,
     trails: Trails,
+    source: TwinCurveSource,
     reach: number,
     keep = 1,
     stretch = GROWTH_LIMIT,
   ) {
     this.#gl = gl;
     this.#trails = trails;
+    this.#source = source;
+    this.twins.reset(source.shares);
     this.#reach = reach;
     this.#keep = keep;
     this.#stretch = stretch;
@@ -342,10 +370,16 @@ export class SharpTrails {
   /** Lets every trail go: the light was cleared. */
   clear(): void {
     this.chain.forget();
-    this.twins.forget();
+    // the twins' workers let theirs go with their next command, and nothing
+    // they send back of before it is drawn (decision 97)
+    this.#source.forget();
+    this.twins.forget(this.#source.nextSeq);
     this.fresh.clear();
     this.closed.clear();
     this.#window.clear();
+    this.#queue.clear();
+    this.#letGo(this.#awaiting?.taken ?? null);
+    this.#awaiting = null;
     this.#letGo(this.#base);
     this.#letGo(this.#newest);
     this.#base = null;
@@ -402,6 +436,18 @@ export class SharpTrails {
     const { fade } = this.clock;
     pushPoint(this.fresh, x, y, color, light, fade);
     pushPoint(this.closed, x, y, color, light, fade);
+  }
+
+  /**
+   * The twins' workers failed, and `shares` carry the twins from now on:
+   * the curves they last sent back still open stay in the window, whose
+   * light the image has, and the curves start anew (decision 97).
+   */
+  workersLost(shares: number): void {
+    this.#open.clear();
+    this.twins.openSpans(this.#open);
+    this.#window.add(this.#open);
+    this.twins.reset(shares);
   }
 
   /** Takes the view of this frame, before anything is drawn: says whether it changed, and then the image is remade. */
@@ -476,13 +522,36 @@ export class SharpTrails {
       );
       this.#fade += frame.fade;
     }
-    this.#window.add(this.closed);
-    this.#spansSince += this.closed.count;
+    // A snapshot waits for the twins' workers to split their curves
+    // (decision 97): the spans they split go into the window before its
+    // mark, and the coarse images take those of a snapshot; once every
+    // worker has answered, the mark is placed, and the spans closed
+    // meanwhile follow it. Split as the coarse image was born, they go into
+    // the window alone.
+    const { twins } = this;
+    this.#window.add(twins.splitBefore);
+    const taken = this.#awaiting?.taken ?? null;
+    if (taken !== null && taken.coarseView !== null) {
+      const at = taken.coarseView;
+      trails.drawInto(taken.coarse, () => {
+        this.#lines.begin(at, { ...style(at), now: taken.fade, most: 2 });
+        this.#lines.batch(twins.splitForCoarse);
+        this.#lines.end();
+      });
+    }
+    if (this.#awaiting !== null && this.#source.inStep) {
+      this.#mark(view, whole, style);
+    }
+    this.#enter(this.closed);
+    this.#enter(twins.closedForWindow);
+    this.#enter(twins.splitAfter);
+    this.#spansSince += this.closed.count + twins.closedForWindow.count;
     if (this.#coarseLive && coarse !== null && coarseView !== null) {
       if (coarseNew) {
         // made from the image just now: it takes the intervals the image
         // has not taken yet, and every open span is split here, into the
-        // window alone, so that no interval reaches it twice
+        // window alone, so that no interval reaches it twice; the twins'
+        // with their workers' next command (decision 97)
         trails.drawInto(coarse, () => {
           this.#lines.begin(coarseView, {
             ...style(coarseView),
@@ -493,8 +562,9 @@ export class SharpTrails {
         });
         this.#open.clear();
         this.chain.splitAll(this.#open);
-        this.twins.splitAll(this.#open);
-        this.#window.add(this.#open);
+        this.#enter(this.#open);
+        this.#source.split();
+        twins.coarse(this.#source.nextSeq);
       } else {
         // the spans closed, faded since they were born: it is read only in
         // the snapshots, and at a snapshot every open span is closed first
@@ -504,6 +574,19 @@ export class SharpTrails {
             most: 2,
           });
           this.#lines.batch(this.closed);
+          this.#lines.end();
+        });
+      }
+      // the intervals of the twins' reports joined before it was born,
+      // which it lacks, and a snapshot's split of the twins (decision 97)
+      if (twins.freshForCoarse.count + twins.splitForCoarse.count > 0) {
+        trails.drawInto(coarse, () => {
+          this.#lines.begin(coarseView, {
+            ...style(coarseView),
+            most: 2,
+          });
+          this.#lines.batch(twins.freshForCoarse);
+          this.#lines.batch(twins.splitForCoarse);
           this.#lines.end();
         });
       }
@@ -520,6 +603,7 @@ export class SharpTrails {
     }
     this.fresh.clear();
     this.closed.clear();
+    twins.clear();
     const when = snapshotWhen(
       snapshotDue(
         this.#fade - this.#lastSnapshot,
@@ -529,35 +613,65 @@ export class SharpTrails {
       this.#lacking,
       this.#window.full,
     );
-    if (when !== "no") {
-      // no span runs across a snapshot: those open end here
-      this.#open.clear();
-      this.chain.splitAll(this.#open);
-      this.twins.splitAll(this.#open);
-      this.#window.add(this.#open);
-      if (this.#coarseLive && coarse !== null && coarseView !== null) {
-        trails.drawInto(coarse, () => {
-          this.#lines.begin(coarseView, {
-            ...style(coarseView),
-            most: 2,
+    if (when !== "no" && this.#awaiting === null) {
+      if (!this.#source.inStep) {
+        // a twins' worker is a frame late: its split would end curves the
+        // image has not drawn yet, so the snapshot waits (decision 97)
+        this.waited++;
+      } else {
+        // no span runs across a snapshot: those open end here, the chain's
+        // now and the twins' with their workers' next command (decision
+        // 96); a copy of the image is taken now, a composed one once the
+        // twins' split is back
+        this.#open.clear();
+        this.chain.splitAll(this.#open);
+        this.#window.add(this.#open);
+        if (this.#coarseLive && coarse !== null && coarseView !== null) {
+          trails.drawInto(coarse, () => {
+            this.#lines.begin(coarseView, {
+              ...style(coarseView),
+              most: 2,
+            });
+            this.#lines.batch(this.#open);
+            this.#lines.end();
           });
-          this.#lines.batch(this.#open);
-          this.#lines.end();
-        });
+        }
+        this.#source.split();
+        twins.snapshot(this.#source.nextSeq);
+        this.#awaiting = {
+          taken: when === "copy" ? this.#snapshot(view, whole) : null,
+        };
       }
-      const snapshot = this.#snapshot(
-        view,
-        whole,
-        when === "compose" ? style(view) : null,
-      );
-      if (this.#newest !== null) {
-        // the newer becomes the one the window keeps the spans after
-        this.#letGo(this.#base);
-        this.#base = this.#newest;
-        this.#window.dropBefore(this.#base.mark);
-      }
-      this.#newest = snapshot;
     }
+  }
+
+  /** Into the window, or after the mark of a snapshot that waits for the twins' workers (decision 97). */
+  #enter(spans: SpanBatch): void {
+    if (this.#awaiting === null) this.#window.add(spans);
+    else this.#queue.appendBatch(spans);
+  }
+
+  /**
+   * The snapshot that waited is kept, every twins' worker having split its
+   * curves (decision 97): its image composed now if it was to be, its mark
+   * placed after their split, and the spans closed meanwhile after it.
+   */
+  #mark(view: View, whole: boolean, style: (view: View) => SpanStyle): void {
+    const awaiting = this.#awaiting;
+    if (awaiting === null) return;
+    const snapshot = awaiting.taken ?? this.#snapshot(view, whole, style(view));
+    snapshot.mark = this.#window.mark();
+    if (this.#newest !== null) {
+      // the newer becomes the one the window keeps the spans after
+      this.#letGo(this.#base);
+      this.#base = this.#newest;
+      this.#window.dropBefore(this.#base.mark);
+    }
+    this.#newest = snapshot;
+    this.#awaiting = null;
+    this.twins.marked();
+    this.#window.add(this.#queue);
+    this.#queue.clear();
   }
 
   /** The image made again in `view`: the older snapshot, the window and the spans open. */
@@ -606,6 +720,8 @@ export class SharpTrails {
       this.chain.openSpans(this.#open);
       this.twins.openSpans(this.#open);
       this.#lines.begin(into, drawn);
+      // the spans closed while a snapshot waits (decision 97)
+      this.#lines.batch(this.#queue);
       this.#lines.batch(this.#open);
       this.#lines.end();
     });
@@ -706,6 +822,7 @@ export class SharpTrails {
       coarse,
       view,
       coarseView,
+      // placed once the twins' split is back (decision 97)
       mark: this.#window.mark(),
       k: trails.k,
       fade: this.#fade,

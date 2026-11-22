@@ -143,6 +143,10 @@ describe("a batch of spans", () => {
     expect(new Uint8Array(into.bytes())).toEqual(
       new Uint8Array(into.u8.buffer, 0, 5 * SPAN_BYTES),
     );
+    // another batch's spans, whole (decision 97)
+    const again = new SpanBatch(1);
+    again.appendBatch(into);
+    expect(new Uint8Array(again.bytes())).toEqual(new Uint8Array(into.bytes()));
   });
 });
 

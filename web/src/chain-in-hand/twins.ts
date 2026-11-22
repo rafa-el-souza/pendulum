@@ -13,7 +13,7 @@ import type { Controls } from "../core/controls.ts";
 import { fanPalette } from "../core/palettes.ts";
 import type { Parameter } from "../core/parameters.ts";
 import type { Look } from "../core/routes.ts";
-import type { TwinHold, TwinReport } from "../core/twin-share.ts";
+import { shareOf, type TwinHold, type TwinReport } from "../core/twin-share.ts";
 import {
   TwinWorkers,
   inWorker,
@@ -21,7 +21,7 @@ import {
   workerBudget,
   type FrameRhythm,
 } from "../core/twin-workers.ts";
-import { pivotsOver, twinCurve } from "../core/twin-curves.ts";
+import { pivotsOver } from "../core/twin-curves.ts";
 import {
   Doubling,
   Fading,
@@ -98,6 +98,10 @@ export interface TwinsHooks {
   readonly look: Look;
   /** `color` with as much of the bass's note as the music's mode gives to `to`. */
   tinted(color: Rgb, to: "chain" | "twins"): Rgb;
+  /** The bass's note and how much of it the music's mode gives to `to` now; none while it gives none. */
+  tint(
+    to: "chain" | "twins",
+  ): { readonly color: Rgb; readonly amount: number } | null;
   /** The colours of the ground asked for (decision 41). */
   readonly colors: { readonly chain: Rgb };
   /** What the frame shows, and the trails the twins' tips draw into (decision 90). */
@@ -168,6 +172,8 @@ export function mountTwins(
     open: inWorker,
     lost: () => {
       spawnPending = true;
+      // the curves the workers last sent back still open stay (decision 97)
+      hooks.drawing.curves()?.workersLost(twins.shares);
     },
   });
   // the time each worker may take in a frame, eased over the frames
@@ -373,26 +379,55 @@ export function mountTwins(
     if (hooks.steady()) twinBudget += 0.1 * (free - twinBudget);
     twins.setBudget(twins.local ? TWIN_LOCAL_MS : twinBudget);
     const { drawing } = hooks;
-    twins.send({
-      time: simulated,
-      pieces,
-      g: motion.g,
-      shakes,
-      chain: at,
-      hold,
-      whole: value(LOOK) !== 1,
-      // kept as curves, each tip's velocity with its place, and the step's
-      // instant (decision 68)
-      clock:
-        drawing.curves() !== null && value(LOOK) !== 1
-          ? drawing.stepClock
-          : null,
-      // the music's forces over the same time (decision 74)
-      drive: simulated > 0 ? motion.drive : null,
-      budget: twins.local ? TWIN_LOCAL_MS : twinBudget,
-      // the twins' trails are joined into curves here, as they come back
-      curves: null,
-    });
+    const clock =
+      drawing.curves() !== null && value(LOOK) !== 1 ? drawing.stepClock : null;
+    // Where the trails keep curves and the twins draw lines, each worker
+    // joins its own twins' curves (decision 97), in the trails' light, the
+    // music's, each twin's own while they fade, the palette and the music's
+    // tint, as the frame computed now has them.
+    const joining =
+      clock !== null &&
+      layerOf(drawing.layers(), "twins", "lines") !== undefined
+        ? {
+            light: twinTrailLight(twins.count),
+            music: 1 + Math.min(TRAIL_MOST, hooks.look.trail),
+            palette: value(PALETTE),
+            tint: hooks.tint("twins"),
+          }
+        : null;
+    const fades = value(FADE) === 1;
+    twins.send(
+      {
+        time: simulated,
+        pieces,
+        g: motion.g,
+        shakes,
+        chain: at,
+        hold,
+        whole: value(LOOK) !== 1,
+        // kept as curves, each tip's velocity with its place, and the step's
+        // instant (decision 68)
+        clock,
+        // the music's forces over the same time (decision 74)
+        drive: simulated > 0 ? motion.drive : null,
+        budget: twins.local ? TWIN_LOCAL_MS : twinBudget,
+        curves: null,
+      },
+      joining === null
+        ? undefined
+        : (w) => ({ ...joining, shine: fades ? shineOf(w) : null }),
+    );
+  }
+
+  /** The own light of each twin of share `w` while they fade (decision 43), by its place in the share. */
+  function shineOf(w: number): Float64Array {
+    const shares = twins.shares;
+    const count = shareOf(twins.count, w, shares);
+    const shine = new Float64Array(count);
+    for (let k = 0; k < count; k++) {
+      shine[k] = fading.light[w + k * shares] ?? 1;
+    }
+    return shine;
   }
 
   /** The pivot at each of a report's instants, under the command of the frame computed last, unless already worked out. */
@@ -446,56 +481,61 @@ export function mountTwins(
     let stretch = 0;
     let stretchTime = 0;
     let measured = 0;
-    twins.take((j, report, k) => {
-      if (k === 0 && report.stretchTime > 0) {
-        stretch += report.stretch;
-        stretchTime += report.stretchTime;
-        measured++;
-      }
-      const color = colorOf(j);
-      const shine = fades ? (fading.light[j] ?? 1) : 1;
-      const { pieces, tips } = report;
-      const at = 2 * (pieces + 1) * k;
-      // where the pivot was at each of the report's instants (decision 75)
-      if (pieces > 0) twinPivotsFor(report);
-      const curves = tipLines ? drawing.curves() : null;
-      if (curves !== null && report.clock !== null && pieces > 0) {
-        twinCurve(
-          curves.twins,
-          curves.fresh,
-          curves.closed,
-          j,
-          report,
-          at,
-          color,
-          light * shine * music,
-          twinPivots,
-          twinPivotSpeeds,
-        );
-      } else if (tipLines) {
-        for (let piece = 0; piece < pieces; piece++) {
-          const from = at + 2 * piece;
-          const p = 2 * piece;
-          drawing.piece(
-            (tips[from] ?? 0) + (twinPivots[p] ?? 0),
-            (tips[from + 1] ?? 0) + (twinPivots[p + 1] ?? 0),
-            (tips[from + 2] ?? 0) + (twinPivots[p + 2] ?? 0),
-            (tips[from + 3] ?? 0) + (twinPivots[p + 3] ?? 0),
-            color,
-            light * shine,
-          );
+    // where the trails keep curves, which the twins' workers join (decision 97)
+    const sharp = drawing.curves();
+    twins.take(
+      (j, report, k) => {
+        if (k === 0 && report.stretchTime > 0) {
+          stretch += report.stretch;
+          stretchTime += report.stretchTime;
+          measured++;
         }
-      }
-      if (tipPoints && flashed && pieces > 0) {
-        const p = 2 * pieces;
-        const px = (tips[at + p] ?? 0) + (twinPivots[p] ?? 0);
-        const py = (tips[at + p + 1] ?? 0) + (twinPivots[p + 1] ?? 0);
-        drawing.point(px, py, color, 2 * light * shine * music);
-      }
-      if (fades && k < report.apart.length) {
-        fading.see(j, report.apart[k] ?? 0, FADE_REACH);
-      }
-    }, hooks.steady());
+        const color = colorOf(j);
+        const shine = fades ? (fading.light[j] ?? 1) : 1;
+        const { pieces, tips } = report;
+        const at = 2 * (pieces + 1) * k;
+        // as pieces of the layers, where the trails keep no curves or its
+        // worker joined none (decision 97), where the pivot was at each of the
+        // report's instants (decision 75)
+        if (
+          tipLines &&
+          pieces > 0 &&
+          (sharp === null || report.curves === null)
+        ) {
+          twinPivotsFor(report);
+          for (let piece = 0; piece < pieces; piece++) {
+            const from = at + 2 * piece;
+            const p = 2 * piece;
+            drawing.piece(
+              (tips[from] ?? 0) + (twinPivots[p] ?? 0),
+              (tips[from + 1] ?? 0) + (twinPivots[p + 1] ?? 0),
+              (tips[from + 2] ?? 0) + (twinPivots[p + 2] ?? 0),
+              (tips[from + 3] ?? 0) + (twinPivots[p + 3] ?? 0),
+              color,
+              light * shine,
+            );
+          }
+        }
+        if (tipPoints && flashed && pieces > 0) {
+          twinPivotsFor(report);
+          const p = 2 * pieces;
+          const px = (tips[at + p] ?? 0) + (twinPivots[p] ?? 0);
+          const py = (tips[at + p + 1] ?? 0) + (twinPivots[p + 1] ?? 0);
+          drawing.point(px, py, color, 2 * light * shine * music);
+        }
+        if (fades && k < report.apart.length) {
+          fading.see(j, report.apart[k] ?? 0, FADE_REACH);
+        }
+      },
+      hooks.steady(),
+      // every report's curves, joined by its worker, into the trails after
+      // the chain's (decision 97)
+      (share, report) => {
+        if (sharp !== null && report.curves !== null) {
+          sharp.twins.take(share, report.seq, report.curves, sharp);
+        }
+      },
+    );
     if (measured > 0 && value(FADE) === HELD_STEP) {
       doubling.add(stretch / measured, stretchTime / measured);
     }

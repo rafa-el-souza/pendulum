@@ -797,6 +797,28 @@ describe("a share's twins' trails joined into curves where they move (decision 9
     expect(report.curves).toBeNull();
   });
 
+  it("sends back a split asked while it joins no curves, so that no light is lost (decision 97)", () => {
+    const share = new TwinShare(0, 1, n);
+    share.run(command([bornAll(raised(n), 4, 0, 1, 0.1)], 0, 0));
+    const curves = {
+      light: 0.2,
+      music: 1,
+      shine: null,
+      palette: 0,
+      tint: null,
+    };
+    share.run(command([], FRAME, 4, still(4), { clock: clockOf(0), curves }));
+    const report = share.run(
+      command([{ kind: "split" }], FRAME, 4, still(4), { clock: clockOf(1) }),
+    );
+    const back = report.curves;
+    if (back === null) throw new Error("the split did not come back");
+    expect(back.split.count).toBe(4);
+    expect(back.fresh.count + back.closed.count).toBe(0);
+    // split just now, the curves still open span no time yet
+    expect(back.open.count).toBe(0);
+  });
+
   it("measures the lens's stretch across a split or a forget as if neither had come (decision 64)", () => {
     const start = raised(n);
     const width = 1e-9;

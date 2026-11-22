@@ -320,6 +320,44 @@ describe("the twins' workers", () => {
     expect(twins.inStep).toBe(true);
   });
 
+  it("say the number the next command will carry, hand back every report taken, of an old fan too, and send each worker its own curves' numbers (decision 97)", () => {
+    const bench = new Bench();
+    const twins = new TwinWorkers({
+      shares: 2,
+      n: 2,
+      budget: 10,
+      cost: 0.002,
+      open: bench.open,
+    });
+    expect(twins.nextSeq).toBe(1);
+    twins.born(places(4), raised(2), 1e-3);
+    const curvesFor = (share: number) => ({
+      light: 0.1,
+      music: 1,
+      shine: Float64Array.of(share, share),
+      palette: 0,
+      tint: null,
+    });
+    twins.send(frame(), curvesFor);
+    expect(twins.nextSeq).toBe(2);
+    expect(
+      bench.sent.map((sent) => [...(sent[0]?.curves?.shine ?? [])]),
+    ).toEqual([
+      [0, 0],
+      [1, 1],
+    ]);
+    twins.clear();
+    bench.deliver();
+    const back: [number, number][] = [];
+    twins.take(undefined, true, (share, report) => {
+      back.push([share, report.seq]);
+    });
+    expect(back).toEqual([
+      [0, 1],
+      [1, 1],
+    ]);
+  });
+
   it("carry as many twins as the worker that carries fewest allows, each in its budget", () => {
     const bench = new Bench();
     const twins = new TwinWorkers({
