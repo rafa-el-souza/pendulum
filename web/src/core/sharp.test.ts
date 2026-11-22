@@ -80,17 +80,17 @@ describe("which trails an address asks for", () => {
 });
 
 describe("the trails' mechanism", () => {
-  const lines = { strobe: false, mark: false, floating: true };
+  const trails = { mark: false, floating: true };
 
-  it("keeps the trails as curves when asked, as lines, without a mark, in half floats", () => {
-    expect(trailMechanism(true, lines)).toBe("sharp");
+  it("keeps the trails as curves when asked, without a mark, in half floats, a strobe's as well as lines (decision 91)", () => {
+    expect(trailMechanism(true, trails)).toBe("sharp");
+    expect(Object.keys(trails)).toEqual(["mark", "floating"]);
   });
 
-  it("carries the image, as layers, when asked, and where the curves cannot yet: a strobe's, a mark, eight bits (decision 71)", () => {
-    expect(trailMechanism(false, lines)).toBe("layers");
-    expect(trailMechanism(true, { ...lines, strobe: true })).toBe("layers");
-    expect(trailMechanism(true, { ...lines, mark: true })).toBe("layers");
-    expect(trailMechanism(true, { ...lines, floating: false })).toBe("layers");
+  it("carries the image, as layers, when asked, and where the curves cannot yet: a mark, eight bits (decisions 71 and 91)", () => {
+    expect(trailMechanism(false, trails)).toBe("layers");
+    expect(trailMechanism(true, { ...trails, mark: true })).toBe("layers");
+    expect(trailMechanism(true, { ...trails, floating: false })).toBe("layers");
   });
 });
 

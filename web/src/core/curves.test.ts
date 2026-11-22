@@ -10,6 +10,7 @@ import {
   bendOf,
   hermiteAt,
   piecesFor,
+  pushStraight,
   strays,
   type Span,
 } from "./curves.ts";
@@ -110,6 +111,27 @@ describe("a batch of spans", () => {
     batch.clear();
     expect(batch.count).toBe(0);
     expect(batch.span(0)).toBeNull();
+  });
+});
+
+describe("a straight span, as a strobe's stamp (decision 91)", () => {
+  it("is a rod as it was at a flash: its curve is its chord, one piece in any view, as bright at both ends, at one instant of the fade", () => {
+    const batch = new SpanBatch();
+    pushStraight(batch, 0.1, -0.2, 0.4, -0.6, WHITE, 0.45, 3.5);
+    expect(batch.count).toBe(1);
+    const span = only(batch);
+    expect([span.x0, span.y0, span.x1, span.y1]).toEqual(
+      [0.1, -0.2, 0.4, -0.6].map(Math.fround),
+    );
+    expect([span.l0, span.l1]).toEqual([0.45, 0.45].map(Math.fround));
+    expect([span.f0, span.f1]).toEqual([3.5, 3.5]);
+    // the curve runs along the chord, evenly
+    for (const u of [0, 0.25, 0.5, 0.75, 1]) {
+      expect(strays(span, u, 0.1 + 0.3 * u, -0.2 - 0.4 * u)).toBeLessThan(1e-6);
+    }
+    // and bends nowhere: one straight piece even at sixty-four times nearer
+    // on a large screen, a hundred thousand pixels to the metre
+    expect(piecesFor(bendOf(span) * 1e5, 0.05, 16)).toBe(1);
   });
 });
 

@@ -3285,6 +3285,37 @@ curves and as layers; the chain hidden under the music's glow; a mark with
 twins; the trails off; the dancing hand shown): the saved moment's code and
 the screen the same, byte for byte.
 
+## 91. A strobe's trails are kept as curves
+
+*2026-11-22.* A strobe's stamps (decision 50) are kept as curves, as the
+trails' lines are (decisions 68 and 71): each rod a flash stamps is a
+straight span, as bright at both ends, both at the fade's clock at the
+flash's instant, drawn into the trails at once and drawn anew, as fine, in
+any view. The trails no longer go over to the image carried while a strobe
+draws them, which cleared them once the view came more than a quarter
+nearer, and cut them to what the nearer view had seen once it went back; the
+meter names the curves. A mark, and browsers without half floats, still go
+on as the image carried. This replaces what decisions 68 and 71 said of a
+strobe's trails.
+
+**Why.** A strobe's trails were cleared by the zoom.
+
+**Evidence.** Unit tests: a straight span runs along its chord and bends
+nowhere, as bright at both ends, at one instant of the fade; the curves are
+kept with a strobe, and the image carried with a mark and in eight bits. A
+browser test: the strobe turned on and off keeps the meter on the curves. In
+the browser, side by side with the code before, on the page's own clock: the
+thirty-one cases without a strobe the same, byte for byte, and the motion the
+same in all; with a strobe, in the whole view, the same picture to the eye,
+0.7 to 4.8% of the pixels differing, by 0.02 to 0.1 of 255 on average, the
+most where stamped rods meet; three times a quarter nearer, every copy kept
+and as fine, where the code before kept those of the flashes after the zoom
+alone; back in the whole view, every copy, where the code before kept those
+since the zoom alone, cut to what the nearer view had seen. Without a
+graphics card, at 1280 by 720, medians of twenty readings in two orders: 40
+frames a second with a strobe kept as curves against 31 as the image
+carried, and 16 against 14 with the twins this machine carries of 512.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.

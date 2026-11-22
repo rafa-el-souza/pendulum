@@ -707,7 +707,7 @@ test("kept as curves, the trails are drawn anew as the view comes nearer and as 
   expect(errors).toEqual([]);
 });
 
-test("the meter says the frames a second and, kept as curves, the last remake, the mechanism, its memory and the seconds of motion they keep; a strobe's trails go on as the image carried; the address keeps them, how much the curves keep and how far their old light stretches beside a saved moment (decisions 68, 70 and 72)", async ({
+test("the meter says the frames a second and, kept as curves, the last remake, the mechanism, its memory and the seconds of motion they keep; a strobe's trails are kept as curves too; the address keeps them, how much the curves keep and how far their old light stretches beside a saved moment (decisions 68, 70, 72 and 91)", async ({
   page,
 }) => {
   const errors = collectErrors(page);
@@ -719,9 +719,10 @@ test("the meter says the frames a second and, kept as curves, the last remake, t
   );
   // the curves keep the motion since they began, half a second and more
   await expect(meter).toHaveText(/ · kept (0\.[5-9]|[1-9]\d*(\.\d)?) s$/);
-  // a strobe's stamps are not kept as curves yet
+  // a strobe's stamps are kept as curves too (decision 91)
   await page.keyboard.press("Shift+Digit8");
-  await expect(meter).toHaveText(/^\d+(\.\d)? fps · layers$/);
+  await expect(page).toHaveURL(/[?&]style=1(&|$)/);
+  await expect(meter).toHaveText(/ · sharp · /);
   await page.keyboard.press("Shift+Digit7");
   await expect(meter).toHaveText(/ · sharp · /);
   // a moment saved keeps them in the address's readable part, as the music

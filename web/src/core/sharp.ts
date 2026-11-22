@@ -15,13 +15,17 @@
 // quarter nearer than they saw, as the image carried is (decision 69); while
 // the image lacks what they hold, the next snapshot waits, since a copy would
 // lose it, unless the window is full: that copy is made with it (decision
-// 70). The address can ask the window to keep more spans (decision 70).
+// 70). The address can ask the window to keep more spans (decision 70). A
+// strobe's stamps are kept as straight spans, at the instant of their flash
+// (decision 91).
 
+import type { Rgb } from "./color.ts";
 import {
   Merger,
   SpanBatch,
   SpanLines,
   mostPieces,
+  pushStraight,
   type SpanStyle,
 } from "./curves.ts";
 import { SpanWindow } from "./spans.ts";
@@ -98,8 +102,6 @@ export type Mechanism = "sharp" | "layers";
 
 /** What of the trails the curves cannot keep yet. */
 export interface TrailsDrawn {
-  /** A strobe's trails, stamps of the whole chain (decision 50). */
-  readonly strobe: boolean;
   /** Trails that leave a mark, kept in pixels (decision 42). */
   readonly mark: boolean;
   /** Whether the light's targets hold half floats: eight bits cannot keep the fade as a number. */
@@ -108,13 +110,11 @@ export interface TrailsDrawn {
 
 /**
  * The mechanism the trails use: curves when they are asked for (decision
- * 71) and the trails are lines, without a mark, in half floats; the image
- * carried, as layers, otherwise.
+ * 71), without a mark, in half floats, a strobe's stamps as well as lines
+ * (decision 91); the image carried, as layers, otherwise.
  */
 export function trailMechanism(asked: boolean, drawn: TrailsDrawn): Mechanism {
-  return asked && !drawn.strobe && !drawn.mark && drawn.floating
-    ? "sharp"
-    : "layers";
+  return asked && !drawn.mark && drawn.floating ? "sharp" : "layers";
 }
 
 /**
@@ -374,6 +374,24 @@ export class SharpTrails {
     if (drawn !== null) this.#base = this.#snapshot(view, whole);
     this.#imageView = view;
     this.#imageWhole = whole;
+  }
+
+  /**
+   * A rod stamped by a strobe's flash, from (ax, ay) to (bx, by), as a
+   * straight span at the samples' clock now (decision 91): drawn into the
+   * image this frame, and kept in the window, drawn anew in any view.
+   */
+  stamp(
+    ax: number,
+    ay: number,
+    bx: number,
+    by: number,
+    color: Rgb,
+    light: number,
+  ): void {
+    const { fade } = this.clock;
+    pushStraight(this.fresh, ax, ay, bx, by, color, light, fade);
+    pushStraight(this.closed, ax, ay, bx, by, color, light, fade);
   }
 
   /** Takes the view of this frame, before anything is drawn: says whether it changed, and then the image is remade. */
