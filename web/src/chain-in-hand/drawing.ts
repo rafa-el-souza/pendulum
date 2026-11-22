@@ -2,7 +2,7 @@
 // twins, the hand and the pivot, and the trails they leave, in the light of
 // the trails, the twins and the sketch. Every frame's motion is drawn into the
 // trails (decision 21), kept as curves or as the image carried (decisions 66,
-// 68 and 71); a strobe stamps the whole chain (decision 50); each rod can be
+// 68 and 71); a strobe stamps the whole chain (decisions 50 and 91); each rod can be
 // painted by its tension (decision 35).
 //
 // The trails are drawn in layers: what leaves each (the chain or its twins),
@@ -268,9 +268,9 @@ export function mountDrawing(
   const trail = new SegmentBatch(4096);
   // where each mass of the chain was at the end of the last piece of trail
   let ends = new Float64Array(2 * motion.chain.n);
-  // Trails kept as curves, drawn anew in any view (decision 68), unless the
-  // address asks for layers, the image carried to each view (decision 71),
-  // which a strobe's trails and a mark still use. The curves take each
+  // Trails kept as curves, drawn anew in any view (decision 68), a strobe's
+  // stamps too (decision 91), unless the address asks for layers, the image
+  // carried to each view (decision 71), which a mark still uses. The curves take each
   // drawing mass's velocity with its place, from the motion's record; each
   // step of the motion begins at a point of the samples' clock, which the
   // twins computed with it take, and fades the trails by its half-lives.
@@ -418,9 +418,11 @@ export function mountDrawing(
    * The whole chain stamped into the trails, as a strobe's flash leaves it
    * (decision 50), from the pivot at (`px`, `py`) (decision 75), its masses
    * in `positions` from `at`, x then y for each: each rod in its colour,
-   * brighter as the music asks.
+   * brighter as the music asks; kept as curves, a straight span each, at the
+   * flash's instant on the samples' clock (decision 91).
    */
   function stamp(
+    curves: SharpTrails | null,
     color: Rgb,
     px: number,
     py: number,
@@ -434,7 +436,11 @@ export function mountDrawing(
       const bx = positions[at + 2 * i] ?? 0;
       const by = positions[at + 2 * i + 1] ?? 0;
       const rod = tensionShown ? (rodColors[i] ?? color) : color;
-      trail.push(ax, ay, bx, by, rod, STROBE_LIGHT * music);
+      if (curves !== null) {
+        curves.stamp(ax, ay, bx, by, rod, STROBE_LIGHT * music);
+      } else {
+        trail.push(ax, ay, bx, by, rod, STROBE_LIGHT * music);
+      }
       ax = bx;
       ay = by;
     }
@@ -514,6 +520,7 @@ export function mountDrawing(
         if (strobeClock >= 1 / STROBE_RATE) {
           strobeClock %= 1 / STROBE_RATE;
           stamp(
+            curves,
             chainColor,
             pivots[2 * piece] ?? 0,
             pivots[2 * piece + 1] ?? 0,
@@ -529,6 +536,7 @@ export function mountDrawing(
     if (stamped && flashes && hooks.look.flash > 0) {
       const { pivot } = motion;
       stamp(
+        curves,
         chainColor,
         pivot.x,
         pivot.y,
@@ -589,14 +597,14 @@ export function mountDrawing(
     // The view from the drawing buffer alone, and the trails carried to it
     // when it changed (decision 66). In the frame where the window has
     // changed and the buffer not yet, the buffer's view is the one shown.
-    // Kept as curves (decision 68), the trails are remade in it instead,
-    // unless the curves cannot keep them yet: a strobe's, a mark, or eight
-    // bits; the image shown then goes on as the image carried, and back.
+    // Kept as curves (decision 68), the trails are remade in it instead, a
+    // strobe's stamps too (decision 91), unless the curves cannot keep them
+    // yet: a mark, or eight bits; the image shown then goes on as the image
+    // carried, and back.
     const trailStep = hooks.lit ? value(TRAIL) : 0;
     const { halfLife, mark } = trailFade(trailStep);
     if (sharp !== null) {
       const wanted = trailMechanism(true, {
-        strobe: value(STYLE) === 1,
         mark,
         floating: trails.image.floating,
       });

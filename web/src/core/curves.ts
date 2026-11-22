@@ -199,6 +199,27 @@ export function piecesFor(
   return Math.min(most, Math.max(1, Number.isFinite(k) ? k : most));
 }
 
+/**
+ * A straight span into `batch`, as a strobe's flash stamps a rod (decision
+ * 91): from (ax, ay) to (bx, by), each end's tangent the chord itself, so
+ * that the curve runs along it evenly and bends nowhere, with `light` at both
+ * ends and both at the fade clock `fade`, the instant of the flash.
+ */
+export function pushStraight(
+  batch: SpanBatch,
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number,
+  rgb: Rgb,
+  light: number,
+  fade: number,
+): void {
+  const dx = bx - ax;
+  const dy = by - ay;
+  batch.push(ax, ay, bx, by, dx, dy, dx, dy, rgb, light, light, fade, fade);
+}
+
 /** The most a straight piece of a band strays from its curve, in pixels. */
 export const PIECE_TOLERANCE = 0.05;
 
