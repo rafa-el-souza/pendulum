@@ -3184,6 +3184,42 @@ with the loudness, the demo beat's figure changed as its quiet bars came and
 went, a bar after them, twice every 16 s, and the electronic piece's once,
 as it began.
 
+## 88. The row's controls and keys change the piece by events
+
+*2026-11-22.* The first piece's row of controls and its keys (decisions 31,
+53 and 54), with the address and the page's title (decision 38), leave the
+page's module for two of their own. `chain-in-hand/settings.ts` holds what
+the address carries in its readable part (the controls' values, the three
+switches, the music's mode and strength, the dance's choreography) and the
+moment saved in it, and the piece's events: a closed list, each with the
+value it asks for, a control to a value, a switch on or off, the music to a
+mode and a strength, a source to listen to, or an action. A control stepped
+makes its events in order, with the switches its value turns on after it (a
+control of the light lights it, decision 27; a scale turns the tension's
+colours on, decision 41); the settings take them, and the address and the
+title are written from them. `chain-in-hand/row.ts` lays out the row with
+the music's card and the QR code's (decisions 40 and 76), and takes the
+buttons and the keys, but Space, which the gestures share. The page answers
+each event with what it does to the chain, its twins, its trails and its
+colours. Nothing on screen changes.
+
+**Why.** A control's value, what it does to the piece, how the row shows it
+and the address went through one function of the page, with a branch for
+each control, and the keys through another. Now an event says what it asks,
+the settings take it and the page answers it, and the row's settings and
+address are tested without a browser.
+
+**Evidence.** Unit tests: the events of a step, the switches after them;
+the tension's one control and the scale kept apart; the music's mode and
+strength; the zoom's − and +; the start stepped with a moment saved; the
+moments forgotten and kept; the address written back as it opened, a saved
+moment's code included, and the title. The browser tests pass unchanged. In
+the browser, decision 80's twenty cases against the code before, and five
+more through the row (a palette and a ground; the light put out, then lit
+again by a control of the twins; a scale; the start stepped with a moment
+saved; the mark left): the saved moment's code and the screen the same, byte
+for byte.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
