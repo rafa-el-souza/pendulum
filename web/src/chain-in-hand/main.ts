@@ -2,24 +2,14 @@ import "../styles/base.css";
 
 import type { Signals } from "../audio/signals.ts";
 import { cssColor, type Rgb } from "../core/color.ts";
-import { mountControls } from "../core/controls.ts";
 import { groundAt, mixColors } from "../core/grounds.ts";
 import { Lines, SegmentBatch } from "../core/lines.ts";
-import { mountLinkCard, shareLink } from "../core/link.ts";
 import { Meter } from "../core/meter.ts";
-import { mountMusic } from "../core/music.ts";
-import {
-  Router,
-  UNLIT,
-  readMusic,
-  writeMusic,
-  type Look,
-} from "../core/routes.ts";
+import { Router, UNLIT, type Look } from "../core/routes.ts";
 import { fanPalette, noteColor } from "../core/palettes.ts";
-import { keyAction, stepValue, type Parameter } from "../core/parameters.ts";
+import type { Parameter } from "../core/parameters.ts";
 import {
   SharpTrails,
-  keepMeasures,
   readCurves,
   readKeep,
   readMeter,
@@ -65,8 +55,6 @@ import {
   readCamera,
   reachBox,
   toWorld,
-  withCommas,
-  writeCamera,
   zoomAbout,
   zoomWritten,
   type Camera,
@@ -76,9 +64,7 @@ import {
 import { countVisit } from "../core/visits.ts";
 import type { Drive, PivotMotion } from "../physics/drive.ts";
 import { startInMode } from "../physics/modes.ts";
-import { PIECES } from "../pieces.ts";
-import { addressOf, openingOf, type Saved } from "./address.ts";
-import { readChoreography, writeChoreography } from "./forces/choreography.ts";
+import { openingOf, type Saved } from "./address.ts";
 import {
   AMPLITUDE,
   DRAWN,
@@ -91,18 +77,13 @@ import {
   HOLD,
   LEASHED_STEP,
   LEASH_RATE,
-  LIGHT,
   LOOK,
   MASSES,
   MEASURED_WIDEST,
   MODE,
-  MUSIC_MODE,
-  MUSIC_STRENGTH,
   NEAR_SPREAD,
   PALETTE,
-  PARAMETERS,
   RIBBON,
-  SAVED_START,
   SCALE,
   SHAKE,
   SPREAD,
@@ -123,11 +104,16 @@ import {
   rodsDrawn,
   trailFade,
   whiteAfter,
-  whiteSwatches,
 } from "./parameters.ts";
 import { Motion, type Moved } from "./motion.ts";
-import { MODES, modeOf } from "./music.ts";
-import { titleOf } from "./title.ts";
+import { modeOf } from "./music.ts";
+import { mountRow } from "./row.ts";
+import {
+  Settings,
+  choosesStart,
+  type Act,
+  type PieceEvent,
+} from "./settings.ts";
 
 // The first piece (docs/decisions.md, decision 4): one chain pendulum to grab
 // and throw, whose number of masses changes while it moves, under a time that
@@ -227,14 +213,6 @@ const DUST_RADIUS = 1.4;
 // draws out to three spreads (lines.ts), and a pixel for the line's edge.
 // Every other line, dot and point of dust reaches less (decision 62).
 const GLOW_REACH = 3 * (5 + GLOW_RADIUS * GLOW_MOST) + 1;
-// How long the share button shows that the address was copied, in ms.
-const COPIED_MS = 2000;
-// The light switch's name: the twins' and the trails' light, which it puts
-// out and lights again (decision 27), apart from the sketch's light.
-const LIGHT_LABEL = "Light of the twins and trails";
-// The piece's name, which begins the page's title (decision 37).
-const NAME =
-  PIECES.find(({ id }) => id === "chain-in-hand")?.title ?? document.title;
 
 const canvas = document.getElementById("stage");
 const notice = document.getElementById("notice");
@@ -261,7 +239,10 @@ function play({ canvas, gl }: Stage): void {
   // what the address opens: the controls, the switches, and a moment saved
   // in it, if any (decision 38)
   const opened = openingOf(location.search, location.hash);
-  const { values } = opened;
+  // what the row and the keys change, which the address carries (decision
+  // 88)
+  const settings = new Settings(opened, location.search);
+  const { values } = settings;
   const value = (p: Parameter): number => values.get(p.id) ?? p.initial;
 
   // With reduced motion asked for, the music's pulses become slow waves
@@ -350,7 +331,6 @@ function play({ canvas, gl }: Stage): void {
   // The twins and the trails, lit or put out by one switch; their controls
   // keep their values, and stepping one of them lights them again.
   let lit = opened.switches.get("light") ?? true;
-  const LIGHT_CONTROLS: ReadonlySet<Parameter> = new Set(LIGHT);
   const trail = new SegmentBatch(4096);
   // where each mass of the chain was at the end of the last piece of trail
   let ends = new Float64Array(2 * motion.chain.n);
@@ -393,9 +373,6 @@ function play({ canvas, gl }: Stage): void {
   // having held it since: it then starts again in that mode on another
   // number of masses (decision 33)
   let inMode = false;
-  // the moment saved in the address, where the chain starts while there is
-  // one (decision 34), with how the screen around it was (decision 38)
-  let saved: Saved | null = opened.saved;
   let paused = false;
   // whether time runs backwards: every motion reversed since it last ran
   // forwards (decision 28)
@@ -428,14 +405,9 @@ function play({ canvas, gl }: Stage): void {
   let addressTimer = 0;
   // What the music does (decision 46): its mode and strength, from the
   // address, the routes that follow it, and what they add to the light this
-  // frame.
-  const tune = readMusic(
-    MODES.map(({ id }) => id),
-    location.search,
-  );
+  // frame. How the music's hand dances (decision 83) is the settings' too.
+  const { tune } = settings;
   let router = new Router(modeOf(tune.mode), { slow: still.matches });
-  // How the music's hand dances (decision 83), from the address too.
-  const choreography = readChoreography(location.search);
   let look: Look = UNLIT;
   // What the music says this frame, which its forces take (decisions 75 and
   // 77, in the motion); and whether they act, which turns time backwards off.
@@ -711,6 +683,7 @@ function play({ canvas, gl }: Stage): void {
     const mode = Math.min(value(MODE), n);
     // the hands let go, the music's to take hold again from where its path
     // is (decision 75), and the tension is measured afresh
+    const { saved } = settings;
     if (saved !== null) {
       motion.apply({
         kind: "start",
@@ -751,50 +724,12 @@ function play({ canvas, gl }: Stage): void {
     twins.clear();
     resetTrailEnds();
     spawnTwins();
-    showStart();
-  }
-
-  /**
-   * The start's controls: with a moment saved, the start says the chain
-   * starts there; without, a mode the chain lacks shows the highest it has,
-   * held back. The amplitude, which only a mode has, shows faint while the
-   * chain starts raised or from the moment saved, where it has nothing to do.
-   */
-  function showStart(): void {
-    const mode = value(MODE);
-    if (saved !== null) controls.showValue(MODE.id, SAVED_START);
-    else if (mode > motion.chain.n) {
-      controls.showValue(MODE.id, mode, { reached: motion.chain.n });
-    } else controls.showValue(MODE.id, mode);
-    controls.showValue(AMPLITUDE.id, value(AMPLITUDE), {
-      idle: saved !== null || mode === 0,
-    });
+    row.showStart();
   }
 
   /** Whether dense light keeps its colour now: asked for, where the browser can draw light into half floats (decision 61). */
   function keepsColour(): boolean {
     return value(WHITE) > 0 && twinLight.floating;
-  }
-
-  /** When dense light turns white, in five dots of the palette chosen; faint where the browser cannot keep the colour (decision 61). */
-  function showWhite(): void {
-    controls.showValue(WHITE.id, value(WHITE), {
-      swatches: whiteSwatches(value(WHITE), value(PALETTE)),
-      idle: !twinLight.floating,
-    });
-  }
-
-  /** How near the twins are held, faint while they stay or fade, where it has nothing to do (decision 64). */
-  function showHold(): void {
-    const life = value(FADE);
-    controls.showValue(HOLD.id, value(HOLD), {
-      idle: life !== HELD_STEP && life !== LEASHED_STEP,
-    });
-  }
-
-  /** Which masses draw the trails, faint with a strobe's, which stamps the whole chain (decision 50). */
-  function showRibbon(): void {
-    controls.showValue(RIBBON.id, value(RIBBON), { idle: value(STYLE) === 1 });
   }
 
   /** The same motion on another number of masses, the hand keeping hold of the same place along the chain, and the music's taking hold of the new tip (decision 75). */
@@ -841,13 +776,7 @@ function play({ canvas, gl }: Stage): void {
       clearTrails();
       trail.clear();
     }
-    controls.showAction("light", on ? "light" : "dark", LIGHT_LABEL, on);
     showTwins();
-  }
-
-  /** The tension's colours as the row shows them, one control (decision 53): off, or the scale. */
-  function tensionAt(): number {
-    return tensionShown ? value(SCALE) : TENSION.initial;
   }
 
   /** Each rod painted by its tension, or the chain in its own colour; the switch says which. */
@@ -859,7 +788,6 @@ function play({ canvas, gl }: Stage): void {
       rodColors = Array.from({ length: motion.chain.n }, () => colors.chain);
       motion.apply({ kind: "measure afresh" });
     }
-    controls.showValue(TENSION.id, tensionAt());
   }
 
   /** The time button says which way a press would take time. */
@@ -900,223 +828,38 @@ function play({ canvas, gl }: Stage): void {
     );
   }
 
-  /** Each switch, on or off, by its id in the address (decision 38). */
-  function switches(): Map<string, boolean> {
-    return new Map([
-      ["light", lit],
-      ["tension", tensionShown],
-      ["sketch", wholeFrame],
-    ]);
-  }
-
   /**
-   * The moment as it is now goes into the address, with the screen around
-   * it, and the chain starts there from now on (decisions 34 and 38): exactly
-   * as the address holds it, seven digits to a number, so that the address
-   * opened again starts the same.
+   * What an event of the row or the keys does to the chain, its twins, its
+   * trails and its colours (decision 88), once the settings have taken it;
+   * the row shows it, and the address and the title follow.
    */
-  function save(): void {
-    // the chain the screen shows, while the next frame is computed ahead
-    // (decision 51), from a snapshot of the motion
-    const shot = motion.snapshot();
-    const { shown } = shot;
-    const screen = ahead !== null && shown.theta.length === shot.n;
-    const now: Saved = {
-      state: screen ? shown : shot,
-      paused,
-      backwards,
-      phase: screen ? shown.phase : shot.phase,
-      savedAt: Date.now(),
-    };
-    saved = openingOf("", addressOf(values, switches(), now, "")).saved;
-    keepAddress();
-    showStart();
-  }
-
-  /** The moment saved is forgotten, and leaves the address. */
-  function forget(): void {
-    if (saved === null) return;
-    saved = null;
-    keepAddress();
-  }
-
-  /** The page's title names the screen (decision 38). */
-  function showTitle(): void {
-    document.title = titleOf(NAME, values, switches(), saved);
-  }
-
-  /**
-   * The address says what the screen is now: with a moment saved, its code
-   * after the "#"; without, the values and the switches that differ from the
-   * opening (decision 38). The title follows, the button says whether a
-   * moment is kept, and an open QR code shows the new address (decision 40).
-   */
-  function keepAddress(): void {
-    // the music's mode and strength stay in the readable part, outside the
-    // saved moment's code (decision 46)
-    const ids = MODES.map(({ id }) => id);
-    // and so do the dance's choreography (decision 83), and the camera, with
-    // its comma as a comma (decision 67)
-    const search = writeCamera(
-      writeChoreography(
-        writeMusic(ids, location.search, tune.mode, tune.strength),
-        choreography,
-      ),
-      camera,
-    );
-    const part = addressOf(values, switches(), saved, search);
-    // and so do the trails' mechanism and the meter (decision 68)
-    const tuned =
-      saved === null
-        ? ""
-        : writeCamera(
-            writeChoreography(
-              writeMusic(
-                ids,
-                keepMeasures(location.search),
-                tune.mode,
-                tune.strength,
-              ),
-              choreography,
-            ),
-            camera,
-          );
-    history.replaceState(
-      null,
-      "",
-      `${location.pathname}${withCommas(tuned)}${withCommas(part)}`,
-    );
-    showTitle();
-    showSave();
-    card.update(location.href, document.title);
-  }
-
-  // The address shared, or shown as a QR code (decision 40), in the ground's
-  // colours.
-  const cardColors = {
-    dark: cssColor(colors.ground),
-    light: cssColor(colors.chain),
-  };
-  const card = mountLinkCard(cardColors);
-  // What the piece listens to (decision 44), in the music's group of the
-  // row, which shows it hearing (decision 76).
-  const music = mountMusic();
-  /** Where the music's mode stands among the modes. */
-  function musicModeAt(): number {
-    return Math.max(
-      0,
-      MODES.findIndex(({ id }) => id === tune.mode),
-    );
-  }
-  /** What the music does, or how strongly, stepped in its group (decisions 46 and 76): the routes follow, and the address keeps both. */
-  function stepMusic(parameter: Parameter, direction: 1 | -1): void {
-    if (parameter === MUSIC_MODE) {
-      const at = stepValue(MUSIC_MODE, musicModeAt(), direction);
-      tune.mode = MODES[at]?.id ?? tune.mode;
-    } else {
-      tune.strength = stepValue(MUSIC_STRENGTH, tune.strength, direction);
-    }
-    router = new Router(modeOf(tune.mode), { slow: still.matches });
-    showMusic();
-    keepAddress();
-  }
-  /** The music's mode and strength, as values of its group. */
-  function showMusic(): void {
-    controls.showValue(MUSIC_MODE.id, musicModeAt());
-    controls.showValue(MUSIC_STRENGTH.id, tune.strength);
-  }
-
-  /**
-   * Dresses the piece in the ground asked for (decision 41): the canvas, the
-   * page and the row in its colours, the chain, the hand and the pivot in
-   * theirs, and the tension's scale around the chain's colour. The trails
-   * already drawn keep their colours and fade.
-   */
-  function dress(): void {
-    const ground = groundAt(value(GROUND));
-    colors.ground = ground.ground;
-    colors.chain = ground.chain;
-    colors.hand = ground.hand;
-    colors.pivot = ground.pivot;
-    const tokens: [string, Rgb][] = [
-      ["--color-ground", ground.ground],
-      ["--color-ink", ground.ink],
-      ["--color-ink-muted", ground.inkMuted],
-      ["--color-link", ground.ink],
-      ["--color-chain", ground.chain],
-      ["--color-hand", ground.hand],
-      ["--color-pivot", ground.pivot],
-    ];
-    for (const [name, color] of tokens) {
-      document.documentElement.style.setProperty(name, cssColor(color));
-    }
-    tensionColor = tensionScale(colors.chain, tensionScaleAt(value(SCALE)));
-    cardColors.dark = cssColor(colors.ground);
-    cardColors.light = cssColor(colors.chain);
-  }
-  dress();
-  let copiedTimer = 0;
-  /** Shares the address as it is, with the title; where it was copied, the button and a word say so a moment. */
-  async function share(): Promise<void> {
-    const done = await shareLink(location.href, document.title);
-    if (done === "copied") {
-      card.say("Link copied");
-      controls.showAction("share", "copied", "Link copied");
-      clearTimeout(copiedTimer);
-      copiedTimer = window.setTimeout(() => {
-        controls.showAction("share", "share", "Share this page's address");
-      }, COPIED_MS);
-    } else if (done === "failed") {
-      card.say("The link could not be copied");
+  function answer(event: PieceEvent): void {
+    if (event.kind === "value") {
+      changed(event.parameter, event.value, event.was);
+    } else if (event.kind === "switch") {
+      if (event.id === "light") setLit(event.on);
+      else if (event.id === "tension") setTensionShown(event.on);
+      else setWholeFrame(event.on);
+    } else if (event.kind === "music") {
+      // the routes follow the music's mode and strength (decisions 46 and 76)
+      router = new Router(modeOf(event.mode), { slow: still.matches });
+    } else if (event.kind === "act") {
+      acted(event.id);
     }
   }
 
-  function showSave(): void {
-    controls.showAction(
-      "save",
-      saved === null ? "save" : "saved",
-      saved === null
-        ? "Save this moment"
-        : "Save this moment over the one saved",
-    );
-  }
-
-  function step(parameter: Parameter, direction: 1 | -1): void {
-    if (parameter === MUSIC_MODE || parameter === MUSIC_STRENGTH) {
-      stepMusic(parameter, direction);
-      return;
-    }
-    // the zoom's − and +, as X and Z, about the middle (decision 73)
-    if (parameter === ZOOM) {
-      zoomMiddle(direction > 0 ? ZOOM_STEP : 1 / ZOOM_STEP);
-      return;
-    }
-    // the tension's colours, one control in the row, step the switch and the
-    // scale the address keeps apart: off, then each scale (decision 53)
+  /** A control gone from `before` to `next`. */
+  function changed(parameter: Parameter, next: number, before: number): void {
+    // the tension's colours, one control in the row: off, or a scale, which
+    // paints the tension in it (decision 53)
     if (parameter === TENSION) {
-      const next = stepValue(TENSION, tensionAt(), direction);
       if (next !== TENSION.initial) {
-        values.set(SCALE.id, next);
         tensionColor = tensionScale(colors.chain, tensionScaleAt(next));
       }
       setTensionShown(next !== TENSION.initial);
-      showStart();
-      keepAddress();
       return;
     }
-    const before = value(parameter);
-    // with a moment saved, the start's first step forgets it and goes back
-    // to the start it had before, rather than to the next one
-    const next =
-      parameter === MODE && saved !== null
-        ? before
-        : stepValue(parameter, before, direction);
-    values.set(parameter.id, next);
-    // a moment saved belongs to a chain of so many masses, and choosing a
-    // start, a mode or the amplitude of one, starts there instead
-    const chooses =
-      parameter === MODE || (parameter === AMPLITUDE && value(MODE) > 0);
-    if (parameter === MASSES || chooses) forget();
+    const chooses = choosesStart(parameter, values);
     if (parameter === MASSES) setMasses(next);
     // the chain and its twins fall another way, or harder, from where they
     // are; the pivot shakes along gravity's line
@@ -1164,216 +907,84 @@ function play({ canvas, gl }: Stage): void {
     // their colours and fade
     if (parameter === PALETTE) paint();
     // another ground dresses the piece at once; another scale paints the
-    // tension in it, and turns its colours on (decision 41)
+    // tension in it (decision 41), and its switch turns its colours on
     if (parameter === GROUND) dress();
     if (parameter === SCALE) {
       tensionColor = tensionScale(colors.chain, tensionScaleAt(next));
-      if (!tensionShown) setTensionShown(true);
     }
-    if (!lit && LIGHT_CONTROLS.has(parameter)) setLit(true);
-    // the scale shows in the tension's colours, one control (decision 53),
-    // and the white in the palette's (decision 61)
-    if (parameter === SCALE) controls.showValue(TENSION.id, tensionAt());
-    else if (parameter !== WHITE) controls.showValue(parameter.id, next);
-    showStart();
-    showRibbon();
-    showWhite();
-    showHold();
-    keepAddress();
   }
 
-  /** A switch turned the other way, which the address and the title follow (decision 38). */
-  function toggle(id: "light" | "tension" | "sketch"): void {
-    if (id === "light") setLit(!lit);
-    else if (id === "tension") setTensionShown(!tensionShown);
-    else {
-      setWholeFrame(!wholeFrame);
-      // its button in the screen's group says whether it is on (decision 54)
-      controls.showAction(
-        "sketch",
-        wholeFrame ? "sketched" : "sketch",
-        "The sketch's light",
-        wholeFrame,
-      );
-    }
-    keepAddress();
+  /** An action of the row or a key; saving, sharing and the QR code are the row's. */
+  function acted(id: Act): void {
+    if (id === "pause") setPaused(!paused);
+    else if (id === "reverse") reverseTime();
+    else if (id === "start") start();
+    // the zoom's − and +, as Z and X, about the middle (decision 73)
+    else if (id === "nearer") zoomMiddle(ZOOM_STEP);
+    else if (id === "farther") zoomMiddle(1 / ZOOM_STEP);
+    else if (id === "whole") wholeView();
   }
 
-  // The row of controls (decisions 31 and 54): the pause and the light,
-  // which act on the whole piece, then the groups, each opening its own row:
-  // time and where the chain starts, the chain, the twins, the trails, the
-  // music, and the screen.
-  const controls = mountControls(
-    [
-      [
-        {
-          id: "pause",
-          label: "Pause",
-          icon: "pause",
-          keys: [" "],
-          keysShown: "␣",
-        },
-        {
-          id: "light",
-          label: LIGHT_LABEL,
-          icon: "light",
-          keys: ["l", "L"],
-          keysShown: "L",
-          pressed: lit,
-        },
-      ],
-      [
-        {
-          id: "time",
-          label: "Time and the start",
-          icon: "clock",
-          controls: [
-            {
-              id: "start",
-              label: "Start again",
-              icon: "restart",
-              keys: ["r", "R"],
-              keysShown: "R",
-            },
-            {
-              id: "save",
-              label: "Save this moment",
-              icon: "save",
-              keys: ["s", "S"],
-              keysShown: "S",
-            },
-            MODE,
-            AMPLITUDE,
-            {
-              id: "reverse",
-              label: "Run time backwards",
-              icon: "reverse",
-              keys: ["b", "B"],
-              keysShown: "B",
-            },
-            TIME,
-          ],
-        },
-        {
-          id: "chain",
-          label: "The chain",
-          icon: "masses",
-          // the tension's colours, one control in place of the switch and
-          // the scale (decision 53), and what of the chain is drawn last
-          // (decision 65)
-          controls: [MASSES, HAND, GRAVITY, TILT, SHAKE, TENSION, DRAWN],
-        },
-        {
-          id: "twins",
-          label: "The twins",
-          icon: "butterfly",
-          controls: [TWIN_COUNT, SPREAD, FADE, HOLD, LOOK, PALETTE, WHITE],
-        },
-        {
-          id: "trails",
-          label: "The trails",
-          icon: "comet",
-          controls: [TRAIL, STYLE, RIBBON],
-        },
-        {
-          // where the sound comes from, what the music does and how
-          // strongly, and above them, while no value is chosen, what the
-          // piece hears (decision 76)
-          id: "music",
-          label: "Music",
-          icon: "music",
-          keys: ["w", "W"],
-          keysShown: "W",
-          panel: music.panel,
-          controls: [...music.sources, MUSIC_MODE, MUSIC_STRENGTH],
-        },
-        {
-          id: "screen",
-          label: "The screen",
-          icon: "monitor",
-          // the zoom and the whole view first (decision 73)
-          controls: [
-            ZOOM,
-            {
-              id: "whole",
-              label: "The whole view",
-              icon: "whole",
-              keys: ["Shift+KeyX"],
-              keysShown: "Shift X",
-            },
-            GROUND,
-            {
-              id: "sketch",
-              label: "The sketch's light",
-              icon: wholeFrame ? "sketched" : "sketch",
-              keys: ["g", "G"],
-              keysShown: "G",
-              pressed: wholeFrame,
-            },
-            {
-              id: "share",
-              label: "Share this page's address",
-              icon: "share",
-              keys: ["h", "H"],
-              keysShown: "H",
-            },
-            {
-              id: "qr",
-              label: "QR code of this page's address",
-              icon: "qr",
-              keys: ["o", "O"],
-              keysShown: "O",
-            },
-          ],
-        },
-      ],
-    ],
-    {
-      step,
-      act(id) {
-        if (id === "pause") setPaused(!paused);
-        else if (id === "reverse") reverseTime();
-        else if (id === "light" || id === "sketch") toggle(id);
-        else if (id === "save") save();
-        else if (id === "share") void share();
-        else if (id === "qr") card.toggle(location.href, document.title);
-        else if (music.sources.some((source) => source.id === id)) {
-          music.press(id);
-        } else if (id === "whole") wholeView();
-        else start();
-      },
+  /** The moment as the screen shows it, to be saved: the chain the screen shows, while the next frame is computed ahead (decision 51), from a snapshot of the motion. */
+  function moment(): Omit<Saved, "savedAt"> {
+    const shot = motion.snapshot();
+    const { shown } = shot;
+    const screen = ahead !== null && shown.theta.length === shot.n;
+    return {
+      state: screen ? shown : shot,
+      paused,
+      backwards,
+      phase: screen ? shown.phase : shot.phase,
+    };
+  }
+
+  // The row of controls, its keys and the address (decision 88).
+  const row = mountRow(settings, {
+    answer,
+    get masses() {
+      return motion.chain.n;
     },
-  );
-  for (const parameter of PARAMETERS) {
-    // the scale shows in the tension's colours, which the switch's turn shows,
-    // and the white in the palette's
-    if (parameter !== SCALE && parameter !== WHITE) {
-      controls.showValue(parameter.id, value(parameter));
+    get floating() {
+      return twinLight.floating;
+    },
+    get camera() {
+      return camera;
+    },
+    moment,
+  });
+  const { controls, music } = row;
+
+  /**
+   * Dresses the piece in the ground asked for (decision 41): the canvas, the
+   * page and the row in its colours, the chain, the hand and the pivot in
+   * theirs, and the tension's scale around the chain's colour. The trails
+   * already drawn keep their colours and fade.
+   */
+  function dress(): void {
+    const ground = groundAt(value(GROUND));
+    colors.ground = ground.ground;
+    colors.chain = ground.chain;
+    colors.hand = ground.hand;
+    colors.pivot = ground.pivot;
+    const tokens: [string, Rgb][] = [
+      ["--color-ground", ground.ground],
+      ["--color-ink", ground.ink],
+      ["--color-ink-muted", ground.inkMuted],
+      ["--color-link", ground.ink],
+      ["--color-chain", ground.chain],
+      ["--color-hand", ground.hand],
+      ["--color-pivot", ground.pivot],
+    ];
+    for (const [name, color] of tokens) {
+      document.documentElement.style.setProperty(name, cssColor(color));
     }
+    tensionColor = tensionScale(colors.chain, tensionScaleAt(value(SCALE)));
   }
-  showRibbon();
-  showWhite();
-  showHold();
+  dress();
   showZoom();
-  showMusic();
-  // a source of the music lit while it plays (decision 76)
-  music.onPlaying = (playing) => {
-    for (const source of music.sources) {
-      controls.showAction(
-        source.id,
-        source.icon,
-        source.label,
-        source.id === playing,
-      );
-    }
-  };
   // the switches as the address asks for them
   setLit(lit);
   setTensionShown(tensionShown);
-  showSave();
-  showTitle();
-  // the button shows for a moment as the piece opens, so that it is found
-  controls.wake();
 
   /**
    * The view the frame is drawn in: the drawing buffer's alone (decision
@@ -1434,7 +1045,9 @@ function play({ canvas, gl }: Stage): void {
    */
   function viewMoved(): void {
     clearTimeout(addressTimer);
-    addressTimer = window.setTimeout(keepAddress, 300);
+    addressTimer = window.setTimeout(() => {
+      row.keepAddress();
+    }, 300);
     showZoom();
   }
 
@@ -1690,59 +1303,16 @@ function play({ canvas, gl }: Stage): void {
     // A focused button takes its own Space and Enter.
     const onButton = event.target instanceof HTMLButtonElement;
     if (onButton && (event.key === " " || event.key === "Enter")) return;
-    // a key held with Shift by where it is, or what a key types (decision 53)
-    const action = keyAction(PARAMETERS, {
-      key: event.key,
-      code: event.code,
-      shiftKey: event.shiftKey,
-    });
-    if (action !== null) {
-      event.preventDefault();
-      step(action.parameter, action.direction);
-      // the value the key changed comes into sight, alone; the scale's in
-      // the tension's colours
-      controls.choose(
-        action.parameter === SCALE ? TENSION.id : action.parameter.id,
-      );
-      return;
-    }
-    if (event.key === " ") {
-      event.preventDefault();
-      if (!event.repeat) {
-        spaceHeld = true;
-        spaceUsed = false;
-        if (panning === null) canvas.style.cursor = "grab";
-      }
-    } else if (event.shiftKey && event.code === "KeyX") {
-      // held with Shift by where it is, the whole view (decisions 53 and 73)
-      wholeView();
-    } else if (event.key === "z" || event.key === "Z") {
-      zoomMiddle(ZOOM_STEP);
-      controls.choose(ZOOM.id);
-    } else if (event.key === "x" || event.key === "X") {
-      zoomMiddle(1 / ZOOM_STEP);
-      controls.choose(ZOOM.id);
-    } else if (event.key === "r" || event.key === "R") {
-      start();
-    } else if (event.key === "s" || event.key === "S") {
-      save();
-    } else if (event.key === "h" || event.key === "H") {
-      void share();
-    } else if (event.key === "o" || event.key === "O") {
-      card.toggle(location.href, document.title);
-    } else if (event.key === "b" || event.key === "B") {
-      reverseTime();
-    } else if (event.key === "l" || event.key === "L") {
-      toggle("light");
-    } else if (event.key === "t" || event.key === "T") {
-      toggle("tension");
-      controls.choose(TENSION.id);
-    } else if (event.key === "g" || event.key === "G") {
-      toggle("sketch");
-    } else if (event.key === "w" || event.key === "W") {
-      controls.toggleGroup("music");
-    } else {
-      return;
+    // the row's keys, its controls' and its actions' (decision 88)
+    if (row.key(event)) return;
+    // Space, held, moves the view with a drag, and pressed alone pauses
+    // (decision 67)
+    if (event.key !== " ") return;
+    event.preventDefault();
+    if (!event.repeat) {
+      spaceHeld = true;
+      spaceUsed = false;
+      if (panning === null) canvas.style.cursor = "grab";
     }
     controls.wake();
   });
@@ -1864,7 +1434,7 @@ function play({ canvas, gl }: Stage): void {
     // 75), in the chain's colour, where its choreography shows it (decision
     // 83): hidden, the chain dances by itself
     const holder =
-      motion.hand ?? (choreography.shown ? motion.musicHand : null);
+      motion.hand ?? (settings.choreography.shown ? motion.musicHand : null);
     if (holder !== null) {
       // How hard the hand pulls, in weights of the whole chain on Earth, eased
       // over a few frames so that a jittery pointer does not flicker: a hand
@@ -2043,7 +1613,7 @@ function play({ canvas, gl }: Stage): void {
       heard: heardNow,
       force: router.mode.force,
       strength: tune.strength,
-      dance: choreography,
+      dance: settings.choreography,
       pointer,
       tension: tensionShown,
       speeds: curves !== null,
@@ -2566,6 +2136,6 @@ function play({ canvas, gl }: Stage): void {
 
   start();
   // a moment saved paused opens paused, as it was
-  if (saved?.paused === true) setPaused(true);
+  if (settings.saved?.paused === true) setPaused(true);
   requestAnimationFrame(frame);
 }
