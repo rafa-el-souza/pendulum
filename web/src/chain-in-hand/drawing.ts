@@ -14,6 +14,7 @@
 import type { Rgb } from "../core/color.ts";
 import { Lines, SegmentBatch } from "../core/lines.ts";
 import type { Parameter } from "../core/parameters.ts";
+import type { Stages } from "../core/perf.ts";
 import type { Look } from "../core/routes.ts";
 import {
   SharpTrails,
@@ -208,6 +209,8 @@ export interface DrawingHooks {
   fanColor(j: number): Rgb | undefined;
   /** Whether the music's hand is shown while it holds the tip (decision 83). */
   readonly handShown: boolean;
+  /** What times the frame's stages, where the address asks for the recorder (decision 94); none otherwise. */
+  readonly stages: Stages | null;
 }
 
 /** The piece's drawing: what the frame shows, and the trails its motion leaves. */
@@ -746,6 +749,8 @@ export function mountDrawing(
     // strobe's stamps too (decision 91), unless the curves cannot keep them
     // yet: a mark, or eight bits; the image shown then goes on as the image
     // carried, and back.
+    const { stages } = hooks;
+    stages?.begin("draw.see");
     const trailStep = hooks.lit ? value(TRAIL) : 0;
     const { halfLife, mark } = trailFade(trailStep);
     if (sharp !== null) {
@@ -765,6 +770,7 @@ export function mountDrawing(
       mechanism === "sharp" && sharp !== null
         ? sharp.see(view)
         : trails.see(view);
+    stages?.end("draw.see");
     const scale = view.scale;
     const rodPixels = (chain.totalLength / chain.n) * (scale / ratio);
     // Every mass, twin and trail stays within the chain's length of the
@@ -784,6 +790,7 @@ export function mountDrawing(
     // The twins, faint, so that many together read as one bright chain and
     // only the fringes of the fan show colour; while they fade, each in its
     // own light, and those gone dark not at all.
+    stages?.begin("draw.fan");
     fan.clear();
     dust.clear();
     const faint = twinShine(twins.count);
@@ -822,6 +829,7 @@ export function mountDrawing(
         ty = by;
       }
     });
+    stages?.end("draw.fan");
 
     motion.positions(x, y);
     rods.clear();
@@ -893,6 +901,7 @@ export function mountDrawing(
     // 42). Kept as curves, they fade by the half-lives of the step drawn,
     // take its spans and intervals, and are remade if the view changed
     // (decision 68).
+    stages?.begin("draw.trails");
     if (mechanism === "sharp" && sharp !== null) {
       if (trailStep > 0) {
         sharp.frame(
@@ -928,6 +937,8 @@ export function mountDrawing(
         });
       }
     }
+    stages?.end("draw.trails");
+    stages?.begin("draw.gl");
     // dense light keeps its colour, or turns white at once (decision 61)
     const keeps = keepsColour();
     trails.white = keeps ? whiteAfter(value(WHITE)) : 0;
@@ -960,6 +971,7 @@ export function mountDrawing(
       drawTwins(view, ratio);
       drawChain(view, ratio, rodPixels);
     }
+    stages?.end("draw.gl");
     return changed;
   }
 

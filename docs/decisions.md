@@ -3344,6 +3344,35 @@ of the twins (staying, leashed, born round the pivot, run backwards, let go
 by the hand, born again on the music's hits and kicks, and spread by its
 fan): the saved moment's code and the screen the same, byte for byte.
 
+## 94. A recorder the address can ask for measures where a frame's time goes
+
+*2026-11-22.* With `?perf=1` in the address, the page records, after twenty
+seconds of warm-up, twenty seconds of frames: the time each stage of a frame
+takes on the main line (the music, the chain, the twins taken, the drawing
+in four parts, the twins born, the controls shown, the twins sent), every
+report the twins' workers send back (decision 51), the frames' rhythm and
+the workers' budget (decision 52), and, where the browser can tell it, the
+time the graphics card takes to draw. It then saves the record as a file on
+the device, and a line in the top right corner becomes a link to save it
+again; nothing is sent anywhere. `perfwarm=` and `perfspan=` change the
+seconds, and `perflabel=` names the file. The recorder's keys leave the
+address as the page opens, as the visits' switch does (decision 84), so that
+no link shared or saved carries them. Without them nothing is recorded, and
+nothing on screen changes.
+
+**Why.** What holds the frames back differs by device and by setting: the
+main line, the twins' workers or the graphics card. A change made to speed
+them up is chosen by which one, and checked on the devices themselves.
+
+**Evidence.** Unit tests: what the address asks for and the seconds it may
+ask, the address without the recorder's keys and the rest as it was written,
+a row per frame with the workers' reports and the graphics card's time once
+it answers, and the file's name. A browser test: the file is saved, every
+column a row per frame, and the address no longer carries the keys; without
+them, no recorder. In the browser, side by side with the code before, on the
+page's own clock, the forty-four cases of decisions 90 and 92: the saved
+moment's code and the screen the same, byte for byte.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
