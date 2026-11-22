@@ -25,6 +25,7 @@ import {
   SpanBatch,
   SpanLines,
   mostPieces,
+  pushPoint,
   pushStraight,
   type SpanStyle,
 } from "./curves.ts";
@@ -411,8 +412,9 @@ export class SharpTrails {
   }
 
   /**
-   * A rod stamped by a strobe's flash, from (ax, ay) to (bx, by), as a
-   * straight span at the samples' clock now (decision 91): drawn into the
+   * A rod stamped by a strobe's flash, or of the veil, from (ax, ay) to (bx,
+   * by), as a straight span at the samples' clock now (decisions 91 and 96),
+   * `light` at its first end and `lightEnd` at the other: drawn into the
    * image this frame, and kept in the window, drawn anew in any view.
    */
   stamp(
@@ -422,10 +424,18 @@ export class SharpTrails {
     by: number,
     color: Rgb,
     light: number,
+    lightEnd = light,
   ): void {
     const { fade } = this.clock;
-    pushStraight(this.fresh, ax, ay, bx, by, color, light, fade);
-    pushStraight(this.closed, ax, ay, bx, by, color, light, fade);
+    pushStraight(this.fresh, ax, ay, bx, by, color, light, fade, lightEnd);
+    pushStraight(this.closed, ax, ay, bx, by, color, light, fade, lightEnd);
+  }
+
+  /** A point stamped by a strobe's flash at (x, y), a mass or a twin's tip, as a span of no length at the samples' clock now, drawn round (decision 96): drawn into the image this frame, and kept in the window. */
+  point(x: number, y: number, color: Rgb, light: number): void {
+    const { fade } = this.clock;
+    pushPoint(this.fresh, x, y, color, light, fade);
+    pushPoint(this.closed, x, y, color, light, fade);
   }
 
   /**

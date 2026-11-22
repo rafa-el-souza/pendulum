@@ -9,10 +9,12 @@ export type Icon =
   | "restart"
   | "fan"
   | "comet"
-  | "style"
+  | "path"
+  | "flash"
+  | "paths"
+  | "flashes"
   | "dust"
   | "spread"
-  | "ribbon"
   | "light"
   | "dark"
   | "reverse"
@@ -106,10 +108,26 @@ const ICONS: Record<
     fill: "M14 8a3 3 0 1 0 6 0a3 3 0 1 0 -6 0",
     stroke: "M14.5 10.5L4 21M12.5 8.5L6 13.5M16.5 12L12 19",
   },
-  // a line that goes on as dots: the trails' style, lines or a strobe's
-  style: {
-    fill: "M11.3 10.6a1.3 1.3 0 1 0 2.6 0a1.3 1.3 0 1 0 -2.6 0M14.7 8.9a1.3 1.3 0 1 0 2.6 0a1.3 1.3 0 1 0 -2.6 0M18.3 7.8a1.3 1.3 0 1 0 2.6 0a1.3 1.3 0 1 0 -2.6 0",
-    stroke: "M3.5 20.5C5.5 16.5 7 14 9.5 12.3",
+  // The trails' four layers (decision 96): a path with its bead at the head,
+  // the lines the chain leaves; three paths from one place, as the twins born
+  // together part, the lines they leave; a bolt beside the bead, or the three,
+  // that a strobe's flash stamps.
+  path: {
+    fill: "M16.4 6.4a2.4 2.4 0 1 0 4.8 0a2.4 2.4 0 1 0 -4.8 0",
+    stroke: "M3 20.5C11 21 9.5 8 16.3 6.8",
+  },
+  paths: {
+    fill: "M16 3.8a2 2 0 1 0 4 0a2 2 0 1 0 -4 0M17.8 11.2a2 2 0 1 0 4 0a2 2 0 1 0 -4 0M17.9 18a2 2 0 1 0 4 0a2 2 0 1 0 -4 0",
+    stroke:
+      "M3.5 20.5C6 15 9 7.5 15.6 4.4M3.5 20.5C8 16.5 12 12.5 17.4 11.4M3.5 20.5C9 19.5 13 19.6 17.6 18.4",
+  },
+  flash: {
+    fill: "M10.5 2L4 12.5h4.5L6.5 22l8-12h-5zM14.8 12a3 3 0 1 0 6 0a3 3 0 1 0 -6 0",
+    stroke: "",
+  },
+  flashes: {
+    fill: "M10.5 2L4 12.5h4.5L6.5 22l8-12h-5zM15.8 4.5a2.2 2.2 0 1 0 4.4 0a2.2 2.2 0 1 0 -4.4 0M17.3 12a2.2 2.2 0 1 0 4.4 0a2.2 2.2 0 1 0 -4.4 0M15.8 19.5a2.2 2.2 0 1 0 4.4 0a2.2 2.2 0 1 0 -4.4 0",
+    stroke: "",
   },
   // a cloud of points of light: the twins' look, chains or dust
   dust: {
@@ -120,11 +138,6 @@ const ICONS: Record<
   spread: {
     fill: "M10.5 4a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0 -3 0M7.2 20a1.8 1.8 0 1 0 3.6 0a1.8 1.8 0 1 0 -3.6 0M13.2 20a1.8 1.8 0 1 0 3.6 0a1.8 1.8 0 1 0 -3.6 0",
     stroke: "M12 4L9 20M12 4L15 20",
-  },
-  // a ribbon, two waves side by side
-  ribbon: {
-    fill: "",
-    stroke: "M3 9c3-4 6-4 9 0s6 4 9 0M3 15c3-4 6-4 9 0s6 4 9 0",
   },
   // a light bulb, lit: the twins' and the trails' light, filled while it is
   // on and outlined while it is out

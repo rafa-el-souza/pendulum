@@ -318,22 +318,73 @@ export const TRAIL: Parameter = {
   icon: "comet",
 };
 
+// What each of the trails' layers comes from (decision 96), in the order the
+// controls step through: none of the target, its tip, every mass, its rods,
+// or the whole of it, masses and rods.
+const PARTS_SHOWN = ["off", "tip", "masses", "rods", "whole"];
+
 /**
- * How the trails are drawn (decisions 50 and 53): as lines behind the
- * masses, as they have been and as the piece opens, or as a strobe's, the
- * whole chain stamped into the trails at even times, or on the kicks of the
- * music, and each twin's tip as a point on the same flash. The copies fade
- * as the trails' half-life says. The keys are the trails' own, with Shift.
+ * Which parts of the chain draw lines along their paths into the trails
+ * (decisions 21, 26 and 96): its tip, as the piece opens; none; every mass,
+ * a ribbon; its rods, a veil of each rod at every piece of the step; or the
+ * whole chain, masses and rods. The keys chose the masses before.
  */
-export const STYLE: Parameter = {
-  id: "style",
-  label: "Style of the trails",
-  values: [0, 1],
+export const LINES: Parameter = {
+  id: "lines",
+  label: "Lines from the chain",
+  values: [0, 1, 2, 3, 4],
+  initial: 1,
+  keys: { down: ["1"], up: ["2"] },
+  show: (value) => PARTS_SHOWN[value] ?? "off",
+  icon: "path",
+};
+
+/**
+ * Which parts of the chain a strobe's flashes stamp into the trails, at even
+ * times of the motion, or on the kicks of the music (decisions 50 and 96):
+ * none, as the piece opens; its tip, or every mass, as points; its rods, the
+ * strobe of before; or the whole chain, rods and masses. The copies fade as
+ * the trails' half-life says. The keys chose the strobe before, the trails'
+ * own with Shift.
+ */
+export const STROBE: Parameter = {
+  id: "strobe",
+  label: "Strobe on the chain",
+  values: [0, 1, 2, 3, 4],
   initial: 0,
   keys: { down: ["Shift+Digit7"], up: ["Shift+Digit8"] },
-  show: (value) => (value === 1 ? "strobe" : "lines"),
-  speak: (value) => (value === 1 ? "a strobe" : "lines"),
-  icon: "style",
+  show: (value) => PARTS_SHOWN[value] ?? "off",
+  icon: "flash",
+};
+
+/**
+ * Whether each twin's tip draws lines along its path into the trails
+ * (decisions 21 and 96), as the piece opens, however the twins are drawn.
+ * The keys are the chain's lines', with Shift.
+ */
+export const TWIN_LINES: Parameter = {
+  id: "twinlines",
+  label: "Lines from the twins",
+  values: [0, 1],
+  initial: 1,
+  keys: { down: ["Shift+Digit1"], up: ["Shift+Digit2"] },
+  show: (value) => (value === 1 ? "tips" : "off"),
+  icon: "paths",
+};
+
+/**
+ * Whether the strobe's flashes stamp each twin's tip into the trails as a
+ * point (decisions 50 and 96); not as the piece opens. The keys are the
+ * twins' own, with Shift.
+ */
+export const TWIN_STROBE: Parameter = {
+  id: "twinstrobe",
+  label: "Strobe on the twins",
+  values: [0, 1],
+  initial: 0,
+  keys: { down: ["Shift+Digit9"], up: ["Shift+Digit0"] },
+  show: (value) => (value === 1 ? "tips" : "off"),
+  icon: "flashes",
 };
 
 /**
@@ -514,23 +565,6 @@ export const LOOK: Parameter = {
  * which the author settles by looking.
  */
 export const FADE_REACH = 0.3;
-
-/**
- * Which masses of the chain leave trails (decision 26): the tip alone, as
- * until now, or every mass, so that the chain draws a ribbon. The twins'
- * trails stay at their tips. The control shows the chain's masses, lit where
- * they draw.
- */
-export const RIBBON: Parameter = {
-  id: "ribbon",
-  label: "Trails from every mass",
-  values: [0, 1],
-  initial: 0,
-  keys: { down: ["1"], up: ["2"] },
-  show: (value) => (value === 1 ? "●●●" : "○○●"),
-  speak: (value) => (value === 1 ? "every mass" : "the tip"),
-  icon: "ribbon",
-};
 
 /**
  * The twins' colours, and their trails' (decision 23): one palette per step,
@@ -785,8 +819,10 @@ export const LIGHT: readonly Parameter[] = [
   HOLD,
   LOOK,
   TRAIL,
-  STYLE,
-  RIBBON,
+  LINES,
+  STROBE,
+  TWIN_LINES,
+  TWIN_STROBE,
   PALETTE,
   WHITE,
 ];

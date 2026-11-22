@@ -14,7 +14,16 @@ import {
   type Switch,
   type Values,
 } from "../core/parameters.ts";
-import { FADE, MASSES, PARAMETERS, WHITE } from "./parameters.ts";
+import {
+  FADE,
+  LINES,
+  LOOK,
+  MASSES,
+  PARAMETERS,
+  STROBE,
+  TWIN_LINES,
+  WHITE,
+} from "./parameters.ts";
 
 // What the first piece's address carries (docs/decisions.md, decision 38).
 // Without a saved moment, the values of its controls and its switches that
@@ -226,6 +235,27 @@ const VERSION_10: CodeTable = {
   switches: ["light", "tension", "sketch"],
 };
 
+/**
+ * The code's eleventh version (decision 96), frozen once published: the
+ * trails' four layers, the lines and the strobe of the chain and of the
+ * twins, in place of the trails' style and the ribbon.
+ */
+const VERSION_11: CodeTable = {
+  version: 11,
+  controls: VERSION_10.controls.flatMap((control) => {
+    if (control.id === "style") {
+      return [
+        { id: "lines", values: [0, 1, 2, 3, 4] },
+        { id: "strobe", values: [0, 1, 2, 3, 4] },
+        { id: "twinlines", values: [0, 1] },
+        { id: "twinstrobe", values: [0, 1] },
+      ];
+    }
+    return control.id === "ribbon" ? [] : [control];
+  }),
+  switches: ["light", "tension", "sketch"],
+};
+
 /** Every version of the code the piece reads, oldest first. */
 export const CODES: readonly CodeTable[] = [
   VERSION_1,
@@ -238,10 +268,11 @@ export const CODES: readonly CodeTable[] = [
   VERSION_8,
   VERSION_9,
   VERSION_10,
+  VERSION_11,
 ];
 
 /** The version the piece writes: the newest. */
-export const CODE: CodeTable = VERSION_10;
+export const CODE: CodeTable = VERSION_11;
 
 /**
  * The trails' step of a strobe and the twins as dust, as the fifth code and
@@ -249,13 +280,25 @@ export const CODE: CodeTable = VERSION_10;
  * then faded over a second.
  */
 const STROBE_STEP = "50";
+// The trails' style and the ribbon, which the trails' four layers replaced
+// (decision 96): read from the addresses and codes written before, written
+// no more.
+const RETIRED_STYLE = "style";
+const RETIRED_RIBBON = "ribbon";
+// the parts the strobe of before and the ribbon came from
+const MASSES_ALL = 2;
+const RODS = 3;
 const STROBE_HALF_LIFE = "1";
 const DUST_STEP = "2";
 
 /**
- * Values written before decision 53, as the controls are now: the strobe's
- * step of the trails becomes trails of a second drawn by a strobe, and the
- * twins as dust become twins that stay, drawn as dust.
+ * Values written before decisions 53 and 96, as the controls are now: the
+ * strobe's step of the trails becomes trails of a second drawn by a strobe,
+ * and the twins as dust become twins that stay, drawn as dust (decision 53);
+ * then the strobe of before stamps the chain's rods and draws no lines, its
+ * ribbon idle; the ribbon draws lines from every mass; and the twins as dust,
+ * which drew no lines then, draw none (decision 96). An address written since
+ * carries whether the twins as dust draw lines (addressOf).
  */
 function asNow(written: ReadonlyMap<string, string>): Map<string, string> {
   const now = new Map(written);
@@ -266,6 +309,20 @@ function asNow(written: ReadonlyMap<string, string>): Map<string, string> {
   if (now.get("fade") === DUST_STEP) {
     now.set("fade", "0");
     if (!now.has("look")) now.set("look", "1");
+  }
+  const style = now.get(RETIRED_STYLE);
+  const ribbon = now.get(RETIRED_RIBBON);
+  now.delete(RETIRED_STYLE);
+  now.delete(RETIRED_RIBBON);
+  if (style === "1") {
+    if (!now.has(STROBE.id)) now.set(STROBE.id, String(RODS));
+    if (!now.has(LINES.id)) now.set(LINES.id, "0");
+    if (!now.has(TWIN_LINES.id)) now.set(TWIN_LINES.id, "0");
+  } else if (ribbon === "1" && !now.has(LINES.id)) {
+    now.set(LINES.id, String(MASSES_ALL));
+  }
+  if (now.get(LOOK.id) === "1" && !now.has(TWIN_LINES.id)) {
+    now.set(TWIN_LINES.id, "0");
   }
   return now;
 }
@@ -352,9 +409,17 @@ export function addressOf(
   if (saved !== null) {
     return `#${writeCode(CODE, { values, switches, ...saved })}`;
   }
-  return writeSwitches(
-    SWITCHES,
-    switches,
-    writeAddress(PARAMETERS, values, search),
+  const query = new URLSearchParams(search);
+  query.delete(RETIRED_STYLE);
+  query.delete(RETIRED_RIBBON);
+  const written = new URLSearchParams(
+    writeAddress(PARAMETERS, values, query.toString()),
   );
+  // the twins as dust drew no lines before decision 96: whether they do now
+  // is written however it is, so that the address reads as written (asNow)
+  if (values.get(LOOK.id) === 1 && !written.has(TWIN_LINES.id)) {
+    written.set(TWIN_LINES.id, String(TWIN_LINES.initial));
+  }
+  const text = written.toString();
+  return writeSwitches(SWITCHES, switches, text === "" ? "" : `?${text}`);
 }

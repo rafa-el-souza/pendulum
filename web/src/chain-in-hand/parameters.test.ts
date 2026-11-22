@@ -28,19 +28,21 @@ import {
   MASSES,
   MODE,
   PALETTE,
+  LINES,
   PARAMETERS,
-  RIBBON,
   SAVED_START,
   SCALE,
   SHAKE,
   SHAKE_AMPLITUDE,
   SPREAD,
-  STYLE,
+  STROBE,
   TENSION,
   TILT,
   TIME,
   TRAIL,
   TWIN_COUNT,
+  TWIN_LINES,
+  TWIN_STROBE,
   WHITE,
   ZOOM,
   gravityOf,
@@ -153,19 +155,67 @@ describe("the first piece's parameters", () => {
     expect(TRAIL.speak?.(600)).toBe("stays");
   });
 
-  it("draw the trails as lines, as they have until now and as the piece opens, or as a strobe's, on Shift with the trails' own keys (decisions 50 and 53)", () => {
-    expect(STYLE.id).toBe("style");
-    expect(STYLE.label).toBe("Style of the trails");
-    expect(STYLE.values).toEqual([0, 1]);
-    expect(STYLE.initial).toBe(0);
-    expect(STYLE.keys).toEqual({
+  it("draw lines from the chain's tip as the piece opens, or from none of it, every mass, its rods or the whole chain, on the keys that chose the masses before (decision 96)", () => {
+    expect(LINES.id).toBe("lines");
+    expect(LINES.label).toBe("Lines from the chain");
+    expect(LINES.values).toEqual([0, 1, 2, 3, 4]);
+    expect(LINES.initial).toBe(1);
+    expect(LINES.keys).toEqual({ down: ["1"], up: ["2"] });
+    expect(LINES.values.map((value) => LINES.show(value))).toEqual([
+      "off",
+      "tip",
+      "masses",
+      "rods",
+      "whole",
+    ]);
+    expect(LINES.icon).toBe("path");
+  });
+
+  it("stamp no part of the chain on a strobe's flashes as the piece opens, or its tip, every mass, its rods or the whole chain, on the keys that chose the strobe before (decision 96)", () => {
+    expect(STROBE.id).toBe("strobe");
+    expect(STROBE.label).toBe("Strobe on the chain");
+    expect(STROBE.values).toEqual([0, 1, 2, 3, 4]);
+    expect(STROBE.initial).toBe(0);
+    expect(STROBE.keys).toEqual({
       down: ["Shift+Digit7"],
       up: ["Shift+Digit8"],
     });
-    expect(STYLE.show(0)).toBe("lines");
-    expect(STYLE.show(1)).toBe("strobe");
-    expect(STYLE.speak?.(1)).toBe("a strobe");
-    expect(STYLE.icon).toBe("style");
+    expect(STROBE.values.map((value) => STROBE.show(value))).toEqual([
+      "off",
+      "tip",
+      "masses",
+      "rods",
+      "whole",
+    ]);
+    expect(STROBE.icon).toBe("flash");
+  });
+
+  it("draw lines from each twin's tip as the piece opens, or none, on Shift with the chain's lines' keys (decision 96)", () => {
+    expect(TWIN_LINES.id).toBe("twinlines");
+    expect(TWIN_LINES.label).toBe("Lines from the twins");
+    expect(TWIN_LINES.values).toEqual([0, 1]);
+    expect(TWIN_LINES.initial).toBe(1);
+    expect(TWIN_LINES.keys).toEqual({
+      down: ["Shift+Digit1"],
+      up: ["Shift+Digit2"],
+    });
+    expect(TWIN_LINES.show(0)).toBe("off");
+    expect(TWIN_LINES.show(1)).toBe("tips");
+    expect(TWIN_LINES.icon).toBe("paths");
+  });
+
+  it("stamp no twin on a strobe's flashes as the piece opens, or each twin's tip, on Shift with the twins' own keys (decision 96)", () => {
+    expect(TWIN_STROBE.id).toBe("twinstrobe");
+    expect(TWIN_STROBE.label).toBe("Strobe on the twins");
+    expect(TWIN_STROBE.values).toEqual([0, 1]);
+    expect(TWIN_STROBE.initial).toBe(0);
+    expect(TWIN_STROBE.keys).toEqual({
+      down: ["Shift+Digit9"],
+      up: ["Shift+Digit0"],
+    });
+    expect(TWIN_STROBE.show(0)).toBe("off");
+    expect(TWIN_STROBE.show(1)).toBe("tips");
+    expect(TWIN_STROBE.icon).toBe("flashes");
   });
 
   it("step through the twins' palettes, opening with the sketch's, which the author keeps (decision 23)", () => {
@@ -282,19 +332,6 @@ describe("the first piece's parameters", () => {
     expect(SPREAD.speak?.(6.28)).toBe("360 degrees round the pivot");
   });
 
-  it("let the trails come from the tip alone, as they have until now, or from every mass of the chain (decision 26)", () => {
-    expect(RIBBON.values).toEqual([0, 1]);
-    expect(RIBBON.initial).toBe(0);
-    expect(RIBBON.keys).toEqual({ down: ["1"], up: ["2"] });
-    expect(RIBBON.icon).toBe("ribbon");
-  });
-
-  it("show which masses draw as masses lit, and say it in words", () => {
-    expect(RIBBON.show(0)).toBe("○○●");
-    expect(RIBBON.show(1)).toBe("●●●");
-    expect(RIBBON.speak?.(0)).toBe("the tip");
-    expect(RIBBON.speak?.(1)).toBe("every mass");
-  });
   it("run gravity from none to Jupiter's, through Pluto's, the Moon's, Mars's and Earth's, opening at Earth's (decision 29)", () => {
     expect(GRAVITY.values).toEqual([0, 0.62, 1.62, 3.71, 9.81, 24.79]);
     expect(GRAVITY.initial).toBe(9.81);
@@ -359,8 +396,10 @@ describe("the first piece's parameters", () => {
       HOLD,
       LOOK,
       TRAIL,
-      STYLE,
-      RIBBON,
+      LINES,
+      STROBE,
+      TWIN_LINES,
+      TWIN_STROBE,
       PALETTE,
       WHITE,
     ]);

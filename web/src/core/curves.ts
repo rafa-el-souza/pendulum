@@ -61,6 +61,8 @@ export interface Span {
   readonly l1: number;
   readonly f0: number;
   readonly f1: number;
+  /** Whether it is a point, drawn round, rather than a band (decision 96). */
+  readonly point: boolean;
 }
 
 /** Spans, laid out as the card reads them. */
@@ -132,6 +134,7 @@ export class SpanBatch {
     l1: number,
     f0: number,
     f1: number,
+    point = false,
   ): void {
     this.#fit(this.count + 1);
     const f = this.count * FLOATS;
@@ -148,7 +151,8 @@ export class SpanBatch {
     this.#u8[o] = Math.round(Math.min(1, Math.max(0, rgb[0])) * 255);
     this.#u8[o + 1] = Math.round(Math.min(1, Math.max(0, rgb[1])) * 255);
     this.#u8[o + 2] = Math.round(Math.min(1, Math.max(0, rgb[2])) * 255);
-    this.#u8[o + 3] = 255;
+    // the fourth byte marks a point (decision 96): 255 for a band, 0 for one
+    this.#u8[o + 3] = point ? 0 : 255;
     f32[f + 9] = l0;
     f32[f + 10] = l1;
     f32[f + 11] = f0;
@@ -185,6 +189,7 @@ export function readSpan(
     l1: f32[f + 10] ?? 0,
     f0: f32[f + 11] ?? 0,
     f1: f32[f + 12] ?? 0,
+    point: u8[o + 3] === 0,
   };
 }
 
@@ -245,8 +250,9 @@ export function piecesFor(
 /**
  * A straight span into `batch`, as a strobe's flash stamps a rod (decision
  * 91): from (ax, ay) to (bx, by), each end's tangent the chord itself, so
- * that the curve runs along it evenly and bends nowhere, with `light` at both
- * ends and both at the fade clock `fade`, the instant of the flash.
+ * that the curve runs along it evenly and bends nowhere, with `light` at the
+ * first end and `lightEnd` at the other, the same unless said (decision 96),
+ * and both at the fade clock `fade`, the instant of the flash.
  */
 export function pushStraight(
   batch: SpanBatch,
@@ -257,10 +263,28 @@ export function pushStraight(
   rgb: Rgb,
   light: number,
   fade: number,
+  lightEnd = light,
 ): void {
   const dx = bx - ax;
   const dy = by - ay;
-  batch.push(ax, ay, bx, by, dx, dy, dx, dy, rgb, light, light, fade, fade);
+  batch.push(ax, ay, bx, by, dx, dy, dx, dy, rgb, light, lightEnd, fade, fade);
+}
+
+/**
+ * A point into `batch`, as a strobe's flash stamps a mass or a twin's tip
+ * (decision 96): a span of no length at (x, y), marked as a point by the
+ * fourth byte of its colour, which the shader draws as a round point of the
+ * band's radius, with `light` at the fade clock `fade`.
+ */
+export function pushPoint(
+  batch: SpanBatch,
+  x: number,
+  y: number,
+  rgb: Rgb,
+  light: number,
+  fade: number,
+): void {
+  batch.push(x, y, x, y, 0, 0, 0, 0, rgb, light, light, fade, fade, true);
 }
 
 /** The most a straight piece of a band strays from its curve, in pixels. */
@@ -290,7 +314,7 @@ uniform float uNow;
 uniform float uGain;
 uniform float uTol;
 uniform int uMost;
-out float vAcross;
+out vec2 vAt;
 out vec4 vTint;
 void main() {
   // the camera's point subtracted before the scale, as the lines do
@@ -299,12 +323,15 @@ void main() {
   vec2 p1 = (ends.zw - uCenter) * uScale;
   vec2 m0 = tangents.xy * uScale;
   vec2 m1 = tangents.zw * uScale;
+  // a point, marked by its colour's fourth byte (decision 96): one square
+  // round its place, drawn round
+  bool point = tint.a < 0.5;
   // the most the curve bends, in pixels, and so how many pieces keep each
   // piece's chord within uTol of the curve (piecesFor)
   vec2 a0 = 6.0 * (p1 - p0) - 4.0 * m0 - 2.0 * m1;
   vec2 a1 = 6.0 * (p0 - p1) + 2.0 * m0 + 4.0 * m1;
   float bend = max(length(a0), length(a1));
-  int k = clamp(int(ceil(sqrt(bend / (8.0 * uTol)))), 1, uMost);
+  int k = point ? 1 : clamp(int(ceil(sqrt(bend / (8.0 * uTol)))), 1, uMost);
   int i = min(gl_VertexID / 2, k);
   float u = float(i) / float(k);
   float u2 = u * u;
@@ -317,25 +344,31 @@ void main() {
   vec2 t = length(d) > 1e-9 ? normalize(d) : vec2(1.0, 0.0);
   float side = (gl_VertexID % 2 == 0) ? -1.0 : 1.0;
   float r = uRadius + 1.0;
-  vAcross = side * r;
+  // how far the vertex is from the band's middle, along it and across
+  vAt = vec2(0.0, side * r);
+  vec2 at = p + vec2(-t.y, t.x) * side * r;
+  if (point) {
+    vAt = vec2(i == 0 ? -r : r, side * r);
+    at = p0 + vAt;
+  }
   // the light at birth, faded by the half-lives since, as the trails' fade
   // has taken the light drawn then (decision 21): drawn as they come, and
   // drawn again from the window, spans hold the same light
   float faded = exp2(-max(uNow - mix(clock.x, clock.y, u), 0.0));
   vTint = vec4(tint.rgb, mix(light.x, light.y, u) * faded * uGain);
-  gl_Position = vec4((p + vec2(-t.y, t.x) * side * r) / uHalfView, 0.0, 1.0);
+  gl_Position = vec4(at / uHalfView, 0.0, 1.0);
 }`;
 
 // The edge as the lines draw theirs (lines.ts): full within the radius,
-// none past it, over a pixel and a fifth.
+// none past it, over a pixel and a fifth; across a band, and round a point.
 const FRAGMENT = `#version 300 es
 precision highp float;
-in float vAcross;
+in vec2 vAt;
 in vec4 vTint;
 uniform float uRadius;
 out vec4 color;
 void main() {
-  float cover = 1.0 - smoothstep(uRadius - 0.6, uRadius + 0.6, abs(vAcross));
+  float cover = 1.0 - smoothstep(uRadius - 0.6, uRadius + 0.6, length(vAt));
   color = vec4(vTint.rgb * (vTint.a * cover), 0.0);
 }`;
 

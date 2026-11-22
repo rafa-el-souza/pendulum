@@ -3407,6 +3407,50 @@ the browser, side by side with the code before, on the page's own clock, the
 forty-four cases of decisions 90 and 92: the saved moment's code and the
 screen the same, byte for byte.
 
+## 96. The trails are drawn in four layers, each a control of its own
+
+*2026-11-22.* The trails' style and the ribbon (decisions 26, 50 and 53)
+give way to four controls in the trails' group, after how long they last:
+the lines from the chain, the strobe on the chain, the lines from the twins
+and the strobe on the twins. The chain's two step through none of it, its
+tip, every mass, its rods and the whole chain; the twins' two, through none
+and each twin's tip. Lines from the rods are a veil: each rod stamped at
+every piece of the step, each end as bright as it moved over the piece, and
+fainter the more rods there are, so that where the chain goes slowly the
+stamps run together into an even surface, and where it goes fast they part
+into a fan of streaks. A strobe stamps the rods as before, and the tip or
+every mass as points; the whole chain is both. Lines and stamps of one
+target are drawn together, and the twins as dust leave the trails these
+controls say. The points a strobe stamps light in both mechanisms, drawn
+round: as the image carried, and kept as curves, as spans of no length
+marked as points. The twins' tips never lit before, as pieces of no length
+with cut ends. The piece opens as before, with lines from the tips of the
+chain and of each twin. The address carries the four, and the saved moment's
+code is of version 11; addresses and codes written before open as they
+showed: the style's strobe stamps the chain's rods with no lines, the ribbon
+draws lines from every mass, and the twins as dust draw none. This replaces
+what decisions 26, 50 and 53 said of the trails' style, the ribbon and the
+trails of the twins as dust.
+
+**Why.** What left the trails, and how, was one choice for all of them: a
+strobe stamped the chain and no lines were drawn, the twins' points never
+lit, and only the chain's masses could draw lines. Each layer is now chosen
+apart, so that lines and stamps, of the chain and of the twins, can be put
+together.
+
+**Evidence.** Unit tests: the four controls, their values and keys; the
+layers each asks for, from each part, together in the row's order; the
+veil's light, none across a jump; a point, and a straight span brighter at
+one end, kept as curves; the code of version 11, and the codes and readable
+addresses written before opening as they showed; the title. Browser tests:
+the keys step the chain's lines and strobe through their parts, the address
+following; a strobe stamping the twins' tips lights the trails, more than
+twice as much light as without, kept as curves and as the image carried; a
+mark with every layer. In the browser, side by side with the code before, on
+the page's own clock: the thirty-six cases of decisions 90 and 92, and five
+more of addresses written with the style, the ribbon and the twins as dust,
+with twins, the same screen, byte for byte.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.

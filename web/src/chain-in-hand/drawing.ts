@@ -2,13 +2,14 @@
 // twins, the hand and the pivot, and the trails they leave, in the light of
 // the trails, the twins and the sketch. Every frame's motion is drawn into the
 // trails (decision 21), kept as curves or as the image carried (decisions 66,
-// 68 and 71); a strobe stamps the whole chain (decisions 50 and 91); each rod can be
-// painted by its tension (decision 35).
+// 68 and 71); a strobe stamps the chain and the twins (decisions 50 and 91);
+// each rod can be painted by its tension (decision 35).
 //
-// The trails are drawn in layers: what leaves each (the chain or its twins),
-// how (lines along the paths, or stamps on a strobe's flashes) and which
-// parts (the tip, every mass, the rods). The controls of the trails say which
-// layers there are; every layer draws into the one image of the trails.
+// The trails are drawn in layers (decision 96): what leaves each (the chain
+// or its twins), how (lines along the paths, or stamps on a strobe's
+// flashes) and which parts (the tip, every mass, the rods, or the whole of
+// it). The four controls of the trails' layers say which there are; every
+// layer draws into the one image of the trails.
 
 import type { Rgb } from "../core/color.ts";
 import { Lines, SegmentBatch } from "../core/lines.ts";
@@ -40,13 +41,15 @@ import type { Motion, Moved } from "./motion.ts";
 import {
   DRAWN,
   FADE,
+  LINES,
   LOOK,
-  RIBBON,
   SCALE,
   SHAKE,
-  STYLE,
+  STROBE,
   TRAIL,
   TWIN_COUNT,
+  TWIN_LINES,
+  TWIN_STROBE,
   WHITE,
   massesDrawn,
   rodsDrawn,
@@ -69,13 +72,24 @@ const GLOW_MOST = 3;
 const GLOW_RADIUS = 4;
 const GLOW_GAIN = 0.3;
 export const TRAIL_MOST = 2;
-// The trails of a strobe (decision 50): the whole chain stamped this many
-// times a second of simulated time, each copy this light. The twins as dust:
-// each tip a point this many pixels wide, which swells as the music lights
-// the halo.
+// The trails of a strobe (decision 50): the chain stamped this many times a
+// second of simulated time, each rod this light, and each mass stamped as a
+// point this light (decision 96). The twins as dust: each tip a point this
+// many pixels wide, which swells as the music lights the halo.
 const STROBE_RATE = 12;
 const STROBE_LIGHT = 0.45;
+const STROBE_POINT = 0.9;
 const DUST_RADIUS = 1.4;
+// The veil of the rods (decision 96): each rod stamped at every piece of the
+// step, each end as bright as it moved over the piece, up to VEIL_LIGHT for
+// VEIL_STEP metres or more, so that where it goes slowly the stamps run
+// together into an even surface, the pivot no brighter than the rest, and
+// where it goes fast they part into a fan of streaks. Carried as the image,
+// a rod whose ends differ is drawn in pieces, up to VEIL_CUTS, each as bright
+// as its middle, so that its light steps finely enough not to show rings.
+const VEIL_LIGHT = 0.12;
+const VEIL_STEP = 0.005;
+const VEIL_CUTS = 8;
 // How far past a mass's place its light can reach on the frame, in CSS
 // pixels: the rods' widest halo with the music at its most, whose glow a line
 // draws out to three spreads (lines.ts), and a pixel for the line's edge.
@@ -88,8 +102,8 @@ export type TrailTarget = "chain" | "twins";
 /** How a layer leaves its light: lines along the paths its parts take (decision 21), or stamps of them on a strobe's flashes (decision 50). */
 export type TrailMark = "lines" | "stamps";
 
-/** Which parts of the target leave a layer: the tip, every mass (decision 26), or the rods. */
-export type TrailParts = "tip" | "masses" | "rods";
+/** Which parts of the target leave a layer: the tip, every mass (decision 26), the rods, or the whole of it, masses and rods (decision 96). */
+export type TrailParts = "tip" | "masses" | "rods" | "whole";
 
 /** A layer of the trails: what leaves it, how, and which parts. */
 export interface TrailLayer {
@@ -98,44 +112,56 @@ export interface TrailLayer {
   readonly parts: TrailParts;
 }
 
-const CHAIN_TIP: TrailLayer = { target: "chain", mark: "lines", parts: "tip" };
-const CHAIN_MASSES: TrailLayer = {
-  target: "chain",
-  mark: "lines",
-  parts: "masses",
-};
-const TWIN_TIPS: TrailLayer = { target: "twins", mark: "lines", parts: "tip" };
-const CHAIN_STAMPS: TrailLayer = {
-  target: "chain",
-  mark: "stamps",
-  parts: "rods",
-};
-const TWIN_STAMPS: TrailLayer = {
-  target: "twins",
-  mark: "stamps",
-  parts: "tip",
-};
-const STROBE: readonly TrailLayer[] = [CHAIN_STAMPS, TWIN_STAMPS];
-const TIP_ALONE: readonly TrailLayer[] = [CHAIN_TIP];
-const MASSES_ALONE: readonly TrailLayer[] = [CHAIN_MASSES];
-const TIPS: readonly TrailLayer[] = [CHAIN_TIP, TWIN_TIPS];
-const MASSES_AND_TIPS: readonly TrailLayer[] = [CHAIN_MASSES, TWIN_TIPS];
+// The parts a layer comes from, by the value of its control, from 1: 0 is
+// none of them (decision 96).
+const PARTS: readonly TrailParts[] = ["tip", "masses", "rods", "whole"];
+
+// every layer made once, and every list of them, so that a frame makes none
+const LAYERS = new Map<string, TrailLayer>();
+const LISTS = new Map<string, readonly TrailLayer[]>();
+
+/** The layer `target` leaves by `mark` from the parts of `value`, if any. */
+function layerAt(
+  target: TrailTarget,
+  mark: TrailMark,
+  value: number,
+): TrailLayer | null {
+  const parts = PARTS[value - 1];
+  if (parts === undefined) return null;
+  const key = `${target} ${mark} ${parts}`;
+  let layer = LAYERS.get(key);
+  if (layer === undefined) {
+    layer = { target, mark, parts };
+    LAYERS.set(key, layer);
+  }
+  return layer;
+}
 
 /**
- * The layers of the trails the controls ask for, while the trails are lit
- * and last: a strobe's stamps of the chain's rods and of each twin's tip
- * (decisions 50 and 53); or lines from the chain's tip, or from every mass
- * with the ribbon (decision 26), and from each twin's tip, save twins drawn
- * as dust, which leave none (decision 50).
+ * The layers of the trails the four controls ask for, while the trails are
+ * lit and last (decision 96): the chain's lines and its strobe's stamps,
+ * then the twins', each from the parts its control steps to, or none. Lines
+ * and stamps of one target are drawn together; how the twins are drawn, as
+ * chains or as dust, leaves their trails as these say.
  */
 export function trailLayers(
-  style: number,
-  ribbon: number,
-  look: number,
+  lines: number,
+  strobe: number,
+  twinLines: number,
+  twinStrobe: number,
 ): readonly TrailLayer[] {
-  if (style === 1) return STROBE;
-  if (look === 1) return ribbon === 1 ? MASSES_ALONE : TIP_ALONE;
-  return ribbon === 1 ? MASSES_AND_TIPS : TIPS;
+  const key = `${String(lines)} ${String(strobe)} ${String(twinLines)} ${String(twinStrobe)}`;
+  let list = LISTS.get(key);
+  if (list === undefined) {
+    list = [
+      layerAt("chain", "lines", lines),
+      layerAt("chain", "stamps", strobe),
+      layerAt("twins", "lines", twinLines),
+      layerAt("twins", "stamps", twinStrobe),
+    ].filter((layer) => layer !== null);
+    LISTS.set(key, list);
+  }
+  return list;
 }
 
 /** The layer of `layers` that `target` leaves by `mark`, if any. */
@@ -145,6 +171,17 @@ export function layerOf(
   mark: TrailMark,
 ): TrailLayer | undefined {
   return layers.find((layer) => layer.target === target && layer.mark === mark);
+}
+
+/**
+ * How bright an end of a rod of the veil is (decision 96), as a share of
+ * VEIL_LIGHT, for a piece over which it moved (dx, dy): as far as it went
+ * over VEIL_STEP, up to all of it; none across a jump (decision 21).
+ */
+export function veilShine(dx: number, dy: number): number {
+  const moved = Math.hypot(dx, dy);
+  if (moved >= TRAIL_JUMP) return 0;
+  return VEIL_LIGHT * Math.min(1, moved / VEIL_STEP);
 }
 
 /** What the drawing reads of the piece as it draws. */
@@ -266,6 +303,9 @@ export function mountDrawing(
   const twinLight = new LightTarget(gl);
   twinLight.fit();
   const trail = new SegmentBatch(4096);
+  // the points stamped into the trails this frame, drawn with round ends: a
+  // piece of no length with cut ends has no light (decision 96)
+  const trailPoints = new SegmentBatch(256);
   // where each mass of the chain was at the end of the last piece of trail
   let ends = new Float64Array(2 * motion.chain.n);
   // Trails kept as curves, drawn anew in any view (decision 68), a strobe's
@@ -306,11 +346,18 @@ export function mountDrawing(
   let rodColors: Rgb[] = [];
   // the simulated time since a strobe last stamped the chain (decision 50)
   let strobeClock = 0;
+  // where the pivot was at the end of the last piece, for the veil
+  const lastPivot = new Float64Array([motion.pivot.x, motion.pivot.y]);
 
   /** The layers of the trails now: none while they are put out or off. */
   function layers(): readonly TrailLayer[] {
     if (!hooks.lit || value(TRAIL) === 0) return [];
-    return trailLayers(value(STYLE), value(RIBBON), value(LOOK));
+    return trailLayers(
+      value(LINES),
+      value(STROBE),
+      value(TWIN_LINES),
+      value(TWIN_STROBE),
+    );
   }
 
   /** Every trail put out at once, and the curves kept of them (decision 68). */
@@ -327,6 +374,65 @@ export function mountDrawing(
     for (let i = 0; i < n; i++) {
       ends[2 * i] = x[i] ?? 0;
       ends[2 * i + 1] = y[i] ?? 0;
+    }
+    lastPivot[0] = motion.pivot.x;
+    lastPivot[1] = motion.pivot.y;
+  }
+
+  /** A point of light into the trails at (px, py), as a strobe's flash stamps a mass or a twin's tip: kept as curves, a span of no length that the curves draw round (decision 96), or among the frame's points. */
+  function trailPoint(
+    curves: SharpTrails | null,
+    px: number,
+    py: number,
+    color: Rgb,
+    light: number,
+  ): void {
+    if (curves !== null) curves.point(px, py, color, light);
+    else trailPoints.push(px, py, px, py, color, light);
+  }
+
+  /**
+   * A rod of the veil (decision 96), from (ax, ay) to (bx, by), its ends this
+   * light: kept as curves, a straight span whose light runs from one end's to
+   * the other's; carried as the image, in as many pieces, up to VEIL_CUTS, as
+   * keep each step of light between them small, each as bright as its middle.
+   */
+  function veilRod(
+    curves: SharpTrails | null,
+    ax: number,
+    ay: number,
+    bx: number,
+    by: number,
+    color: Rgb,
+    lightA: number,
+    lightB: number,
+  ): void {
+    if (lightA <= 0 && lightB <= 0) return;
+    if (curves !== null) {
+      curves.stamp(ax, ay, bx, by, color, lightA, lightB);
+      return;
+    }
+    const cuts = Math.min(
+      VEIL_CUTS,
+      Math.max(
+        1,
+        Math.ceil(
+          (VEIL_CUTS * Math.abs(lightB - lightA)) / Math.max(lightA, lightB),
+        ),
+      ),
+    );
+    for (let k = 0; k < cuts; k++) {
+      const u0 = k / cuts;
+      const u1 = (k + 1) / cuts;
+      const middle = (k + 0.5) / cuts;
+      trail.push(
+        ax + (bx - ax) * u0,
+        ay + (by - ay) * u0,
+        ax + (bx - ax) * u1,
+        ay + (by - ay) * u1,
+        color,
+        lightA + (lightB - lightA) * middle,
+      );
     }
   }
 
@@ -416,14 +522,17 @@ export function mountDrawing(
   }
 
   /**
-   * The whole chain stamped into the trails, as a strobe's flash leaves it
-   * (decision 50), from the pivot at (`px`, `py`) (decision 75), its masses
-   * in `positions` from `at`, x then y for each: each rod in its colour,
-   * brighter as the music asks; kept as curves, a straight span each, at the
-   * flash's instant on the samples' clock (decision 91).
+   * The chain stamped into the trails, as a strobe's flash leaves it
+   * (decisions 50 and 96), from the pivot at (`px`, `py`) (decision 75), its
+   * masses in `positions` from `at`, x then y for each, as `parts` says: its
+   * rods, each in its colour; its tip, or every mass, as points; or the whole
+   * chain, rods and masses; brighter as the music asks; kept as curves,
+   * straight spans and points, at the flash's instant on the samples' clock
+   * (decision 91).
    */
   function stamp(
     curves: SharpTrails | null,
+    parts: TrailParts,
     color: Rgb,
     px: number,
     py: number,
@@ -431,17 +540,25 @@ export function mountDrawing(
     at: number,
   ): void {
     const music = 1 + Math.min(TRAIL_MOST, hooks.look.trail);
+    const n = motion.chain.n;
+    const rods = parts === "rods" || parts === "whole";
+    // the masses stamped as points, from the first: the tip alone, or all
+    const firstPoint = parts === "tip" ? n - 1 : parts === "rods" ? n : 0;
     let ax = px;
     let ay = py;
-    for (let i = 0; i < motion.chain.n; i++) {
+    for (let i = 0; i < n; i++) {
       const bx = positions[at + 2 * i] ?? 0;
       const by = positions[at + 2 * i + 1] ?? 0;
       const rod = tensionShown ? (rodColors[i] ?? color) : color;
-      if (curves !== null) {
-        curves.stamp(ax, ay, bx, by, rod, STROBE_LIGHT * music);
-      } else {
-        trail.push(ax, ay, bx, by, rod, STROBE_LIGHT * music);
+      if (rods) {
+        if (curves !== null) {
+          curves.stamp(ax, ay, bx, by, rod, STROBE_LIGHT * music);
+        } else {
+          trail.push(ax, ay, bx, by, rod, STROBE_LIGHT * music);
+        }
       }
+      if (i >= firstPoint)
+        trailPoint(curves, bx, by, rod, STROBE_POINT * music);
       ax = bx;
       ay = by;
     }
@@ -449,12 +566,13 @@ export function mountDrawing(
 
   /**
    * A frame's record drawn into the trails (decision 80), by the chain's
-   * layers: lines, each piece ending in a point of them (decision 21), from
-   * where each drawing mass's trail ended, the tip, or every mass with the
-   * ribbon (decision 26); kept as curves, at the piece's instant on the
-   * samples' clock (decision 68); or a strobe's stamps of the whole chain, at
-   * even times of the motion, or on the music's kicks when `flashes`
-   * (decision 50). Whether a strobe flashed.
+   * layers (decision 96). Lines, each piece ending in a point of them
+   * (decision 21), from where each drawing mass's trail ended: the tip, or
+   * every mass (decision 26); kept as curves, at the piece's instant on the
+   * samples' clock (decision 68). The veil of the rods, each rod stamped at
+   * every piece. And a strobe's stamps, at even times of the motion, or on
+   * the music's kicks when `flashes` (decision 50), while the chain or the
+   * twins are stamped. Whether a strobe flashed.
    */
   function drawMoved(
     moved: Moved,
@@ -464,13 +582,25 @@ export function mountDrawing(
     const n = motion.chain.n;
     const now = layers();
     const drawn = layerOf(now, "chain", "lines");
-    const stamped = layerOf(now, "chain", "stamps") !== undefined;
-    // The tip draws, and with the ribbon every mass does (decision 26), the
-    // others fainter the more there are, so that the ribbon stays light.
-    const firstDrawing = drawn?.parts === "masses" ? 0 : n - 1;
+    const stamped = layerOf(now, "chain", "stamps");
+    // the strobe flashes while it stamps the chain or the twins
+    const strobing =
+      stamped !== undefined || layerOf(now, "twins", "stamps") !== undefined;
+    // The tip draws, and every mass does with the masses or the whole chain
+    // (decision 26), the others fainter the more there are, so that the
+    // ribbon stays light; the rods draw the veil.
+    const massLines = drawn !== undefined && drawn.parts !== "rods";
+    const firstDrawing =
+      drawn?.parts === "masses" || drawn?.parts === "whole" ? 0 : n - 1;
+    const veil = drawn?.parts === "rods" || drawn?.parts === "whole";
     const chainColor = hooks.tinted(hooks.colors.chain, "chain");
+    const music = 1 + Math.min(TRAIL_MOST, hooks.look.trail);
     let flashed = false;
     const ribbonLight = 0.55 * Math.min(1, 2.2 / Math.sqrt(n));
+    // the veil fainter the more rods there are, each by the share of the
+    // chain it is past two, so that the inner rods, which sweep a small disc
+    // over and over, do not burn its middle white
+    const veilGain = music * Math.min(1, 2.2 / n);
     const { positions, pivots, velocities, startVelocities } = moved;
     for (let piece = 0; piece < moved.pieces; piece++) {
       const at = 2 * n * piece;
@@ -478,17 +608,25 @@ export function mountDrawing(
       const seconds = curves?.clock.seconds ?? 0;
       const fade = curves?.clock.fade ?? 0;
       if (curves !== null) curves.clock.advance(ran);
+      // the veil's rods go out from the pivot, each end as bright as it moved
+      let veilX = pivots[2 * piece] ?? 0;
+      let veilY = pivots[2 * piece + 1] ?? 0;
+      let veilLight = veil
+        ? veilShine(veilX - (lastPivot[0] ?? 0), veilY - (lastPivot[1] ?? 0))
+        : 0;
+      lastPivot[0] = veilX;
+      lastPivot[1] = veilY;
       for (let i = 0; i < n; i++) {
         const bx = positions[at + 2 * i] ?? 0;
         const by = positions[at + 2 * i + 1] ?? 0;
-        if (drawn !== undefined && i >= firstDrawing) {
+        const ax = ends[2 * i] ?? bx;
+        const ay = ends[2 * i + 1] ?? by;
+        // with the tension's colours, in the colour of the rod it hangs from
+        const color = tensionShown
+          ? (rodColors[i] ?? hooks.colors.chain)
+          : chainColor;
+        if (massLines && i >= firstDrawing) {
           const light = i === n - 1 ? 0.55 : ribbonLight;
-          const ax = ends[2 * i] ?? bx;
-          const ay = ends[2 * i + 1] ?? by;
-          // with the tension's colours, in the colour of the rod it hangs from
-          const color = tensionShown
-            ? (rodColors[i] ?? hooks.colors.chain)
-            : chainColor;
           if (curves !== null) {
             // from the velocities as the piece began: the frame's start, or
             // the piece before's end
@@ -512,38 +650,60 @@ export function mountDrawing(
             trailPiece(ax, ay, bx, by, color, light);
           }
         }
+        if (veil) {
+          const light = veilShine(bx - ax, by - ay);
+          veilRod(
+            curves,
+            veilX,
+            veilY,
+            bx,
+            by,
+            color,
+            veilLight * veilGain,
+            light * veilGain,
+          );
+          veilX = bx;
+          veilY = by;
+          veilLight = light;
+        }
         ends[2 * i] = bx;
         ends[2 * i + 1] = by;
       }
       // at even times of the motion, unless the music flashes the strobe
-      if (stamped && !flashes) {
+      if (strobing && !flashes) {
         strobeClock += ran;
         if (strobeClock >= 1 / STROBE_RATE) {
           strobeClock %= 1 / STROBE_RATE;
-          stamp(
-            curves,
-            chainColor,
-            pivots[2 * piece] ?? 0,
-            pivots[2 * piece + 1] ?? 0,
-            positions,
-            at,
-          );
+          if (stamped !== undefined) {
+            stamp(
+              curves,
+              stamped.parts,
+              chainColor,
+              pivots[2 * piece] ?? 0,
+              pivots[2 * piece + 1] ?? 0,
+              positions,
+              at,
+            );
+          }
           flashed = true;
         }
       }
     }
     // on a kick, while the music flashes the strobe, the chain as the frame
     // ends, from where the pivot is then
-    if (stamped && flashes && hooks.look.flash > 0) {
-      const { pivot } = motion;
-      stamp(
-        curves,
-        chainColor,
-        pivot.x,
-        pivot.y,
-        positions,
-        2 * n * (moved.pieces - 1),
-      );
+    if (strobing && flashes && hooks.look.flash > 0) {
+      if (stamped !== undefined) {
+        const { pivot } = motion;
+        stamp(
+          curves,
+          stamped.parts,
+          chainColor,
+          pivot.x,
+          pivot.y,
+          positions,
+          2 * n * (moved.pieces - 1),
+        );
+      }
       flashed = true;
     }
     return flashed;
@@ -769,6 +929,10 @@ export function mountDrawing(
         fadeAfter(simulated, halfLife * (1 + hooks.look.linger)),
         (into) => {
           lines.draw(trail, into, { radius: 0.9 * ratio, roundEnds: false });
+          lines.draw(trailPoints, into, {
+            radius: 0.9 * ratio,
+            roundEnds: true,
+          });
         },
       );
       if (mark) {
@@ -776,6 +940,11 @@ export function mountDrawing(
           lines.draw(trail, into, {
             radius: 0.9 * ratio,
             roundEnds: false,
+            keep: true,
+          });
+          lines.draw(trailPoints, into, {
+            radius: 0.9 * ratio,
+            roundEnds: true,
             keep: true,
           });
         });
@@ -885,9 +1054,11 @@ export function mountDrawing(
     clearTrails() {
       clearTrails();
       trail.clear();
+      trailPoints.clear();
     },
     clearPieces() {
       trail.clear();
+      trailPoints.clear();
     },
     clearMark() {
       trails.clearMark();
@@ -938,7 +1109,8 @@ export function mountDrawing(
     },
     piece: trailPiece,
     point(px, py, color, light) {
-      trail.push(px, py, px, py, color, light);
+      if (!hooks.lit || value(TRAIL) === 0) return;
+      trailPoint(curvesNow(), px, py, color, light);
     },
     draw,
   };
