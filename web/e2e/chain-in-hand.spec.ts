@@ -1377,8 +1377,9 @@ test("a strobe's flashes stamp each twin's tip as a point that lights the trails
   for (const trails of ["sharp", "layers"]) {
     const without = await shown(trails, 0);
     const stamped = await shown(trails, 1);
-    // more than twice as much on this machine, in either
-    expect(stamped).toBeGreaterThan(1.4 * without);
+    // more than twice as much in Chromium on a desktop, in either, and 1.4
+    // times in WebKit on CI; without the points, as much
+    expect(stamped).toBeGreaterThan(1.15 * without);
   }
   expect(errors).toEqual([]);
 });
