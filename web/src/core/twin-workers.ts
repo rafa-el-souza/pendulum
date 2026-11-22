@@ -213,6 +213,9 @@ export interface TwinWorkersOptions {
   readonly lost?: () => void;
 }
 
+/** A frame's command as the piece sends it: the events since the last, its time's fan and its number are added for each share. */
+export type TwinFrame = Omit<TwinCommand, "events" | "generation" | "seq">;
+
 /** A twin's report and its place in it: the twin's numbers start at k times the numbers a twin takes. */
 export type TwinVisit = (j: number, report: TwinReport, k: number) => void;
 
@@ -228,6 +231,12 @@ export class TwinWorkers {
   #arrived: { share: number; report: TwinReport }[] = [];
   #count = 0;
   #generation = 0;
+  // The number of the last command sent, and, for each share, of the last
+  // it was sent and of the last of its reports taken: every share is in step
+  // when each has had all it was sent taken back (decision 95).
+  #seq = 0;
+  #sent: number[] = [];
+  #taken: number[] = [];
   #n: number;
   #local = false;
   // counts the times the shares were opened, so that what shares since
@@ -260,6 +269,11 @@ export class TwinWorkers {
   /** Whether the twins run on the main line, no worker being able to. */
   get local(): boolean {
     return this.#local;
+  }
+
+  /** Whether every share has had every command it was sent taken back: none is a frame late (decision 95). */
+  get inStep(): boolean {
+    return this.#sent.every((seq, w) => (this.#taken[w] ?? 0) >= seq);
   }
 
   /** Whether something happened to the twins that the shares have not been sent yet. */
@@ -351,12 +365,24 @@ export class TwinWorkers {
     for (const events of this.#events) events.push({ kind: "reverse" });
   }
 
-  /** Sends each share the frame's command, with the events since the last. */
-  send(frame: Omit<TwinCommand, "events" | "generation">): void {
+  /** Every share splits its twins' open curves before its next time, as the trails do for a snapshot (decision 95). */
+  split(): void {
+    for (const events of this.#events) events.push({ kind: "split" });
+  }
+
+  /** Every share lets its twins' curves go: the trails were put out (decision 95). */
+  forget(): void {
+    for (const events of this.#events) events.push({ kind: "forget" });
+  }
+
+  /** Sends each share the frame's command, with the events since the last, under the next number. */
+  send(frame: TwinFrame): void {
+    const seq = ++this.#seq;
     this.#ports.forEach((port, w) => {
       const events = this.#events[w] ?? [];
       this.#events[w] = [];
-      port.send({ ...frame, events, generation: this.#generation });
+      this.#sent[w] = seq;
+      port.send({ ...frame, events, generation: this.#generation, seq });
     });
   }
 
@@ -373,6 +399,7 @@ export class TwinWorkers {
     this.#arrived = [];
     for (const { share: w, report } of arrived) {
       this.seen?.(w, report);
+      this.#taken[w] = Math.max(this.#taken[w] ?? 0, report.seq);
       if (report.generation !== this.#generation) continue;
       this.#shown[w] = report;
       if (report.pieces > 0) {
@@ -421,6 +448,8 @@ export class TwinWorkers {
     );
     this.#events = Array.from({ length: shares }, () => []);
     this.#shown = Array.from({ length: shares }, () => null);
+    this.#sent = Array.from({ length: shares }, () => 0);
+    this.#taken = Array.from({ length: shares }, () => 0);
     for (let index = 0; index < shares; index++) {
       try {
         this.#ports.push(

@@ -10,6 +10,7 @@ import {
   workerBudget,
   type OpenShare,
   type SharePort,
+  type TwinFrame,
 } from "./twin-workers.ts";
 
 // The twins dealt out to workers (docs/decisions.md, decision 51), here to
@@ -68,9 +69,7 @@ class Bench {
 }
 
 /** A frame's command, without its events. */
-function frame(
-  more: Partial<Omit<TwinCommand, "events" | "generation">> = {},
-): Omit<TwinCommand, "events" | "generation"> {
+function frame(more: Partial<TwinFrame> = {}): TwinFrame {
   return {
     time: FRAME,
     pieces: 2,
@@ -82,6 +81,7 @@ function frame(
     clock: null,
     drive: null,
     budget: 10,
+    curves: null,
     ...more,
   };
 }
@@ -264,6 +264,60 @@ describe("the twins' workers", () => {
     twins.each((_, report) => {
       expect(report.n).toBe(5);
     });
+  });
+
+  it("send a split and a forget of the twins' curves to every worker, in order with the rest, as what happened (decision 95)", () => {
+    const bench = new Bench();
+    const twins = new TwinWorkers({
+      shares: 2,
+      n: 2,
+      budget: 10,
+      cost: 0.002,
+      open: bench.open,
+    });
+    twins.born(places(4), raised(2), 1e-3);
+    twins.split();
+    twins.forget();
+    expect(twins.pending).toBe(true);
+    twins.send(frame({ time: 0, pieces: 0, shakes: [] }));
+    for (const commands of bench.sent) {
+      expect(commands[0]?.events.map((event) => event.kind)).toEqual([
+        "born",
+        "split",
+        "forget",
+      ]);
+    }
+  });
+
+  it("number the commands, and tell whether every worker has had each one it was sent taken back (decision 95)", () => {
+    const bench = new Bench();
+    const twins = new TwinWorkers({
+      shares: 3,
+      n: 2,
+      budget: 10,
+      cost: 0.002,
+      open: bench.open,
+    });
+    expect(twins.inStep).toBe(true);
+    twins.born(places(6), raised(2), 1e-3);
+    twins.send(frame());
+    twins.send(frame());
+    for (const commands of bench.sent) {
+      expect(commands.map((command) => command.seq)).toEqual([1, 2]);
+    }
+    expect(twins.inStep).toBe(false);
+    // come back, but not yet taken
+    bench.deliver();
+    expect(twins.inStep).toBe(false);
+    twins.take();
+    expect(twins.inStep).toBe(true);
+    twins.send(frame());
+    expect(twins.inStep).toBe(false);
+    // a fan put out meanwhile: its report is not drawn, but it came back
+    twins.clear();
+    bench.deliver();
+    twins.take();
+    expect(twins.inStep).toBe(true);
   });
 
   it("carry as many twins as the worker that carries fewest allows, each in its budget", () => {

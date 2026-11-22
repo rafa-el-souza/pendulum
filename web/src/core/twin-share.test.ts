@@ -12,10 +12,15 @@ import {
   type TwinEvent,
   type TwinHold,
 } from "./twin-share.ts";
+import { SPAN_BYTES, Merger, SpanBatch } from "./curves.ts";
+import { mixColors } from "./grounds.ts";
+import { fanPalette } from "./palettes.ts";
+import { pivotsOver, twinCurve } from "./twin-curves.ts";
 import {
   apart,
   bornTwins,
   drawIn,
+  fanPlace,
   leashFactor,
   rootMeanSquare,
 } from "./twins.ts";
@@ -76,6 +81,8 @@ function command(
     drive: null,
     budget: 1e9,
     generation: 0,
+    seq: 0,
+    curves: null,
     ...more,
   };
 }
@@ -647,5 +654,167 @@ describe("twins held near the chain (decision 64)", () => {
     held.twins.forEach((twin, k) => {
       expect([...twin.theta]).toEqual([...(expected[k]?.theta ?? [])]);
     });
+  });
+});
+
+/** The bytes of the first `count` spans of `bytes`. */
+function spanBytes(bytes: ArrayBuffer, count: number): number[] {
+  return [...new Uint8Array(bytes, 0, count * SPAN_BYTES)];
+}
+
+describe("a share's twins' trails joined into curves where they move (decision 95)", () => {
+  const n = 2;
+  const clockOf = (frame: number) => ({
+    seconds: 3 + frame * FRAME,
+    fade: 1.5 + frame * FRAME * 0.4,
+    rate: 0.4,
+  });
+  const still = (pieces: number): (Shake | null)[] =>
+    Array.from({ length: pieces }, () => null);
+
+  /**
+   * The share `index` of `shares`, given `frames` commands that join its
+   * twins' curves, against the main line joining the same reports as it does
+   * now: twin j's tip, where the pivot was, in its palette's colour, tinted
+   * as the music asks, in its light times its own times the music's.
+   */
+  function sideBySide(index: number, shares: number): void {
+    const share = new TwinShare(index, shares, n);
+    const merger = new Merger();
+    const fresh = new SpanBatch();
+    const closed = new SpanBatch();
+    const open = new SpanBatch();
+    const split = new SpanBatch();
+    const palette = 2;
+    const fan = 24;
+    share.run(
+      command([bornAll(raised(n), fan, index, shares, 0.4)], 0, 0, [], {
+        curves: null,
+      }),
+    );
+    const mine = Array.from({ length: fan }, (_, j) => j).filter(
+      (j) => j % shares === index,
+    );
+    const shine = Float64Array.from(mine, (_, k) => 0.2 + 0.05 * k);
+    for (let frame = 0; frame < 40; frame++) {
+      const pieces = 4;
+      // the music kicks the pivot over the middle frames, and tints the
+      // twins over some of them
+      const drive =
+        frame >= 10 && frame < 30
+          ? musicOf(Chain.uniform(n), frame * FRAME, FRAME)
+          : null;
+      const tint =
+        frame % 7 < 3 ? { color: [0.9, 0.2, 0.1] as const, amount: 0.3 } : null;
+      // one twin born again from the chain mid-way, and the last two of the
+      // fan dropped later; the curves split, then let go
+      const events: TwinEvent[] = [];
+      if (frame === 12) {
+        events.push({
+          kind: "born",
+          twins: [mine[1] ?? 0],
+          theta: Float64Array.from(raised(n).theta),
+          omega: Float64Array.from(raised(n).omega),
+          spread: 0.4,
+        });
+      }
+      if (frame === 20) events.push({ kind: "keep", count: fan - 2 * shares });
+      if (frame === 25) events.push({ kind: "split" });
+      if (frame === 33) events.push({ kind: "forget" });
+      const light = 0.15;
+      const music = frame >= 10 ? 1.4 : 1;
+      const report = share.run(
+        command(events, FRAME, pieces, still(pieces), {
+          drive,
+          clock: clockOf(frame),
+          curves: { light, music, shine, palette, tint },
+          seq: frame + 1,
+        }),
+      );
+      // the main line, as it joins the same twins now
+      split.clear();
+      if (frame === 25) merger.splitAll(split);
+      if (frame === 33) merger.forget();
+      const pivots = new Float64Array(2 * (pieces + 1));
+      const speeds = new Float64Array(2 * (pieces + 1));
+      pivotsOver(drive, pieces, FRAME, pivots, speeds);
+      fresh.clear();
+      closed.clear();
+      for (let k = 0; k < report.count; k++) {
+        const j = index + k * shares;
+        const base = fanPalette(palette).color(fanPlace(j));
+        const color =
+          tint === null ? base : mixColors(base, tint.color, tint.amount);
+        twinCurve(
+          merger,
+          fresh,
+          closed,
+          k,
+          report,
+          2 * (pieces + 1) * k,
+          color,
+          light * (shine[k] ?? 1) * music,
+          pivots,
+          speeds,
+        );
+      }
+      open.clear();
+      merger.openSpans(open);
+      const curves = report.curves;
+      if (curves === null) throw new Error("no curves came back");
+      expect(report.seq).toBe(frame + 1);
+      expect(curves.fresh.count).toBe(fresh.count);
+      expect(spanBytes(curves.fresh.bytes, curves.fresh.count)).toEqual(
+        spanBytes(fresh.bytes(), fresh.count),
+      );
+      expect(spanBytes(curves.closed.bytes, curves.closed.count)).toEqual(
+        spanBytes(closed.bytes(), closed.count),
+      );
+      expect(spanBytes(curves.split.bytes, curves.split.count)).toEqual(
+        spanBytes(split.bytes(), split.count),
+      );
+      expect(spanBytes(curves.open.bytes, curves.open.count)).toEqual(
+        spanBytes(open.bytes(), open.count),
+      );
+      if (frame === 25) expect(curves.split.count).toBeGreaterThan(0);
+    }
+  }
+
+  it("gives the same spans as the main line, byte for byte, for a fan in one share", () => {
+    sideBySide(0, 1);
+  });
+
+  it("gives the same spans as the main line, byte for byte, for a share of three, each twin by its place in the fan", () => {
+    sideBySide(1, 3);
+  });
+
+  it("joins nothing, and sends no curves back, where the command asks for none", () => {
+    const share = new TwinShare(0, 1, n);
+    share.run(command([bornAll(raised(n), 4, 0, 1, 0.1)], 0, 0));
+    const report = share.run(
+      command([], FRAME, 4, still(4), { clock: clockOf(0) }),
+    );
+    expect(report.curves).toBeNull();
+  });
+
+  it("measures the lens's stretch across a split or a forget as if neither had come (decision 64)", () => {
+    const start = raised(n);
+    const width = 1e-9;
+    const plain = new TwinShare(0, 1, n);
+    const split = new TwinShare(0, 1, n);
+    for (const share of [plain, split]) {
+      share.run(command([bornAll(start, 8, 0, 1, 1e-3)], 0, 0));
+      share.run(command([], FRAME, 4, still(4), { hold: lens(width, start) }));
+    }
+    const a = plain.run(
+      command([], FRAME, 4, still(4), { hold: lens(width, start) }),
+    );
+    const b = split.run(
+      command([{ kind: "split" }, { kind: "forget" }], FRAME, 4, still(4), {
+        hold: lens(width, start),
+      }),
+    );
+    expect(b.stretch).toBe(a.stretch);
+    expect(a.stretchTime).toBeGreaterThan(0);
   });
 });
