@@ -278,6 +278,7 @@ export function mountDrawing(
     ? new SharpTrails(
         gl,
         trails,
+        twins,
         motion.chain.totalLength,
         readKeep(search),
         readStretch(search),

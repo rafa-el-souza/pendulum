@@ -197,6 +197,7 @@ function play({ canvas, gl }: Stage): void {
       return look;
     },
     tinted,
+    tint,
     colors,
     get drawing() {
       return drawing;
@@ -297,10 +298,17 @@ function play({ canvas, gl }: Stage): void {
 
   /** `color` with as much of the bass's note as the music's mode gives to `to`. */
   function tinted(color: Rgb, to: "chain" | "twins"): Rgb {
+    const note = tint(to);
+    return note === null ? color : mixColors(color, note.color, note.amount);
+  }
+  /** The bass's note and how much of it the music's mode gives to `to` now; none while it gives none (decision 46). */
+  function tint(
+    to: "chain" | "twins",
+  ): { readonly color: Rgb; readonly amount: number } | null {
     if (router.mode.tint?.to !== to || noteShown === null || look.tint <= 0) {
-      return color;
+      return null;
     }
-    return mixColors(color, noteShown, look.tint);
+    return { color: noteShown, amount: look.tint };
   }
   /**
    * The chain starts again where its controls say: from the moment saved in
@@ -1114,6 +1122,7 @@ function play({ canvas, gl }: Stage): void {
       late: rhythm.late,
       reached,
       mechanism: drawing.mechanism,
+      waited: drawing.sharp?.waited ?? 0,
     });
   }
 
