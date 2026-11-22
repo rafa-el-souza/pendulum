@@ -24,6 +24,13 @@ export const MERGE_REACH = 0.07;
 /** The most intervals between samples a span joins. */
 export const MERGE_MOST = 16;
 
+/**
+ * A tip that moves farther than this, in metres, in one piece has jumped
+ * (raised again, or given other masses), and leaves no trail across the jump
+ * (decision 21).
+ */
+export const TRAIL_JUMP = 0.5;
+
 /** How far from straight a span's light may run, as a share of it. */
 const LIGHT_TOLERANCE = 0.02;
 

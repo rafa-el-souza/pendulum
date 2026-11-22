@@ -23,6 +23,7 @@ import {
   trailMechanism,
   type Mechanism,
 } from "../core/sharp.ts";
+import { TRAIL_JUMP } from "../core/curves.ts";
 import {
   EARTH,
   TensionShades,
@@ -53,10 +54,6 @@ import {
   whiteAfter,
 } from "./parameters.ts";
 
-// A tip that moves farther than TRAIL_JUMP metres in one piece has jumped
-// (raised again, or given other masses), and leaves no trail across the jump
-// (decision 21).
-export const TRAIL_JUMP = 0.5;
 // The colour of the tension (decision 35): each rod's place on the scale moves
 // this share of the way to that of its tension every frame, a few frames to
 // follow a change, as the hand's line eases its pull.
