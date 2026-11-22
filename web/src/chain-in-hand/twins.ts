@@ -434,10 +434,12 @@ export function mountTwins(
     // while they fade, each in its own light, which then falls with how far
     // it has gone from the chain
     const fades = value(FADE) === 1;
-    // their tips draw lines where the trails' layers have them do so: not
-    // as dust, which draws none, nor under a strobe, whose flashes stamp
-    // them as points (decision 50)
-    const tipLines = layerOf(drawing.layers(), "twins", "lines") !== undefined;
+    // their tips draw lines, and a strobe's flashes stamp them as points
+    // (decision 50), where the trails' layers have them do so, however the
+    // twins are drawn (decision 96)
+    const layers = drawing.layers();
+    const tipLines = layerOf(layers, "twins", "lines") !== undefined;
+    const tipPoints = layerOf(layers, "twins", "stamps") !== undefined;
     const music = 1 + Math.min(TRAIL_MOST, hooks.look.trail);
     // held, how much each share's fan stretched, averaged over the shares
     // (decision 64)
@@ -484,7 +486,7 @@ export function mountTwins(
           );
         }
       }
-      if (flashed && pieces > 0) {
+      if (tipPoints && flashed && pieces > 0) {
         const p = 2 * pieces;
         const px = (tips[at + p] ?? 0) + (twinPivots[p] ?? 0);
         const py = (tips[at + p + 1] ?? 0) + (twinPivots[p + 1] ?? 0);

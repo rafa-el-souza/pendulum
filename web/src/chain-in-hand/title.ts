@@ -26,6 +26,16 @@ import {
 // a mark of four letters, so that two bookmarks of one piece read apart, as
 // "Pendulum · 8 masses, the Moon · 16 Nov 01:42 · K7QF".
 
+// The parts of the chain the trails' layers come from, by their value
+// (decision 96), as a title says them.
+const CHAIN_PARTS = [
+  "",
+  "the tip",
+  "every mass",
+  "the rods",
+  "the whole chain",
+];
+
 /** A parameter's value in a few words, for a title. */
 function words(parameter: Parameter, value: number): string {
   switch (parameter.id) {
@@ -70,10 +80,16 @@ function words(parameter: Parameter, value: number): string {
       if (value === TRAIL.values.at(-1)) return "trails that stay";
       if (value === MARK_STEP) return "trails that leave a mark";
       return `trails ${String(value)} s`;
-    case "style":
-      return "trails of a strobe";
-    case "ribbon":
-      return "trails from every mass";
+    case "lines":
+      return value === 0
+        ? "no lines from the chain"
+        : `lines from ${CHAIN_PARTS[value] ?? "the tip"}`;
+    case "strobe":
+      return `a strobe on ${CHAIN_PARTS[value] ?? "the tip"}`;
+    case "twinlines":
+      return "no lines from the twins";
+    case "twinstrobe":
+      return "a strobe on the twins";
     case "palette":
       return `${fanPalette(value).name} palette`;
     case "white":

@@ -66,9 +66,10 @@ hanging rope it becomes as n grows.
   drawn as chains or as dust, each its tip alone, a point of light. How
   many twins there are, how far apart they are born, how they live, how
   near they are held and how they are drawn, how
-  long the trails last and whether they leave a mark that stays, whether
-  they are drawn as lines or by a strobe, the whole chain stamped at even
-  times, whether every mass of the chain leaves one,
+  long the trails last and whether they leave a mark that stays, which
+  parts of the chain draw lines along their paths and which a strobe
+  stamps at even times, its tip, every mass, its rods or all of it, and
+  whether the twins' tips do either,
   which of ten palettes colours the twins, and how long their light keeps
   that colour where it is dense before it turns white are controls too, and so is
   the ground, one of eleven dark colours, each with a chain's colour to go

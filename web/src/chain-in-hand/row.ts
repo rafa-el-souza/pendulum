@@ -37,6 +37,7 @@ import {
   HELD_STEP,
   HOLD,
   LEASHED_STEP,
+  LINES,
   LOOK,
   MASSES,
   MODE,
@@ -44,17 +45,18 @@ import {
   MUSIC_STRENGTH,
   PALETTE,
   PARAMETERS,
-  RIBBON,
   SAVED_START,
   SCALE,
   SHAKE,
   SPREAD,
-  STYLE,
+  STROBE,
   TENSION,
   TILT,
   TIME,
   TRAIL,
   TWIN_COUNT,
+  TWIN_LINES,
+  TWIN_STROBE,
   WHITE,
   ZOOM,
   whiteSwatches,
@@ -213,13 +215,6 @@ export function mountRow(settings: Settings, hooks: RowHooks): Row {
     });
   }
 
-  /** Which masses draw the trails, faint with a strobe's, which stamps the whole chain (decision 50). */
-  function showRibbon(): void {
-    controls.showValue(RIBBON.id, settings.value(RIBBON), {
-      idle: settings.value(STYLE) === 1,
-    });
-  }
-
   /** The music's mode and strength, as values of its group, and the dance's button lit while the music dances (decision 89). */
   function showMusic(): void {
     controls.showValue(MUSIC_MODE.id, settings.modeAt());
@@ -261,7 +256,6 @@ export function mountRow(settings: Settings, hooks: RowHooks): Row {
       }
       showStart();
       if (parameter !== TENSION) {
-        showRibbon();
         showWhite();
         showHold();
       }
@@ -394,7 +388,9 @@ export function mountRow(settings: Settings, hooks: RowHooks): Row {
           id: "trails",
           label: "The trails",
           icon: "comet",
-          controls: [TRAIL, STYLE, RIBBON],
+          // how long they last, then their layers (decision 96): the
+          // chain's lines and strobe, and the twins'
+          controls: [TRAIL, LINES, STROBE, TWIN_LINES, TWIN_STROBE],
         },
         {
           // where the sound comes from, what the music does and how
@@ -504,7 +500,6 @@ export function mountRow(settings: Settings, hooks: RowHooks): Row {
       controls.showValue(parameter.id, settings.value(parameter));
     }
   }
-  showRibbon();
   showWhite();
   showHold();
   showMusic();

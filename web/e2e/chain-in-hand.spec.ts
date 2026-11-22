@@ -719,11 +719,19 @@ test("the meter says the frames a second and, kept as curves, the last remake, t
   );
   // the curves keep the motion since they began, half a second and more
   await expect(meter).toHaveText(/ · kept (0\.[5-9]|[1-9]\d*(\.\d)?) s$/);
-  // a strobe's stamps are kept as curves too (decision 91)
+  // a strobe's stamps are kept as curves too, points and rods (decisions 91
+  // and 96)
   await page.keyboard.press("Shift+Digit8");
-  await expect(page).toHaveURL(/[?&]style=1(&|$)/);
+  await expect(page).toHaveURL(/[?&]strobe=1(&|$)/);
   await expect(meter).toHaveText(/ · sharp · /);
-  await page.keyboard.press("Shift+Digit7");
+  await page.keyboard.press("Shift+Digit8");
+  await page.keyboard.press("Shift+Digit8");
+  await expect(page).toHaveURL(/[?&]strobe=3(&|$)/);
+  await expect(meter).toHaveText(/ · sharp · /);
+  for (let press = 0; press < 3; press++) {
+    await page.keyboard.press("Shift+Digit7");
+  }
+  await expect(page).not.toHaveURL(/strobe=/);
   await expect(meter).toHaveText(/ · sharp · /);
   // a moment saved keeps them in the address's readable part, as the music
   await page.keyboard.press("s");
@@ -750,7 +758,7 @@ test("the trails are kept as curves unless the address asks for layers, which th
   expect(errors).toEqual([]);
 });
 
-test("the twins' and the trails' keys change their number, how long the trails last and their style, and the address follows", async ({
+test("the twins' and the trails' keys change their number, how long the trails last and what a strobe stamps of the chain, and the address follows", async ({
   page,
 }) => {
   const errors = collectErrors(page);
@@ -759,8 +767,8 @@ test("the twins' and the trails' keys change their number, how long the trails l
   await openControls(page);
   const twins = icon(page, "Number of twins");
   const trail = icon(page, "How long the trails last");
-  const style = icon(page, "Style of the trails");
-  const ribbon = icon(page, "Trails from every mass");
+  const lines = icon(page, "Lines from the chain");
+  const strobe = icon(page, "Strobe on the chain");
 
   // fewer twins, then none; any machine carries 64 of two masses
   await page.keyboard.press("9");
@@ -782,22 +790,27 @@ test("the twins' and the trails' keys change their number, how long the trails l
   await page.keyboard.press("7");
   await expect(trail).toHaveAccessibleDescription("off");
   await expect(page).toHaveURL(/[?&]trail=0(&|$)/);
-  // up to ten seconds, drawn by a strobe on Shift and 8 and as lines again on
-  // Shift and 7 (decision 53), then the step that leaves a mark, then the
-  // one that stays
+  // up to ten seconds, a strobe stamping the chain's tip on Shift and 8, then
+  // more of it up to the whole chain, beside the lines from its tip, and
+  // none of it again on Shift and 7 (decision 96), then the step that leaves
+  // a mark, then the one that stays
   for (let press = 0; press < 4; press++) await page.keyboard.press("8");
   await expect(trail).toHaveAccessibleDescription("10 s");
-  await expect(ribbon).not.toHaveClass(/_idle_/);
   await page.keyboard.press("Shift+Digit8");
-  await expect(style).toHaveAccessibleDescription("a strobe");
-  await expect(page).toHaveURL(/[?&]style=1(&|$)/);
-  // a strobe stamps the whole chain, and which masses draw has nothing to do
-  await expect(ribbon).toHaveClass(/_idle_/);
+  await expect(strobe).toHaveAccessibleDescription("tip");
+  await expect(page).toHaveURL(/[?&]strobe=1(&|$)/);
+  for (let press = 0; press < 3; press++) {
+    await page.keyboard.press("Shift+Digit8");
+  }
+  await expect(strobe).toHaveAccessibleDescription("whole");
+  await expect(page).toHaveURL(/[?&]strobe=4(&|$)/);
+  await expect(lines).toHaveAccessibleDescription("tip");
   await frames(page, 10);
-  await page.keyboard.press("Shift+Digit7");
-  await expect(style).toHaveAccessibleDescription("lines");
-  await expect(page).not.toHaveURL(/style=/);
-  await expect(ribbon).not.toHaveClass(/_idle_/);
+  for (let press = 0; press < 4; press++) {
+    await page.keyboard.press("Shift+Digit7");
+  }
+  await expect(strobe).toHaveAccessibleDescription("off");
+  await expect(page).not.toHaveURL(/strobe=/);
   await page.keyboard.press("8");
   await expect(trail).toHaveAccessibleDescription("leaves a mark");
   await expect(page).toHaveURL(/[?&]trail=100(&|$)/);
@@ -809,11 +822,11 @@ test("the twins' and the trails' keys change their number, how long the trails l
   expect(errors).toEqual([]);
 });
 
-test("an address asks for trails that leave a mark, which draw with the sketch's light too", async ({
+test("an address asks for trails that leave a mark, which draw with the sketch's light too, every layer of them (decision 96)", async ({
   page,
 }) => {
   const errors = collectErrors(page);
-  await page.goto("./?trail=100&ribbon=1");
+  await page.goto("./?trail=100&lines=4&strobe=4&twinstrobe=1");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   await openControls(page);
   await expect(
@@ -1309,7 +1322,7 @@ test("an address asks for 4 096 twins, which fade as the piece opens and are bor
   expect(errors).toEqual([]);
 });
 
-test("the keys 1 and 2 let the trails come from the tip or from every mass, and the address follows", async ({
+test("the keys 1 and 2 step the lines from the chain through its parts, its tip, every mass, its rods and the whole chain, or none of it, and the address follows (decision 96)", async ({
   page,
 }) => {
   const errors = collectErrors(page);
@@ -1317,18 +1330,57 @@ test("the keys 1 and 2 let the trails come from the tip or from every mass, and 
   await page.goto("./?n=64&time=4");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   await openControls(page);
-  const ribbon = icon(page, "Trails from every mass");
-  await expect(ribbon).toHaveAccessibleDescription("the tip");
+  const lines = icon(page, "Lines from the chain");
+  await expect(lines).toHaveAccessibleDescription("tip");
 
   await frames(page, 5);
   await page.keyboard.press("2");
-  await expect(ribbon).toHaveAccessibleDescription("every mass");
-  await expect(page).toHaveURL(/[?&]ribbon=1(&|$)/);
+  await expect(lines).toHaveAccessibleDescription("masses");
+  await expect(page).toHaveURL(/[?&]lines=2(&|$)/);
   await frames(page, 10);
-  await page.keyboard.press("1");
-  await expect(ribbon).toHaveAccessibleDescription("the tip");
-  await expect(page).not.toHaveURL(/ribbon=/);
+  // the veil of the rods, then the whole chain
+  await page.keyboard.press("2");
+  await expect(lines).toHaveAccessibleDescription("rods");
+  await expect(page).toHaveURL(/[?&]lines=3(&|$)/);
   await frames(page, 5);
+  await page.keyboard.press("2");
+  await expect(lines).toHaveAccessibleDescription("whole");
+  await expect(page).toHaveURL(/[?&]lines=4(&|$)/);
+  await frames(page, 5);
+  for (let press = 0; press < 4; press++) await page.keyboard.press("1");
+  await expect(lines).toHaveAccessibleDescription("off");
+  await expect(page).toHaveURL(/[?&]lines=0(&|$)/);
+  await page.keyboard.press("2");
+  await expect(lines).toHaveAccessibleDescription("tip");
+  await expect(page).not.toHaveURL(/lines=/);
+  await frames(page, 5);
+  expect(errors).toEqual([]);
+});
+
+test("a strobe's flashes stamp each twin's tip as a point that lights the trails, kept as curves and as the image carried (decision 96)", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.setViewportSize({ width: 640, height: 400 });
+  // the twins' and the trails' light alone with the twins stamped, and
+  // without; no lines from the chain or the twins, the chain hidden
+  const shown = async (trails: string, twinStrobe: number) => {
+    await page.goto(
+      `./?twins=64&time=4&trail=600&lines=0&twinlines=0&chain=3&trails=${trails}&twinstrobe=${String(twinStrobe)}`,
+    );
+    await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+    await frames(page, 40);
+    await page.keyboard.press(" ");
+    await frames(page, 3);
+    return lightShown(page);
+  };
+  for (const trails of ["sharp", "layers"]) {
+    const without = await shown(trails, 0);
+    const stamped = await shown(trails, 1);
+    // more than twice as much in Chromium on a desktop, in either, and 1.4
+    // times in WebKit on CI; without the points, as much
+    expect(stamped).toBeGreaterThan(1.15 * without);
+  }
   expect(errors).toEqual([]);
 });
 
@@ -2713,8 +2765,10 @@ test("the row opens on the pause, the light and six groups, each opening its own
   await expect(trailsRow).toBeVisible();
   expect(await labels(trailsRow)).toEqual([
     "How long the trails last",
-    "Style of the trails",
-    "Trails from every mass",
+    "Lines from the chain",
+    "Strobe on the chain",
+    "Lines from the twins",
+    "Strobe on the twins",
   ]);
   const above = await trailsRow.boundingBox();
   const below = await row.boundingBox();
