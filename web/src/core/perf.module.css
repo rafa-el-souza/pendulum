@@ -1,0 +1,22 @@
+/* The recorder an address can ask for (docs/decisions.md, decision 94): a
+   small line in the top right corner, out of the way of the meter in the top
+   left and of the controls in the bottom right; once the record is saved, a
+   link to it, which a finger can reach where the browser held the file
+   back. */
+
+.recorder {
+  position: fixed;
+  top: max(var(--space-1), env(safe-area-inset-top));
+  right: max(var(--space-1), env(safe-area-inset-right));
+  color: var(--color-ink-muted);
+  font-family: var(--font-text);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  user-select: none;
+}
+
+.saved {
+  color: inherit;
+  pointer-events: auto;
+}
