@@ -4,7 +4,7 @@
 // same numbers come out wherever they run.
 
 import type { Rgb } from "./color.ts";
-import { TRAIL_JUMP, type Merger, type SpanBatch } from "./curves.ts";
+import { TRAIL_JUMP, lengthOf, type Merger, type SpanBatch } from "./curves.ts";
 import type { TwinReport } from "./twin-share.ts";
 import { pivotAt, type Drive, type PivotMotion } from "../physics/drive.ts";
 
@@ -89,7 +89,7 @@ export function twinCurve(
     const x = (tips[q] ?? 0) + (pivots[p] ?? 0);
     const y = (tips[q + 1] ?? 0) + (pivots[p + 1] ?? 0);
     const seconds = piece * step;
-    if (Math.hypot(x - bx, y - by) >= TRAIL_JUMP) {
+    if (lengthOf(x - bx, y - by) >= TRAIL_JUMP) {
       merger.cut(j, closed);
     }
     bx = x;

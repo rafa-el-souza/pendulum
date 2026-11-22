@@ -11,6 +11,15 @@
 import type { Rgb } from "./color.ts";
 import type { View } from "./view.ts";
 
+/**
+ * How far (dx, dy) reaches: the square root of the sum of their squares,
+ * which `Math.hypot` takes longer to give, guarding against sums too large or
+ * too small for a float, which a trail's distances never come near.
+ */
+export function lengthOf(dx: number, dy: number): number {
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
 /** Bytes a span takes: ends and tangents as eight floats, its colour as four bytes, its light and fade clock at both ends as four floats. */
 export const SPAN_BYTES = 52;
 const FLOATS = SPAN_BYTES / 4;
@@ -495,7 +504,7 @@ export class Merger {
   continues(id: number, x: number, y: number, eps: number): boolean {
     if (id >= this.#cap || this.#open[id] === 0) return false;
     const o = SAMPLE * id;
-    return Math.hypot((this.#z[o] ?? 0) - x, (this.#z[o + 1] ?? 0) - y) <= eps;
+    return lengthOf((this.#z[o] ?? 0) - x, (this.#z[o + 1] ?? 0) - y) <= eps;
   }
 
   /** Ends trail `id`'s open span where it is, into `closed`, and forgets the trail. */
@@ -594,7 +603,7 @@ export class Merger {
       h10 * (e[5] ?? 0) +
       h01 * (e[3] ?? 0) +
       h11 * (e[7] ?? 0);
-    if (Math.hypot(hx - px, hy - py) > this.tolerance) return false;
+    if (lengthOf(hx - px, hy - py) > this.tolerance) return false;
     const al = a[o + 6] ?? 0;
     const want = al + (light - al) * u;
     if (
@@ -677,7 +686,7 @@ export class Merger {
     let fits =
       sameColour &&
       intervals < this.most &&
-      Math.hypot(x - (a[o] ?? 0), y - (a[o + 1] ?? 0)) <= this.reach;
+      lengthOf(x - (a[o] ?? 0), y - (a[o + 1] ?? 0)) <= this.reach;
     if (fits && intervals > 0) {
       // the curve from the span's first sample to this one, against the
       // samples between: the newest so far, and those it skipped already
