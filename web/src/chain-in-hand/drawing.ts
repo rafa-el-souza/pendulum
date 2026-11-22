@@ -88,10 +88,11 @@ const DUST_RADIUS = 1.4;
 // VEIL_STEP metres or more, so that where it goes slowly the stamps run
 // together into an even surface, the pivot no brighter than the rest, and
 // where it goes fast they part into a fan of streaks. Carried as the image,
-// each rod is drawn in VEIL_CUTS pieces, each as bright as its middle.
+// a rod whose ends differ is drawn in pieces, up to VEIL_CUTS, each as bright
+// as its middle, so that its light steps finely enough not to show rings.
 const VEIL_LIGHT = 0.12;
 const VEIL_STEP = 0.005;
-const VEIL_CUTS = 4;
+const VEIL_CUTS = 8;
 // How far past a mass's place its light can reach on the frame, in CSS
 // pixels: the rods' widest halo with the music at its most, whose glow a line
 // draws out to three spreads (lines.ts), and a pixel for the line's edge.
@@ -395,7 +396,8 @@ export function mountDrawing(
   /**
    * A rod of the veil (decision 96), from (ax, ay) to (bx, by), its ends this
    * light: kept as curves, a straight span whose light runs from one end's to
-   * the other's; carried as the image, in VEIL_CUTS pieces.
+   * the other's; carried as the image, in as many pieces, up to VEIL_CUTS, as
+   * keep each step of light between them small, each as bright as its middle.
    */
   function veilRod(
     curves: SharpTrails | null,
@@ -412,10 +414,19 @@ export function mountDrawing(
       curves.stamp(ax, ay, bx, by, color, lightA, lightB);
       return;
     }
-    for (let k = 0; k < VEIL_CUTS; k++) {
-      const u0 = k / VEIL_CUTS;
-      const u1 = (k + 1) / VEIL_CUTS;
-      const middle = (k + 0.5) / VEIL_CUTS;
+    const cuts = Math.min(
+      VEIL_CUTS,
+      Math.max(
+        1,
+        Math.ceil(
+          (VEIL_CUTS * Math.abs(lightB - lightA)) / Math.max(lightA, lightB),
+        ),
+      ),
+    );
+    for (let k = 0; k < cuts; k++) {
+      const u0 = k / cuts;
+      const u1 = (k + 1) / cuts;
+      const middle = (k + 0.5) / cuts;
       trail.push(
         ax + (bx - ax) * u0,
         ay + (by - ay) * u0,
@@ -587,7 +598,10 @@ export function mountDrawing(
     const chainColor = hooks.tinted(hooks.colors.chain, "chain");
     const music = 1 + Math.min(TRAIL_MOST, hooks.look.trail);
     let flashed = false;
-    const ribbonLight = 0.55 * Math.min(1, 2.2 / Math.sqrt(n));
+    const fainter = Math.min(1, 2.2 / Math.sqrt(n));
+    const ribbonLight = 0.55 * fainter;
+    // the veil, as faint the more rods there are as the ribbon is
+    const veilGain = music * fainter;
     const { positions, pivots, velocities, startVelocities } = moved;
     for (let piece = 0; piece < moved.pieces; piece++) {
       const at = 2 * n * piece;
@@ -646,8 +660,8 @@ export function mountDrawing(
             bx,
             by,
             color,
-            veilLight * music,
-            light * music,
+            veilLight * veilGain,
+            light * veilGain,
           );
           veilX = bx;
           veilY = by;
