@@ -71,7 +71,7 @@ hanging rope it becomes as n grows.
   stamps at even times, its tip, every mass, its rods or all of it,
   whether the twins' tips draw lines too, and which parts of each twin the
   strobe stamps, each of these four with a light of its own,
-  which of ten palettes colours the twins, and how long their light keeps
+  which of thirty-six palettes colours the twins, and how long their light keeps
   that colour where it is dense before it turns white are controls too, and so is
   the ground, one of eleven dark colours, each with a chain's colour to go
   with it. The chain itself can be drawn whole, as its rods alone, as its
@@ -87,8 +87,8 @@ hanging rope it becomes as n grows.
   breaks up and the fan opens. Any moment of it can be saved in the address,
   with the whole screen around it in a short code, and opens again as it
   was, under a title that names it and the minute it was saved. A control paints each rod by how hard
-  it pulls against the weight it holds, in one of four scales: in the
-  first, warm where
+  it pulls against the weight it holds, in any of the palettes: in heat,
+  the one it opens with, warm where
   the chain is pulled hard, at the bottom of a swing or in a whip's crack,
   blue where it goes slack, and violet where a rod pushes, which a chain of
   links could not do. And the
@@ -203,3 +203,14 @@ device (decision 84 in [`docs/decisions.md`](docs/decisions.md)).
 MIT; see [LICENSE](LICENSE). The paper is not part of the repository:
 [`physics/README.md`](physics/README.md) says why, and how to rebuild a local
 copy.
+
+Several palettes are adapted from the colour maps and palettes of others:
+Fabio Crameri's Scientific colour maps (MIT), cmocean by Kristen Thyng and
+others (MIT), Peter Kovesi's CET colour maps (CC BY 4.0), NatParksPalettes by
+Kevin S. Blake (MIT; from a photograph by Grant Ordelheide), MetBrewer by
+Blake R. Mills (CC0), the traditional Japanese colours of nipponcolors.com
+through xiaohk/nippon-colors (MIT), and Werner's Nomenclature of Colours
+through meodai/color-name-lists (MIT). The rest are computed from spectra:
+NIST's atomic lines, Planck's law, the CIE 1931 observer. Each palette's
+source is written beside it in
+[`web/src/core/palettes.ts`](web/src/core/palettes.ts).
