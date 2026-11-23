@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { centredOver, moreToScroll, onControls, showKeys } from "./controls.ts";
+import {
+  centredOver,
+  moreToScroll,
+  onControls,
+  sheetMove,
+  showKeys,
+} from "./controls.ts";
 
 // The row of controls scrolls sideways where it does not fit, and fades at
 // the side where there is more of it to see (decision 31).
@@ -72,5 +78,30 @@ describe("the keys shown beside a control", () => {
     expect(showKeys(["Shift+Digit7", "Shift+Digit8"])).toBe("Shift 7 8");
     expect(showKeys([undefined, "Shift+KeyP"])).toBe("Shift P");
     expect(showKeys(["Shift+ArrowDown", "Shift+ArrowUp"])).toBe("Shift ↓ ↑");
+  });
+});
+
+// A sheet's cells are chosen with the arrows too, as a group of radio
+// buttons is (decision 105).
+describe("the arrows in a sheet", () => {
+  it("move to the next cell and back along a line, and to the cell above or below", () => {
+    expect(sheetMove(7, "ArrowRight", 6, 36)).toBe(8);
+    expect(sheetMove(7, "ArrowLeft", 6, 36)).toBe(6);
+    expect(sheetMove(7, "ArrowDown", 6, 36)).toBe(13);
+    expect(sheetMove(7, "ArrowUp", 6, 36)).toBe(1);
+    expect(sheetMove(7, "ArrowDown", 9, 36)).toBe(16);
+  });
+
+  it("go to the first cell and the last with Home and End, and stop at either end", () => {
+    expect(sheetMove(20, "Home", 6, 36)).toBe(0);
+    expect(sheetMove(20, "End", 6, 36)).toBe(35);
+    expect(sheetMove(2, "ArrowUp", 6, 36)).toBe(0);
+    expect(sheetMove(33, "ArrowDown", 6, 36)).toBe(35);
+    expect(sheetMove(0, "ArrowLeft", 6, 36)).toBe(0);
+  });
+
+  it("leave other keys to the piece", () => {
+    expect(sheetMove(7, "Enter", 6, 36)).toBeNull();
+    expect(sheetMove(7, "5", 6, 36)).toBeNull();
   });
 });

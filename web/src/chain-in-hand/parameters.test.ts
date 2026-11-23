@@ -8,6 +8,7 @@ import {
   AMPLITUDE,
   CHAIN,
   doublingSaid,
+  paletteStrip,
   doublingShown,
   COLOURS,
   DRAWN,
@@ -593,21 +594,42 @@ describe("the first piece's parameters", () => {
     expect(LOOK.icon).toBe("dust");
   });
 
-  it("show the tension's colours in the row as one control, off and then each scale, on the T that turns them on and the Y that steps the scale; the address keeps the switch and the scale (decision 53)", () => {
+  it("show the tension's colours in the row as one control, the chain's own colour or the tension, on the T that turns them on and off, with the palettes in a sheet, which the Y steps; the address keeps the switch and the palette (decisions 53 and 105)", () => {
     expect(TENSION.id).toBe("tension");
     expect(PARAMETERS).not.toContain(TENSION);
-    expect(TENSION.values).toEqual([-1, ...SCALE.values]);
-    expect(TENSION.initial).toBe(-1);
+    expect(TENSION.values).toEqual([0, 1]);
+    expect(TENSION.initial).toBe(0);
     expect(TENSION.keys).toEqual({ down: [], up: [] });
     expect(TENSION.keysShown).toBe("T Y");
     expect(TENSION.cyclic).toBe(true);
-    expect(TENSION.show(-1)).toBe("off");
-    expect(TENSION.swatches?.(-1)).toEqual([]);
-    for (const value of SCALE.values) {
-      expect(TENSION.show(value)).toBe(SCALE.show(value));
-      expect(TENSION.swatches?.(value)).toEqual(SCALE.swatches?.(value));
-    }
+    expect(TENSION.show(0)).toBe("own colour");
+    expect(TENSION.show(1)).toBe("tension");
     expect(TENSION.icon).toBe("balance");
+    expect(TENSION.sheet?.cells).toBe(SCALE);
+    expect(TENSION.sheet?.columns).toBe(6);
+    const heat = paletteNamed("heat");
+    expect(TENSION.sheet?.words?.(0, heat)).toBe("own colour");
+    expect(TENSION.sheet?.words?.(1, heat)).toBe("tension · heat");
+    for (const value of SCALE.values) {
+      expect(TENSION.sheet?.strip(value)).toEqual(paletteStrip(value));
+    }
+  });
+
+  it("show the twins' palettes in a sheet of six to a line, each a strip of its colours (decision 105)", () => {
+    expect(PALETTE.sheet?.columns).toBe(6);
+    expect(PALETTE.sheet?.cells).toBeUndefined();
+    for (const value of PALETTE.values) {
+      expect(PALETTE.sheet?.strip(value)).toEqual(paletteStrip(value));
+    }
+  });
+
+  it("draw a palette's strip through its seven colours, a closed one's coming back to its first (decision 105)", () => {
+    for (const [i, { colors, closed }] of PALETTES.entries()) {
+      const strip = paletteStrip(i);
+      expect(strip.slice(0, 7)).toEqual(colors);
+      expect(strip).toHaveLength(closed ? 8 : 7);
+      if (closed) expect(strip[7]).toEqual(colors[0]);
+    }
   });
 
   it("show the music's mode and its strength in the music's group: the mode by its name, round from either end, and the strength as five dots, said in words; the address keeps both apart from the registry (decisions 46 and 76)", () => {

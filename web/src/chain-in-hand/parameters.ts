@@ -670,11 +670,21 @@ export const SCALES_BEFORE: readonly number[] = [
   "copper",
 ].map(paletteNamed);
 
+/** A palette's colours as a strip across its cell in a sheet (decision 105): a closed one's come back to its first. */
+export function paletteStrip(value: number): readonly Rgb[] {
+  const { colors, closed } = paletteAt(value);
+  const [first] = colors;
+  return closed && first !== undefined ? [...colors, first] : colors;
+}
+
+/** How many palettes to a line of their sheet, where the screen has room. */
+const SHEET_COLUMNS = 6;
+
 /**
- * The twins' colours, and their trails' (decisions 23 and 104): one of the
- * palettes per step, opening with the sketch's, which the author keeps. The
- * control paints the palette's seven colours as dots, and a screen reader
- * hears its name, which the address writes.
+ * The twins' colours, and their trails' (decisions 23, 104 and 105): one of
+ * the palettes, opening with the sketch's, which the author keeps. The
+ * control opens a sheet of them all, each chosen in one touch; a key steps
+ * to the next, and the address writes its name.
  */
 export const PALETTE: Parameter = {
   id: "palette",
@@ -686,6 +696,7 @@ export const PALETTE: Parameter = {
   swatches: (value) => paletteAt(value).colors,
   icon: "palette",
   written: paletteWords(PALETTES_BEFORE),
+  sheet: { columns: SHEET_COLUMNS, strip: paletteStrip },
 };
 
 /**
@@ -779,23 +790,29 @@ export const SCALE: Parameter = {
 };
 
 /**
- * The tension's colours as the row shows them, one control (decision 53):
- * off, then each scale, coming round. It is not in the address, which keeps
- * the switch that turns them on (decision 35) and the scale apart: the T
- * turns them on and off and the Y steps the scale, as before, and the
- * control's − and + step through both.
+ * The tension's colours as the row shows them, one control (decisions 53
+ * and 105): a sheet with the chain's own colour or the tension in words,
+ * which the T switches, and the palettes, which the Y steps, each chosen in
+ * one touch. It is not in the address, which keeps the switch that turns
+ * them on (decision 35) and the palette apart.
  */
 export const TENSION: Parameter = {
   id: "tension",
   label: "Colours of the tension",
-  values: [-1, ...SCALE.values],
-  initial: -1,
+  values: [0, 1],
+  initial: 0,
   keys: { down: [], up: [] },
   keysShown: "T Y",
   cyclic: true,
-  show: (value) => (value < 0 ? "off" : SCALE.show(value)),
-  swatches: (value) => (value < 0 ? [] : (SCALE.swatches?.(value) ?? [])),
+  show: (value) => (value === 1 ? "tension" : "own colour"),
   icon: "balance",
+  sheet: {
+    columns: SHEET_COLUMNS,
+    cells: SCALE,
+    strip: paletteStrip,
+    words: (value, cell) =>
+      value === 1 ? `tension · ${SCALE.show(cell)}` : "own colour",
+  },
 };
 
 /**

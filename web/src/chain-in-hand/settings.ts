@@ -134,9 +134,21 @@ export class Settings {
     );
   }
 
-  /** The tension's colours as the row shows them, one control (decision 53): off, or the scale. */
+  /** The tension's colours as the row shows them, one control (decisions 53 and 105): the chain's own colour, 0, or the tension, 1; its palette is the scale's. */
   tensionAt(): number {
-    return this.on("tension") ? this.value(SCALE) : TENSION.initial;
+    return this.on("tension") ? 1 : 0;
+  }
+
+  /**
+   * The events a value chosen in one touch makes, as a palette in a sheet
+   * (decision 105): the control to that value, and the switches that a
+   * value turns on, as a step there would.
+   */
+  set(parameter: Parameter, value: number): PieceEvent[] {
+    if (parameter === TENSION) {
+      return [{ kind: "value", parameter, value, was: this.tensionAt() }];
+    }
+    return this.#reached(parameter, value, this.value(parameter));
   }
 
   /** Where the music's mode stands among the modes. */
@@ -149,10 +161,8 @@ export class Settings {
    * the music's mode or strength (decisions 46 and 76); the zoom's − and +,
    * nearer or farther about the middle (decision 73); or the control to its
    * next value, and the switches that a value turns on. The tension's
-   * colours, one control in the row, step the switch and the scale the
-   * address keeps apart: off, then each scale (decision 53); off, a step
-   * either way turns them on in the palette kept, as the T does, heat as the
-   * piece opens (decision 104).
+   * colours, one control in the row, step the switch the address keeps apart
+   * from the palette (decisions 53 and 105).
    */
   step(parameter: Parameter, direction: 1 | -1): PieceEvent[] {
     const { mode, strength } = this.tune;
@@ -174,10 +184,7 @@ export class Settings {
     }
     if (parameter === TENSION) {
       const was = this.tensionAt();
-      const value =
-        was === TENSION.initial
-          ? this.value(SCALE)
-          : stepValue(TENSION, was, direction);
+      const value = stepValue(TENSION, was, direction);
       return [{ kind: "value", parameter, value, was }];
     }
     const was = this.value(parameter);
@@ -187,6 +194,11 @@ export class Settings {
       parameter === MODE && this.saved !== null
         ? was
         : stepValue(parameter, was, direction);
+    return this.#reached(parameter, value, was);
+  }
+
+  /** The events of a control gone from `was` to `value`: its own, and the switches the value turns on. */
+  #reached(parameter: Parameter, value: number, was: number): PieceEvent[] {
     const events: PieceEvent[] = [{ kind: "value", parameter, value, was }];
     // another scale paints the tension in it, and turns its colours on
     // (decision 41); a control of the light lights it again (decision 27)
@@ -228,8 +240,7 @@ export class Settings {
     } else if (event.kind === "value") {
       const { parameter, value } = event;
       if (parameter === TENSION) {
-        if (value !== TENSION.initial) this.values.set(SCALE.id, value);
-        this.switches.set("tension", value !== TENSION.initial);
+        this.switches.set("tension", value === 1);
         return;
       }
       this.values.set(parameter.id, value);
