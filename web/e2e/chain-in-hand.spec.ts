@@ -895,7 +895,8 @@ test("the palette's keys change the twins' colours, the control paints them, and
   await page.goto("./");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   await openControls(page);
-  // its icon in the twins' group shows the palette, as five dots painted
+  // its icon in the twins' group shows the palette, as its seven colours
+  // painted (decision 104)
   await (await reveal(page, "Colours of the twins")).click();
   const palette = page
     .getByRole("group", { name: "Colours of the twins" })
@@ -908,13 +909,14 @@ test("the palette's keys change the twins' colours, the control paints them, and
     );
 
   await expect(palette).toContainText("dusk");
-  await expect(dots).toHaveCount(5);
+  await expect(dots).toHaveCount(7);
   const dusk = await painted();
-  expect(new Set(dusk).size).toBe(5);
+  expect(new Set(dusk).size).toBe(7);
 
+  // the next palette, written in the address by its name
   await page.keyboard.press("6");
-  await expect(palette).toContainText("fire");
-  await expect(page).toHaveURL(/[?&]palette=1(&|$)/);
+  await expect(palette).toContainText("heat");
+  await expect(page).toHaveURL(/[?&]palette=heat(&|$)/);
   expect(await painted()).not.toEqual(dusk);
 
   await page.keyboard.press("5");
@@ -1008,19 +1010,29 @@ test("Shift with the palette's keys steps when dense light turns white, the cont
   const never = await painted();
   expect(never.at(-1)).not.toBe("rgb(255, 255, 255)");
   await page.keyboard.press("6");
-  await expect(page).toHaveURL(/[?&]palette=1&white=3(&|$)/);
+  await expect(page).toHaveURL(/[?&]palette=heat&white=3(&|$)/);
   expect(await painted()).not.toEqual(never);
   await frames(page, 10);
   expect(errors).toEqual([]);
 });
 
-test("an address carries the palette", async ({ page }) => {
+test("an address carries the palette by its name, and one written before by its number opens the palette that took its place (decision 104)", async ({
+  page,
+}) => {
   const errors = collectErrors(page);
-  await page.goto("./?palette=4");
+  await page.goto("./?palette=deep-water");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   await openControls(page);
   await expect(icon(page, "Colours of the twins")).toHaveAccessibleDescription(
-    "silver",
+    "deep water",
+  );
+  await frames(page, 10);
+  // the ice of decision 23, its third, is cobalt now
+  await page.goto("./?palette=2");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await openControls(page);
+  await expect(icon(page, "Colours of the twins")).toHaveAccessibleDescription(
+    "cobalt",
   );
   await frames(page, 10);
   expect(errors).toEqual([]);
@@ -1078,25 +1090,28 @@ test("the ground's keys dress the piece and the page in another ground, coming r
   expect(errors).toEqual([]);
 });
 
-test("the Y key steps the tension's scale, coming round, and turns the tension's colours on, and the address follows", async ({
+test("the Y key steps the tension's palette, coming round, and turns the tension's colours on, and the address follows", async ({
   page,
 }) => {
   const errors = collectErrors(page);
   await page.goto("./?n=8");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   await openControls(page);
-  // one control in the row, off and then each scale (decision 53)
+  // one control in the row, off and then each palette (decisions 53 and 104)
   const tension = icon(page, "Colours of the tension");
   await expect(tension).toHaveAccessibleDescription("off");
 
   await page.keyboard.press("y");
-  await expect(tension).toHaveAccessibleDescription("incandescent");
-  await expect(page).toHaveURL(/\?n=8&scale=1&tension=1$/);
+  await expect(tension).toHaveAccessibleDescription("safflower");
+  await expect(page).toHaveURL(/\?n=8&scale=safflower&tension=1$/);
   await frames(page, 5);
 
-  // the last scale comes round to the first; the colours stay on
+  // the last palette comes round to the first; the colours stay on
+  await page.goto("./?n=8&scale=silver&tension=1");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await openControls(page);
   await page.keyboard.press("Y");
-  await page.keyboard.press("y");
+  await expect(tension).toHaveAccessibleDescription("dusk");
   await page.keyboard.press("y");
   await expect(tension).toHaveAccessibleDescription("heat");
   await expect(page).toHaveURL(/\?n=8&tension=1$/);
@@ -1108,7 +1123,7 @@ test("an address carries the ground and the tension's scale", async ({
   page,
 }) => {
   const errors = collectErrors(page);
-  await page.goto("./?scale=2&ground=5&tension=1");
+  await page.goto("./?scale=black-body&ground=5&tension=1");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   await openControls(page);
   await expect(icon(page, "Colour of the ground")).toHaveAccessibleDescription(
@@ -1116,7 +1131,7 @@ test("an address carries the ground and the tension's scale", async ({
   );
   await expect(
     icon(page, "Colours of the tension"),
-  ).toHaveAccessibleDescription("neon");
+  ).toHaveAccessibleDescription("black body");
   expect(
     await page.evaluate("getComputedStyle(document.body).backgroundColor"),
   ).toBe("rgb(42, 9, 18)");
@@ -1611,12 +1626,17 @@ test("the T key and the control's − paint the chain by its tension and back, a
   expect((await stage.screenshot({ mask })).equals(plain)).toBe(false);
   await expect(page).toHaveURL(/\?n=8&tension=1$/);
 
-  // below the first scale, off
-  await page
-    .getByRole("button", { name: "Less: Colours of the tension", exact: true })
-    .click();
+  // below the first palette, dusk, before heat (decision 104), off
+  const less = page.getByRole("button", {
+    name: "Less: Colours of the tension",
+    exact: true,
+  });
+  await less.click();
+  await expect(tension).toHaveAccessibleDescription("dusk");
+  await less.click();
   await expect(tension).toHaveAccessibleDescription("off");
-  await expect(page).toHaveURL(/\?n=8$/);
+  // the palette kept for when they come on again
+  await expect(page).toHaveURL(/\?n=8&scale=dusk$/);
   await tension.hover();
   await frames(page, 3);
   expect((await stage.screenshot({ mask })).equals(plain)).toBe(true);
@@ -1627,7 +1647,7 @@ test("the T key and the control's − paint the chain by its tension and back, a
   await frames(page, 10);
   await page.keyboard.press("ArrowUp");
   await frames(page, 10);
-  await expect(tension).toHaveAccessibleDescription("heat");
+  await expect(tension).toHaveAccessibleDescription("dusk");
   expect(errors).toEqual([]);
 });
 

@@ -11,7 +11,7 @@
 
 import type { Rgb } from "../core/color.ts";
 import type { Controls } from "../core/controls.ts";
-import { fanPalette } from "../core/palettes.ts";
+import { paletteAt } from "../core/palettes.ts";
 import type { Parameter } from "../core/parameters.ts";
 import type { Look } from "../core/routes.ts";
 import {
@@ -194,7 +194,7 @@ export function mountTwins(
   let fanColors: Rgb[] = [];
   /** Each twin's colour, by its place in the fan, from the palette asked for. */
   function paint(): void {
-    const palette = fanPalette(value(PALETTE));
+    const palette = paletteAt(value(PALETTE));
     fanColors = Array.from({ length: mostTwins }, (_, j) =>
       palette.color(fanPlace(j)),
     );

@@ -23,7 +23,7 @@ import { Chain, type Gravity } from "../physics/chain.ts";
 import type { Rgb } from "./color.ts";
 import { Merger, SPAN_BYTES, SpanBatch } from "./curves.ts";
 import { mixColors } from "./grounds.ts";
-import { fanPalette } from "./palettes.ts";
+import { paletteAt } from "./palettes.ts";
 import {
   anglesAt,
   pivotsOver,
@@ -798,7 +798,7 @@ export class TwinShare {
     const k = (j - this.index) / this.shares;
     let color = this.#colors[k];
     if (color === undefined) {
-      color = fanPalette(curves.palette).color(fanPlace(j));
+      color = paletteAt(curves.palette).color(fanPlace(j));
       this.#colors[k] = color;
     }
     const { tint } = curves;

@@ -150,7 +150,9 @@ export class Settings {
    * nearer or farther about the middle (decision 73); or the control to its
    * next value, and the switches that a value turns on. The tension's
    * colours, one control in the row, step the switch and the scale the
-   * address keeps apart: off, then each scale (decision 53).
+   * address keeps apart: off, then each scale (decision 53); off, a step
+   * either way turns them on in the palette kept, as the T does, heat as the
+   * piece opens (decision 104).
    */
   step(parameter: Parameter, direction: 1 | -1): PieceEvent[] {
     const { mode, strength } = this.tune;
@@ -172,7 +174,10 @@ export class Settings {
     }
     if (parameter === TENSION) {
       const was = this.tensionAt();
-      const value = stepValue(TENSION, was, direction);
+      const value =
+        was === TENSION.initial
+          ? this.value(SCALE)
+          : stepValue(TENSION, was, direction);
       return [{ kind: "value", parameter, value, was }];
     }
     const was = this.value(parameter);

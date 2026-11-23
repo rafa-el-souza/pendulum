@@ -11,7 +11,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { chromium } from "@playwright/test";
 
 import type { Rgb } from "../src/core/color.ts";
-import { fanPalette } from "../src/core/palettes.ts";
+import { paletteAt } from "../src/core/palettes.ts";
 import { bornTwins, fanPlace } from "../src/core/twins.ts";
 import { Chain, gravity } from "../src/physics/chain.ts";
 import { Stepper, restingState, type ChainState } from "../src/physics/step.ts";
@@ -85,7 +85,7 @@ function icon(square: boolean): string {
     `${(32 + scale * (x - (left + right) / 2)).toFixed(1)} ${(32 - scale * (y - (bottom + top) / 2)).toFixed(1)}`;
   const line = (points: [number, number][]): string =>
     `M${points.map(at).join("L")}`;
-  const palette = fanPalette(0);
+  const palette = paletteAt(0);
   const chainColor = token("--color-chain");
   const beads = main
     .slice(1)

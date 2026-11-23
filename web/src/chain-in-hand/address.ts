@@ -19,7 +19,11 @@ import {
   LINES,
   LOOK,
   MASSES,
+  PALETTE,
+  PALETTES_BEFORE,
   PARAMETERS,
+  SCALE,
+  SCALES_BEFORE,
   STROBE,
   TWIN_LINES,
   WHITE,
@@ -54,7 +58,10 @@ export type Saved = Pick<
  * The code's first version, frozen as published on 2026-11-16: the thirteen
  * controls with every value each had, and the three switches. A change to
  * the registry makes a version 2 beside it, and this one keeps reading the
- * addresses written with it.
+ * addresses written with it. Its palettes, and those of the versions up to
+ * 13, are read as the palettes that took their places (decision 104): the
+ * code holds a palette's place among the table's, and the table names the
+ * palette that place opens now.
  */
 const VERSION_1: CodeTable = {
   version: 1,
@@ -85,7 +92,7 @@ const VERSION_1: CodeTable = {
     },
     { id: "trail", values: [0, 0.5, 1, 2.5, 10, 600] },
     { id: "ribbon", values: [0, 1] },
-    { id: "palette", values: [0, 1, 2, 3, 4] },
+    { id: "palette", values: PALETTES_BEFORE.slice(0, 5) },
   ],
   switches: ["light", "tension", "sketch"],
 };
@@ -99,8 +106,8 @@ const VERSION_2: CodeTable = {
   version: 2,
   controls: [
     ...VERSION_1.controls.filter(({ id }) => id !== "palette"),
-    { id: "palette", values: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] },
-    { id: "scale", values: [0, 1, 2, 3] },
+    { id: "palette", values: PALETTES_BEFORE },
+    { id: "scale", values: SCALES_BEFORE },
     { id: "ground", values: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10] },
   ],
   switches: ["light", "tension", "sketch"],
@@ -295,6 +302,20 @@ const VERSION_13: CodeTable = {
   switches: ["light", "tension", "sketch"],
 };
 
+/**
+ * The code's fourteenth version (decision 104), frozen once published: the
+ * thirty-six palettes, for the twins and for the tension.
+ */
+const VERSION_14: CodeTable = {
+  version: 14,
+  controls: VERSION_13.controls.map((control) =>
+    control.id === PALETTE.id || control.id === SCALE.id
+      ? { id: control.id, values: PALETTE.values }
+      : control,
+  ),
+  switches: ["light", "tension", "sketch"],
+};
+
 /** Every version of the code the piece reads, oldest first. */
 export const CODES: readonly CodeTable[] = [
   VERSION_1,
@@ -310,10 +331,11 @@ export const CODES: readonly CodeTable[] = [
   VERSION_11,
   VERSION_12,
   VERSION_13,
+  VERSION_14,
 ];
 
 /** The version the piece writes: the newest. */
-export const CODE: CodeTable = VERSION_13;
+export const CODE: CodeTable = VERSION_14;
 
 /**
  * The trails' step of a strobe and the twins as dust, as the fifth code and

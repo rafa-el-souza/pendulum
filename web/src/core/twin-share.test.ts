@@ -20,7 +20,7 @@ import {
 } from "./twin-share.ts";
 import { SPAN_BYTES, Merger, SpanBatch, readSpan } from "./curves.ts";
 import { mixColors } from "./grounds.ts";
-import { fanPalette } from "./palettes.ts";
+import { paletteAt } from "./palettes.ts";
 import { pivotsOver, stampTwin, twinCurve } from "./twin-curves.ts";
 import {
   apart,
@@ -758,7 +758,7 @@ describe("a share's twins' trails joined into curves where they move (decision 9
       closed.clear();
       for (let k = 0; k < report.count; k++) {
         const j = index + k * shares;
-        const base = fanPalette(palette).color(fanPlace(j));
+        const base = paletteAt(palette).color(fanPlace(j));
         const color =
           tint === null ? base : mixColors(base, tint.color, tint.amount);
         twinCurve(
@@ -1007,7 +1007,7 @@ describe("a share's twins stamped by a strobe's flashes (decision 100)", () => {
       expect(joined.stampPlaces).toHaveLength(0);
       const expected = new SpanBatch();
       for (let k = 0; k < fan; k++) {
-        const base = fanPalette(palette).color(fanPlace(k));
+        const base = paletteAt(palette).color(fanPlace(k));
         stampTwin(
           expected,
           parts,

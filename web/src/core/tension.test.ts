@@ -4,14 +4,15 @@ import { Chain, gravity } from "../physics/chain.ts";
 import { restingState } from "../physics/step.ts";
 import type { Rgb } from "./color.ts";
 import { parseColor } from "./color.ts";
+import { GROUNDS } from "./grounds.ts";
+import { PALETTES, paletteNamed } from "./palettes.ts";
 import {
   EARTH,
-  TENSION_SCALES,
+  TENSION_PLACES,
   TensionShades,
   earthWeights,
   tensionPlace,
   tensionScale,
-  tensionScaleAt,
 } from "./tension.ts";
 
 describe("each rod's weight on Earth (decision 35; PH-3)", () => {
@@ -79,81 +80,76 @@ describe("the place of a tension on the colour scale (decision 35)", () => {
   });
 });
 
-describe("the scales of the tension's colours (decisions 35 and 41)", () => {
-  it("open with decision 35's: violet, blue, then amber, orange and red", () => {
-    const [first] = TENSION_SCALES;
-    if (first === undefined) throw new Error("there are no scales");
-    expect(first.name).toBe("heat");
-    expect(first.stops).toEqual([
+describe("the tension's colours in a palette (decisions 35 and 104)", () => {
+  it("are its seven colours at a push, a slack rod, half a weight, and 2, 4, 8 and 16 weights, the chain's own colour standing at one weight between them", () => {
+    expect(TENSION_PLACES).toEqual([-1, -0.5, -0.25, 0.25, 0.5, 0.75, 1]);
+    expect(
+      [-1, 0, 0.5, 2, 4, 8, 16].map((weights) => tensionPlace(weights)),
+    ).toEqual([-1, -0.5, -0.25, 0.25, 0.5, 0.75, 1]);
+    expect(tensionPlace(1)).toBe(0);
+  });
+
+  it("are the chain's own colour at 0, and each of the palette's at its place, in every palette", () => {
+    const chain: Rgb = [1, 0.94, 0.82];
+    for (const { name, colors } of PALETTES) {
+      const color = tensionScale(chain, colors);
+      expect(color(0), name).toEqual(chain);
+      TENSION_PLACES.forEach((place, k) => {
+        expect(color(place), name).toEqual(colors[k]);
+      });
+    }
+  });
+
+  it("mix neighbours in a straight line, and hold the nearer end's colour outside -1 to 1", () => {
+    const chain: Rgb = [1, 0.94, 0.82];
+    const { colors } = PALETTES[paletteNamed("jellyfish")] ?? { colors: [] };
+    const color = tensionScale(chain, colors);
+    const [from, to] = [colors[5] ?? chain, colors[6] ?? chain];
+    color(0.875).forEach((channel, k) => {
+      expect(channel).toBeCloseTo(((from[k] ?? 0) + (to[k] ?? 0)) / 2, 12);
+    });
+    color(0.125).forEach((channel, k) => {
+      expect(channel).toBeCloseTo(
+        ((chain[k] ?? 0) + (colors[3]?.[k] ?? 0)) / 2,
+        12,
+      );
+    });
+    expect(color(-3)).toEqual(color(-1));
+    expect(color(3)).toEqual(color(1));
+  });
+
+  it("are, in heat on the first ground, the colours decision 35's scale gave every tension", () => {
+    // decision 35's scale: five colours, the chain's own at one weight
+    const before: [number, Rgb][] = [
       [-1, parseColor("#9a66ff")],
       [-0.5, parseColor("#4a8cff")],
       [0.25, parseColor("#ffc24d")],
       [0.5, parseColor("#ff8a26")],
       [1, parseColor("#ff3b2b")],
-    ]);
-  });
-
-  it("each hold a colour within 0 and 1 for a push, a slack rod, and 2, 4 and 16 weights, the chain's own being at 0", () => {
-    expect(TENSION_SCALES.length).toBeGreaterThan(1);
-    for (const { name, stops } of TENSION_SCALES) {
-      expect(
-        stops.map(([place]) => place),
-        name,
-      ).toEqual([-1, -0.5, 0.25, 0.5, 1]);
-      for (const [, color] of stops) {
-        for (const channel of color) {
-          expect(channel).toBeGreaterThanOrEqual(0);
-          expect(channel).toBeLessThanOrEqual(1);
-        }
-      }
-    }
-  });
-
-  it("have names of their own, for a screen reader", () => {
-    const names = TENSION_SCALES.map(({ name }) => name);
-    expect(new Set(names).size).toBe(names.length);
-    for (const name of names) expect(name).toMatch(/^[a-z][a-z ]*$/);
-  });
-
-  it("are found by their place in the list, and nowhere else", () => {
-    expect(tensionScaleAt(0)).toBe(TENSION_SCALES[0]);
-    for (const index of [-1, TENSION_SCALES.length, 0.5]) {
-      expect(() => tensionScaleAt(index)).toThrow(/scale/);
-    }
-  });
-});
-
-describe("the colour of a place on a scale (decision 35)", () => {
-  const chain: Rgb = [1, 0.94, 0.82];
-
-  it("is the chain's own colour at 0, in every scale", () => {
-    for (const scale of TENSION_SCALES) {
-      expect(tensionScale(chain, scale)(0)).toEqual(chain);
-    }
-  });
-
-  it("is each stop's colour at its place, and mixes between neighbours", () => {
-    for (const scale of TENSION_SCALES) {
-      const color = tensionScale(chain, scale);
-      for (const [place, stop] of scale.stops) {
-        expect(color(place)).toEqual(stop);
-      }
-      const [[a, from], [b, to]] = scale.stops.slice(-2) as [
-        [number, Rgb],
-        [number, Rgb],
-      ];
-      const middle = color((a + b) / 2);
-      middle.forEach((channel, k) => {
-        expect(channel).toBeCloseTo(((from[k] ?? 0) + (to[k] ?? 0)) / 2, 12);
+    ];
+    const [night] = GROUNDS;
+    if (night === undefined) throw new Error("there are no grounds");
+    const stops = [...before, [0, night.chain] as [number, Rgb]].sort(
+      ([a], [b]) => a - b,
+    );
+    const old = (place: number): Rgb => {
+      const i = stops.findIndex(([at], k) => k > 0 && place <= at);
+      const [a, x] = stops[i - 1] ?? stops[0] ?? [0, night.chain];
+      const [b, y] = stops[i] ?? [0, night.chain];
+      const share = (place - a) / (b - a);
+      return [0, 1, 2].map(
+        (k) => (x[k] ?? 0) + share * ((y[k] ?? 0) - (x[k] ?? 0)),
+      ) as unknown as Rgb;
+    };
+    const { colors } = PALETTES[paletteNamed("heat")] ?? { colors: [] };
+    const color = tensionScale(night.chain, colors);
+    for (let place = -1; place <= 1; place += 1 / 64) {
+      const [now, was] = [color(place), old(place)];
+      now.forEach((channel, k) => {
+        expect(Math.abs(channel - (was[k] ?? 0))).toBeLessThanOrEqual(
+          0.5 / 255 + 1e-12,
+        );
       });
-    }
-  });
-
-  it("holds the colour of the nearer end outside -1 to 1", () => {
-    for (const scale of TENSION_SCALES) {
-      const color = tensionScale(chain, scale);
-      expect(color(-3)).toEqual(color(-1));
-      expect(color(3)).toEqual(color(1));
     }
   });
 });
