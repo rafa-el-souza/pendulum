@@ -1401,6 +1401,146 @@ test("a strobe's flashes stamp each twin's tip as a point, and its rods, that li
   expect(errors).toEqual([]);
 });
 
+test("each of the trails' layers opens its row above the trails', with the parts it comes from and its light; its button is lit while it is drawn, its light goes into the address, and the title names it while the layer is drawn (decision 102)", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("./?twins=0");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await openControls(page);
+  await icon(page, "The trails").click();
+  const trailsRow = page.getByRole("toolbar", { name: "The trails" });
+  await expect(trailsRow).toBeVisible();
+  // the lines of the chain and of the twins are drawn as the piece opens,
+  // and no strobe
+  await expect(icon(page, "The chain's lines")).toHaveAttribute("data-lit", "");
+  await expect(icon(page, "The twins' lines")).toHaveAttribute("data-lit", "");
+  const strobeLayer = icon(page, "The chain's strobe");
+  await expect(strobeLayer).not.toHaveAttribute("data-lit", "");
+  await expect(icon(page, "The twins' strobe")).not.toHaveAttribute(
+    "data-lit",
+    "",
+  );
+
+  // the strobe's row, stacked above the trails'
+  await strobeLayer.click();
+  await expect(strobeLayer).toHaveAttribute("aria-expanded", "true");
+  const strobeRow = page.getByRole("toolbar", { name: "The chain's strobe" });
+  await expect(strobeRow).toBeVisible();
+  expect(await labels(strobeRow)).toEqual([
+    "Strobe on the chain",
+    "Light of the strobe on the chain",
+  ]);
+  const above = await strobeRow.boundingBox();
+  const below = await trailsRow.boundingBox();
+  if (above === null || below === null) throw new Error("a row is not shown");
+  expect(above.y + above.height).toBeLessThanOrEqual(below.y + 1);
+
+  // its light, twice as bright two steps up, into the address; the title
+  // says nothing of it while the strobe is off
+  const light = icon(page, "Light of the strobe on the chain");
+  await expect(light).toHaveAccessibleDescription("×1");
+  await light.click();
+  const more = page
+    .getByRole("group", { name: "Light of the strobe on the chain" })
+    .getByRole("button", { name: "More: Light of the strobe on the chain" });
+  await more.click();
+  await more.click();
+  await expect(light).toHaveAccessibleDescription("×2");
+  await expect(page).toHaveURL(
+    /\?twins=0&strobelight=2$|\?strobelight=2&twins=0$/,
+  );
+  await expect(page).toHaveTitle("Pendulum · no twins");
+
+  // the strobe on the chain's tip lights its button, and the title names
+  // its light
+  await page.keyboard.press("Shift+Digit8");
+  await expect(icon(page, "Strobe on the chain")).toHaveAccessibleDescription(
+    "tip",
+  );
+  await expect(strobeLayer).toHaveAttribute("data-lit", "");
+  await expect(page).toHaveTitle(
+    "Pendulum · no twins, a strobe on the tip, the chain's strobe at light ×2",
+  );
+
+  // Escape shuts the layer's row, then the trails'
+  await page.keyboard.press("Escape");
+  await expect(strobeRow).toBeHidden();
+  await expect(trailsRow).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(trailsRow).toBeHidden();
+
+  // the address opened again keeps the light
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await expect(
+    icon(page, "Light of the strobe on the chain"),
+  ).toHaveAccessibleDescription("×2");
+  expect(errors).toEqual([]);
+});
+
+/**
+ * The trails' light alone of a page that `query` asks for, the chain hidden,
+ * after thirty frames on the page's own clock, with the twins on the main
+ * line, as the test of the twins' strobe has it.
+ */
+async function trailsAlone(page: Page, query: string): Promise<number> {
+  await page.goto(`./?time=4&chain=3&trail=600&${query}`);
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await page.clock.runFor(30 * 16);
+  await page.keyboard.press(" ");
+  await page.clock.runFor(3 * 16);
+  return lightShown(page);
+}
+
+for (const [target, layers] of [
+  [
+    "the chain's",
+    [
+      ["lines", "twins=0&twinlines=0&lineslight="],
+      ["strobe", "twins=0&lines=0&twinlines=0&strobe=3&strobelight="],
+    ],
+  ],
+  [
+    "the twins'",
+    [
+      ["lines", "twins=64&spread=6.28&lines=0&twinlineslight="],
+      [
+        "strobe",
+        "twins=64&spread=6.28&lines=0&twinlines=0&twinstrobe=3&twinstrobelight=",
+      ],
+    ],
+  ],
+] as const) {
+  test(`${target} layers of the trails, lines and strobe, are drawn as bright as each one's light says, kept as curves and as the image carried (decision 102)`, async ({
+    page,
+  }) => {
+    const errors = collectErrors(page);
+    await page.setViewportSize({ width: 640, height: 400 });
+    await page.addInitScript(
+      "Object.defineProperty(window, 'Worker', { configurable: true, value: undefined });",
+    );
+    await page.clock.install({ time: Date.UTC(2026, 0, 1) });
+    await page.clock.pauseAt(Date.UTC(2026, 0, 1) + 1000);
+    // the first page of a fresh Firefox can run otherwise on the page's
+    // clock: one page first, left
+    await trailsAlone(page, "twins=0");
+    for (const trails of ["sharp", "layers"]) {
+      for (const [, query] of layers) {
+        // A quarter of the light, and four times it: the trails' light goes
+        // to the screen through a curve that fills, so that on the screen it
+        // is 2.4 to 3.1 times as much in the three engines, in CI's image;
+        // the twins born round the whole disc, so that they do not lie on
+        // one another
+        const dim = await trailsAlone(page, `trails=${trails}&${query}0.25`);
+        const bright = await trailsAlone(page, `trails=${trails}&${query}4`);
+        expect(bright).toBeGreaterThan(1.5 * dim);
+      }
+    }
+    expect(errors).toEqual([]);
+  });
+}
+
 test("the light switch puts out the twins and the trails and lights them again, without changing their controls, and the address follows", async ({
   page,
 }) => {
