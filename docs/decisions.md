@@ -3641,6 +3641,41 @@ quarter of it, and in Chromium 1.5 to 1.7 times as much as the light it is
 born with. In the browser, side by side with the code before, on the page's
 own clock: the fifty-eight cases of before the same, byte for byte.
 
+## 103. A report's buffers go back to its worker, to be filled again
+
+*2026-11-23.* A worker that carries a share of the twins (decision 51) sent
+each report in buffers handed over to the page, made anew each frame. The
+page now hands each buffer back with that worker's next command once it has
+done with it, and the worker fills it again: a report's curves (decision 97)
+once taken into the trails, and its twins' places and tips once the worker's
+next report is shown, so that a worker that comes late leaves its twins drawn
+where it last put them. Each worker's newest open curves, kept for a view
+drawn anew, are copied. A worker keeps at most three buffers of a kind, and
+makes one with room to spare where none fits. The twins on the main line make
+theirs anew, of their exact sizes, as before. What is drawn does not change.
+
+**Why.** With two masses and 4 096 twins in seven workers, the reports
+brought the page about 100 MB a second for its collector to free. On a
+desktop, the main line ran a full collection about twice a second, each
+followed by the browser sweeping its own objects for 11 to 21 ms, which made
+the next frame late.
+
+**Evidence.** Unit tests: with its buffers handed back, a share fills them
+and reports the same, number for number and span for span, as one handed
+none, through births, drops, splits, other masses, time run backwards, stamps
+and curves let go; on the main line each buffer is made anew. The page hands
+back curves once taken and numbers once the next report is shown or the fan
+is put out, and keeps a late worker's twins drawn where its last report put
+them, the buffers moved as a worker's message moves them. On the desktop,
+traces of a page from the disk with two masses and 4 096 twins, about 41 s
+each, before and after: full collections on the main line from 81 to 3, its
+time collecting from 1.4 to 0.25 s, the longest stretch from 21 to 8.5 ms,
+and late frames from 10 to none but the recording's first. Sending the
+buffers back costs the main line about 0.2 ms a frame, and the minor
+collections grew longer, up to 6.4 ms, none making a frame late. In the
+browser, side by side with the code before, on the page's own clock with the
+twins on the main line: 51 cases, the screen the same, byte for byte.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
