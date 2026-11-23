@@ -47,6 +47,19 @@ export interface Parameter {
    * whose values are colours; a screen reader still hears the text.
    */
   readonly swatches?: (value: number) => readonly Rgb[];
+  /** For a parameter the address writes in words, as a palette by its name (decision 104). */
+  readonly written?: Written;
+}
+
+/**
+ * How the address writes a parameter's values in words (decision 104): the
+ * word for a value, and the value a word reads as, or anything else for
+ * none; a word may be a number an address wrote before, read as the value
+ * that took its place.
+ */
+export interface Written {
+  readonly word: (value: number) => string;
+  readonly read: (word: string) => number;
 }
 
 /** A value for every parameter, by id. */
@@ -103,6 +116,16 @@ export function checkParameters(
     });
     if (!p.values.includes(p.initial)) {
       throw new Error(`the initial value of ${p.id} is not one of its values`);
+    }
+    const { written } = p;
+    if (written !== undefined) {
+      for (const value of p.values) {
+        if (written.read(written.word(value)) !== value) {
+          throw new Error(
+            `the word of ${p.id} for ${String(value)} does not read back as it`,
+          );
+        }
+      }
     }
     for (const key of [...p.keys.down, ...p.keys.up]) {
       if (keys.has(key))
@@ -169,7 +192,7 @@ export function keyAction(
   return stepped(parameters, press.key);
 }
 
-/** The values an address carries (a location's search, "?n=8"); anything else takes its initial value. */
+/** The values an address carries (a location's search, "?n=8", or a value's word, "?palette=jellyfish"); anything else takes its initial value. */
 export function readAddress(
   parameters: readonly Parameter[],
   search: string,
@@ -179,7 +202,7 @@ export function readAddress(
   for (const p of parameters) {
     const text = query.get(p.id);
     if (text === null) continue;
-    const value = Number(text);
+    const value = p.written === undefined ? Number(text) : p.written.read(text);
     if (p.values.includes(value)) values.set(p.id, value);
   }
   return values;
@@ -200,7 +223,7 @@ export function writeAddress(
     query.delete(p.id);
     const value = values.get(p.id);
     if (value !== undefined && value !== p.initial)
-      query.set(p.id, String(value));
+      query.set(p.id, p.written?.word(value) ?? String(value));
   }
   const text = query.toString();
   return text === "" ? "" : `?${text}`;
