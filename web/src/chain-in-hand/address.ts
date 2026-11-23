@@ -270,6 +270,31 @@ const VERSION_12: CodeTable = {
   switches: ["light", "tension", "sketch"],
 };
 
+// The light of each of the trails' layers, as the thirteenth code names it.
+const LAYER_LIGHT_STEPS = [0.25, 0.35, 0.5, 0.7, 1, 1.4, 2, 2.8, 4];
+// each layer's control, and its light's
+const LIGHT_AFTER = new Map([
+  ["lines", "lineslight"],
+  ["strobe", "strobelight"],
+  ["twinlines", "twinlineslight"],
+  ["twinstrobe", "twinstrobelight"],
+]);
+
+/**
+ * The code's thirteenth version (decision 102), frozen once published: the
+ * light of each of the trails' layers, after the layer's control.
+ */
+const VERSION_13: CodeTable = {
+  version: 13,
+  controls: VERSION_12.controls.flatMap((control) => {
+    const light = LIGHT_AFTER.get(control.id);
+    return light === undefined
+      ? [control]
+      : [control, { id: light, values: LAYER_LIGHT_STEPS }];
+  }),
+  switches: ["light", "tension", "sketch"],
+};
+
 /** Every version of the code the piece reads, oldest first. */
 export const CODES: readonly CodeTable[] = [
   VERSION_1,
@@ -284,10 +309,11 @@ export const CODES: readonly CodeTable[] = [
   VERSION_10,
   VERSION_11,
   VERSION_12,
+  VERSION_13,
 ];
 
 /** The version the piece writes: the newest. */
-export const CODE: CodeTable = VERSION_12;
+export const CODE: CodeTable = VERSION_13;
 
 /**
  * The trails' step of a strobe and the twins as dust, as the fifth code and

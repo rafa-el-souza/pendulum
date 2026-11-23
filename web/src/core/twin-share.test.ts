@@ -13,7 +13,7 @@ import {
   type TwinFlash,
   type TwinHold,
 } from "./twin-share.ts";
-import { SPAN_BYTES, Merger, SpanBatch } from "./curves.ts";
+import { SPAN_BYTES, Merger, SpanBatch, readSpan } from "./curves.ts";
 import { mixColors } from "./grounds.ts";
 import { fanPalette } from "./palettes.ts";
 import { pivotsOver, stampTwin, twinCurve } from "./twin-curves.ts";
@@ -729,7 +729,15 @@ describe("a share's twins' trails joined into curves where they move (decision 9
         command(events, FRAME, pieces, still(pieces), {
           drive,
           clock: clockOf(frame),
-          curves: { light, music, shine, palette, tint, lines: true },
+          curves: {
+            light,
+            stampLight: light,
+            music,
+            shine,
+            palette,
+            tint,
+            lines: true,
+          },
           seq: frame + 1,
         }),
       );
@@ -804,6 +812,7 @@ describe("a share's twins' trails joined into curves where they move (decision 9
     share.run(command([bornAll(raised(n), 4, 0, 1, 0.1)], 0, 0));
     const curves = {
       light: 0.2,
+      stampLight: 0.2,
       music: 1,
       shine: null,
       palette: 0,
@@ -957,7 +966,14 @@ describe("a share's twins stamped by a strobe's flashes (decision 100)", () => {
     const palette = 3;
     const tint = { color: [0.1, 0.8, 0.3] as const, amount: 0.4 };
     const shine = Float64Array.from({ length: fan }, (_, k) => 0.3 + 0.1 * k);
-    const paint = { light: 0.12, music: 1.5, shine, palette, tint };
+    const paint = {
+      light: 0.12,
+      stampLight: 0.12,
+      music: 1.5,
+      shine,
+      palette,
+      tint,
+    };
     // the same twins, one share joining curves with stamps alone, the other
     // sending places back
     const joining = new TwinShare(0, 1, n);
@@ -1006,6 +1022,48 @@ describe("a share's twins stamped by a strobe's flashes (decision 100)", () => {
     }
   });
 
+  it("stamps them in the light of the twins' strobe, apart from their lines' (decision 102)", () => {
+    const n = 2;
+    const share = (stampLight: number) => {
+      const joining = new TwinShare(0, 1, n);
+      joining.run(command([bornAll(raised(n), fan, 0, 1, 0.3)], 0, 0));
+      const joined = joining.run({
+        ...command([], FRAME, 4, [], {
+          stamps: {
+            parts: "rods",
+            flashes: [{ at: 0.4 * FRAME, fade: 0, x: 0, y: 0 }],
+          },
+        }),
+        curves: {
+          light: 0.12,
+          stampLight,
+          music: 1,
+          shine: null,
+          palette: 0,
+          tint: null,
+          lines: false,
+        },
+      });
+      if (joined.curves === null) throw new Error("no curves came back");
+      return joined.curves.stamps;
+    };
+    const asLines = share(0.12);
+    const brighter = share(0.48);
+    expect(brighter.count).toBe(asLines.count);
+    expect(asLines.count).toBeGreaterThan(0);
+    // the same spans, each four times as bright
+    const lights = ({ bytes, count }: typeof asLines) =>
+      Array.from(
+        { length: count },
+        (_, k) =>
+          readSpan(new Float32Array(bytes), new Uint8Array(bytes), k).l0,
+      );
+    const dim = lights(asLines);
+    for (const [k, light] of lights(brighter).entries()) {
+      expect(light).toBeCloseTo(4 * (dim[k] ?? 0), 5);
+    }
+  });
+
   it("stamps no twin, and sends nothing of stamps back, without a flash, without stamps, or with no time", () => {
     const share = new TwinShare(0, 1, 2);
     share.run(command([bornAll(raised(2), 3, 0, 1, 0.1)], 0, 0));
@@ -1028,6 +1086,7 @@ describe("a share's twins stamped by a strobe's flashes (decision 100)", () => {
       command([], FRAME, 4, [], {
         curves: {
           light: 0.1,
+          stampLight: 0.1,
           music: 1,
           shine: null,
           palette: 0,

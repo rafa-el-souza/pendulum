@@ -3600,6 +3600,47 @@ asks, which had taken 9 to 17 ms. In the browser, side by side with the
 code before, on the page's own clock: ten cases, the screen the same, byte
 for byte.
 
+## 102. Each layer of the trails has a light of its own, in a row of its own
+
+*2026-11-23.* Each of the trails' four layers (decision 96), the chain's
+lines and its strobe, the twins' lines and theirs, is drawn as bright as a
+light of its own says: from a quarter of the light it is born with to four
+times it, in nine steps of about 1.4, two of which double it, opening at the
+light each had. A layer's light takes the whole layer: the tip's line, the
+ribbon and the veil; the strobe's rods and its points, still twice as
+bright; the twins' lines; their rods and points. The music's light comes on
+top of it, dense light turns white as before (decision 61), and the light
+switch puts it all out. In the trails' group of the row, each layer is now a
+button that opens the layer's own row, stacked above, as the dance's does
+(decision 89): the parts the layer comes from, the control of before, with
+its keys, and the layer's light, without keys. A layer's button is lit while
+the layer is drawn, and its light is faint while it is not. The four lights
+share one icon, a sun, each in its layer's row beside the layer's own; every
+other control keeps an icon of its own (decision 31). The address carries a
+light where it is not the one the layer opens with, as `strobelight=2`, and
+the title names it while its layer is drawn. A share of the twins is sent
+their lines' light and their stamps' apart. The saved moment's code is of
+version 13, two bytes longer; addresses and codes written before open as
+they showed.
+
+**Why.** Each layer was drawn in a light fixed in the code, and the light of
+the parts decisions 96 and 100 added was a first guess.
+
+**Evidence.** Unit tests: the four lights, their steps and their place after
+each layer; each layer in its own light, the others as before; a share's
+stamps in their light, each four times as bright at four times it, apart from
+its lines'; the code of version 13 and the one before it; the readable
+address; the title, only while the layer is drawn. Browser tests: each
+layer's row opens above the trails', its button lit while the layer is drawn,
+its light kept in the address and named in the title; each of the four
+layers, at four times its light, lights the trails one and a half times as
+much as at a quarter of it, or more, kept as curves and as the image carried.
+On the screen the trails' light goes through a curve that fills: in the three
+engines, four times a layer's light shows 2.4 to 3.1 times as much as a
+quarter of it, and in Chromium 1.5 to 1.7 times as much as the light it is
+born with. In the browser, side by side with the code before, on the page's
+own clock: the fifty-eight cases of before the same, byte for byte.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.

@@ -70,7 +70,7 @@ hanging rope it becomes as n grows.
   parts of the chain draw lines along their paths and which a strobe
   stamps at even times, its tip, every mass, its rods or all of it,
   whether the twins' tips draw lines too, and which parts of each twin the
-  strobe stamps,
+  strobe stamps, each of these four with a light of its own,
   which of ten palettes colours the twins, and how long their light keeps
   that colour where it is dense before it turns white are controls too, and so is
   the ground, one of eleven dark colours, each with a chain's colour to go

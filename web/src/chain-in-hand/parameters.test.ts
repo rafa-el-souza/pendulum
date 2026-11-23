@@ -29,6 +29,8 @@ import {
   MODE,
   PALETTE,
   LINES,
+  LINES_LIGHT,
+  LAYER_LIGHTS,
   PARAMETERS,
   SAVED_START,
   SCALE,
@@ -36,13 +38,16 @@ import {
   SHAKE_AMPLITUDE,
   SPREAD,
   STROBE,
+  STROBE_LIGHT,
   TENSION,
   TILT,
   TIME,
   TRAIL,
   TWIN_COUNT,
   TWIN_LINES,
+  TWIN_LINES_LIGHT,
   TWIN_STROBE,
+  TWIN_STROBE_LIGHT,
   WHITE,
   ZOOM,
   gravityOf,
@@ -223,6 +228,45 @@ describe("the first piece's parameters", () => {
     expect(TWIN_STROBE.icon).toBe("flashes");
   });
 
+  it("draw each of the trails' layers as bright as its light says, from a quarter of the light it is born with to four times it, by steps of about 1.4, opening at the light each had, with no keys yet (decision 102)", () => {
+    const lights = [
+      [LINES_LIGHT, "lineslight", "Light of the lines from the chain", LINES],
+      [STROBE_LIGHT, "strobelight", "Light of the strobe on the chain", STROBE],
+      [
+        TWIN_LINES_LIGHT,
+        "twinlineslight",
+        "Light of the lines from the twins",
+        TWIN_LINES,
+      ],
+      [
+        TWIN_STROBE_LIGHT,
+        "twinstrobelight",
+        "Light of the strobe on the twins",
+        TWIN_STROBE,
+      ],
+    ] as const;
+    for (const [light, id, label, layer] of lights) {
+      expect(light.id).toBe(id);
+      expect(light.label).toBe(label);
+      expect(light.values).toEqual([0.25, 0.35, 0.5, 0.7, 1, 1.4, 2, 2.8, 4]);
+      expect(light.initial).toBe(1);
+      expect(light.keys).toEqual({ down: [], up: [] });
+      expect(light.show(0.25)).toBe("×0.25");
+      expect(light.show(1)).toBe("×1");
+      expect(light.show(2.8)).toBe("×2.8");
+      expect(light.icon).toBe("sun");
+      expect(LAYER_LIGHTS.get(light)).toBe(layer);
+    }
+    expect(LAYER_LIGHTS.size).toBe(4);
+    // two steps double the light, within the rounding of what is shown
+    const { values } = LINES_LIGHT;
+    for (let i = 2; i < values.length; i++) {
+      const doubled = (values[i] ?? 0) / (values[i - 2] ?? 1);
+      expect(doubled).toBeGreaterThan(1.95);
+      expect(doubled).toBeLessThan(2.05);
+    }
+  });
+
   it("step through the twins' palettes, opening with the sketch's, which the author keeps (decision 23)", () => {
     expect(PALETTE.values).toEqual(FAN_PALETTES.map((_, i) => i));
     expect(PALETTE.initial).toBe(0);
@@ -377,10 +421,12 @@ describe("the first piece's parameters", () => {
     expect(TILT.iconTurn?.(90)).toBe(-90);
   });
 
-  it("give every parameter an icon of its own, since the row of controls names them without words (decision 31)", () => {
+  it("give every parameter an icon of its own, since the row of controls names them without words (decision 31), but the lights of the trails' layers, which share one, each in its layer's row beside the layer's own (decision 102)", () => {
     const icons = PARAMETERS.map((p) => p.icon);
     expect(icons).not.toContain(undefined);
-    expect(new Set(icons).size).toBe(PARAMETERS.length);
+    const others = PARAMETERS.filter((p) => !LAYER_LIGHTS.has(p));
+    expect(new Set(others.map((p) => p.icon)).size).toBe(others.length);
+    expect(others.map((p) => p.icon)).not.toContain("sun");
   });
 
   it("set what moves the chain apart from the light, each parameter in one of the two, in the registry's order (decision 31)", () => {
@@ -402,9 +448,13 @@ describe("the first piece's parameters", () => {
       LOOK,
       TRAIL,
       LINES,
+      LINES_LIGHT,
       STROBE,
+      STROBE_LIGHT,
       TWIN_LINES,
+      TWIN_LINES_LIGHT,
       TWIN_STROBE,
+      TWIN_STROBE_LIGHT,
       PALETTE,
       WHITE,
     ]);

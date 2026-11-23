@@ -11,6 +11,7 @@ import {
   HAND,
   HELD_STEP,
   HOLD,
+  LAYER_LIGHTS,
   LEASHED_STEP,
   MARK_STEP,
   MODE,
@@ -35,6 +36,13 @@ const CHAIN_PARTS = [
   "the rods",
   "the whole chain",
 ];
+// The trails' layers, as a title names each one's light (decision 102).
+const LAYER_NAMES: Readonly<Record<string, string>> = {
+  lineslight: "the chain's lines",
+  strobelight: "the chain's strobe",
+  twinlineslight: "the twins' lines",
+  twinstrobelight: "the twins' strobe",
+};
 // and of the twins, which a strobe stamps as the chain's (decision 100)
 const TWIN_PARTS = [
   "",
@@ -113,8 +121,11 @@ function words(parameter: Parameter, value: number): string {
         : value === 2
           ? "masses alone"
           : "rods alone";
-    default:
+    default: {
+      const layer = LAYER_NAMES[parameter.id];
+      if (layer !== undefined) return `${layer} at light ×${String(value)}`;
       return `${parameter.id} ${String(value)}`;
+    }
   }
 }
 
@@ -150,6 +161,11 @@ export function summaryOf(
     if (parameter === AMPLITUDE && !inMode) continue;
     // how near the twins are held, only while they are held or leashed
     if (parameter === HOLD && !holds) continue;
+    // a layer's light, only while the layer is drawn (decision 102)
+    const layer = LAYER_LIGHTS.get(parameter);
+    if (layer !== undefined && (values.get(layer.id) ?? layer.initial) === 0) {
+      continue;
+    }
     said.push(words(parameter, value));
   }
   for (const { id, initial } of SWITCHES) {

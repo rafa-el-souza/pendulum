@@ -393,6 +393,57 @@ export const TWIN_STROBE: Parameter = {
   icon: "flashes",
 };
 
+// How bright each of the trails' layers is drawn (decision 102): a share of
+// the light it is born with, from a quarter to four times it, by steps of
+// about 1.4, so that two steps double it; as the piece opens, the light each
+// had before.
+const LAYER_LIGHT_STEPS = [0.25, 0.35, 0.5, 0.7, 1, 1.4, 2, 2.8, 4];
+
+/** The light of a layer of the trails, shown as the share it is drawn at: the sun, in the layer's own row (decision 102). */
+function layerLight(id: string, label: string): Parameter {
+  return {
+    id,
+    label,
+    values: LAYER_LIGHT_STEPS,
+    initial: 1,
+    keys: { down: [], up: [] },
+    show: (value) => `×${String(value)}`,
+    icon: "sun",
+  };
+}
+
+/**
+ * How bright each of the trails' layers is drawn (decision 102), each beside
+ * the control of the parts it comes from, in the layer's row: its lines or
+ * its strobe's stamps, rods and points alike, as many times as bright as
+ * they are born. The music's light comes on top of it, dense light turns
+ * white as the white's control says, and the light switch puts all of it out.
+ */
+export const LINES_LIGHT = layerLight(
+  "lineslight",
+  "Light of the lines from the chain",
+);
+export const STROBE_LIGHT = layerLight(
+  "strobelight",
+  "Light of the strobe on the chain",
+);
+export const TWIN_LINES_LIGHT = layerLight(
+  "twinlineslight",
+  "Light of the lines from the twins",
+);
+export const TWIN_STROBE_LIGHT = layerLight(
+  "twinstrobelight",
+  "Light of the strobe on the twins",
+);
+
+/** Each light of the trails' layers, and the control of the parts its layer comes from (decision 102). */
+export const LAYER_LIGHTS: ReadonlyMap<Parameter, Parameter> = new Map([
+  [LINES_LIGHT, LINES],
+  [STROBE_LIGHT, STROBE],
+  [TWIN_LINES_LIGHT, TWIN_LINES],
+  [TWIN_STROBE_LIGHT, TWIN_STROBE],
+]);
+
 /**
  * How far apart the twins are born, in radians across the fan (decision 25):
  * from a billionth of a radian to a tenth, by powers of ten, opening at the
@@ -817,7 +868,7 @@ export const CHAIN: readonly Parameter[] = [
   AMPLITUDE,
 ];
 
-/** The light: the twins, whether they fade and how they are drawn, their trails and the chain's, their colours, and when dense light turns white. */
+/** The light: the twins, whether they fade and how they are drawn, their trails and the chain's, each layer's light beside it, their colours, and when dense light turns white. */
 export const LIGHT: readonly Parameter[] = [
   TWIN_COUNT,
   SPREAD,
@@ -826,9 +877,13 @@ export const LIGHT: readonly Parameter[] = [
   LOOK,
   TRAIL,
   LINES,
+  LINES_LIGHT,
   STROBE,
+  STROBE_LIGHT,
   TWIN_LINES,
+  TWIN_LINES_LIGHT,
   TWIN_STROBE,
+  TWIN_STROBE_LIGHT,
   PALETTE,
   WHITE,
 ];

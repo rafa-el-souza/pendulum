@@ -401,8 +401,8 @@ export function mountTwins(
     const clock =
       sharp !== null && value(LOOK) !== 1 ? drawing.stepClock : null;
     const layers = drawing.layers();
-    const lines =
-      clock !== null && layerOf(layers, "twins", "lines") !== undefined;
+    const lineLayer = layerOf(layers, "twins", "lines");
+    const lines = clock !== null && lineLayer !== undefined;
     // the strobe's flashes stamp the parts of each twin its layer says, where
     // each is at their instants (decision 100)
     const stamped = layerOf(layers, "twins", "stamps");
@@ -412,13 +412,15 @@ export function mountTwins(
         : null;
     // Where the trails keep curves and the twins draw lines, each worker
     // joins its own twins' curves (decision 97), and stamps them there
-    // (decision 100), in the trails' light, the music's, each twin's own while
-    // they fade, the palette and the music's tint, as the frame computed now
-    // has them.
+    // (decision 100), in the trails' light times each layer's own (decision
+    // 102), the music's, each twin's own while they fade, the palette and the
+    // music's tint, as the frame computed now has them.
+    const trailLight = twinTrailLight(twins.count);
     const joining =
       lines || (stamps !== null && sharp !== null)
         ? {
-            light: twinTrailLight(twins.count),
+            light: trailLight * (lineLayer?.light ?? 1),
+            stampLight: trailLight * (stamped?.light ?? 1),
             music: 1 + Math.min(TRAIL_MOST, hooks.look.trail),
             palette: value(PALETTE),
             tint: hooks.tint("twins"),
@@ -496,14 +498,19 @@ export function mountTwins(
    */
   function takeTwins(): void {
     const { drawing } = hooks;
-    // faint, so that where many twins' trails run together they read as one
+    // faint, so that where many twins' trails run together they read as one,
+    // their lines and their stamps each in its layer's light (decision 102)
     const light = twinTrailLight(twins.count);
     // while they fade, each in its own light, which then falls with how far
     // it has gone from the chain
     const fades = value(FADE) === 1;
     // their tips draw lines where the trails' layers have them do so,
     // however the twins are drawn (decision 96)
-    const tipLines = layerOf(drawing.layers(), "twins", "lines") !== undefined;
+    const layers = drawing.layers();
+    const lineLayer = layerOf(layers, "twins", "lines");
+    const tipLines = lineLayer !== undefined;
+    const lineLight = light * (lineLayer?.light ?? 1);
+    const stampLight = light * (layerOf(layers, "twins", "stamps")?.light ?? 1);
     const music = 1 + Math.min(TRAIL_MOST, hooks.look.trail);
     // held, how much each share's fan stretched, averaged over the shares
     // (decision 64)
@@ -541,7 +548,7 @@ export function mountTwins(
               (tips[from + 2] ?? 0) + (twinPivots[p + 2] ?? 0),
               (tips[from + 3] ?? 0) + (twinPivots[p + 3] ?? 0),
               color,
-              light * shine,
+              lineLight * shine,
             );
           }
         }
@@ -560,7 +567,7 @@ export function mountTwins(
               flash.x,
               flash.y,
               color,
-              light * shine * music,
+              stampLight * shine * music,
             );
           });
         }
