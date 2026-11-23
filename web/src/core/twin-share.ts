@@ -10,8 +10,10 @@
 // (twins born, kept, given other masses, run backwards), then the time to
 // advance, how to hold the twins near the chain once it has gone by, and
 // what to send back. It answers with a report: where its twins are, in
-// buffers that are handed over, not copied. A strobe's flashes in the time
-// stamp each twin where it is at their instants (decision 100).
+// buffers that are handed over, not copied, and that the page hands back
+// once it has done with them, for the share to fill again (decision 103). A
+// strobe's flashes in the time stamp each twin where it is at their instants
+// (decision 100).
 
 /* eslint-disable @typescript-eslint/no-non-null-assertion --
    Every index here runs within arrays sized for it, which the compiler's
@@ -19,7 +21,7 @@
 
 import { Chain, type Gravity } from "../physics/chain.ts";
 import type { Rgb } from "./color.ts";
-import { Merger, SpanBatch } from "./curves.ts";
+import { Merger, SPAN_BYTES, SpanBatch } from "./curves.ts";
 import { mixColors } from "./grounds.ts";
 import { fanPalette } from "./palettes.ts";
 import {
@@ -186,6 +188,28 @@ export interface TwinCurveReport {
   readonly stamps: SpanBytes;
 }
 
+/** What a buffer of a report held, which a share fills with the same again once the page hands it back (decision 103). */
+export type TwinBufferKind =
+  | "positions"
+  | "tips"
+  | "tipSpeeds"
+  | "apart"
+  | "stampPlaces"
+  | "fresh"
+  | "closed"
+  | "split"
+  | "open"
+  | "stamps";
+
+/** A buffer of a share's report that the page has done with, handed back with a command (decision 103). */
+export interface TwinSpare {
+  readonly kind: TwinBufferKind;
+  readonly buffer: ArrayBuffer;
+}
+
+/** How many buffers of a kind a share keeps of those handed back: one goes back with each command, a second while the twins drawn wait for the next report, a third while a report comes late (decision 103). */
+const MOST_SPARES = 3;
+
 /** A frame's work for a share. */
 export interface TwinCommand {
   readonly events: readonly TwinEvent[];
@@ -235,6 +259,13 @@ export interface TwinCommand {
    * at each flash. None while no strobe stamps the twins, or none flashed.
    */
   readonly stamps: TwinStamps | null;
+  /**
+   * Buffers of the share's earlier reports that the page has done with,
+   * handed back to be filled again (decision 103), none at first. None at
+   * all where the page hands nothing back, as on the main line: each
+   * report's buffers are then made anew, of their exact sizes.
+   */
+  readonly spares: readonly TwinSpare[] | null;
 }
 
 /** What a share sends back from a command: its twins as they are now. */
@@ -251,7 +282,7 @@ export interface TwinReport {
    * flashes, every mass's x and y from the top, 2 n numbers a flash and the
    * flashes of a twin together; else none.
    */
-  readonly stampPlaces: Float32Array;
+  readonly stampPlaces: Float32Array<ArrayBuffer>;
   /** The share's twins when the time began to go by, and those it advanced: the rest are dropped. */
   readonly asked: number;
   readonly count: number;
@@ -260,17 +291,17 @@ export interface TwinReport {
   /** The pieces the time went by in; none for a command of events alone. */
   readonly pieces: number;
   /** Each twin's masses, every mass's x and y from the top, 2 n numbers a twin, when sent whole; else none. */
-  readonly positions: Float32Array;
+  readonly positions: Float32Array<ArrayBuffer>;
   /** Each twin's tip before the time went by and at the end of each piece, 2 (pieces + 1) numbers a twin. */
-  readonly tips: Float32Array;
+  readonly tips: Float32Array<ArrayBuffer>;
   /** Each tip's velocity at the same instants, laid out as the tips, in metres a second, when the command carried a clock; else none. */
-  readonly tipSpeeds: Float32Array;
+  readonly tipSpeeds: Float32Array<ArrayBuffer>;
   /** The simulated time the command advanced the twins by, in s. */
   readonly time: number;
   /** The command's clock, sent back. */
   readonly clock: TwinClock | null;
   /** Each twin's distance from the chain, as a share of the chain's length (decision 43), when asked for; else none. */
-  readonly apart: Float64Array;
+  readonly apart: Float64Array<ArrayBuffer>;
   /** How long the command took, in ms. */
   readonly spent: number;
   /**
@@ -281,6 +312,68 @@ export interface TwinReport {
    */
   readonly stretch: number;
   readonly stretchTime: number;
+}
+
+/** The buffers of a report's numbers, which the page draws the share's twins from until its next report is shown (decision 103); those of no length are left out. */
+export function spareNumbers(report: TwinReport): TwinSpare[] {
+  return spares([
+    ["positions", report.positions.buffer],
+    ["tips", report.tips.buffer],
+    ["tipSpeeds", report.tipSpeeds.buffer],
+    ["apart", report.apart.buffer],
+    ["stampPlaces", report.stampPlaces.buffer],
+  ]);
+}
+
+/** The buffers of a report's curves, which the page has done with once it has taken them (decision 103); those of no length are left out. */
+export function spareCurves(report: TwinReport): TwinSpare[] {
+  const { curves } = report;
+  if (curves === null) return [];
+  return spares([
+    ["fresh", curves.fresh.bytes],
+    ["closed", curves.closed.bytes],
+    ["split", curves.split.bytes],
+    ["open", curves.open.bytes],
+    ["stamps", curves.stamps.bytes],
+  ]);
+}
+
+function spares(
+  buffers: readonly (readonly [TwinBufferKind, ArrayBuffer])[],
+): TwinSpare[] {
+  return buffers
+    .filter(([, buffer]) => buffer.byteLength > 0)
+    .map(([kind, buffer]) => ({ kind, buffer }));
+}
+
+/** Every buffer a report hands over to the page, each once: its numbers' and its curves'. */
+export function reportBuffers(report: TwinReport): ArrayBuffer[] {
+  const buffers = [
+    report.positions.buffer,
+    report.tips.buffer,
+    report.tipSpeeds.buffer,
+    report.apart.buffer,
+    // where the twins were at a strobe's flashes (decision 100)
+    report.stampPlaces.buffer,
+  ];
+  // the twins' trails joined into curves (decision 95), and the twins
+  // stamped into them (decision 100)
+  const { curves } = report;
+  if (curves !== null) {
+    buffers.push(
+      curves.fresh.bytes,
+      curves.closed.bytes,
+      curves.split.bytes,
+      curves.open.bytes,
+      curves.stamps.bytes,
+    );
+  }
+  return buffers;
+}
+
+/** The buffers a command hands over to its share: those handed back (decision 103). */
+export function commandBuffers(command: TwinCommand): ArrayBuffer[] {
+  return (command.spares ?? []).map((spare) => spare.buffer);
 }
 
 /** How many twins of a fan of `count` belong to share `index` of `shares`. */
@@ -321,6 +414,8 @@ export class TwinShare {
   #colors: Rgb[] = [];
   #pivots = new Float64Array(2);
   #pivotSpeeds = new Float64Array(2);
+  // the buffers the page has handed back, by what they held (decision 103)
+  readonly #spares = new Map<TwinBufferKind, ArrayBuffer[]>();
 
   /** A share of no twins yet, of chains of n masses, timed by `clock` (performance.now). */
   constructor(
@@ -359,6 +454,12 @@ export class TwinShare {
    * a whole fan born at once, take none of the budget.
    */
   run(command: TwinCommand): TwinReport {
+    // the buffers of earlier reports the page has done with, filled again
+    // here where they fit (decision 103)
+    const reusing = command.spares !== null;
+    for (const spare of command.spares ?? []) {
+      this.#keep(spare.kind, spare.buffer);
+    }
     for (const event of command.events) this.#apply(event);
     const start = this.#clock();
     const twins = this.#twins;
@@ -367,9 +468,13 @@ export class TwinShare {
     const pieces = command.time > 0 ? Math.max(1, command.pieces) : 0;
     const step = pieces > 0 ? command.time / pieces : 0;
     const stride = 2 * (pieces + 1);
-    const tips = new Float32Array(stride * asked);
+    const tips = this.#floats("tips", stride * asked, reusing);
     const speeds = command.clock !== null;
-    const tipSpeeds = new Float32Array(speeds ? stride * asked : 0);
+    const tipSpeeds = this.#floats(
+      "tipSpeeds",
+      speeds ? stride * asked : 0,
+      reusing,
+    );
     const giveUp = start + 4 * command.budget;
     // A strobe's flashes over the time (decision 100): the piece each falls
     // in, and how far into it.
@@ -389,7 +494,11 @@ export class TwinShare {
       flashInto[f] = end ? step : Math.max(0, flash.at - piece * step);
       flashing[piece] = 1;
     });
-    const places = new Float32Array(2 * n * flashCount * asked);
+    const places = this.#floats(
+      "stampPlaces",
+      2 * n * flashCount * asked,
+      reusing,
+    );
     const theta0 = new Float64Array(flashCount > 0 ? n : 0);
     const omega0 = new Float64Array(flashCount > 0 ? n : 0);
     const angles = new Float64Array(flashCount > 0 ? n : 0);
@@ -438,10 +547,36 @@ export class TwinShare {
       done++;
     }
     twins.length = done;
-    const curves = this.#join(command, pieces, tips, tipSpeeds, done, places);
+    // past the twins reached, a buffer filled again holds what it held
+    // before: nothing is read there, and it is left as a new one would be
+    if (done < asked) {
+      tips.fill(0, stride * done);
+      tipSpeeds.fill(0, stride * done);
+      places.fill(0, 2 * n * flashCount * done);
+    }
+    const curves = this.#join(
+      command,
+      pieces,
+      tips,
+      tipSpeeds,
+      done,
+      places,
+      reusing,
+    );
+    // joined into curves, the stamps went with them, and the places stay
+    const placesSent = flashCount > 0 && curves === null;
+    if (reusing && !placesSent) this.#keep("stampPlaces", places.buffer);
 
-    const positions = new Float32Array(command.whole ? 2 * n * done : 0);
-    const distances = new Float64Array(command.chain === null ? 0 : done);
+    const positions = this.#floats(
+      "positions",
+      command.whole ? 2 * n * done : 0,
+      reusing,
+    );
+    const distances = this.#doubles(
+      "apart",
+      command.chain === null ? 0 : done,
+      reusing,
+    );
     const chainX = command.chain?.subarray(0, n) ?? null;
     const chainY = command.chain?.subarray(n, 2 * n) ?? null;
     const x = this.#x;
@@ -471,9 +606,7 @@ export class TwinShare {
       seq: command.seq,
       curves,
       stamps: flashCount > 0 ? stamps : null,
-      // joined into curves, the stamps went with them
-      stampPlaces:
-        flashCount > 0 && curves === null ? places : new Float32Array(0),
+      stampPlaces: placesSent ? places : new Float32Array(0),
       asked,
       count: done,
       n,
@@ -499,15 +632,17 @@ export class TwinShare {
    * Then every curve still open, for a view drawn anew. And each twin
    * stamped at each of the command's flashes, from its masses' `places`
    * (decision 100), in the same colour, in the stamps' light (decision 102).
-   * None where the command asks for none.
+   * None where the command asks for none. The batches go out in buffers
+   * handed back where they fit, `reusing` (decision 103).
    */
   #join(
     command: TwinCommand,
     pieces: number,
-    tips: Float32Array,
-    tipSpeeds: Float32Array,
+    tips: Float32Array<ArrayBuffer>,
+    tipSpeeds: Float32Array<ArrayBuffer>,
     count: number,
     places: Float32Array,
+    reusing: boolean,
   ): TwinCurveReport | null {
     const { curves, clock } = command;
     // joining none, the share still sends back a split asked for, and the
@@ -569,12 +704,89 @@ export class TwinShare {
       }
     }
     return {
-      fresh: handed(this.#fresh),
-      closed: handed(this.#closed),
-      split: handed(this.#split),
-      open: handed(this.#open),
-      stamps: handed(this.#stamps),
+      fresh: this.#handed("fresh", this.#fresh, reusing),
+      closed: this.#handed("closed", this.#closed, reusing),
+      split: this.#handed("split", this.#split, reusing),
+      open: this.#handed("open", this.#open, reusing),
+      stamps: this.#handed("stamps", this.#stamps, reusing),
     };
+  }
+
+  /**
+   * The spans of `batch`, handed over with the report, and the batch emptied
+   * for the next command: copied into a buffer handed back where one fits
+   * (decision 103), else in bytes of their own.
+   */
+  #handed(kind: TwinBufferKind, batch: SpanBatch, reusing: boolean): SpanBytes {
+    const count = batch.count;
+    const used = count * SPAN_BYTES;
+    let bytes: ArrayBuffer;
+    if (reusing && used > 0) {
+      bytes = this.#buffer(kind, used, true);
+      new Uint8Array(bytes, 0, used).set(batch.u8.subarray(0, used));
+    } else {
+      bytes = batch.bytes();
+    }
+    batch.clear();
+    return { bytes, count };
+  }
+
+  /** `length` floats for what `kind` holds, in a buffer handed back where one fits (decision 103). */
+  #floats(
+    kind: TwinBufferKind,
+    length: number,
+    reusing: boolean,
+  ): Float32Array<ArrayBuffer> {
+    if (length === 0) return new Float32Array(0);
+    return new Float32Array(this.#buffer(kind, 4 * length, reusing), 0, length);
+  }
+
+  /** `length` doubles for what `kind` holds, in a buffer handed back where one fits (decision 103). */
+  #doubles(
+    kind: TwinBufferKind,
+    length: number,
+    reusing: boolean,
+  ): Float64Array<ArrayBuffer> {
+    if (length === 0) return new Float64Array(0);
+    return new Float64Array(this.#buffer(kind, 8 * length, reusing), 0, length);
+  }
+
+  /**
+   * A buffer of at least `bytes` for what `kind` holds (decision 103): the
+   * smallest of those handed back that fits; else one made anew, with room
+   * to spare where the page hands buffers back, of the exact size where it
+   * does not.
+   */
+  #buffer(kind: TwinBufferKind, bytes: number, reusing: boolean): ArrayBuffer {
+    const kept = this.#spares.get(kind) ?? [];
+    let best = -1;
+    kept.forEach((buffer, i) => {
+      if (
+        buffer.byteLength >= bytes &&
+        (best < 0 || buffer.byteLength < kept[best]!.byteLength)
+      ) {
+        best = i;
+      }
+    });
+    if (best >= 0) return kept.splice(best, 1)[0]!;
+    return new ArrayBuffer(reusing ? roomFor(bytes) : bytes);
+  }
+
+  /** A buffer handed back, kept to be filled again with what `kind` holds: at most a few of a kind, the largest (decision 103). */
+  #keep(kind: TwinBufferKind, buffer: ArrayBuffer): void {
+    if (buffer.byteLength === 0) return;
+    let kept = this.#spares.get(kind);
+    if (kept === undefined) {
+      kept = [];
+      this.#spares.set(kind, kept);
+    }
+    kept.push(buffer);
+    if (kept.length <= MOST_SPARES) return;
+    let smallest = 0;
+    kept.forEach((other, i) => {
+      if (other.byteLength < kept[smallest]!.byteLength) smallest = i;
+    });
+    kept.splice(smallest, 1);
   }
 
   /** Twin `j`'s colour this command: its place's in the fan's palette, tinted as the music asks (decision 46). */
@@ -731,9 +943,13 @@ export class TwinShare {
   }
 }
 
-/** The spans of `batch` as bytes of their own, handed over, and the batch emptied for the next command. */
-function handed(batch: SpanBatch): SpanBytes {
-  const spans = { bytes: batch.bytes(), count: batch.count };
-  batch.clear();
-  return spans;
+/**
+ * Room for `bytes` in a buffer made to be handed back (decision 103): the
+ * next power of two from 64 bytes, so that a report a little larger than the
+ * last still fits in it.
+ */
+function roomFor(bytes: number): number {
+  let room = 64;
+  while (room < bytes) room *= 2;
+  return room;
 }

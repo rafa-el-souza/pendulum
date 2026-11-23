@@ -2,7 +2,15 @@ import { describe, expect, it } from "vitest";
 
 import { gravity } from "../physics/chain.ts";
 import { restingState, type ChainState } from "../physics/step.ts";
-import { TwinShare, type TwinCommand } from "./twin-share.ts";
+import {
+  TwinShare,
+  commandBuffers,
+  reportBuffers,
+  spareCurves,
+  spareNumbers,
+  type TwinCommand,
+  type TwinReport,
+} from "./twin-share.ts";
 import {
   FrameRhythm,
   TwinWorkers,
@@ -15,7 +23,9 @@ import {
 
 // The twins dealt out to workers (docs/decisions.md, decision 51), here to
 // shares run in the test itself: the commands go out, and the reports come
-// back when the test hands them over, as a worker's would, later.
+// back when the test hands them over, as a worker's would, later, each
+// moving its buffers to the other side, as a worker's message does
+// (decision 103).
 
 const g = gravity(9.81);
 const FRAME = 0.8 / 60;
@@ -33,7 +43,7 @@ function raised(n: number): ChainState {
 class Bench {
   readonly sent: TwinCommand[][] = [];
   readonly shares: TwinShare[] = [];
-  readonly #pending: (() => void)[] = [];
+  readonly #pending: { index: number; back: () => void }[] = [];
   readonly #fails: ((reason: string) => void)[] = [];
   /** Each share's clock, standing still unless the test moves it. */
   readonly clocks: (() => number)[] = [];
@@ -48,8 +58,19 @@ class Bench {
     const port: SharePort = {
       send: (command) => {
         this.sent[index]?.push(command);
-        this.#pending.push(() => {
-          receive(share.run(command));
+        // the buffers handed back move to the worker, and its report's to
+        // the page, so that what either side still reads of them goes dark
+        const moved = structuredClone(command, {
+          transfer: commandBuffers(command),
+        });
+        this.#pending.push({
+          index,
+          back: () => {
+            const report = share.run(moved);
+            receive(
+              structuredClone(report, { transfer: reportBuffers(report) }),
+            );
+          },
         });
       },
       close: () => undefined,
@@ -57,9 +78,15 @@ class Bench {
     return port;
   };
 
-  /** The reports of every command sent so far come back. */
-  deliver(): void {
-    for (const back of this.#pending.splice(0)) back();
+  /** The reports of every command sent so far come back; with `only`, that worker's alone, the others' still to come. */
+  deliver(only?: number): void {
+    const due = this.#pending.filter(
+      ({ index }) => only === undefined || index === only,
+    );
+    for (const item of due) {
+      this.#pending.splice(this.#pending.indexOf(item), 1);
+      item.back();
+    }
   }
 
   /** Share `index` fails, as a worker that cannot run. */
@@ -377,6 +404,167 @@ describe("the twins' workers", () => {
     // a twin of more masses costs more
     twins.rescale(2, 8);
     expect(twins.affordable()).toBeLessThan((3 * 833) / 7);
+  });
+
+  it("hand each worker back, with its next command, what the page has done with of its reports: the curves once taken, the twins' numbers once the next report is shown or the fan is put out (decision 103)", () => {
+    const bench = new Bench();
+    const twins = new TwinWorkers({
+      shares: 2,
+      n: 2,
+      budget: 10,
+      cost: 0.002,
+      open: bench.open,
+    });
+    twins.born(places(5), raised(2), 1e-3);
+    const curvesFor = () => ({
+      light: 0.1,
+      stampLight: 0.1,
+      music: 1,
+      shine: null,
+      palette: 0,
+      tint: null,
+      lines: true,
+    });
+    const clock = { seconds: 1, fade: 0, rate: 0.4 };
+    const reports: TwinReport[][] = [[], []];
+    const take = () => {
+      twins.take(undefined, true, (w, report) => reports[w]?.push(report));
+    };
+    const reportOf = (w: number, i: number): TwinReport => {
+      const report = reports[w]?.[i];
+      if (report === undefined) throw new Error("no such report");
+      return report;
+    };
+    // the buffers command `i` handed back to worker `w`, which must be
+    // `expected`, each once
+    const expectHanded = (w: number, i: number, expected: ArrayBuffer[]) => {
+      const handed = (bench.sent[w]?.[i]?.spares ?? []).map(
+        (spare) => spare.buffer,
+      );
+      expect(handed).toHaveLength(expected.length);
+      for (const buffer of expected) expect(handed).toContain(buffer);
+    };
+    const buffers = (spares: { buffer: ArrayBuffer }[]) =>
+      spares.map((spare) => spare.buffer);
+
+    twins.send(frame({ clock }), curvesFor);
+    expectHanded(0, 0, []);
+    bench.deliver();
+    take();
+    // the first reports' curves go back once taken; their twins are drawn
+    const first = [0, 1].map((w) => buffers(spareCurves(reportOf(w, 0))));
+    twins.send(frame({ clock }), curvesFor);
+    for (const w of [0, 1]) expectHanded(w, 1, first[w] ?? []);
+    let drawn = 0;
+    twins.each((_, report) => {
+      drawn++;
+      expect(report.positions.length).toBeGreaterThan(0);
+    });
+    expect(drawn).toBe(5);
+    bench.deliver();
+    take();
+    // the second reports are shown now: the first ones' numbers go back too
+    const second = [0, 1].map((w) => [
+      ...buffers(spareNumbers(reportOf(w, 0))),
+      ...buffers(spareCurves(reportOf(w, 1))),
+    ]);
+    twins.send(frame({ clock }), curvesFor);
+    for (const w of [0, 1]) expectHanded(w, 2, second[w] ?? []);
+    // the fan put out, the twins drawn go back, and a report of before it
+    // comes back whole
+    const shown = [0, 1].map((w) => buffers(spareNumbers(reportOf(w, 1))));
+    twins.clear();
+    bench.deliver();
+    take();
+    const old = [0, 1].map((w) => [
+      ...buffers(spareNumbers(reportOf(w, 2))),
+      ...buffers(spareCurves(reportOf(w, 2))),
+    ]);
+    twins.send(frame({ clock }), curvesFor);
+    for (const w of [0, 1]) {
+      expectHanded(w, 3, [...(shown[w] ?? []), ...(old[w] ?? [])]);
+    }
+  });
+
+  it("keep a late worker's twins drawn where its last report put them, handing back what it sent only once its next report is shown (decision 103)", () => {
+    const bench = new Bench();
+    const twins = new TwinWorkers({
+      shares: 2,
+      n: 2,
+      budget: 10,
+      cost: 0.002,
+      open: bench.open,
+    });
+    twins.born(places(6), raised(2), 1e-3);
+    // where each twin is drawn: its masses, and its tip as dust (decision 53)
+    const drawn = () => {
+      const at = new Map<number, number[]>();
+      twins.each((j, report, k) => {
+        const end = 2 * (report.pieces + 1) * (k + 1) - 2;
+        at.set(j, [
+          ...Array.from({ length: 4 }, (_, i) => report.positions[4 * k + i]),
+          report.tips[end],
+          report.tips[end + 1],
+        ] as number[]);
+      });
+      return at;
+    };
+    twins.send(frame());
+    bench.deliver();
+    twins.take();
+    const before = drawn();
+    expect(before.size).toBe(6);
+    // worker 1 is late, two frames running: worker 0's reports alone come back
+    for (let late = 0; late < 2; late++) {
+      twins.send(frame());
+      bench.deliver(0);
+      twins.take();
+    }
+    twins.send(frame());
+    const late = drawn();
+    expect(late.size).toBe(6);
+    for (const j of [1, 3, 5]) {
+      expect(late.get(j)).toEqual(before.get(j));
+      expect(late.get(j)?.every(Number.isFinite)).toBe(true);
+    }
+    for (const j of [0, 2, 4]) expect(late.get(j)).not.toEqual(before.get(j));
+    // its reports back, it is drawn where the latest puts it
+    bench.deliver();
+    twins.take();
+    twins.send(frame());
+    const caught = drawn();
+    expect(caught.size).toBe(6);
+    for (const j of [1, 3, 5]) {
+      expect(caught.get(j)).not.toEqual(before.get(j));
+      expect(caught.get(j)?.every(Number.isFinite)).toBe(true);
+    }
+  });
+
+  it("give the twins on the main line nothing back: each report's buffers are made anew there, of their exact sizes (decision 103)", () => {
+    const bench = new Bench();
+    const twins = new TwinWorkers({
+      shares: 2,
+      n: 2,
+      budget: 10,
+      cost: 0.002,
+      open: bench.open,
+    });
+    bench.fail(0);
+    expect(twins.local).toBe(true);
+    twins.born(places(5), raised(2), 1e-3);
+    for (let i = 0; i < 3; i++) {
+      twins.send(frame());
+      twins.take();
+    }
+    let drawn = 0;
+    twins.each((_, report) => {
+      drawn++;
+      for (const view of [report.positions, report.tips]) {
+        expect(view.length).toBeGreaterThan(0);
+        expect(view.buffer.byteLength).toBe(view.byteLength);
+      }
+    });
+    expect(drawn).toBe(5);
   });
 
   it("go back to the main line when a worker fails: the fan is lost, and one share carries it from then on", () => {

@@ -10,6 +10,13 @@
 // frame once the twins of the same instant are back (decision 51). Where no
 // worker can run, or one fails, the twins go back to the main line, all of
 // them lost and born again: one share, run at once.
+//
+// A report's buffers come to the page with it, and go back to its worker
+// with the worker's next command once the page has done with them, to be
+// filled again (decision 103): its curves once taken, its twins' numbers
+// once the worker's next report is shown, so that a worker that comes late
+// leaves its twins drawn where it last put them. The twins on the main line
+// make theirs anew.
 
 /* eslint-disable @typescript-eslint/no-non-null-assertion --
    Every index here runs within arrays sized for the shares, which the
@@ -18,9 +25,13 @@
 import type { ChainState } from "../physics/step.ts";
 import {
   TwinShare,
+  commandBuffers,
+  spareCurves,
+  spareNumbers,
   type TwinCommand,
   type TwinEvent,
   type TwinReport,
+  type TwinSpare,
 } from "./twin-share.ts";
 import { TwinBudget } from "./twins.ts";
 
@@ -180,7 +191,8 @@ export const inWorker: OpenShare = (index, shares, n, receive, fail) => {
   worker.postMessage(setup);
   return {
     send: (command) => {
-      worker.postMessage(command);
+      // the buffers handed back move to the worker (decision 103)
+      worker.postMessage(command, commandBuffers(command));
     },
     close: () => {
       worker.terminate();
@@ -213,8 +225,11 @@ export interface TwinWorkersOptions {
   readonly lost?: () => void;
 }
 
-/** A frame's command as the piece sends it: the events since the last, its time's fan and its number are added for each share. */
-export type TwinFrame = Omit<TwinCommand, "events" | "generation" | "seq">;
+/** A frame's command as the piece sends it: the events since the last, its time's fan, its number and the buffers handed back are added for each share. */
+export type TwinFrame = Omit<
+  TwinCommand,
+  "events" | "generation" | "seq" | "spares"
+>;
 
 /** A twin's report and its place in it: the twin's numbers start at k times the numbers a twin takes. */
 export type TwinVisit = (j: number, report: TwinReport, k: number) => void;
@@ -229,6 +244,9 @@ export class TwinWorkers {
   #events: TwinEvent[][] = [];
   #shown: (TwinReport | null)[] = [];
   #arrived: { share: number; report: TwinReport }[] = [];
+  // for each share, the buffers of its reports the page has done with, to go
+  // back with its next command (decision 103)
+  #spares: TwinSpare[][] = [];
   #count = 0;
   #generation = 0;
   // The number of the last command sent, and, for each share, of the last
@@ -354,6 +372,10 @@ export class TwinWorkers {
   clear(): void {
     this.#generation++;
     this.#count = 0;
+    // the twins drawn until now are drawn no more (decision 103)
+    this.#shown.forEach((report, w) => {
+      if (report !== null) this.#handBack(w, spareNumbers(report));
+    });
     this.#shown.fill(null);
     for (const events of this.#events) events.push({ kind: "keep", count: 0 });
   }
@@ -382,7 +404,8 @@ export class TwinWorkers {
 
   /**
    * Sends each share the frame's command, with the events since the last,
-   * under the next number; with `curvesFor`, each share its own numbers for
+   * under the next number, and the buffers of its reports the page has done
+   * with (decision 103); with `curvesFor`, each share its own numbers for
    * joining its twins' curves (decision 97).
    */
   send(
@@ -395,12 +418,16 @@ export class TwinWorkers {
       this.#events[w] = [];
       this.#sent[w] = seq;
       const curves = curvesFor === undefined ? frame.curves : curvesFor(w);
+      // on the main line, none: its share makes each report's buffers anew
+      const spares = this.#local ? null : (this.#spares[w] ?? []);
+      this.#spares[w] = [];
       port.send({
         ...frame,
         curves,
         events,
         generation: this.#generation,
         seq,
+        spares,
       });
     });
   }
@@ -413,6 +440,9 @@ export class TwinWorkers {
    * cuts the fan to the first part every share carries; while the view
    * changes (`steady` false, decision 67), only one that dropped twins.
    * Every report, of a fan put out since too, is handed to `back` first.
+   * A report's curves are the page's while `back` runs, and then go back to
+   * its worker; its twins' numbers, which `see` and the drawing read, go
+   * back once the worker's next report is shown (decision 103).
    */
   take(
     see?: TwinVisit,
@@ -426,7 +456,17 @@ export class TwinWorkers {
       this.#taken[w] = Math.max(this.#taken[w] ?? 0, report.seq);
       // every report, of an old fan too, for what it joined (decision 97)
       back?.(w, report);
-      if (report.generation !== this.#generation) continue;
+      // its curves taken, they go back (decision 103)
+      this.#handBack(w, spareCurves(report));
+      if (report.generation !== this.#generation) {
+        // a report of a fan put out since is not drawn
+        this.#handBack(w, spareNumbers(report));
+        continue;
+      }
+      // the twins are drawn from this report now, and no more from the one
+      // before
+      const before = this.#shown[w];
+      if (before != null) this.#handBack(w, spareNumbers(before));
       this.#shown[w] = report;
       if (report.pieces > 0) {
         const keep = this.#budgets[w]!.measured(
@@ -464,10 +504,17 @@ export class TwinWorkers {
     this.#ports = [];
   }
 
+  /** Buffers of share `w`'s reports the page has done with, to go back with its next command (decision 103); none to the main line's. */
+  #handBack(w: number, spares: readonly TwinSpare[]): void {
+    if (this.#local) return;
+    this.#spares[w]?.push(...spares);
+  }
+
   #open(shares: number, open: OpenShare): void {
     const opening = ++this.#opening;
     this.#shares = shares;
     this.#ports = [];
+    this.#spares = Array.from({ length: shares }, () => []);
     this.#budgets = Array.from(
       { length: shares },
       () => new TwinBudget(this.#budget, this.#cost),

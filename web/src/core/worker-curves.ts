@@ -3,11 +3,12 @@
 // the command it answers. The trails kept as curves ask the workers to split
 // or forget their curves, and an ask reaches a worker with its next command,
 // after it has joined what it was sent before; a report of an earlier
-// command, coming back later, is read against the ask. Pure: the trails draw
-// what it hands them.
+// command, coming back later, is read against the ask. A report's batches
+// are copied, for its buffers go back to its worker once taken (decision
+// 103). Pure: the trails draw what it hands them.
 
 import { SpanBatch } from "./curves.ts";
-import type { SpanBytes, TwinCurveReport } from "./twin-share.ts";
+import type { TwinCurveReport } from "./twin-share.ts";
 
 /** The trails' batches of a frame, which the twins' curves join after the chain's. */
 export interface FrameBatches {
@@ -28,8 +29,9 @@ export class WorkerCurves {
   readonly splitAfter = new SpanBatch(64);
   /** Spans a snapshot's split closed, whose light the coarse image takes too. */
   readonly splitForCoarse = new SpanBatch(256);
-  // each share's newest curves still open, and the number of their report
-  #open: (SpanBytes | null)[] = [];
+  // each share's newest curves still open, copied (decision 103), and the
+  // number of their report
+  #open: SpanBatch[] = [];
   #openSeq: number[] = [];
   // the first command that reaches the workers after each ask: the trails
   // put out, the coarse image born, a snapshot's split awaited (none: -1)
@@ -44,7 +46,7 @@ export class WorkerCurves {
 
   /** `shares` shares now carry the twins: the curves of those before are let go. */
   reset(shares: number): void {
-    this.#open = Array.from({ length: shares }, () => null);
+    this.#open = Array.from({ length: shares }, () => new SpanBatch(64));
     this.#openSeq = Array.from({ length: shares }, () => 0);
     this.clear();
   }
@@ -52,7 +54,7 @@ export class WorkerCurves {
   /** The workers forget their curves with command `seq`: the trails were put out, and nothing of before is drawn. */
   forget(seq: number): void {
     this.#forgetFrom = seq;
-    this.#open.fill(null);
+    for (const open of this.#open) open.clear();
     this.#coarseAt = -1;
     this.#snapshotAt = -1;
     this.clear();
@@ -77,7 +79,8 @@ export class WorkerCurves {
    * Share `share`'s report of command `seq`, its curves joined after the
    * chain's into `into`, or kept aside where they go elsewhere; its twins
    * stamped by a strobe's flashes drawn now and kept, as the chain's stamps
-   * are (decision 100).
+   * are (decision 100). Nothing of the report's own buffers is kept: they go
+   * back to its worker (decision 103).
    */
   take(
     share: number,
@@ -108,16 +111,20 @@ export class WorkerCurves {
       this.splitForCoarse.append(split.bytes, split.count);
     }
     if (seq >= (this.#openSeq[share] ?? 0)) {
-      this.#open[share] = curves.open;
+      let open = this.#open[share];
+      if (open === undefined) {
+        open = new SpanBatch(64);
+        this.#open[share] = open;
+      }
+      open.clear();
+      open.append(curves.open.bytes, curves.open.count);
       this.#openSeq[share] = seq;
     }
   }
 
   /** Every share's newest curves still open, into `out`, for a view drawn anew. */
   openSpans(out: SpanBatch): void {
-    for (const open of this.#open) {
-      if (open !== null) out.append(open.bytes, open.count);
-    }
+    for (const open of this.#open) out.appendBatch(open);
   }
 
   /** The frame's batches let go, once the trails have them. */

@@ -67,6 +67,27 @@ describe("the twins' curves as their workers send them back (decision 97)", () =
     expect(tags(open)).toEqual([3.4, 2.4]);
   });
 
+  it("copies each share's newest open curves, so that a report's buffers can go back to its worker at once (decision 103)", () => {
+    const curves = new WorkerCurves();
+    curves.reset(2);
+    const first = report(1);
+    curves.take(0, 1, first, trails());
+    // the report's buffers move back to the worker that sent them
+    structuredClone(first, {
+      transfer: [
+        first.fresh.bytes,
+        first.closed.bytes,
+        first.split.bytes,
+        first.open.bytes,
+        first.stamps.bytes,
+      ],
+    });
+    expect(first.open.bytes.byteLength).toBe(0);
+    const open = new SpanBatch();
+    curves.openSpans(open);
+    expect(tags(open)).toEqual([1.4]);
+  });
+
   it("draws a report's stamps now and keeps them, after its intervals and its closed spans, as the chain's stamps are (decision 100)", () => {
     const curves = new WorkerCurves();
     curves.reset(1);

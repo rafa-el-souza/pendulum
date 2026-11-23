@@ -8,10 +8,15 @@ import {
   TWIN_STEP,
   TwinShare,
   shareOf,
+  spareCurves,
+  spareNumbers,
+  type TwinBufferKind,
   type TwinCommand,
   type TwinEvent,
   type TwinFlash,
   type TwinHold,
+  type TwinReport,
+  type TwinSpare,
 } from "./twin-share.ts";
 import { SPAN_BYTES, Merger, SpanBatch, readSpan } from "./curves.ts";
 import { mixColors } from "./grounds.ts";
@@ -85,6 +90,7 @@ function command(
     seq: 0,
     curves: null,
     stamps: null,
+    spares: null,
     ...more,
   };
 }
@@ -1096,5 +1102,233 @@ describe("a share's twins stamped by a strobe's flashes (decision 100)", () => {
       }),
     );
     expect(joined.curves?.stamps.count).toBe(0);
+  });
+});
+
+describe("a share handed back its reports' buffers (decision 103)", () => {
+  const n = 2;
+  const joining = {
+    light: 0.15,
+    stampLight: 0.15,
+    music: 1,
+    shine: null,
+    palette: 1,
+    tint: null,
+    lines: true,
+  };
+  const flash = (share: number): TwinFlash => ({
+    at: share * FRAME,
+    fade: 2,
+    x: 0.01,
+    y: -0.02,
+  });
+  const curveKinds = ["fresh", "closed", "split", "open", "stamps"] as const;
+
+  /**
+   * Frame `frame`'s command asking for all a report can bring: whole twins,
+   * their distances from the chain, the tips' velocities with the clock, the
+   * twins' curves, and a flash's stamps.
+   */
+  function everything(
+    frame: number,
+    more: Partial<TwinCommand> = {},
+  ): TwinCommand {
+    return command([], FRAME, 4, [], {
+      whole: true,
+      chain: new Float64Array(2 * n),
+      clock: { seconds: 3 + frame * FRAME, fade: 1 + frame * 0.01, rate: 0.4 },
+      curves: joining,
+      stamps: { parts: "whole", flashes: [flash(0.5)] },
+      seq: frame + 1,
+      ...more,
+    });
+  }
+
+  /** Reports `a` and `b` say the same, number for number, and the same spans, byte for byte. */
+  function expectSame(a: TwinReport, b: TwinReport): void {
+    for (const key of [
+      "generation",
+      "seq",
+      "asked",
+      "count",
+      "n",
+      "pieces",
+      "time",
+      "spent",
+      "stretch",
+      "stretchTime",
+    ] as const) {
+      expect(a[key]).toBe(b[key]);
+    }
+    expect(a.clock).toEqual(b.clock);
+    expect(a.stamps).toEqual(b.stamps);
+    for (const key of [
+      "positions",
+      "tips",
+      "tipSpeeds",
+      "apart",
+      "stampPlaces",
+    ] as const) {
+      expect([...a[key]]).toEqual([...b[key]]);
+    }
+    expect(a.curves === null).toBe(b.curves === null);
+    for (const kind of curveKinds) {
+      const mine = a.curves?.[kind];
+      const theirs = b.curves?.[kind];
+      if (mine === undefined || theirs === undefined) continue;
+      expect(mine.count).toBe(theirs.count);
+      expect(spanBytes(mine.bytes, mine.count)).toEqual(
+        spanBytes(theirs.bytes, theirs.count),
+      );
+    }
+  }
+
+  it("fills the buffers handed back, each with what it held before, instead of making new ones", () => {
+    const share = new TwinShare(0, 1, n);
+    share.run(
+      command([bornAll(raised(n), 6, 0, 1, 0.1)], 0, 0, [], { spares: [] }),
+    );
+    // curves still open, for a split to close, and no flash yet
+    share.run(everything(0, { spares: [], stamps: null }));
+    const room = (kind: TwinBufferKind): TwinSpare => ({
+      kind,
+      buffer: new ArrayBuffer(1 << 16),
+    });
+    const given = (
+      [
+        "positions",
+        "tips",
+        "tipSpeeds",
+        "apart",
+        "stampPlaces",
+        ...curveKinds,
+      ] as const
+    ).map(room);
+    const handed = (kind: TwinBufferKind) =>
+      given.find((spare) => spare.kind === kind)?.buffer;
+    const report = share.run(
+      everything(1, { events: [{ kind: "split" }], spares: given }),
+    );
+    expect(report.positions.buffer).toBe(handed("positions"));
+    expect(report.tips.buffer).toBe(handed("tips"));
+    expect(report.tipSpeeds.buffer).toBe(handed("tipSpeeds"));
+    expect(report.apart.buffer).toBe(handed("apart"));
+    const { curves } = report;
+    if (curves === null) throw new Error("no curves came back");
+    for (const kind of ["fresh", "split", "open", "stamps"] as const) {
+      expect(curves[kind].count).toBeGreaterThan(0);
+    }
+    for (const kind of curveKinds) {
+      // a batch with no spans sends none, and keeps the buffer for another
+      if (curves[kind].count > 0) expect(curves[kind].bytes).toBe(handed(kind));
+    }
+    // the twins' places at the flash went into the stamps, and their buffer
+    // stays; where the share joins no curves, they go out in it
+    expect(report.stampPlaces).toHaveLength(0);
+    const plain = share.run(everything(2, { curves: null, spares: [] }));
+    expect(plain.stampPlaces.length).toBeGreaterThan(0);
+    expect(plain.stampPlaces.buffer).toBe(handed("stampPlaces"));
+  });
+
+  it("reports the same, number for number and span for span, with its buffers handed back as without, through births, drops, splits, other masses, time run backwards and curves let go", () => {
+    // each share's clock moves 1 ms each time it is read, so that a frame
+    // with little time drops the same twins in both
+    let readA = 0;
+    let readB = 0;
+    const reused = new TwinShare(1, 3, n, () => readA++);
+    const fresh = new TwinShare(1, 3, n, () => readB++);
+    const fan = 90;
+    reused.run(
+      command([bornAll(raised(n), fan, 1, 3, 0.2)], 0, 0, [], { spares: [] }),
+    );
+    fresh.run(command([bornAll(raised(n), fan, 1, 3, 0.2)], 0, 0));
+    let masses = n;
+    let back: TwinSpare[] = [];
+    for (let frame = 0; frame < 40; frame++) {
+      const events: TwinEvent[] = [];
+      if (frame === 12) {
+        events.push({
+          kind: "born",
+          twins: [4, 7],
+          theta: Float64Array.from(raised(n).theta),
+          omega: Float64Array.from(raised(n).omega),
+          spread: 0.2,
+        });
+      }
+      if (frame === 20) events.push({ kind: "keep", count: fan - 9 });
+      if (frame === 25) events.push({ kind: "split" });
+      if (frame === 28) {
+        events.push({ kind: "masses", n: 3 });
+        masses = 3;
+      }
+      if (frame === 30) events.push({ kind: "reverse" });
+      if (frame === 33) events.push({ kind: "forget" });
+      const more: Partial<TwinCommand> = {
+        events,
+        chain: new Float64Array(2 * masses),
+        // a frame short of time drops the twins it does not reach
+        budget: frame === 15 ? 0.5 : 1e9,
+        // joining no curves in the last frames, the twins' places at the
+        // flashes come back instead
+        curves: frame >= 36 ? null : joining,
+        stamps:
+          frame % 4 === 1
+            ? { parts: "whole", flashes: [flash(0.3), flash(1)] }
+            : null,
+      };
+      const given = new Set(back.map((spare) => spare.buffer));
+      const a = reused.run(everything(frame, { ...more, spares: back }));
+      const b = fresh.run(everything(frame, { ...more, spares: null }));
+      expectSame(a, b);
+      // from the second frame, the tips fill a buffer handed back
+      if (frame > 0) expect(given.has(a.tips.buffer)).toBe(true);
+      if (frame === 15) expect(a.count).toBeLessThan(a.asked);
+      // the page hands back what it has done with, moved as a worker's
+      // would be: the report's own views go dark
+      const spares = [...spareNumbers(a), ...spareCurves(a)];
+      back = structuredClone(spares, {
+        transfer: spares.map((spare) => spare.buffer),
+      });
+      expect(a.tips).toHaveLength(0);
+    }
+  });
+
+  it("makes each report's buffers anew, of their exact sizes, where nothing is handed back, as on the main line", () => {
+    const share = new TwinShare(0, 1, n);
+    share.run(command([bornAll(raised(n), 5, 0, 1, 0.1)], 0, 0));
+    share.run(everything(0));
+    const report = share.run(everything(1, { events: [{ kind: "split" }] }));
+    for (const view of [
+      report.positions,
+      report.tips,
+      report.tipSpeeds,
+      report.apart,
+    ]) {
+      expect(view.length).toBeGreaterThan(0);
+      expect(view.buffer.byteLength).toBe(view.byteLength);
+    }
+    for (const kind of curveKinds) {
+      const spans = report.curves?.[kind];
+      expect(spans?.bytes.byteLength).toBe((spans?.count ?? -1) * SPAN_BYTES);
+    }
+  });
+
+  it("keeps at most three buffers of a kind handed back, the largest, and fills the smallest that fits", () => {
+    const share = new TwinShare(0, 1, n);
+    share.run(
+      command([bornAll(raised(n), 5, 0, 1, 0.1)], 0, 0, [], { spares: [] }),
+    );
+    // five twins' tips over four pieces take 200 bytes
+    const given = [64, 1024, 4096, 2048, 512].map((bytes) => ({
+      kind: "tips" as const,
+      buffer: new ArrayBuffer(bytes),
+    }));
+    const tipsOf = (spares: readonly TwinSpare[]) =>
+      share.run(command([], FRAME, 4, [], { spares })).tips.buffer;
+    const filled = [tipsOf(given), tipsOf([]), tipsOf([]), tipsOf([])];
+    expect(filled[0]).toBe(given[1]?.buffer);
+    expect(filled[1]).toBe(given[3]?.buffer);
+    expect(filled[2]).toBe(given[2]?.buffer);
+    expect(given.some((spare) => spare.buffer === filled[3])).toBe(false);
   });
 });
