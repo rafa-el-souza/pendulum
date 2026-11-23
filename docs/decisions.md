@@ -3676,6 +3676,49 @@ collections grew longer, up to 6.4 ms, none making a frame late. In the
 browser, side by side with the code before, on the page's own clock with the
 twins on the main line: 51 cases, the screen the same, byte for byte.
 
+## 104. Thirty-six palettes, for the twins and the tension
+
+*2026-11-23.* The twins, the tension and the white's dots (decision 61) take
+their colours from one list of thirty-six palettes, in place of the ten
+palettes of decisions 23 and 41 and the four scales of decisions 35 and 41.
+Each palette has seven colours, all different, in order, and is open or
+closed: a closed one's last colour leads back to its first, so that a fan all
+the way round (decision 63) shows no seam; seven are closed. The list opens
+with dusk, the sketch's ramp, kept as the function it was, and goes round the
+circle of hues, with the palettes of many colours and the greys at the end.
+The tension puts a palette's seven colours at a push, a slack rod, half a
+weight, and 2, 4, 8 and 16 weights, with the chain's own colour at one
+weight; it opens with heat, decision 35's scale on those places. The keys and
+the row step through the thirty-six, each shown as its seven colours; off,
+the tension's control comes on in the palette it had. The address names a
+palette, as `?palette=jellyfish&scale=black-body`. The numbers that addresses
+and codes wrote before open the palette that took their place: the same
+name, or the nearest (ice is cobalt now, blossom safflower, meadow green
+line, neon nebula; the scales incandescent, neon and verdant are black body,
+nebula and copper). The saved moment's code is of version 14.
+
+**Why.** A ramp through seven colours strays from a smooth one a third as
+much as one through five, which sits at the edge of what the eye notices;
+seven colours have a middle, and are about as many as are found at a glance
+(Healey, 1996). The palettes come from the light of physics, computed from
+spectra, from the colour maps of science, and from art, nature and culture,
+each measured in OKLab and looked at in the piece, whose trails lift every
+colour towards white: they sit bright and saturated. Each one's source is
+beside it in `web/src/core/palettes.ts`, and the README credits them.
+
+**Evidence.** Unit tests: every palette has seven colours at least 0.03
+apart in OKLab, in steps within 3.5 times of each other (heat's 3.7, where
+the chain's own colour stands), none darker than 0.45 in OKLab, nor than 0.55
+unless vivid; heat paints the tension on the first ground within half a level
+of 255 of decision 35's scale; the address writes and reads every name, and
+the old numbers and the codes of versions 1 to 13 open the palettes that took
+their places. Browser tests: the keys, the row's seven dots, the names in the
+address and an old number. In the browser, side by side with the code before,
+on the page's own clock: eleven cases the same, byte for byte, the tension's
+on the first ground among them; with more masses, or the strobe, the tension
+differs by a level or two of 255, and on another ground by up to 12, where
+half a weight is now the first ground's mix.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.

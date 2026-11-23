@@ -31,6 +31,21 @@ const speed: Parameter = {
 };
 const both = [count, speed];
 
+/** A parameter the address writes in words: its values named, and a number written before read as the value that took its place. */
+const shade: Parameter = {
+  id: "shade",
+  label: "Shade",
+  values: [0, 1, 2],
+  initial: 0,
+  keys: { down: [], up: [] },
+  show: (v) => ["dark sea", "moss", "sand"][v] ?? "",
+  written: {
+    word: (v) => ["dark-sea", "moss", "sand"][v] ?? "",
+    read: (word) =>
+      word === "7" ? 2 : ["dark-sea", "moss", "sand"].indexOf(word),
+  },
+};
+
 describe("the registry of parameters (decision 10)", () => {
   it("starts every parameter at its initial value", () => {
     expect(initialValues(both)).toEqual(
@@ -155,6 +170,10 @@ describe("the registry of parameters (decision 10)", () => {
       [count, { ...speed, keys: { down: ["ArrowUp"], up: ["]"] } }],
     ],
     ["no values", [{ ...count, values: [] }]],
+    [
+      "a value whose word does not read back as it",
+      [{ ...shade, written: { word: () => "moss", read: () => 1 } }],
+    ],
   ])("refuses %s", (_, parameters) => {
     expect(() => {
       checkParameters(parameters);
@@ -217,6 +236,23 @@ describe("the shareable address", () => {
       ["time", 0.5],
     ]);
     expect(readAddress(both, writeAddress(both, values, ""))).toEqual(values);
+  });
+
+  it("writes a value in words for a parameter that has them, reads them back, and reads what else its words take (decision 104)", () => {
+    const values = new Map([
+      ["n", 2],
+      ["time", 1],
+      ["shade", 0],
+    ]);
+    const parameters = [...both, shade];
+    expect(writeAddress(parameters, values, "")).toBe("");
+    values.set("shade", 2);
+    expect(writeAddress(parameters, values, "")).toBe("?shade=sand");
+    values.set("shade", 0);
+    values.set("n", 4);
+    expect(readAddress(parameters, "?n=4&shade=dark-sea")).toEqual(values);
+    expect(readAddress(parameters, "?shade=7").get("shade")).toBe(2);
+    expect(readAddress(parameters, "?shade=2").get("shade")).toBe(0);
   });
 });
 

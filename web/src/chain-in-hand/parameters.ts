@@ -1,9 +1,8 @@
 import { GROUNDS, groundAt } from "../core/grounds.ts";
 import type { Rgb } from "../core/color.ts";
-import { FAN_PALETTES, fanPalette } from "../core/palettes.ts";
-import type { Parameter } from "../core/parameters.ts";
+import { PALETTES, paletteAt, paletteNamed } from "../core/palettes.ts";
+import type { Parameter, Written } from "../core/parameters.ts";
 import { STRENGTHS, STRENGTH_INITIAL } from "../core/routes.ts";
-import { TENSION_SCALES, tensionScaleAt } from "../core/tension.ts";
 import { lightCurve } from "../core/trails.ts";
 import { twinShine } from "../core/twins.ts";
 import { MOST_ZOOM, zoomWritten } from "../core/view.ts";
@@ -624,25 +623,69 @@ export const LOOK: Parameter = {
 export const FADE_REACH = 0.3;
 
 /**
- * The twins' colours, and their trails' (decision 23): one palette per step,
- * opening with the sketch's, which the author keeps. The control paints five
- * dots from one edge of the fan to the other in the palette's colours, and a
- * screen reader hears its name.
+ * A palette's name as the address writes it, a hyphen for each space, and
+ * the palette a word names (decision 104): by its name, or by a number an
+ * address wrote before, as the palette that took that number's place in
+ * `before`.
  */
-const SWATCH_PLACES = [0, 0.25, 0.5, 0.75, 1];
+function paletteWords(before: readonly number[]): Written {
+  return {
+    word: (value) => paletteAt(value).name.replaceAll(" ", "-"),
+    read: (word) => {
+      if (/^\d+$/.test(word)) return before[Number(word)] ?? Number.NaN;
+      if (word.includes(" ")) return Number.NaN;
+      const name = word.replaceAll("-", " ");
+      return PALETTES.findIndex((palette) => palette.name === name);
+    },
+  };
+}
 
+/**
+ * The twins' ten palettes before decision 104, in their order, as the
+ * palettes that took their places: the same name, or the nearest (ice is
+ * cobalt now, blossom safflower, meadow green line, and neon nebula).
+ */
+export const PALETTES_BEFORE: readonly number[] = [
+  "dusk",
+  "fire",
+  "cobalt",
+  "spectrum",
+  "silver",
+  "safflower",
+  "gold",
+  "green line",
+  "nebula",
+  "reef",
+].map(paletteNamed);
+
+/**
+ * The tension's four scales before decision 104, in their order, as the
+ * palettes that took their places: heat, then black body for incandescent,
+ * nebula for neon, and copper for verdant.
+ */
+export const SCALES_BEFORE: readonly number[] = [
+  "heat",
+  "black body",
+  "nebula",
+  "copper",
+].map(paletteNamed);
+
+/**
+ * The twins' colours, and their trails' (decisions 23 and 104): one of the
+ * palettes per step, opening with the sketch's, which the author keeps. The
+ * control paints the palette's seven colours as dots, and a screen reader
+ * hears its name, which the address writes.
+ */
 export const PALETTE: Parameter = {
   id: "palette",
   label: "Colours of the twins",
-  values: FAN_PALETTES.map((_, i) => i),
+  values: PALETTES.map((_, i) => i),
   initial: 0,
   keys: { down: ["5"], up: ["6"] },
-  show: (value) => fanPalette(value).name,
-  swatches: (value) => {
-    const palette = fanPalette(value);
-    return SWATCH_PLACES.map((place) => palette.color(place));
-  },
+  show: (value) => paletteAt(value).name,
+  swatches: (value) => paletteAt(value).colors,
   icon: "palette",
+  written: paletteWords(PALETTES_BEFORE),
 };
 
 /**
@@ -698,7 +741,7 @@ const SHARED = [4, 16, 64, 256, 1024];
  * canvas, each channel cut at full; otherwise through the curve.
  */
 export function whiteSwatches(step: number, palette: number): Rgb[] {
-  const middle = fanPalette(palette).color(0.5);
+  const middle = paletteAt(palette).color(0.5);
   const one = twinShine(TWIN_COUNT.initial);
   const white = whiteAfter(step);
   return SHARED.map((count) => {
@@ -715,22 +758,24 @@ export function whiteSwatches(step: number, palette: number): Rgb[] {
 }
 
 /**
- * The scale of the tension's colours (decision 41): decision 35's first, then
- * the others, on one key beside the T that turns the colours on, coming round
- * from the last to the first. Stepping it turns the colours on. The control
- * paints five dots, from a push to sixteen weights, and a screen reader
- * hears the scale's name.
+ * The palette of the tension's colours (decisions 41 and 104): heat,
+ * decision 35's, first, then each of the palettes, on one key beside the T
+ * that turns the colours on, coming round from the last to the first.
+ * Stepping it turns the colours on. The control paints the palette's seven
+ * colours, from a push to sixteen weights, and a screen reader hears its
+ * name, which the address writes.
  */
 export const SCALE: Parameter = {
   id: "scale",
   label: "Scale of the tension's colours",
-  values: TENSION_SCALES.map((_, i) => i),
-  initial: 0,
+  values: PALETTES.map((_, i) => i),
+  initial: paletteNamed("heat"),
   keys: { down: [], up: ["y", "Y"] },
   cyclic: true,
-  show: (value) => tensionScaleAt(value).name,
-  swatches: (value) => tensionScaleAt(value).stops.map(([, color]) => color),
+  show: (value) => paletteAt(value).name,
+  swatches: (value) => paletteAt(value).colors,
   icon: "scale",
+  written: paletteWords(SCALES_BEFORE),
 };
 
 /**

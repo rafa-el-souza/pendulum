@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { GROUNDS } from "../core/grounds.ts";
-import { FAN_PALETTES } from "../core/palettes.ts";
+import { PALETTES, paletteNamed } from "../core/palettes.ts";
 import { checkParameters, stepValue } from "../core/parameters.ts";
-import { TENSION_SCALES } from "../core/tension.ts";
 import { MOST_ZOOM, writeCamera } from "../core/view.ts";
 import {
   AMPLITUDE,
@@ -267,19 +266,46 @@ describe("the first piece's parameters", () => {
     }
   });
 
-  it("step through the twins' palettes, opening with the sketch's, which the author keeps (decision 23)", () => {
-    expect(PALETTE.values).toEqual(FAN_PALETTES.map((_, i) => i));
+  it("step through the thirty-six palettes for the twins, opening with the sketch's, which the author keeps (decisions 23 and 104)", () => {
+    expect(PALETTE.values).toEqual(PALETTES.map((_, i) => i));
     expect(PALETTE.initial).toBe(0);
     expect(PALETTE.keys).toEqual({ down: ["5"], up: ["6"] });
   });
 
-  it("paint the palette as five dots from one edge of the fan to the other, and name it for a screen reader", () => {
-    FAN_PALETTES.forEach((palette, i) => {
+  it("paint the palette as its seven colours, and name it for a screen reader (decision 104)", () => {
+    PALETTES.forEach((palette, i) => {
       expect(PALETTE.show(i)).toBe(palette.name);
-      expect(PALETTE.swatches?.(i)).toEqual(
-        [0, 0.25, 0.5, 0.75, 1].map((place) => palette.color(place)),
-      );
+      expect(PALETTE.swatches?.(i)).toEqual(palette.colors);
     });
+  });
+
+  it("write the twins' palette in the address by its name, a hyphen for each space, and read the ten numbers written before as the palettes that took their places (decision 104)", () => {
+    const blackBody = paletteNamed("black body");
+    expect(PALETTE.written?.word(blackBody)).toBe("black-body");
+    PALETTES.forEach((_, i) => {
+      const word = PALETTE.written?.word(i) ?? "";
+      expect(word).toMatch(/^[a-z]+(-[a-z]+)*$/);
+      expect(PALETTE.written?.read(word)).toBe(i);
+    });
+    expect(
+      Array.from({ length: 10 }, (_, i) => PALETTE.written?.read(String(i))),
+    ).toEqual(
+      [
+        "dusk",
+        "fire",
+        "cobalt",
+        "spectrum",
+        "silver",
+        "safflower",
+        "gold",
+        "green line",
+        "nebula",
+        "reef",
+      ].map(paletteNamed),
+    );
+    for (const word of ["10", "-1", "1.5", "black body", "Dusk", ""]) {
+      expect(PALETTE.values).not.toContain(PALETTE.written?.read(word));
+    }
   });
 
   it("let dense light turn white at once, as before, late, later, as the piece opens, or never, on Shift with the palette's keys (decision 61)", () => {
@@ -309,8 +335,8 @@ describe("the first piece's parameters", () => {
   });
 
   it("paint when white comes in as five dots of the palette's middle colour, from 4 twins in a pixel to 1 024, each as bright as one of the 512 the piece opens with (decision 61)", () => {
-    const blossom = FAN_PALETTES.findIndex(({ name }) => name === "blossom");
-    const middle = FAN_PALETTES[blossom]?.color(0.5) ?? [0, 0, 0];
+    const blossom = paletteNamed("safflower");
+    const middle = PALETTES[blossom]?.color(0.5) ?? [0, 0, 0];
     const brightest = Math.max(...middle);
     const four = (4 * 2.2) / Math.sqrt(512);
     for (const step of WHITE.values) {
@@ -639,21 +665,32 @@ describe("the first piece's parameters", () => {
     expect(FADE_REACH).toBe(0.3);
   });
 
-  it("step through the tension's scales on one key, beside the tension's T, coming round, opening with decision 35's (decision 41)", () => {
-    expect(SCALE.values).toEqual(TENSION_SCALES.map((_, i) => i));
-    expect(SCALE.initial).toBe(0);
+  it("step the tension's colours through the thirty-six palettes on one key, beside the tension's T, coming round, opening with heat, decision 35's (decisions 41 and 104)", () => {
+    expect(SCALE.values).toEqual(PALETTES.map((_, i) => i));
+    expect(SCALE.initial).toBe(paletteNamed("heat"));
     expect(SCALE.keys).toEqual({ down: [], up: ["y", "Y"] });
     expect(SCALE.cyclic).toBe(true);
-    expect(stepValue(SCALE, TENSION_SCALES.length - 1, 1)).toBe(0);
+    expect(stepValue(SCALE, PALETTES.length - 1, 1)).toBe(0);
   });
 
-  it("paint a scale as five dots, from a push to sixteen weights, and name it for a screen reader", () => {
-    TENSION_SCALES.forEach((scale, i) => {
-      expect(SCALE.show(i)).toBe(scale.name);
-      expect(SCALE.swatches?.(i)).toEqual(
-        scale.stops.map(([, color]) => color),
-      );
+  it("paint the tension's palette as its seven colours, from a push to sixteen weights, and name it for a screen reader", () => {
+    PALETTES.forEach((palette, i) => {
+      expect(SCALE.show(i)).toBe(palette.name);
+      expect(SCALE.swatches?.(i)).toEqual(palette.colors);
     });
+  });
+
+  it("write the tension's palette in the address by its name, and read the four scales' numbers written before as the palettes that took their places (decision 104)", () => {
+    PALETTES.forEach((_, i) => {
+      expect(SCALE.written?.read(SCALE.written.word(i))).toBe(i);
+    });
+    expect(SCALE.written?.word(paletteNamed("first order"))).toBe(
+      "first-order",
+    );
+    expect(
+      ["0", "1", "2", "3"].map((word) => SCALE.written?.read(word)),
+    ).toEqual(["heat", "black body", "nebula", "copper"].map(paletteNamed));
+    expect(SCALE.values).not.toContain(SCALE.written?.read("4"));
   });
 
   it("step through the grounds on U and I, coming round, opening on the one the piece has had (decision 41)", () => {

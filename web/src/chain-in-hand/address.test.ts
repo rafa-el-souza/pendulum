@@ -11,7 +11,8 @@ import {
   openingOf,
   type Saved,
 } from "./address.ts";
-import { PARAMETERS } from "./parameters.ts";
+import { PALETTES, paletteNamed } from "../core/palettes.ts";
+import { PALETTES_BEFORE, PARAMETERS, SCALES_BEFORE } from "./parameters.ts";
 
 // What the first piece's address carries (docs/decisions.md, decision 38):
 // without a saved moment, its values and switches, readable; with one, the
@@ -85,16 +86,17 @@ describe("the first piece's address (decision 38)", () => {
   it("opens a code of version 1 on the ground and the scale of the tension the piece opens with, and with its palette (decision 41)", () => {
     const opened = openingOf("", `#${VERSION_1}`);
     expect(opened.values.get("ground")).toBe(0);
-    expect(opened.values.get("scale")).toBe(0);
-    expect(opened.values.get("palette")).toBe(0);
+    expect(opened.values.get("scale")).toBe(paletteNamed("heat"));
+    expect(opened.values.get("palette")).toBe(paletteNamed("dusk"));
   });
 
   it("opens a code of version 2 as the published page wrote it (decision 41)", () => {
     // two masses, the neon scale on the rust ground, the tension's colours
-    // on, paused, saved at 04:25 UTC on 16 November 2026
+    // on, paused, saved at 04:25 UTC on 16 November 2026; the neon scale
+    // opens as nebula, which took its place (decision 104)
     const opened = openingOf("", `#${VERSION_2}`);
     expect(opened.values.get("n")).toBe(2);
-    expect(opened.values.get("scale")).toBe(2);
+    expect(opened.values.get("scale")).toBe(paletteNamed("nebula"));
     expect(opened.values.get("ground")).toBe(6);
     expect(opened.values.get("trail")).toBe(2.5);
     expect(opened.switches.get("tension")).toBe(true);
@@ -119,7 +121,7 @@ describe("the first piece's address (decision 38)", () => {
     expect(opened.values.get("twins")).toBe(64);
     expect(opened.values.get("spread")).toBe(1e-5);
     expect(opened.values.get("trail")).toBe(100);
-    expect(opened.values.get("palette")).toBe(6);
+    expect(opened.values.get("palette")).toBe(paletteNamed("gold"));
     expect(opened.values.get("ground")).toBe(4);
     expect(opened.values.get("fade")).toBe(0);
     expect(opened.switches.get("tension")).toBe(true);
@@ -174,7 +176,70 @@ describe("the first piece's address (decision 38)", () => {
       const opened = openingOf("", addressOf(values, switches, moment(3), ""));
       expect(opened.values).toEqual(values);
     }
-    expect(CODE.version).toBe(13);
+    expect(CODE.version).toBeGreaterThanOrEqual(13);
+  });
+
+  it("writes codes of version 14, which hold any of the thirty-six palettes for the twins and for the tension (decision 104)", () => {
+    expect(CODE.version).toBe(14);
+    const { values, switches } = opening();
+    values.set("n", 3);
+    switches.set("tension", true);
+    PALETTES.forEach((_, i) => {
+      values.set("palette", i);
+      values.set("scale", PALETTES.length - 1 - i);
+      const opened = openingOf("", addressOf(values, switches, moment(3), ""));
+      expect(opened.values).toEqual(values);
+    });
+  });
+
+  it("opens the palettes of codes written before decision 104 as those that took their places: the same name, or the nearest", () => {
+    const { values, switches } = opening();
+    values.set("n", 3);
+    for (const table of CODES.slice(0, -1)) {
+      const palettes = table.controls.find(({ id }) => id === "palette");
+      const scales = table.controls.find(({ id }) => id === "scale");
+      expect(palettes?.values).toEqual(
+        PALETTES_BEFORE.slice(0, palettes?.values.length),
+      );
+      if (scales !== undefined) expect(scales.values).toEqual(SCALES_BEFORE);
+    }
+    // a code of version 13 with the ice palette and the incandescent scale,
+    // as the published page wrote it, opens with cobalt and black body
+    const [v13] = CODES.slice(-2);
+    if (v13 === undefined) throw new Error("no version 13");
+    const before = new Map(values);
+    before.set("palette", paletteNamed("cobalt"));
+    before.set("scale", paletteNamed("black body"));
+    const code = writeCode(v13, {
+      values: before,
+      switches,
+      ...moment(3),
+    });
+    // the second palette of decision 23's five, ice, was place 2: the code
+    // holds its place, not its colours
+    expect(readCode([v13], code)?.values.get("palette")).toBe(
+      paletteNamed("cobalt"),
+    );
+    const opened = openingOf("", `#${code}`);
+    expect(opened.values.get("palette")).toBe(paletteNamed("cobalt"));
+    expect(opened.values.get("scale")).toBe(paletteNamed("black body"));
+  });
+
+  it("carries the palettes readable by their names, and opens the numbers written before as the palettes that took their places (decision 104)", () => {
+    const { values, switches } = opening();
+    values.set("palette", paletteNamed("jellyfish"));
+    values.set("scale", paletteNamed("black body"));
+    const address = addressOf(values, switches, null, "");
+    expect(address).toBe("?palette=jellyfish&scale=black-body");
+    expect(openingOf(address, "").values).toEqual(values);
+    const old = openingOf("?palette=2&scale=3&tension=1", "");
+    expect(old.values.get("palette")).toBe(paletteNamed("cobalt"));
+    expect(old.values.get("scale")).toBe(paletteNamed("copper"));
+    expect(old.switches.get("tension")).toBe(true);
+    // a name it does not know, or a number past the ten, opens as the piece does
+    expect(openingOf("?palette=ice&scale=7", "").values).toEqual(
+      opening().values,
+    );
   });
 
   it("carries the light of each of the trails' layers readable, without a moment, where it is not the light it opens with (decision 102)", () => {
@@ -552,10 +617,14 @@ describe("the first piece's address (decision 38)", () => {
     expect(openingOf("", "").values.get("white")).toBe(2);
     expect(openingOf("?n=3&palette=5", "").values.get("white")).toBe(2);
     expect(addressOf(values, switches, null, "")).toBe("");
-    values.set("palette", 5);
+    values.set("palette", paletteNamed("safflower"));
     values.set("white", 0);
-    expect(addressOf(values, switches, null, "")).toBe("?palette=5&white=0");
-    expect(openingOf("?palette=5&white=0", "").values.get("white")).toBe(0);
+    expect(addressOf(values, switches, null, "")).toBe(
+      "?palette=safflower&white=0",
+    );
+    expect(
+      openingOf("?palette=safflower&white=0", "").values.get("white"),
+    ).toBe(0);
     expect(openingOf("?white=3", "").values.get("white")).toBe(3);
   });
 
@@ -585,16 +654,19 @@ describe("the first piece's address (decision 38)", () => {
     expect(opened.values).toEqual(values);
     expect(opened.switches).toEqual(switches);
     expect(opened.saved).toBeNull();
-    // the ground and the scale, after the light's controls (decision 41)
-    values.set("palette", 7);
-    values.set("scale", 1);
+    // the ground and the scale, after the light's controls (decision 41),
+    // the palettes by their names (decision 104)
+    values.set("palette", paletteNamed("green line"));
+    values.set("scale", paletteNamed("black body"));
     values.set("ground", 3);
     expect(addressOf(values, switches, null, "")).toBe(
-      "?n=8&g=1.62&palette=7&scale=1&ground=3&light=0&tension=1",
+      "?n=8&g=1.62&palette=green-line&scale=black-body&ground=3&light=0&tension=1",
     );
     expect(
-      openingOf("?n=8&g=1.62&palette=7&scale=1&ground=3&light=0&tension=1", "")
-        .values,
+      openingOf(
+        "?n=8&g=1.62&palette=green-line&scale=black-body&ground=3&light=0&tension=1",
+        "",
+      ).values,
     ).toEqual(values);
   });
 

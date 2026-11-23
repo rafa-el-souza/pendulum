@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { paletteNamed } from "../core/palettes.ts";
 import { WHOLE_VIEW } from "../core/view.ts";
 import { openingOf, type Saved } from "./address.ts";
 import { FIGURE, LEAD } from "./dance-row.ts";
@@ -72,35 +73,43 @@ describe("the piece's events from a control stepped (decision 88)", () => {
   });
 
   it("turn the tension's colours on after another scale, while they are off (decision 41), and only then", () => {
+    const heat = paletteNamed("heat");
     expect(opened().step(SCALE, 1)).toEqual([
-      { kind: "value", parameter: SCALE, value: 1, was: 0 },
+      { kind: "value", parameter: SCALE, value: heat + 1, was: heat },
       { kind: "switch", id: "tension", on: true },
     ]);
     expect(opened("?tension=1").step(SCALE, 1)).toHaveLength(1);
   });
 
-  it("step the tension's colours, one control, through off and each scale, which the settings keep apart (decision 53)", () => {
+  it("step the tension's colours, one control, through off and each palette, which the settings keep apart (decision 53), coming on either way in the palette kept, heat as the piece opens (decision 104)", () => {
+    const heat = paletteNamed("heat");
     const settings = opened();
     const [on] = settings.step(TENSION, 1);
     expect(on).toEqual({
       kind: "value",
       parameter: TENSION,
-      value: 0,
+      value: heat,
       was: -1,
     });
+    expect(opened().step(TENSION, -1)).toEqual([
+      { kind: "value", parameter: TENSION, value: heat, was: -1 },
+    ]);
     if (on !== undefined) settings.apply(on);
     expect(settings.on("tension")).toBe(true);
-    expect(settings.value(SCALE)).toBe(0);
+    expect(settings.value(SCALE)).toBe(heat);
     for (const event of settings.step(TENSION, 1)) settings.apply(event);
-    expect(settings.tensionAt()).toBe(1);
-    // switched off by its key, the scale stays for when they come on again
-    const back = opened("?tension=1&scale=2");
+    expect(settings.tensionAt()).toBe(heat + 1);
+    // switched off by its key, the palette stays for when they come on again
+    const nebula = paletteNamed("nebula");
+    const back = opened("?tension=1&scale=nebula");
     back.apply({ kind: "switch", id: "tension", on: false });
-    expect(back.value(SCALE)).toBe(2);
+    expect(back.value(SCALE)).toBe(nebula);
     expect(back.tensionAt()).toBe(TENSION.initial);
-    // and stepped down from the first scale, they go off, keeping it
-    const down = opened("?tension=1&scale=1");
-    for (const event of down.step(TENSION, -1)) down.apply(event);
+    expect(back.step(TENSION, 1)).toEqual([
+      { kind: "value", parameter: TENSION, value: nebula, was: -1 },
+    ]);
+    // and stepped down from the first palette, they go off, keeping it
+    const down = opened("?tension=1&scale=dusk");
     for (const event of down.step(TENSION, -1)) down.apply(event);
     expect(down.on("tension")).toBe(false);
     expect(down.value(SCALE)).toBe(0);

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { markOf } from "../core/code.ts";
+import { paletteNamed } from "../core/palettes.ts";
 import { initialValues } from "../core/parameters.ts";
 import { SWITCHES, type Saved } from "./address.ts";
 import { PARAMETERS } from "./parameters.ts";
@@ -89,12 +90,12 @@ describe("the title of the first piece's page (decision 38)", () => {
     ["twinstrobe", 4, "a strobe on whole twins"],
     ["lineslight", 0.5, "the chain's lines at light ×0.5"],
     ["twinlineslight", 2.8, "the twins' lines at light ×2.8"],
-    ["palette", 1, "fire palette"],
-    ["palette", 9, "reef palette"],
+    ["palette", paletteNamed("fire"), "fire palette"],
+    ["palette", paletteNamed("first order"), "first order palette"],
     ["white", 0, "colours that whiten at once"],
     ["white", 1, "colours that whiten late"],
     ["white", 3, "colours that never whiten"],
-    ["scale", 1, "incandescent scale"],
+    ["scale", paletteNamed("black body"), "black body scale"],
     ["ground", 2, "navy ground"],
     ["chain", 1, "rods alone"],
     ["chain", 2, "masses alone"],

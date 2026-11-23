@@ -26,12 +26,12 @@ import {
   type Mechanism,
 } from "../core/sharp.ts";
 import { TRAIL_JUMP } from "../core/curves.ts";
+import { paletteAt } from "../core/palettes.ts";
 import {
   EARTH,
   TensionShades,
   earthWeights,
   tensionScale,
-  tensionScaleAt,
 } from "../core/tension.ts";
 import { LightTarget, Trails, fadeAfter } from "../core/trails.ts";
 import type { StampParts } from "../core/twin-curves.ts";
@@ -377,7 +377,7 @@ export function mountDrawing(
   let tensionScratch = new Float64Array(motion.chain.n);
   let tensionColor = tensionScale(
     hooks.colors.chain,
-    tensionScaleAt(value(SCALE)),
+    paletteAt(value(SCALE)).colors,
   );
   // each rod's colour, worked out once a frame for its rod, its mass and the
   // trail the mass leaves
@@ -1167,7 +1167,7 @@ export function mountDrawing(
       }
     },
     paintTension(scale) {
-      tensionColor = tensionScale(hooks.colors.chain, tensionScaleAt(scale));
+      tensionColor = tensionScale(hooks.colors.chain, paletteAt(scale).colors);
     },
     easeTension,
     beginStep() {

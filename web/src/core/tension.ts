@@ -2,15 +2,16 @@
 // chain painted by how hard it pulls, against the weight it holds hanging
 // still on Earth. A chain hanging at rest on Earth is its own colour all
 // along; a rod that pulls harder, as at the bottom of a swing or in a whip's
-// crack, warms, through amber and orange to red at sixteen weights; a rod
-// that goes slack cools to blue, and one that pushes, which a chain of links
-// cannot do and the rods of these equations can (PH-4), cools on to violet.
-// That is the first scale; the others paint the same places in other colours
-// (decision 41). The stops are placeholders for the author to settle by
-// looking.
+// crack, moves through a palette's last three colours, at 2, 4 and 8 weights,
+// to its seventh at sixteen; a rod that goes slack moves through its third,
+// at half a weight, to its second, and one that pushes, which a chain of
+// links cannot do and the rods of these equations can (PH-4), on to its
+// first. Any palette paints it (decision 104); the piece opens with heat,
+// whose cold violet and blue and warm amber, orange and red are decision
+// 35's.
 
 import type { Chain } from "../physics/chain.ts";
-import { parseColor, type Rgb } from "./color.ts";
+import type { Rgb } from "./color.ts";
 
 /** The Earth's gravity, in m/s², the weight every tension is measured in, whatever gravity the chain is under. */
 export const EARTH = 9.81;
@@ -18,59 +19,15 @@ export const EARTH = 9.81;
 /** Tensions of this many weights and more are at the hot end of the scale. */
 const HOT = 16;
 
-/** A scale of the tension's colours. */
-export interface TensionScale {
-  /** What a screen reader, the title and the row call it. */
-  readonly name: string;
-  /**
-   * Its fixed colours, at their places from -1 to 1; the chain's own colour
-   * is at 0. A rod pushing with a weight or more is at -1, a slack rod at
-   * -0.5, and one pulling with 2, 4 and 16 weights at 0.25, 0.5 and 1.
-   */
-  readonly stops: readonly (readonly [number, Rgb])[];
-}
-
-/** A scale whose colours, written as #rrggbb, are those of a push, a slack rod, and 2, 4 and 16 weights. */
-function scale(
-  name: string,
-  push: string,
-  slack: string,
-  two: string,
-  four: string,
-  sixteen: string,
-): TensionScale {
-  return {
-    name,
-    stops: [
-      [-1, parseColor(push)],
-      [-0.5, parseColor(slack)],
-      [0.25, parseColor(two)],
-      [0.5, parseColor(four)],
-      [1, parseColor(sixteen)],
-    ],
-  };
-}
-
-export const TENSION_SCALES: readonly TensionScale[] = [
-  // decision 35's: cold violet and blue, warm amber, orange and red
-  scale("heat", "#9a66ff", "#4a8cff", "#ffc24d", "#ff8a26", "#ff3b2b"),
-  // a body's light as it heats: a slack rod glows dull orange, and one
-  // pulling hard goes past white to the blue of the hottest stars
-  scale("incandescent", "#7a1c12", "#ff6a1f", "#ffffff", "#cfe0ff", "#8fb3ff"),
-  // cold blue and cyan, warm pink, magenta and violet
-  scale("neon", "#3d5bff", "#2ad6f0", "#ff8ae0", "#ff42d0", "#c22cff"),
-  // cold indigo and teal, warm lime and greens
-  scale("verdant", "#6a4cff", "#25b5c8", "#c6f25a", "#7ee04a", "#21d07a"),
+/**
+ * The places of a palette's seven colours on the scale, from -1 to 1: a rod
+ * pushing with a weight or more, a slack one, one pulling with half a
+ * weight, then with 2, 4, 8 and 16; the chain's own colour is at 0, one
+ * weight, between the third and the fourth.
+ */
+export const TENSION_PLACES: readonly number[] = [
+  -1, -0.5, -0.25, 0.25, 0.5, 0.75, 1,
 ];
-
-/** The scale at `index` in TENSION_SCALES; any other index throws. */
-export function tensionScaleAt(index: number): TensionScale {
-  const found = Number.isInteger(index) ? TENSION_SCALES[index] : undefined;
-  if (found === undefined) {
-    throw new Error(`there is no tension scale ${String(index)}`);
-  }
-  return found;
-}
 
 /** The weight each rod holds hanging still on Earth: the Earth's gravity times the mass at or below it (M_j of PH-3), in N. */
 export function earthWeights(chain: Chain): Float64Array {
@@ -97,12 +54,15 @@ export function tensionPlace(ratio: number): number {
   return -0.5 - 0.5 * Math.min(1, -ratio);
 }
 
-/** A scale's colours with the chain's own at 0, mixed in a straight line between neighbours; outside -1 to 1, the nearer end's. */
+/** A palette's colours at their places on the scale, the chain's own at 0, mixed in a straight line between neighbours; outside -1 to 1, the nearer end's. */
 export function tensionScale(
   chain: Rgb,
-  { stops: fixed }: TensionScale,
+  colors: readonly Rgb[],
 ): (place: number) => Rgb {
-  const stops = [...fixed, [0, chain] as const].sort(([a], [b]) => a - b);
+  const stops = [
+    ...TENSION_PLACES.map((place, k) => [place, colors[k] ?? chain] as const),
+    [0, chain] as const,
+  ].sort(([a], [b]) => a - b);
   const last = stops.length - 1;
   return (place) => {
     const at = Math.min(1, Math.max(-1, place));
