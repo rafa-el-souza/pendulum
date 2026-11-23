@@ -3719,6 +3719,39 @@ on the first ground among them; with more masses, or the strobe, the tension
 differs by a level or two of 255, and on another ground by up to 12, where
 half a weight is now the first ground's mix.
 
+## 105. The palettes in a sheet, each chosen in one touch
+
+*2026-11-23.* The twins' palette and the tension's open a sheet of the
+thirty-six palettes in place of their − and +: each a strip of its colours, a
+closed one's coming back to its first, six to a line, or nine on a screen up
+to 480 px wide, in the list's order round the circle of hues (decision 104).
+One touch on a palette colours the twins, or paints the tension, at once, and
+the sheet stays open to compare with the next. The one chosen is outlined and
+named at the sheet's head, where the pointer over another, or the focus on
+it, names that one instead. The arrows move along the sheet and choose, as in
+a group of radio buttons, and go no further. The tension's sheet has the
+chain's own colour and the tension in words above the palettes, in place of
+decision 53's off and then each scale; a palette touched while the colours
+are off turns them on in it. The keys are as they were: 5 and 6 step the
+twins' palette, T turns the tension's colours on and off, and Y steps their
+palette; with the row shut, a key shows the name alone above the button. The
+address and the saved moment's code are as decision 104 left them.
+
+**Why.** Stepped one by one, the thirty-six took up to 35 touches to reach;
+in the sheet any of them is one touch away, two once the row opens again
+where it was left.
+
+**Evidence.** Unit tests: a value chosen in one touch makes the events a step
+to it would, lighting the twins again or turning the tension's colours on;
+the tension's control is its switch, its palette the scale's; the arrows'
+moves in a sheet of six and of nine to a line, stopping at either end.
+Browser tests: thirty-six cells, a touch colouring the twins with the sheet
+still open, the pointer naming a palette without choosing it, the arrows
+choosing without stepping the masses, the keys stepping with the sheet
+following, a key with the row shut showing the name alone; the tension's
+words and palettes with the T and the address. Looked at on a desktop and
+at 390 px.
+
 ## Open
 
 - **Dimension.** The first piece is planar; depth may come with later pieces.
