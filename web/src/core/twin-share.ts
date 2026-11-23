@@ -132,8 +132,9 @@ export interface TwinClock {
  * (decisions 21, 23, 43 and 46).
  */
 export interface TwinCurves {
-  /** How bright every twin's trail is drawn, and how many times the music makes it brighter this frame. */
+  /** How bright every twin's trail is drawn, as lines and as a strobe's stamps, each in its layer's light (decision 102), and how many times the music makes it brighter this frame. */
   readonly light: number;
+  readonly stampLight: number;
   readonly music: number;
   /** Each of the share's twins' own light while they fade, by its place in the share; none while they stay. */
   readonly shine: Float64Array | null;
@@ -497,8 +498,8 @@ export class TwinShare {
    * the music asks, in the trails' light times its own times the music's.
    * Then every curve still open, for a view drawn anew. And each twin
    * stamped at each of the command's flashes, from its masses' `places`
-   * (decision 100), in the same colour and light. None where the command asks
-   * for none.
+   * (decision 100), in the same colour, in the stamps' light (decision 102).
+   * None where the command asks for none.
    */
   #join(
     command: TwinCommand,
@@ -549,7 +550,8 @@ export class TwinShare {
       const { parts } = command.stamps;
       for (let k = 0; k < count; k++) {
         const color = this.#colorOf(this.index + k * this.shares, curves);
-        const light = curves.light * (curves.shine?.[k] ?? 1) * curves.music;
+        const light =
+          curves.stampLight * (curves.shine?.[k] ?? 1) * curves.music;
         flashes.forEach((flash, f) => {
           stampTwin(
             this.#stamps,

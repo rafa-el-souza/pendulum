@@ -13,6 +13,7 @@ export type Icon =
   | "flash"
   | "paths"
   | "flashes"
+  | "sun"
   | "dust"
   | "spread"
   | "light"
@@ -128,6 +129,13 @@ const ICONS: Record<
   flashes: {
     fill: "M10.5 2L4 12.5h4.5L6.5 22l8-12h-5zM15.8 4.5a2.2 2.2 0 1 0 4.4 0a2.2 2.2 0 1 0 -4.4 0M17.3 12a2.2 2.2 0 1 0 4.4 0a2.2 2.2 0 1 0 -4.4 0M15.8 19.5a2.2 2.2 0 1 0 4.4 0a2.2 2.2 0 1 0 -4.4 0",
     stroke: "",
+  },
+  // a sun, the platform's glyph for brightness: how bright a layer of the
+  // trails is drawn (decision 102), apart from the light switch's bulb
+  sun: {
+    fill: "M8 12a4 4 0 1 0 8 0a4 4 0 1 0 -8 0z",
+    stroke:
+      "M12 5V2M16.95 7.05l2.12-2.12M19 12h3M16.95 16.95l2.12 2.12M12 19v3M7.05 16.95l-2.12 2.12M5 12H2M7.05 7.05L4.93 4.93",
   },
   // a cloud of points of light: the twins' look, chains or dust
   dust: {

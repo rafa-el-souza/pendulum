@@ -38,6 +38,7 @@ import {
   HOLD,
   LEASHED_STEP,
   LINES,
+  LINES_LIGHT,
   LOOK,
   MASSES,
   MODE,
@@ -50,13 +51,16 @@ import {
   SHAKE,
   SPREAD,
   STROBE,
+  STROBE_LIGHT,
   TENSION,
   TILT,
   TIME,
   TRAIL,
   TWIN_COUNT,
   TWIN_LINES,
+  TWIN_LINES_LIGHT,
   TWIN_STROBE,
+  TWIN_STROBE_LIGHT,
   WHITE,
   ZOOM,
   whiteSwatches,
@@ -67,7 +71,8 @@ import { ACTS, type PieceEvent, type Settings } from "./settings.ts";
 // and its keys, with the address and the page's title (decision 38), the
 // address shared or shown as a QR code (decision 40), and the music's card
 // (decisions 44 and 76), with the dance's row stacked above the music's
-// (decision 89). A control stepped, a button pressed or a key makes
+// (decision 89), and each of the trails' layers' rows above the trails'
+// (decision 102). A control stepped, a button pressed or a key makes
 // the piece's events (settings.ts, decision 88); each is taken by the
 // settings, answered by the piece, and shown in the row, and the address and
 // the title follow.
@@ -82,6 +87,39 @@ const SKETCH_LABEL = "The sketch's light";
 // (decision 89).
 const DANCE_LABEL = "The dance";
 const DANCING_LABEL = "The dance, which the music dances now";
+// The trails' layers (decision 102), each a button in the trails' group that
+// opens the layer's row stacked above: the parts the layer comes from and its
+// light. A layer's button is lit while the layer is drawn.
+const LAYERS = [
+  {
+    id: "layerlines",
+    label: "The chain's lines",
+    icon: "path",
+    parts: LINES,
+    light: LINES_LIGHT,
+  },
+  {
+    id: "layerstrobe",
+    label: "The chain's strobe",
+    icon: "flash",
+    parts: STROBE,
+    light: STROBE_LIGHT,
+  },
+  {
+    id: "layertwinlines",
+    label: "The twins' lines",
+    icon: "paths",
+    parts: TWIN_LINES,
+    light: TWIN_LINES_LIGHT,
+  },
+  {
+    id: "layertwinstrobe",
+    label: "The twins' strobe",
+    icon: "flashes",
+    parts: TWIN_STROBE,
+    light: TWIN_STROBE_LIGHT,
+  },
+] as const;
 // The piece's name, which begins the page's title (decision 37).
 const NAME =
   PIECES.find(({ id }) => id === "chain-in-hand")?.title ?? document.title;
@@ -237,6 +275,15 @@ export function mountRow(settings: Settings, hooks: RowHooks): Row {
     controls.showAction("showhand", handIcon(shown), handLabel(shown), shown);
   }
 
+  /** Each of the trails' layers' buttons lit while the layer is drawn, and its light faint while it is not, where it has nothing to do (decision 102). */
+  function showLayers(): void {
+    for (const { id, label, parts, light } of LAYERS) {
+      const drawn = settings.value(parts) > 0;
+      controls.lightGroup(id, drawn, label);
+      controls.showValue(light.id, settings.value(light), { idle: !drawn });
+    }
+  }
+
   /** The light switch's button, lit while the light is on. */
   function showLight(): void {
     const on = settings.on("light");
@@ -258,6 +305,7 @@ export function mountRow(settings: Settings, hooks: RowHooks): Row {
       if (parameter !== TENSION) {
         showWhite();
         showHold();
+        showLayers();
       }
     } else if (event.kind === "switch") {
       if (event.id === "light") showLight();
@@ -389,8 +437,17 @@ export function mountRow(settings: Settings, hooks: RowHooks): Row {
           label: "The trails",
           icon: "comet",
           // how long they last, then their layers (decision 96): the
-          // chain's lines and strobe, and the twins'
-          controls: [TRAIL, LINES, STROBE, TWIN_LINES, TWIN_STROBE],
+          // chain's lines and strobe, and the twins', each opening its row
+          // of the parts it comes from and its light (decision 102)
+          controls: [
+            TRAIL,
+            ...LAYERS.map(({ id, label, icon, parts, light }) => ({
+              id,
+              label,
+              icon,
+              controls: [parts, light],
+            })),
+          ],
         },
         {
           // where the sound comes from, what the music does and how
@@ -502,6 +559,7 @@ export function mountRow(settings: Settings, hooks: RowHooks): Row {
   }
   showWhite();
   showHold();
+  showLayers();
   showMusic();
   showDance();
   // a source of the music lit while it plays (decision 76)

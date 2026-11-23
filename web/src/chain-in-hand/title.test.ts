@@ -87,6 +87,8 @@ describe("the title of the first piece's page (decision 38)", () => {
     ["twinstrobe", 2, "a strobe on the twins' masses"],
     ["twinstrobe", 3, "a strobe on the twins' rods"],
     ["twinstrobe", 4, "a strobe on whole twins"],
+    ["lineslight", 0.5, "the chain's lines at light ×0.5"],
+    ["twinlineslight", 2.8, "the twins' lines at light ×2.8"],
     ["palette", 1, "fire palette"],
     ["palette", 9, "reef palette"],
     ["white", 0, "colours that whiten at once"],
@@ -101,6 +103,30 @@ describe("the title of the first piece's page (decision 38)", () => {
     const { values, switches } = opening();
     values.set(id, value);
     expect(summaryOf(values, switches, null)).toEqual([words]);
+  });
+
+  it("names the light of a trails' layer only while the layer is drawn, after what the layer comes from (decision 102)", () => {
+    const { values, switches } = opening();
+    values.set("strobelight", 2);
+    values.set("twinstrobelight", 0.25);
+    expect(summaryOf(values, switches, null)).toEqual([]);
+    values.set("strobe", 3);
+    values.set("twinstrobe", 1);
+    expect(summaryOf(values, switches, null)).toEqual([
+      "a strobe on the rods",
+      "the chain's strobe at light ×2",
+      "a strobe on the twins' tips",
+      "the twins' strobe at light ×0.25",
+    ]);
+    values.set("lineslight", 4);
+    values.set("lines", 0);
+    expect(summaryOf(values, switches, null)).toEqual([
+      "no lines from the chain",
+      "a strobe on the rods",
+      "the chain's strobe at light ×2",
+      "a strobe on the twins' tips",
+      "the twins' strobe at light ×0.25",
+    ]);
   });
 
   it("names how near the twins are held only while they are held or leashed (decision 64)", () => {

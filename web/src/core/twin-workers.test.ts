@@ -334,6 +334,7 @@ describe("the twins' workers", () => {
     twins.born(places(4), raised(2), 1e-3);
     const curvesFor = (share: number) => ({
       light: 0.1,
+      stampLight: 0.1,
       music: 1,
       shine: Float64Array.of(share, share),
       palette: 0,

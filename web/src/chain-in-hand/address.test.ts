@@ -144,16 +144,54 @@ describe("the first piece's address (decision 38)", () => {
     expect(openingOf("", written).values).toEqual(values);
   });
 
-  it("writes codes of version 12, which hold every part of the twins a strobe stamps (decision 100)", () => {
+  it("opens a code of version 12, which holds every part of the twins a strobe stamps, as it was written (decision 100)", () => {
     const { values, switches } = opening();
     values.set("n", 3);
     values.set("strobe", 2);
+    const version12 = CODES.find(({ version }) => version === 12);
+    if (version12 === undefined) throw new Error("no code of version 12");
     for (const twinStrobe of [0, 1, 2, 3, 4]) {
       values.set("twinstrobe", twinStrobe);
+      const written = `#${writeCode(version12, { values, switches, ...moment(3) })}`;
+      expect(openingOf("", written).values).toEqual(values);
+    }
+  });
+
+  it("writes codes of version 13, which hold the light of each of the trails' layers, after the layer (decision 102)", () => {
+    const { values, switches } = opening();
+    values.set("n", 3);
+    values.set("strobe", 4);
+    values.set("twinstrobe", 3);
+    for (const [lines, strobe, twinLines, twinStrobe] of [
+      [0.25, 4, 1, 0.35],
+      [2.8, 0.5, 0.7, 1.4],
+      [1, 1, 1, 1],
+    ]) {
+      values.set("lineslight", lines ?? 1);
+      values.set("strobelight", strobe ?? 1);
+      values.set("twinlineslight", twinLines ?? 1);
+      values.set("twinstrobelight", twinStrobe ?? 1);
       const opened = openingOf("", addressOf(values, switches, moment(3), ""));
       expect(opened.values).toEqual(values);
     }
-    expect(CODE.version).toBe(12);
+    expect(CODE.version).toBe(13);
+  });
+
+  it("carries the light of each of the trails' layers readable, without a moment, where it is not the light it opens with (decision 102)", () => {
+    const { values, switches } = opening();
+    values.set("strobe", 3);
+    values.set("strobelight", 2);
+    values.set("twinlineslight", 0.35);
+    const address = addressOf(values, switches, null, "");
+    expect(address).toBe("?strobe=3&strobelight=2&twinlineslight=0.35");
+    expect(openingOf(address, "").values).toEqual(values);
+    expect(openingOf("?lineslight=0.25&twinstrobelight=4", "").values).toEqual(
+      new Map([
+        ...opening().values,
+        ["lineslight", 0.25],
+        ["twinstrobelight", 4],
+      ]),
+    );
   });
 
   it("carries every part of the twins a strobe stamps readable, without a moment (decision 100)", () => {
@@ -568,9 +606,9 @@ describe("the first piece's address (decision 38)", () => {
     const saved = moment(3);
     const address = addressOf(values, switches, saved, "?n=3&shake=800");
     expect(address).toMatch(/^#[A-Za-z0-9_-]+$/);
-    // sixteen bytes since the twelfth version (decision 100), and eight to a
-    // mass
-    expect(address).toHaveLength(1 + Math.ceil((4 * (16 + 8 * 3)) / 3));
+    // eighteen bytes since the thirteenth version (decision 102), and eight
+    // to a mass
+    expect(address).toHaveLength(1 + Math.ceil((4 * (18 + 8 * 3)) / 3));
     const opened = openingOf("", address);
     expect(opened.values).toEqual(values);
     expect(opened.switches).toEqual(switches);
