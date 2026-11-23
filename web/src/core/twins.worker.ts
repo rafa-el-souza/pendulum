@@ -1,8 +1,15 @@
 // A worker that carries a share of the twins (docs/decisions.md, decision
 // 51): told first which share it is, then a command a frame, each answered
-// with a report whose buffers are handed over to the page, not copied.
+// with a report whose buffers are handed over to the page, not copied; the
+// page hands them back with a later command, once it has done with them,
+// for the share to fill again (decision 103).
 
-import { TwinShare, type TwinCommand, type TwinReport } from "./twin-share.ts";
+import {
+  TwinShare,
+  reportBuffers,
+  type TwinCommand,
+  type TwinReport,
+} from "./twin-share.ts";
 import type { TwinSetup } from "./twin-workers.ts";
 
 /** The worker's own way back to the page, which hands buffers over; the page's types know only a window's. */
@@ -20,25 +27,7 @@ addEventListener("message", (event: MessageEvent<TwinSetup | TwinCommand>) => {
   }
   if (share === null) throw new Error("a command came before the setup");
   const report = share.run(message);
-  const handed: Transferable[] = [
-    report.positions.buffer,
-    report.tips.buffer,
-    report.tipSpeeds.buffer,
-    report.apart.buffer,
-    // where the twins were at a strobe's flashes (decision 100)
-    report.stampPlaces.buffer,
-  ];
-  // the twins' trails joined into curves here, where asked (decision 95),
-  // and the twins stamped into them (decision 100)
-  const { curves } = report;
-  if (curves !== null) {
-    handed.push(
-      curves.fresh.bytes,
-      curves.closed.bytes,
-      curves.split.bytes,
-      curves.open.bytes,
-      curves.stamps.bytes,
-    );
-  }
-  scope.postMessage(report, handed);
+  // its numbers, and the twins' trails joined into curves where asked
+  // (decision 95), with the twins stamped into them (decision 100)
+  scope.postMessage(report, reportBuffers(report));
 });
