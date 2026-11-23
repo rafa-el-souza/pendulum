@@ -15,7 +15,9 @@
 // the group's, as the dance's above the music's, and a group's row too wide
 // for the screen scrolls sideways, faded at a side with more (decision 89).
 // The row, the group and the value stay as the visitor leaves them, and
-// come back so when the row is opened again. On a touch screen, a touch on the controls keeps them in sight for
+// come back so when the row is opened again. A parameter whose values are
+// colours to choose from, as the palettes, opens a sheet of them all in
+// place of its − and +, each chosen in one touch (decision 105). On a touch screen, a touch on the controls keeps them in sight for
 // longer, a touch where they are brings them back without grabbing the
 // chain, and a touch on the stage puts them away. Keyboard focus and a mouse
 // resting on them keep them in sight.
@@ -30,7 +32,7 @@ import {
   swingingPart,
   type Icon,
 } from "./icons.ts";
-import type { Parameter } from "./parameters.ts";
+import type { Parameter, Sheet } from "./parameters.ts";
 
 /** A button that does one thing, such as pausing. */
 export interface Action {
@@ -75,6 +77,8 @@ export type Item = Control | Group;
 
 export interface ControlHandlers {
   step(parameter: Parameter, direction: 1 | -1): void;
+  /** A value chosen in one touch, as a palette in a sheet (decision 105). */
+  set(parameter: Parameter, value: number): void;
   act(id: string): void;
 }
 
@@ -90,6 +94,8 @@ export interface Showing {
   text?: string;
   /** What a screen reader hears, and the icon's title says, in place of the value's own words, as the lens's number said whole. */
   words?: string;
+  /** For a sheet whose cells are another parameter's values, the cell chosen, as the tension's palette (decision 105). */
+  cell?: number;
 }
 
 export interface Controls {
@@ -231,6 +237,32 @@ function isGroup(item: Item | Group): item is Group {
   return "controls" in item;
 }
 
+/**
+ * Where the arrow `key` takes the choice in a sheet of `count` cells,
+ * `columns` to a line, from the cell `at`: along the line, to the line above
+ * or below, or to the first or the last with Home and End, stopping at
+ * either end, as in a group of radio buttons (decision 105). Null for any
+ * other key, which the piece takes.
+ */
+export function sheetMove(
+  at: number,
+  key: string,
+  columns: number,
+  count: number,
+): number | null {
+  const moves: Record<string, number> = {
+    ArrowRight: 1,
+    ArrowLeft: -1,
+    ArrowDown: columns,
+    ArrowUp: -columns,
+    Home: -at,
+    End: count - 1 - at,
+  };
+  const move = moves[key];
+  if (move === undefined) return null;
+  return Math.min(count - 1, Math.max(0, at + move));
+}
+
 /** What a parameter's value shows and says, kept to update it. */
 interface Entry {
   readonly parameter: Parameter;
@@ -252,6 +284,24 @@ interface Entry {
   readonly keysShown: string;
   /** The colours painted, when the value is shown in colours. */
   painted: string;
+  /** For a value chosen in a sheet, its parts (decision 105). */
+  readonly sheet: SheetShown | null;
+}
+
+/** What a sheet shows, kept to update it (decision 105). */
+interface SheetShown {
+  readonly spec: Sheet;
+  /** The words at its head. */
+  readonly name: HTMLElement;
+  /** The words above the cells, for a parameter whose cells are another's: one for each of its own values. */
+  readonly words: Map<number, HTMLButtonElement>;
+  /** The cells, one for each value, in their grid. */
+  readonly cells: Map<number, HTMLButtonElement>;
+  readonly grid: HTMLElement;
+  /** The value and the cell shown, and the cell under the pointer or in focus, if any. */
+  value: number;
+  cell: number;
+  over: number | null;
 }
 
 export function mountControls(
@@ -498,6 +548,8 @@ export function mountControls(
     if (chosen === null) return;
     const entry = entries.get(chosen);
     if (entry === undefined) return;
+    // a sheet with the row shut shows its head alone (decision 105)
+    entry.reading.toggleAttribute("data-compact", !open);
     const anchor = anchorOf(chosen, entry.tool).getBoundingClientRect();
     // its keys, beside it where a pointer hovers, stay on the screen too
     const keys = entry.keys.offsetWidth;
@@ -584,6 +636,16 @@ export function mountControls(
     tool.setAttribute("aria-controls", reading.id);
     tool.setAttribute("aria-describedby", described.id);
     into.append(tool);
+    if (parameter.sheet !== undefined) {
+      addSheet(parameter, parameter.sheet, {
+        reading,
+        tool,
+        toolIcon,
+        described,
+        keysShown,
+      });
+      return;
+    }
 
     const output = document.createElement("output");
     output.className = cls(styles, "value");
@@ -639,7 +701,192 @@ export function mountControls(
       keys: keysHint,
       keysShown,
       painted: "",
+      sheet: null,
     });
+  }
+
+  /**
+   * A parameter's value chosen in a sheet of colours, in one touch (decision
+   * 105): the words of the value chosen at its head, then, for a parameter
+   * whose cells are another's values, its own values in words, then the
+   * cells, each a strip of its colours. A touch on a cell chooses it, and
+   * the sheet stays open, to compare with the next; the pointer over a cell,
+   * or the focus on it, puts its name at the head; the arrows move along the
+   * sheet and choose. With the row shut, as a key opens a value above the
+   * button, the head alone.
+   */
+  function addSheet(
+    parameter: Parameter,
+    spec: Sheet,
+    parts: {
+      reading: HTMLElement;
+      tool: HTMLButtonElement;
+      toolIcon: SVGSVGElement;
+      described: HTMLElement;
+      keysShown: string;
+    },
+  ): void {
+    const { reading, tool, toolIcon, described, keysShown } = parts;
+    reading.classList.add(cls(styles, "sheet"));
+    const output = document.createElement("output");
+    output.className = cls(styles, "head");
+    output.setAttribute("aria-live", "polite");
+    const holder = hidden("icon");
+    const readingIcon = drawIcon(parameter.icon ?? "palette");
+    holder.append(readingIcon);
+    const name = document.createElement("span");
+    output.append(holder, name);
+    const keysHint = hidden("keys");
+    keysHint.setAttribute("aria-hidden", "true");
+    keysHint.textContent = keysShown;
+    const heading = document.createElement("div");
+    heading.className = cls(styles, "heading");
+    heading.append(output, keysHint);
+    reading.append(heading);
+
+    const of = spec.cells ?? parameter;
+    const words = new Map<number, HTMLButtonElement>();
+    if (spec.cells !== undefined) {
+      const said = document.createElement("div");
+      said.className = cls(styles, "words");
+      said.setAttribute("role", "radiogroup");
+      said.setAttribute("aria-label", parameter.label);
+      for (const value of parameter.values) {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = cls(styles, "word");
+        b.setAttribute("role", "radio");
+        b.textContent = parameter.show(value);
+        b.addEventListener("click", () => {
+          handlers.set(parameter, value);
+        });
+        words.set(value, b);
+        said.append(b);
+      }
+      reading.append(said);
+    }
+
+    const grid = document.createElement("div");
+    grid.className = cls(styles, "cells");
+    grid.setAttribute("role", "radiogroup");
+    grid.setAttribute("aria-label", of.label);
+    grid.style.setProperty("--columns", String(spec.columns));
+    const cells = new Map<number, HTMLButtonElement>();
+    const shown: SheetShown = {
+      spec,
+      name,
+      words,
+      cells,
+      grid,
+      value: parameter.initial,
+      cell: of.initial,
+      over: null,
+    };
+    const values = of.values;
+    values.forEach((value, at) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = cls(styles, "cell");
+      b.setAttribute("role", "radio");
+      b.setAttribute("aria-label", of.show(value));
+      b.title = of.show(value);
+      b.tabIndex = -1;
+      const strip = document.createElement("span");
+      strip.className = cls(styles, "strip");
+      const colors = spec.strip(value).map((c) => cssColor(c));
+      strip.style.background = `linear-gradient(to right, ${colors.join(", ")})`;
+      b.append(strip);
+      b.addEventListener("click", () => {
+        handlers.set(of, value);
+      });
+      const over = (on: boolean): void => {
+        if (on) shown.over = value;
+        else if (shown.over === value) shown.over = null;
+        nameSheet(parameter, shown);
+      };
+      b.addEventListener("pointerenter", () => {
+        over(true);
+      });
+      b.addEventListener("pointerleave", () => {
+        over(false);
+      });
+      b.addEventListener("focus", () => {
+        over(true);
+      });
+      b.addEventListener("blur", () => {
+        over(false);
+      });
+      // the arrows go no further than the sheet, as the piece's own keys
+      // would take them; as many to a line as the screen shows
+      b.addEventListener("keydown", (event) => {
+        const columns =
+          getComputedStyle(grid).gridTemplateColumns.split(" ").length;
+        const next = sheetMove(at, event.key, columns, values.length);
+        if (next === null) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const value = values[next];
+        if (value === undefined) return;
+        cells.get(value)?.focus();
+        handlers.set(of, value);
+      });
+      cells.set(value, b);
+      grid.append(b);
+    });
+    reading.append(grid);
+    readout.append(reading);
+    entries.set(parameter.id, {
+      parameter,
+      tool,
+      toolIcon,
+      described,
+      reading,
+      output,
+      shown: name,
+      spoken: null,
+      readingIcon,
+      keys: keysHint,
+      keysShown,
+      painted: "",
+      sheet: shown,
+    });
+  }
+
+  /** The words for a sheet's value and cell chosen. */
+  function sheetWords(parameter: Parameter, shown: SheetShown): string {
+    const { spec, value, cell } = shown;
+    return spec.words?.(value, cell) ?? parameter.show(value);
+  }
+
+  /** The words at a sheet's head: the name of the cell under the pointer or in focus, or those of the value and the cell chosen. */
+  function nameSheet(parameter: Parameter, shown: SheetShown): void {
+    const of = shown.spec.cells ?? parameter;
+    const words =
+      shown.over !== null ? of.show(shown.over) : sheetWords(parameter, shown);
+    if (shown.name.textContent !== words) shown.name.textContent = words;
+  }
+
+  /** A sheet showing `value`, and `cell` among its cells, and what a screen reader hears for them. */
+  function showSheet(
+    parameter: Parameter,
+    shown: SheetShown,
+    value: number,
+    cell: number,
+  ): string {
+    shown.value = value;
+    shown.cell = cell;
+    const { spec } = shown;
+    for (const [v, b] of shown.words) {
+      b.setAttribute("aria-checked", String(v === value));
+    }
+    const chosenCell = spec.cells === undefined ? value : cell;
+    for (const [v, b] of shown.cells) {
+      const on = v === chosenCell;
+      b.setAttribute("aria-checked", String(on));
+      b.tabIndex = on ? 0 : -1;
+    }
+    nameSheet(parameter, shown);
+    return sheetWords(parameter, shown);
   }
 
   /**
@@ -982,6 +1229,19 @@ export function mountControls(
       const entry = entries.get(id);
       if (entry === undefined) throw new Error(`no control shows ${id}`);
       const at = reached ?? value;
+      if (entry.sheet !== null) {
+        const words = showSheet(
+          entry.parameter,
+          entry.sheet,
+          at,
+          showing.cell ?? entry.sheet.cell,
+        );
+        if (entry.described.textContent !== words) {
+          entry.described.textContent = words;
+        }
+        if (id === chosen) place();
+        return;
+      }
       const text = showing.text ?? entry.parameter.show(at);
       const swatches = (painting ?? entry.parameter.swatches?.(at))?.map((c) =>
         cssColor(c),

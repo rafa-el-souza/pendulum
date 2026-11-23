@@ -888,41 +888,80 @@ test("the twins are carried by workers, one for each of the machine's cores but 
   expect(errors).toEqual([]);
 });
 
-test("the palette's keys change the twins' colours, the control paints them, and the address follows", async ({
+test("the twins' palettes open in a sheet, where one touch colours the twins and the sheet stays, the pointer names a palette, the arrows and the keys step, and the address follows (decision 105)", async ({
   page,
 }) => {
   const errors = collectErrors(page);
   await page.goto("./");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   await openControls(page);
-  // its icon in the twins' group shows the palette, as its seven colours
-  // painted (decision 104)
-  await (await reveal(page, "Colours of the twins")).click();
-  const palette = page
-    .getByRole("group", { name: "Colours of the twins" })
-    .locator("output");
-  const dots = palette.locator("[aria-hidden='true'] > span");
-  // the colours the page paints the dots with (a string, as in frames())
-  const painted = (): Promise<string[]> =>
-    page.evaluate(
-      `[...document.querySelectorAll('[aria-label="Colours of the twins"] output [aria-hidden="true"] > span')].map((dot) => getComputedStyle(dot).color)`,
-    );
+  const tool = await reveal(page, "Colours of the twins");
+  await tool.click();
+  const sheet = page.getByRole("group", { name: "Colours of the twins" });
+  const cells = sheet.getByRole("radiogroup", { name: "Colours of the twins" });
+  const cell = (name: string): Locator =>
+    cells.getByRole("radio", { name, exact: true });
+  const head = sheet.locator("output");
+  // every palette in sight at once, the one chosen marked
+  await expect(cells.getByRole("radio")).toHaveCount(36);
+  await expect(cell("dusk")).toHaveAttribute("aria-checked", "true");
+  await expect(head).toHaveText("dusk");
 
-  await expect(palette).toContainText("dusk");
-  await expect(dots).toHaveCount(7);
-  const dusk = await painted();
-  expect(new Set(dusk).size).toBe(7);
+  // one touch: the twins in it, the address by its name, the sheet open
+  await cell("jellyfish").click();
+  await expect(page).toHaveURL(/[?&]palette=jellyfish(&|$)/);
+  await expect(cell("jellyfish")).toHaveAttribute("aria-checked", "true");
+  await expect(cell("dusk")).toHaveAttribute("aria-checked", "false");
+  await expect(cells).toBeVisible();
+  await expect(tool).toHaveAccessibleDescription("jellyfish");
 
-  // the next palette, written in the address by its name
+  // the pointer over another names it, and chooses nothing
+  await cell("orchid").hover();
+  await expect(head).toHaveText("orchid");
+  await expect(page).toHaveURL(/[?&]palette=jellyfish(&|$)/);
+  await cell("jellyfish").hover();
+  await expect(head).toHaveText("jellyfish");
+
+  // the arrows move along the sheet and choose; they step nothing else,
+  // as the masses' arrows would
+  await cell("jellyfish").focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(page).toHaveURL(/[?&]palette=sunlit-aurora(&|$)/);
+  await expect(cell("sunlit aurora")).toBeFocused();
+  await page.keyboard.press("ArrowUp");
+  await expect(cell("sunlit aurora")).toHaveAttribute("aria-checked", "false");
+  await expect(page).not.toHaveURL(/[?&]n=/);
+
+  // the palette's keys step to the next, the sheet following
+  const chosen = await cells
+    .getByRole("radio", { checked: true })
+    .getAttribute("aria-label");
   await page.keyboard.press("6");
-  await expect(palette).toContainText("heat");
-  await expect(page).toHaveURL(/[?&]palette=heat(&|$)/);
-  expect(await painted()).not.toEqual(dusk);
-
+  await expect(
+    cells.getByRole("radio", { checked: true }),
+  ).not.toHaveAccessibleName(chosen ?? "");
   await page.keyboard.press("5");
-  await expect(palette).toContainText("dusk");
-  await expect(page).not.toHaveURL(/palette=/);
-  expect(await painted()).toEqual(dusk);
+  await expect(
+    cells.getByRole("radio", { checked: true }),
+  ).toHaveAccessibleName(chosen ?? "");
+  await frames(page, 10);
+  expect(errors).toEqual([]);
+});
+
+test("a key that steps a palette with the row shut shows its name alone above the button, without the sheet (decision 105)", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.goto("./");
+  await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
+  await page.keyboard.press("6");
+  const sheet = page.getByRole("group", { name: "Colours of the twins" });
+  await expect(sheet.locator("output")).toHaveText("heat");
+  await expect(sheet.locator("output")).toBeVisible();
+  await expect(
+    sheet.getByRole("radiogroup", { name: "Colours of the twins" }),
+  ).toBeHidden();
+  await expect(page).toHaveURL(/[?&]palette=heat(&|$)/);
   await frames(page, 10);
   expect(errors).toEqual([]);
 });
@@ -1097,12 +1136,13 @@ test("the Y key steps the tension's palette, coming round, and turns the tension
   await page.goto("./?n=8");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   await openControls(page);
-  // one control in the row, off and then each palette (decisions 53 and 104)
+  // one control in the row, the chain's own colour or the tension in a
+  // palette (decisions 53 and 105)
   const tension = icon(page, "Colours of the tension");
-  await expect(tension).toHaveAccessibleDescription("off");
+  await expect(tension).toHaveAccessibleDescription("own colour");
 
   await page.keyboard.press("y");
-  await expect(tension).toHaveAccessibleDescription("safflower");
+  await expect(tension).toHaveAccessibleDescription("tension · safflower");
   await expect(page).toHaveURL(/\?n=8&scale=safflower&tension=1$/);
   await frames(page, 5);
 
@@ -1111,9 +1151,9 @@ test("the Y key steps the tension's palette, coming round, and turns the tension
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   await openControls(page);
   await page.keyboard.press("Y");
-  await expect(tension).toHaveAccessibleDescription("dusk");
+  await expect(tension).toHaveAccessibleDescription("tension · dusk");
   await page.keyboard.press("y");
-  await expect(tension).toHaveAccessibleDescription("heat");
+  await expect(tension).toHaveAccessibleDescription("tension · heat");
   await expect(page).toHaveURL(/\?n=8&tension=1$/);
   await frames(page, 5);
   expect(errors).toEqual([]);
@@ -1131,7 +1171,7 @@ test("an address carries the ground and the tension's scale", async ({
   );
   await expect(
     icon(page, "Colours of the tension"),
-  ).toHaveAccessibleDescription("black body");
+  ).toHaveAccessibleDescription("tension · black body");
   expect(
     await page.evaluate("getComputedStyle(document.body).backgroundColor"),
   ).toBe("rgb(42, 9, 18)");
@@ -1596,58 +1636,67 @@ test("the light switch puts out the twins and the trails and lights them again, 
   expect(errors).toEqual([]);
 });
 
-test("the T key and the control's − paint the chain by its tension and back, and the address follows", async ({
+test("the T key and the tension's sheet paint the chain by its tension and back, in the palette touched, and the address follows (decisions 53 and 105)", async ({
   page,
 }) => {
   const errors = collectErrors(page);
   await page.goto("./?n=8");
   await expect(page.locator("html")).toHaveAttribute("data-webgl", "webgl2");
   await openControls(page);
-  // one control in the row, off and then each scale (decision 53)
+  // one control in the row: the chain's own colour or the tension, and the
+  // palettes, in one sheet
   const tension = icon(page, "Colours of the tension");
-  await expect(tension).toHaveAccessibleDescription("off");
+  await expect(tension).toHaveAccessibleDescription("own colour");
   const stage = page.locator("#stage");
   const mask = controlsBox(page);
 
   // paused, every frame draws the same, so only the colours can change it;
-  // the control's value open above the row, as the T and the − leave it,
-  // and the pointer on its icon, so that each capture shows them alike
+  // the sheet open above the row, and the pointer on its icon, so that each
+  // capture shows them alike
   await frames(page, 10);
   await icon(page, "Pause").click();
   await reveal(page, "Colours of the tension");
   await tension.click();
+  const sheet = page.getByRole("group", { name: "Colours of the tension" });
+  const word = (name: string): Locator =>
+    sheet.getByRole("radio", { name, exact: true });
+  await expect(word("own colour")).toHaveAttribute("aria-checked", "true");
+  await expect(
+    sheet
+      .getByRole("radiogroup", { name: "Scale of the tension's colours" })
+      .getByRole("radio", { name: "heat", exact: true }),
+  ).toHaveAttribute("aria-checked", "true");
+  await tension.hover();
   await frames(page, 3);
   const plain = await stage.screenshot({ mask });
 
-  // the T turns them on in the scale they had
+  // the T turns them on in the palette they had
   await page.keyboard.press("t");
-  await expect(tension).toHaveAccessibleDescription("heat");
+  await expect(tension).toHaveAccessibleDescription("tension · heat");
+  await expect(word("tension")).toHaveAttribute("aria-checked", "true");
   await frames(page, 3);
   expect((await stage.screenshot({ mask })).equals(plain)).toBe(false);
   await expect(page).toHaveURL(/\?n=8&tension=1$/);
 
-  // below the first palette, dusk, before heat (decision 104), off
-  const less = page.getByRole("button", {
-    name: "Less: Colours of the tension",
-    exact: true,
-  });
-  await less.click();
-  await expect(tension).toHaveAccessibleDescription("dusk");
-  await less.click();
-  await expect(tension).toHaveAccessibleDescription("off");
-  // the palette kept for when they come on again
-  await expect(page).toHaveURL(/\?n=8&scale=dusk$/);
+  // the chain's own colour, in one touch, puts them off
+  await word("own colour").click();
+  await expect(tension).toHaveAccessibleDescription("own colour");
+  await expect(page).toHaveURL(/\?n=8$/);
   await tension.hover();
   await frames(page, 3);
   expect((await stage.screenshot({ mask })).equals(plain)).toBe(true);
 
+  // a palette touched while they are off turns them on in it
+  await word("copper").click();
+  await expect(tension).toHaveAccessibleDescription("tension · copper");
+  await expect(page).toHaveURL(/\?n=8&scale=copper&tension=1$/);
+
   // running, and through another number of masses, it draws without error
-  await page.keyboard.press("T");
   await icon(page, "Resume").click();
   await frames(page, 10);
   await page.keyboard.press("ArrowUp");
   await frames(page, 10);
-  await expect(tension).toHaveAccessibleDescription("dusk");
+  await expect(tension).toHaveAccessibleDescription("tension · copper");
   expect(errors).toEqual([]);
 });
 
@@ -2001,7 +2050,7 @@ test("a saved moment opens elsewhere as the screen it was: the controls, the swi
   );
   await expect(
     icon(other, "Colours of the tension"),
-  ).toHaveAccessibleDescription("heat");
+  ).toHaveAccessibleDescription("tension · heat");
   await expect(icon(other, "Resume")).toBeVisible();
   await expect(icon(other, "Number of masses")).toHaveAccessibleDescription(
     "n = 8",

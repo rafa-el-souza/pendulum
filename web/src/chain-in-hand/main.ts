@@ -471,11 +471,10 @@ function play({ canvas, gl }: Stage): void {
 
   /** A control gone from `before` to `next`. */
   function changed(parameter: Parameter, next: number, before: number): void {
-    // the tension's colours, one control in the row: off, or a scale, which
-    // paints the tension in it (decision 53)
+    // the tension's colours, one control in the row, on or off, with their
+    // palette in its sheet (decisions 53 and 105)
     if (parameter === TENSION) {
-      if (next !== TENSION.initial) drawing.paintTension(next);
-      setTensionShown(next !== TENSION.initial);
+      setTensionShown(next === 1);
       return;
     }
     const chooses = choosesStart(parameter, values);

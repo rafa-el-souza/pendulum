@@ -294,10 +294,11 @@ export function mountRow(settings: Settings, hooks: RowHooks): Row {
   function show(event: PieceEvent): void {
     if (event.kind === "value") {
       const { parameter, value } = event;
-      // the scale shows in the tension's colours, one control (decision
-      // 53), and the white in the palette's (decision 61)
+      // the palette shows in the tension's colours, one control with the
+      // switch (decisions 53 and 105), and the white in the twins' palette's
+      // (decision 61)
       if (parameter === TENSION || parameter === SCALE) {
-        controls.showValue(TENSION.id, settings.tensionAt());
+        showTension();
       } else if (parameter !== WHITE) {
         controls.showValue(parameter.id, value);
       }
@@ -310,7 +311,7 @@ export function mountRow(settings: Settings, hooks: RowHooks): Row {
     } else if (event.kind === "switch") {
       if (event.id === "light") showLight();
       else if (event.id === "tension") {
-        controls.showValue(TENSION.id, settings.tensionAt());
+        showTension();
       } else {
         // its button in the screen's group says whether it is on (decision 54)
         controls.showAction(
@@ -353,6 +354,13 @@ export function mountRow(settings: Settings, hooks: RowHooks): Row {
   function takeAll(events: readonly PieceEvent[]): void {
     for (const event of events) taken(event);
     if (events.some(changesAddress)) keepAddress();
+  }
+
+  /** The tension's colours, on or off, and their palette, in their one sheet (decision 105). */
+  function showTension(): void {
+    controls.showValue(TENSION.id, settings.tensionAt(), {
+      cell: settings.value(SCALE),
+    });
   }
 
   /** A control stepped down (-1) or up (1), by its − and + or its keys: its events, then the address. */
@@ -533,6 +541,10 @@ export function mountRow(settings: Settings, hooks: RowHooks): Row {
     ],
     {
       step,
+      // a value chosen in one touch, in a sheet (decision 105)
+      set(parameter, value) {
+        takeAll(settings.set(parameter, value));
+      },
       act(id) {
         if (id === "light" || id === "sketch") {
           take({ kind: "switch", id, on: !settings.on(id) });
@@ -575,7 +587,7 @@ export function mountRow(settings: Settings, hooks: RowHooks): Row {
   };
   // the switches as the address asks for them
   showLight();
-  controls.showValue(TENSION.id, settings.tensionAt());
+  showTension();
   showSave();
   showTitle();
   // the button shows for a moment as the piece opens, so that it is found

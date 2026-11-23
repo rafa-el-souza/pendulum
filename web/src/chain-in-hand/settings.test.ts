@@ -12,6 +12,7 @@ import {
   MODE,
   MUSIC_MODE,
   MUSIC_STRENGTH,
+  PALETTE,
   SCALE,
   TENSION,
   TRAIL,
@@ -44,6 +45,44 @@ function moment(n: number): Saved {
     savedAt: Date.UTC(2026, 10, 21, 23, 50),
   };
 }
+
+describe("the piece's events from a value chosen in one touch, in a sheet (decision 105)", () => {
+  it("take the control to the value, saying the one it had", () => {
+    const jellyfish = paletteNamed("jellyfish");
+    expect(opened().set(PALETTE, jellyfish)).toEqual([
+      { kind: "value", parameter: PALETTE, value: jellyfish, was: 0 },
+    ]);
+  });
+
+  it("light the twins and the trails again after a palette of theirs, while they are out, as a step would (decision 27)", () => {
+    expect(opened("?light=0").set(PALETTE, 3)).toEqual([
+      { kind: "value", parameter: PALETTE, value: 3, was: 0 },
+      { kind: "switch", id: "light", on: true },
+    ]);
+  });
+
+  it("turn the tension's colours on with a palette chosen for them while they are off, and only then (decision 41)", () => {
+    const heat = paletteNamed("heat");
+    const copper = paletteNamed("copper");
+    expect(opened().set(SCALE, copper)).toEqual([
+      { kind: "value", parameter: SCALE, value: copper, was: heat },
+      { kind: "switch", id: "tension", on: true },
+    ]);
+    expect(opened("?tension=1").set(SCALE, copper)).toHaveLength(1);
+  });
+
+  it("put the tension's colours on and off by the words of its sheet", () => {
+    const settings = opened();
+    const events = settings.set(TENSION, 1);
+    expect(events).toEqual([
+      { kind: "value", parameter: TENSION, value: 1, was: 0 },
+    ]);
+    for (const event of events) settings.apply(event);
+    expect(settings.on("tension")).toBe(true);
+    for (const event of settings.set(TENSION, 0)) settings.apply(event);
+    expect(settings.on("tension")).toBe(false);
+  });
+});
 
 describe("the piece's events from a control stepped (decision 88)", () => {
   it("say the value asked for and the one the control had", () => {
@@ -81,38 +120,18 @@ describe("the piece's events from a control stepped (decision 88)", () => {
     expect(opened("?tension=1").step(SCALE, 1)).toHaveLength(1);
   });
 
-  it("step the tension's colours, one control, through off and each palette, which the settings keep apart (decision 53), coming on either way in the palette kept, heat as the piece opens (decision 104)", () => {
-    const heat = paletteNamed("heat");
-    const settings = opened();
+  it("step the tension's colours, one control, between the chain's own colour and the tension, the switch the address keeps, which comes on in the palette kept (decisions 53 and 105)", () => {
+    const settings = opened("?scale=nebula");
+    expect(settings.tensionAt()).toBe(0);
     const [on] = settings.step(TENSION, 1);
-    expect(on).toEqual({
-      kind: "value",
-      parameter: TENSION,
-      value: heat,
-      was: -1,
-    });
-    expect(opened().step(TENSION, -1)).toEqual([
-      { kind: "value", parameter: TENSION, value: heat, was: -1 },
-    ]);
+    expect(on).toEqual({ kind: "value", parameter: TENSION, value: 1, was: 0 });
     if (on !== undefined) settings.apply(on);
     expect(settings.on("tension")).toBe(true);
-    expect(settings.value(SCALE)).toBe(heat);
-    for (const event of settings.step(TENSION, 1)) settings.apply(event);
-    expect(settings.tensionAt()).toBe(heat + 1);
-    // switched off by its key, the palette stays for when they come on again
-    const nebula = paletteNamed("nebula");
-    const back = opened("?tension=1&scale=nebula");
-    back.apply({ kind: "switch", id: "tension", on: false });
-    expect(back.value(SCALE)).toBe(nebula);
-    expect(back.tensionAt()).toBe(TENSION.initial);
-    expect(back.step(TENSION, 1)).toEqual([
-      { kind: "value", parameter: TENSION, value: nebula, was: -1 },
-    ]);
-    // and stepped down from the first palette, they go off, keeping it
-    const down = opened("?tension=1&scale=dusk");
-    for (const event of down.step(TENSION, -1)) down.apply(event);
-    expect(down.on("tension")).toBe(false);
-    expect(down.value(SCALE)).toBe(0);
+    expect(settings.tensionAt()).toBe(1);
+    expect(settings.value(SCALE)).toBe(paletteNamed("nebula"));
+    for (const event of settings.step(TENSION, -1)) settings.apply(event);
+    expect(settings.on("tension")).toBe(false);
+    expect(settings.value(SCALE)).toBe(paletteNamed("nebula"));
   });
 
   it("step the music's mode round the modes, and its strength between its ends (decision 76)", () => {

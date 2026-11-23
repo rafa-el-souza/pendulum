@@ -49,6 +49,29 @@ export interface Parameter {
   readonly swatches?: (value: number) => readonly Rgb[];
   /** For a parameter the address writes in words, as a palette by its name (decision 104). */
   readonly written?: Written;
+  /**
+   * For a parameter whose values are all in sight at once, each chosen in one
+   * touch, as the palettes: a sheet of their colours, in place of its − and +
+   * (decision 105).
+   */
+  readonly sheet?: Sheet;
+}
+
+/**
+ * A sheet of colours to choose from in one touch (decision 105). Its cells
+ * are a parameter's values, each drawn as a strip of its colours: the
+ * parameter's own, or another's, as the tension's palettes under the words
+ * of whether it is shown, which are then the parameter's own values.
+ */
+export interface Sheet {
+  /** How many cells to a line, where the screen has room. */
+  readonly columns: number;
+  /** The parameter whose values the cells are, when they are not the parameter's own. */
+  readonly cells?: Parameter;
+  /** A cell's colours, from one end of its strip to the other. */
+  readonly strip: (cell: number) => readonly Rgb[];
+  /** The words for a value and the cell chosen, at the sheet's head and for a screen reader, where they are not the value's own. */
+  readonly words?: (value: number, cell: number) => string;
 }
 
 /**
